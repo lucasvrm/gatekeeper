@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ValidationRun {
+  id              String   @id @default(cuid())
+  projectPath     String
+  baseRef         String   @default("HEAD~1")
+  targetRef       String   @default("HEAD")
+  taskPrompt      String
+  manifestJson    String?
+  testFilePath    String?
+  dangerMode      Boolean  @default(false)
+  status          String   @default("PENDING")
+  currentGate     Int      @default(0)
+  passed          Boolean  @default(false)
+  failedAt        Int?
+  summary         String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  gateResults      GateResult[]
+  validatorResults ValidatorResult[]
+  logs             ValidationLog[]
+  manifestFiles    ManifestFile[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([projectPath])
+}
+
+model GateResult {
+  id              String    @id @default(cuid())
+  runId           String
+  run             ValidationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  gateNumber      Int
+  gateName        String
+  status          String    @default("PENDING")
+  passed          Boolean   @default(false)
+  totalValidators Int       @default(0)
+  passedCount     Int       @default(0)
+  failedCount     Int       @default(0)
+  warningCount    Int       @default(0)
+  skippedCount    Int       @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  durationMs      Int?
+  createdAt       DateTime  @default(now())
+
+  @@unique([runId, gateNumber])
+  @@index([gateNumber])
+  @@index([status])
+}
+
+model ValidatorResult {
+  id             String    @id @default(cuid())
+  runId          String
+  run            ValidationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  gateNumber     Int
+  validatorCode  String
+  validatorName  String
+  validatorOrder Int
+  status         String    @default("PENDING")
+  passed         Boolean   @default(false)
+  isHardBlock    Boolean   @default(true)
+  message        String?
+  details        String?
+  evidence       String?
+  metrics        String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  durationMs     Int?
+  createdAt      DateTime  @default(now())
+
+  @@unique([runId, validatorCode])
+  @@index([gateNumber])
+  @@index([validatorCode])
+  @@index([status])
+}
+
+model ValidationLog {
+  id         String   @id @default(cuid())
+  runId      String
+  run        ValidationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  level      String
+  source     String
+  message    String
+  gateNumber Int?
+  validator  String?
+  metadata   String?
+  stackTrace String?
+  timestamp  DateTime @default(now())
+
+  @@index([runId])
+  @@index([level])
+  @@index([timestamp])
+}
+
+model ManifestFile {
+  id          String   @id @default(cuid())
+  runId       String
+  run         ValidationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  filePath    String
+  action      String
+  reason      String?
+  wasModified Boolean  @default(false)
+  inDiff      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([runId, filePath])
+  @@index([runId])
+}
+
+model SensitiveFileRule {
+  id          String   @id @default(cuid())
+  pattern     String   @unique
+  category    String
+  severity    String   @default("BLOCK")
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AmbiguousTerm {
+  id         String   @id @default(cuid())
+  term       String   @unique
+  category   String
+  suggestion String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model ValidationConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  type        String   @default("NUMBER")
+  category    String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
