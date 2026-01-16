@@ -3,12 +3,21 @@ export type ValidatorStatus = "PENDING" | "RUNNING" | "PASSED" | "FAILED" | "WAR
 
 export interface Run {
   id: string
+  outputId: string
   projectPath: string
+  baseRef: string
+  targetRef: string
   taskPrompt?: string
+  manifestJson: string
+  testFilePath: string
+  dangerMode: boolean
+  runType: 'CONTRACT' | 'EXECUTION'
+  contractRunId?: string
   status: RunStatus
   currentGate: number
   passed?: boolean
   failedAt?: number
+  failedValidatorCode?: string | null
   createdAt: string
   updatedAt?: string
 }
@@ -87,18 +96,34 @@ export interface ValidationManifest {
   testFile: string
 }
 
+export interface LLMPlanOutput {
+  outputId: string
+  projectPath: string
+  baseRef: string
+  targetRef: string
+  taskPrompt: string
+  testFilePath: string
+  dangerMode: boolean
+  manifest: ValidationManifest
+}
+
 export interface CreateRunRequest {
+  outputId: string
   projectPath: string
   taskPrompt: string
-  manifest?: ValidationManifest
-  testFilePath?: string
+  manifest: ValidationManifest
+  testFilePath: string
+  testFileContent?: string
   baseRef?: string
   targetRef?: string
   dangerMode?: boolean
+  runType?: 'CONTRACT' | 'EXECUTION'
+  contractRunId?: string
 }
 
 export interface CreateRunResponse {
   runId: string
+  outputId: string
   status: RunStatus
   createdAt: string
 }

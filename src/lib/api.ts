@@ -10,7 +10,7 @@ import type {
   CreateRunResponse,
 } from "./types"
 
-const API_BASE = "http://localhost:3001/api"
+export const API_BASE = "http://localhost:3000/api"
 
 export const api = {
   runs: {
@@ -52,6 +52,12 @@ export const api = {
         body: JSON.stringify(data),
       })
       if (!response.ok) throw new Error("Failed to create run")
+      return response.json()
+    },
+
+    rerunGate: async (id: string, gateNumber: number): Promise<{ message: string; runId: string }> => {
+      const response = await fetch(`${API_BASE}/runs/${id}/rerun/${gateNumber}`, { method: "POST" })
+      if (!response.ok) throw new Error("Failed to rerun gate")
       return response.json()
     },
   },

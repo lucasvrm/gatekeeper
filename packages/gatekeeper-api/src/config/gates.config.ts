@@ -80,3 +80,6 @@ export const GATES_CONFIG: GateDefinition[] = [
     ],
   },
 ]
+
+export const CONTRACT_GATE_NUMBERS = [0, 1]
+export const EXECUTION_GATE_NUMBERS = [2, 3]

@@ -9,17 +9,23 @@ datasource db {
 
 model ValidationRun {
   id              String   @id @default(cuid())
+  outputId        String
   projectPath     String
-  baseRef         String   @default("HEAD~1")
+  baseRef         String   @default("origin/main")
   targetRef       String   @default("HEAD")
   taskPrompt      String
-  manifestJson    String?
-  testFilePath    String?
+  manifestJson    String
+  testFilePath    String
   dangerMode      Boolean  @default(false)
+  runType         String   @default("CONTRACT")
+  contractRunId   String?
+  contractRun     ValidationRun?  @relation("ExecutionToContract", fields: [contractRunId], references: [id])
+  executionRuns   ValidationRun[] @relation("ExecutionToContract")
   status          String   @default("PENDING")
   currentGate     Int      @default(0)
   passed          Boolean  @default(false)
   failedAt        Int?
+  failedValidatorCode String?
   summary         String?
   startedAt       DateTime?
   completedAt     DateTime?
@@ -34,6 +40,7 @@ model ValidationRun {
   @@index([status])
   @@index([createdAt])
   @@index([projectPath])
+  @@index([outputId])
 }
 
 model GateResult {

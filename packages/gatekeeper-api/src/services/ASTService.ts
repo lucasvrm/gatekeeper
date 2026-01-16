@@ -7,30 +7,28 @@ export class ASTService implements IASTService {
   constructor() {
     this.project = new Project({
       skipAddingFilesFromTsConfig: true,
+      compilerOptions: {
+        jsx: 2, // JsxEmit.React
+        allowJs: true,
+        noEmit: true,
+        skipLibCheck: true,
+        esModuleInterop: true,
+      },
     })
   }
 
   async parseFile(filePath: string): Promise<SourceFile> {
     const sourceFile = this.project.addSourceFileAtPath(filePath)
-    
-    const diagnostics = sourceFile.getPreEmitDiagnostics()
-    if (diagnostics.length > 0) {
-      const errors = diagnostics.map((d) => d.getMessageText().toString()).join('\n')
-      throw new Error(`Parse error in ${filePath}: ${errors}`)
-    }
-    
     return sourceFile
   }
 
   async getImports(filePath: string): Promise<string[]> {
     const sourceFile = await this.parseFile(filePath)
     const imports: string[] = []
-
     for (const importDeclaration of sourceFile.getImportDeclarations()) {
       const moduleSpecifier = importDeclaration.getModuleSpecifierValue()
       imports.push(moduleSpecifier)
     }
-
     return imports
   }
 }
