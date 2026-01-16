@@ -31,6 +31,9 @@ export interface GateResult {
   failedCount: number
   warningCount: number
   skippedCount: number
+  completedAt?: Date
+  startedAt?: Date
+  durationMs?: number
 }
 
 export interface ValidatorResult {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { ChangeEvent, DragEvent, KeyboardEvent } from "react"
 import { UploadSimple } from "@phosphor-icons/react"
 
@@ -39,20 +39,23 @@ export function FileDropZone({
   const inputRef = useRef<HTMLInputElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
-  const resetError = () => {
-    if (status === "error") {
-      setStatus("idle")
-      setErrorMessage(null)
-    }
-  }
+  const resetError = useCallback(() => {
+    setStatus((currentStatus) => {
+      if (currentStatus === "error") {
+        setErrorMessage(null)
+        return "idle"
+      }
+      return currentStatus
+    })
+  }, [])
 
-  const reportError = (message: string) => {
+  const reportError = useCallback((message: string) => {
     setStatus("error")
     setErrorMessage(message)
     onError(message)
-  }
+  }, [onError])
 
-  const processContent = (content: string, name: string) => {
+  const processContent = useCallback((content: string, name: string) => {
     if (!isAllowedExtension(name, accept)) {
       reportError(`File extension not allowed: ${name}`)
       return
@@ -62,9 +65,9 @@ export function FileDropZone({
     setStatus("loaded")
     setErrorMessage(null)
     onFileContent(content, name)
-  }
+  }, [accept, onFileContent, reportError])
 
-  const handleFile = (file: File) => {
+  const handleFile = useCallback((file: File) => {
     if (!isAllowedExtension(file.name, accept)) {
       reportError(`File extension not allowed: ${file.name}`)
       return
@@ -79,7 +82,7 @@ export function FileDropZone({
       reportError("Failed to read file")
     }
     reader.readAsText(file)
-  }
+  }, [accept, processContent, reportError])
 
   const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -164,7 +167,7 @@ export function FileDropZone({
     return () => {
       element.removeEventListener("paste", handlePaste)
     }
-  }, [accept])
+  }, [accept, handleFile, processContent, reportError, resetError])
 
   const borderClass = isDragging
     ? "border-primary bg-primary/5"

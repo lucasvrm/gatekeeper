@@ -86,7 +86,7 @@ export function NewValidationPage() {
         return
       }
       setPlanData(parsed)
-    } catch (parseError) {
+    } catch {
       setPlanData(null)
       setError("JSON invalido: falha ao interpretar")
     }

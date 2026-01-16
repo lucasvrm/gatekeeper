@@ -1,6 +1,6 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
 import { readFileSync, existsSync } from 'fs'
-import { resolve, dirname, join } from 'path'
+import { resolve, dirname } from 'path'
 
 // Node.js built-in modules (não precisam estar em package.json)
 const NODE_BUILTIN_MODULES = [

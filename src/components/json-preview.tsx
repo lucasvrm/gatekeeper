@@ -36,7 +36,7 @@ export function JsonPreview({ data }: JsonPreviewProps) {
     })
   }
 
-  const manifestFiles = data?.manifest?.files ?? []
+  const manifestFiles = useMemo(() => data?.manifest?.files ?? [], [data])
   const shouldCollapseFiles = manifestFiles.length > 6
   const isFilesCollapsed = collapsedSections.has("manifest.files")
   const filesToShow = useMemo(() => {
