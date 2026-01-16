@@ -30,7 +30,7 @@ export const StrictCompilationValidator: ValidatorDefinition = {
         status: 'PASSED',
         message: 'TypeScript compilation successful',
         metrics: {
-          compiled: true,
+          compiled: 1,
         },
       }
     } catch (error) {

@@ -156,7 +156,7 @@ export class RunsController {
       data: {
         status: 'PENDING',
         currentGate: firstGate,
-        passed: null,
+        passed: false,
         failedAt: null,
         failedValidatorCode: null,
         startedAt: null,

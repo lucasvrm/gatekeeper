@@ -21,7 +21,7 @@ export class TestRunnerService implements ITestRunnerService {
 
       return {
         passed: result.exitCode === 0,
-        exitCode: result.exitCode,
+        exitCode: result.exitCode ?? -1,
         output: result.stdout + result.stderr,
         duration,
       }
@@ -51,7 +51,7 @@ export class TestRunnerService implements ITestRunnerService {
 
       return {
         passed: result.exitCode === 0,
-        exitCode: result.exitCode,
+        exitCode: result.exitCode ?? -1,
         output: result.stdout + result.stderr,
         duration,
       }

@@ -41,8 +41,21 @@ export function RunPanel({
 }: RunPanelProps) {
   const [taskPromptOpen, setTaskPromptOpen] = useState(true)
   const [expandedGates, setExpandedGates] = useState<Set<number>>(
-    new Set(run.runType === 'CONTRACT' ? [0] : [2])
+    new Set(
+      run.runType === 'CONTRACT'
+        ? [0]
+        : run.runType === 'EXECUTION'
+        ? [2]
+        : [run.gateResults[0]?.gateNumber ?? 0]
+    )
   )
+
+  const normalizeStatus = (status: string, passed?: boolean | null) => {
+    if (status === "COMPLETED") {
+      return passed ? "PASSED" : "FAILED"
+    }
+    return status
+  }
 
   const toggleGate = (gateNumber: number) => {
     setExpandedGates((prev) => {
@@ -74,7 +87,11 @@ export function RunPanel({
   const canAbort = run.status === "PENDING" || run.status === "RUNNING"
   const canStartExecution = run.status === "PASSED" && run.runType === "CONTRACT"
 
-  const gatesToShow = run.runType === 'CONTRACT' ? [0, 1] : [2, 3]
+  const gatesToShow = run.runType === 'CONTRACT'
+    ? [0, 1]
+    : run.runType === 'EXECUTION'
+    ? [2, 3]
+    : run.gateResults.map((gate) => gate.gateNumber)
 
   return (
     <div className="space-y-4">
@@ -84,7 +101,7 @@ export function RunPanel({
             <h2 className={cn("font-bold font-mono", compact ? "text-lg" : "text-2xl")}>
               {run.runType === 'CONTRACT' ? 'Contrato' : 'Execução'}
             </h2>
-            <StatusBadge status={run.status} />
+            <StatusBadge status={normalizeStatus(run.status, run.passed) as RunWithResults["status"]} />
           </div>
           <p className="text-xs text-muted-foreground mt-1 font-mono">{run.id.substring(0, 12)}</p>
         </div>
@@ -167,7 +184,11 @@ export function RunPanel({
                         : "bg-muted border-muted-foreground text-muted-foreground"
                     )}
                   >
-                    {gateNum}
+                  {gateResult?.status !== 'PENDING' && gateResult?.completedAt ? (
+                    gateResult.passed ? '✅' : '❌'
+                  ) : (
+                    gateNum
+                  )}
                   </div>
                   <p className="text-[10px] mt-1 text-muted-foreground font-medium text-center">
                     {gateResult?.gateName || `Gate ${gateNum}`}
@@ -190,7 +211,7 @@ export function RunPanel({
           {run.gateResults
             .filter((g) => gatesToShow.includes(g.gateNumber))
             .map((gate) => {
-              const validators = run.validatorResults.filter(
+              const validators = (run.validatorResults ?? []).filter(
                 (v) => v.gateNumber === gate.gateNumber
               )
               const isExpanded = expandedGates.has(gate.gateNumber)
@@ -239,7 +260,9 @@ export function RunPanel({
                           <ArrowClockwise className="w-3 h-3" />
                         </Button>
                       )}
-                      <StatusBadge status={gate.status} />
+                      <StatusBadge
+                        status={normalizeStatus(gate.status, gate.passed) as RunWithResults["status"]}
+                      />
                     </div>
                   </div>
 

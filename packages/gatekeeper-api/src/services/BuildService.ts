@@ -17,7 +17,7 @@ export class BuildService implements IBuildService {
 
       return {
         success: result.exitCode === 0,
-        exitCode: result.exitCode,
+        exitCode: result.exitCode ?? -1,
         output: result.stdout + result.stderr,
       }
     } catch (error) {

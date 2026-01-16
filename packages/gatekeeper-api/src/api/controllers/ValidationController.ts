@@ -23,8 +23,8 @@ const sanitizeOutputId = (outputId: string): string => {
   return outputId.replace(/\.\./g, '').replace(/[\\/ ]/g, '')
 }
 
-const saveTestFile = async (outputId: string, fileName: string, content: string): Promise<string> => {
-  const artifactsDir = join(process.cwd(), 'artifacts', outputId)
+const saveTestFile = async (projectPath: string, outputId: string, fileName: string, content: string): Promise<string> => {
+  const artifactsDir = join(projectPath, 'artifacts', outputId)
   const filePath = join(artifactsDir, fileName)
   await writeFile(filePath, content, 'utf8')
   return filePath
@@ -86,7 +86,7 @@ export class ValidationController {
         }
       }
 
-      const artifactsDir = join(process.cwd(), 'artifacts', sanitizedOutputId)
+      const artifactsDir = join(data.projectPath, 'artifacts', sanitizedOutputId)
       await mkdir(artifactsDir, { recursive: true })
 
       if (data.testFileContent) {
@@ -96,7 +96,7 @@ export class ValidationController {
             return
           }
 
-          await saveTestFile(sanitizedOutputId, testFileName, data.testFileContent)
+          await saveTestFile(data.projectPath, sanitizedOutputId, testFileName, data.testFileContent)
         } catch (error) {
           res.status(500).json({
             error: 'Failed to save test file',
@@ -189,3 +189,6 @@ export class ValidationController {
     res.json(updated)
   }
 }
+
+
+

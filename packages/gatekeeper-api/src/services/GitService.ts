@@ -1,4 +1,4 @@
-import simpleGit, { SimpleGit } from 'simple-git'
+import { simpleGit, SimpleGit } from 'simple-git'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import type { GitService as IGitService } from '../types/index.js'
