@@ -25,8 +25,9 @@ router.get('/runs/:id/events', (req, res) => {
       const data = `data: ${JSON.stringify(event)}\n\n`
       res.write(data)
       // Force flush - some environments buffer the response
-      if (typeof (res as any).flush === 'function') {
-        (res as any).flush()
+      const resWithFlush = res as unknown as { flush?: () => void }
+      if (typeof resWithFlush.flush === 'function') {
+        resWithFlush.flush()
       }
     }
   }

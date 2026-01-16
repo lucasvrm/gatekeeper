@@ -14,6 +14,7 @@ import { ValidationRunRepository } from '../repositories/ValidationRunRepository
 import { GateResultRepository } from '../repositories/GateResultRepository.js'
 import { ValidatorResultRepository } from '../repositories/ValidatorResultRepository.js'
 import { RunEventService } from './RunEventService.js'
+import type { ValidationRun } from '@prisma/client'
 
 export class ValidationOrchestrator {
   private queue: PQueue
@@ -196,12 +197,12 @@ export class ValidationOrchestrator {
     return { passed: gatePassed, failedValidatorCode }
   }
 
-  private async buildContext(run: any): Promise<ValidationContext> {
+  private async buildContext(run: ValidationRun): Promise<ValidationContext> {
     const config = await prisma.validationConfig.findMany()
     const configMap = new Map<string, string>()
     
     for (const item of config) {
-      let value = item.value
+      const value = item.value
       
       if (item.type === 'NUMBER') {
         const parsed = parseFloat(item.value)

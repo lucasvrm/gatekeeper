@@ -60,7 +60,7 @@ export interface GitService {
 }
 
 export interface ASTService {
-  parseFile(filePath: string): Promise<any>
+  parseFile(filePath: string): Promise<unknown>
   getImports(filePath: string): Promise<string[]>
 }
 

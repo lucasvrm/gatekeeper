@@ -2,16 +2,6 @@ import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '..
 import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname, join } from 'path'
 
-// Node.js built-in modules (não precisam estar em package.json)
-const NODE_BUILTIN_MODULES = [
-  'assert', 'buffer', 'child_process', 'cluster', 'crypto', 'dgram', 'dns',
-  'domain', 'events', 'fs', 'http', 'https', 'net', 'os', 'path', 'punycode',
-  'querystring', 'readline', 'repl', 'stream', 'string_decoder', 'timers',
-  'tls', 'tty', 'url', 'util', 'v8', 'vm', 'zlib', 'perf_hooks', 'async_hooks',
-  'http2', 'inspector', 'worker_threads', 'trace_events', 'process'
-]
-
-
 export const ImportRealityCheckValidator: ValidatorDefinition = {
   code: 'IMPORT_REALITY_CHECK',
   name: 'Import Reality Check',
@@ -30,8 +20,7 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
     }
 
     try {
-        const absoluteTestPath = resolve(ctx.projectPath, ctx.testFilePath)
-      const imports = await ctx.services.ast.getImports(absoluteTestPath)
+      const imports = await ctx.services.ast.getImports(ctx.testFilePath)
       
       const invalidImports: Array<{path: string, reason: string}> = []
       const testFileDir = dirname(resolve(ctx.projectPath, ctx.testFilePath))
@@ -78,16 +67,7 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
                 ? importPath.split('/').slice(0, 2).join('/')
                 : importPath.split('/')[0]
               
-              // Verificar se é módulo built-in do Node.js
-
-              
-              if (NODE_BUILTIN_MODULES.includes(packageName) || packageName.startsWith('node:')) {
-
-              
-                // Módulo built-in, não precisa estar em package.json
-
-              
-              } else if (!allDeps[packageName]) {
+              if (!allDeps[packageName]) {
                 invalidImports.push({
                   path: importPath,
                   reason: `Package "${packageName}" not found in dependencies`,

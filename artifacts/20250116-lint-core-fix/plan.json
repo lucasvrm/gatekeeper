@@ -1,0 +1,34 @@
+{
+  "outputId": "20250116-lint-core-fix",
+  "projectPath": "C:\\Coding\\gatekeeper\\",
+  "baseRef": "origin/main",
+  "targetRef": "LLM/20250116-lint-core-fix",
+  "taskPrompt": "Corrigir erro prefer-const em ValidationOrchestrator.ts linha 204 alterando 'let value' para 'const value'. Substituir tipo any por ValidationRun importado de @prisma/client em ValidationOrchestrator.ts linha 198. Substituir tipo any por unknown em errorHandler.ts linha 4 no campo details da interface AppError. Adicionar underscore prefix em parâmetro next não usado em errorHandler.ts linha 11. Substituir tipo any por unknown em runs.routes.ts linhas 28 e 29 nos type assertions para flush. Substituir tipo any por unknown em gates.types.ts linha 62 no retorno de parseFile da interface ASTService.",
+  "testFilePath": "C:\\Coding\\gatekeeper\\artifacts\\20250116-lint-core-fix\\lint-core-fixes.spec.tsx",
+  "dangerMode": false,
+  "manifest": {
+    "testFile": "artifacts\\20250116-lint-core-fix\\lint-core-fixes.spec.tsx",
+    "files": [
+      {
+        "path": "packages\\gatekeeper-api\\src\\services\\ValidationOrchestrator.ts",
+        "action": "MODIFY",
+        "reason": "Corrigir erro prefer-const linha 204 (let→const) e warning no-explicit-any linha 198 (any→ValidationRun)"
+      },
+      {
+        "path": "packages\\gatekeeper-api\\src\\api\\middlewares\\errorHandler.ts",
+        "action": "MODIFY",
+        "reason": "Substituir any por unknown na interface AppError linha 4 e adicionar underscore em parâmetro next não usado linha 11"
+      },
+      {
+        "path": "packages\\gatekeeper-api\\src\\api\\routes\\runs.routes.ts",
+        "action": "MODIFY",
+        "reason": "Substituir as any por as unknown nas linhas 28 e 29 para type assertion de flush"
+      },
+      {
+        "path": "packages\\gatekeeper-api\\src\\types\\gates.types.ts",
+        "action": "MODIFY",
+        "reason": "Substituir Promise<any> por Promise<unknown> na linha 62 do método parseFile da interface ASTService"
+      }
+    ]
+  }
+}
