@@ -1,6 +1,6 @@
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
-import { GATES_CONFIG } from '../config/gates.config.js'
+import { GATES_CONFIG, CONTRACT_GATE_NUMBERS, EXECUTION_GATE_NUMBERS } from '../config/gates.config.js'
 import type { ValidationContext, GateDefinition, ManifestInput } from '../types/index.js'
 import { GitService } from './GitService.js'
 import { ASTService } from './ASTService.js'
@@ -13,6 +13,7 @@ import { LogService } from './LogService.js'
 import { ValidationRunRepository } from '../repositories/ValidationRunRepository.js'
 import { GateResultRepository } from '../repositories/GateResultRepository.js'
 import { ValidatorResultRepository } from '../repositories/ValidatorResultRepository.js'
+import { RunEventService } from './RunEventService.js'
 
 export class ValidationOrchestrator {
   private queue: PQueue
@@ -28,6 +29,7 @@ export class ValidationOrchestrator {
   }
 
   async executeRun(runId: string): Promise<void> {
+    console.log('>>> executeRun CALLED with runId:', runId)
     const run = await this.runRepository.findById(runId)
     if (!run) {
       throw new Error(`Run ${runId} not found`)
@@ -37,10 +39,16 @@ export class ValidationOrchestrator {
       status: 'RUNNING',
       startedAt: new Date(),
     })
+    RunEventService.emitRunStatus(runId, 'RUNNING')
 
     const ctx = await this.buildContext(run)
 
-    for (const gate of GATES_CONFIG) {
+    const allowedGates = run.runType === 'EXECUTION'
+      ? EXECUTION_GATE_NUMBERS
+      : CONTRACT_GATE_NUMBERS
+    const gatesToRun = GATES_CONFIG.filter(g => allowedGates.includes(g.number))
+
+    for (const gate of gatesToRun) {
       await this.runRepository.update(runId, {
         currentGate: gate.number,
       })
@@ -52,7 +60,12 @@ export class ValidationOrchestrator {
           status: 'FAILED',
           passed: false,
           failedAt: gate.number,
+          failedValidatorCode: gateResult.failedValidatorCode || null,
           completedAt: new Date(),
+        })
+        RunEventService.emitRunStatus(runId, 'FAILED', {
+          failedAt: gate.number,
+          failedValidatorCode: gateResult.failedValidatorCode || null,
         })
         return
       }
@@ -63,13 +76,14 @@ export class ValidationOrchestrator {
       passed: true,
       completedAt: new Date(),
     })
+    RunEventService.emitRunStatus(runId, 'PASSED')
   }
 
   private async executeGate(
     runId: string,
     gate: GateDefinition,
     ctx: ValidationContext
-  ): Promise<{ passed: boolean }> {
+  ): Promise<{ passed: boolean; failedValidatorCode: string | null }> {
     const gateResult = await this.gateRepository.create({
       run: { connect: { id: runId } },
       gateNumber: gate.number,
@@ -84,6 +98,7 @@ export class ValidationOrchestrator {
     let warningCount = 0
     let skippedCount = 0
     let gatePassed = true
+    let failedValidatorCode: string | null = null
 
     for (const validator of gate.validators) {
       const startTime = Date.now()
@@ -109,6 +124,7 @@ export class ValidationOrchestrator {
           completedAt: new Date(),
           durationMs: duration,
         })
+        RunEventService.emitValidatorComplete(runId, gate.number, validator.code, result.status, result.passed)
 
         switch (result.status) {
           case 'PASSED':
@@ -118,6 +134,9 @@ export class ValidationOrchestrator {
             failedCount++
             if (validator.isHardBlock) {
               gatePassed = false
+              if (!failedValidatorCode) {
+                failedValidatorCode = validator.code
+              }
             }
             break
           case 'WARNING':
@@ -146,10 +165,14 @@ export class ValidationOrchestrator {
           message: `Validator execution error: ${error instanceof Error ? error.message : String(error)}`,
           durationMs: duration,
         })
+        RunEventService.emitValidatorComplete(runId, gate.number, validator.code, 'FAILED', false)
 
         failedCount++
         if (validator.isHardBlock) {
           gatePassed = false
+          if (!failedValidatorCode) {
+            failedValidatorCode = validator.code
+          }
           break
         }
       }
@@ -168,8 +191,9 @@ export class ValidationOrchestrator {
       completedAt,
       durationMs,
     })
+    RunEventService.emitGateComplete(runId, gate.number, gatePassed, gate.name)
 
-    return { passed: gatePassed }
+    return { passed: gatePassed, failedValidatorCode }
   }
 
   private async buildContext(run: any): Promise<ValidationContext> {

@@ -1,0 +1,54 @@
+{
+  "outputId": "20260116-runs-ui-improvements",
+  "projectPath": "C:\\Coding\\gatekeeper\\",
+  "baseRef": "origin/main",
+  "targetRef": "claude/20260116-runs-ui-improvements",
+  "taskPrompt": "Adicionar checkbox de select all no header da tabela em runs-list-page.tsx para selecionar todas as runs. Adicionar hover nos botões de ação com fundo branco e ícone branco em runs-list-page.tsx e run-details-page.tsx. Adicionar botão de rerun por gate em run-panel.tsx permitindo reexecutar um gate específico. Traduzir strings em runs-list-page.tsx: Validation Runs para Runs de Validação, View and manage all validation runs para Ver e gerenciar todas as runs de validação, Project Path para Path do Projeto, Rejected By para Rejeitado Por, Created At para Criado Em, Actions para Ações, Delete Selected para Deletar Selecionados, Filter by Status para Filtrar por Status, All Statuses para Todos Status, Pending para Pendente, Passed para Aprovado, Failed para Rejeitado, Aborted para Cancelado. Traduzir strings em run-details-page.tsx: Back para Voltar. Traduzir strings em new-validation-page.tsx: Back to Runs para Voltar para Runs. Traduzir strings em app-layout.tsx: Validation Dashboard para Dashboard de Validações. Traduzir strings em run-panel.tsx: Task Prompt para Prompt da Tarefa e definir taskPromptOpen como true por default.",
+  "testFilePath": "C:\\Coding\\gatekeeper\\artifacts\\20260116-runs-ui-improvements\\RunsUIImprovements.spec.tsx",
+  "dangerMode": false,
+  "manifest": {
+    "testFile": "artifacts\\20260116-runs-ui-improvements\\RunsUIImprovements.spec.tsx",
+    "files": [
+      {
+        "path": "src/components/runs-list-page.tsx",
+        "action": "MODIFY",
+        "reason": "Adicionar checkbox select all no header e traduzir strings para português"
+      },
+      {
+        "path": "src/components/run-details-page.tsx",
+        "action": "MODIFY",
+        "reason": "Traduzir Back para Voltar e corrigir hover dos botões"
+      },
+      {
+        "path": "src/components/run-panel.tsx",
+        "action": "MODIFY",
+        "reason": "Adicionar botão rerun por gate, traduzir Task Prompt e definir taskPromptOpen true por default"
+      },
+      {
+        "path": "src/components/app-layout.tsx",
+        "action": "MODIFY",
+        "reason": "Traduzir Validation Dashboard para Dashboard de Validações"
+      },
+      {
+        "path": "src/components/new-validation-page.tsx",
+        "action": "MODIFY",
+        "reason": "Traduzir Back to Runs para Voltar para Runs"
+      },
+      {
+        "path": "src/lib/api.ts",
+        "action": "MODIFY",
+        "reason": "Adicionar método rerunGate para chamar endpoint de reexecução"
+      },
+      {
+        "path": "packages/gatekeeper-api/src/api/controllers/RunsController.ts",
+        "action": "MODIFY",
+        "reason": "Adicionar método rerunGate para reexecutar gate específico"
+      },
+      {
+        "path": "packages/gatekeeper-api/src/api/routes/runs.routes.ts",
+        "action": "MODIFY",
+        "reason": "Adicionar rota POST /runs/:id/rerun/:gateNumber"
+      }
+    ]
+  }
+}

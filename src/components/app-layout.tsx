@@ -22,7 +22,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <h1 className="text-lg font-bold">Gatekeeper</h1>
-              <p className="text-xs text-muted-foreground">Validation Dashboard</p>
+              <p className="text-xs text-muted-foreground">Dashboard de Validações</p>
             </div>
           </div>
         </div>

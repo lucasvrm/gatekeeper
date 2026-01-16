@@ -26,24 +26,27 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
       const testFileDir = dirname(resolve(ctx.projectPath, ctx.testFilePath))
       
       for (const importPath of imports) {
-        if (importPath.startsWith('.') || importPath.startsWith('/')) {
+        if (importPath.startsWith('.') || importPath.startsWith('/') || importPath.startsWith('@/')) {
           let resolvedPath = importPath
           if (importPath.startsWith('.')) {
             resolvedPath = resolve(testFileDir, importPath)
+          } else if (importPath.startsWith('@/')) {
+            // @/ é path alias para src/
+            resolvedPath = resolve(ctx.projectPath, 'src', importPath.slice(2))
           } else {
             resolvedPath = resolve(ctx.projectPath, importPath.slice(1))
           }
-          
+
           const possibleExtensions = ['', '.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.tsx', '/index.js', '/index.jsx']
           let exists = false
-          
+
           for (const ext of possibleExtensions) {
             if (existsSync(resolvedPath + ext)) {
               exists = true
               break
             }
           }
-          
+
           if (!exists) {
             invalidImports.push({
               path: importPath,
