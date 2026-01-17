@@ -57,7 +57,10 @@ export class AgentsController {
   }
 
   async create(req: Request, res: Response): Promise<void> {
-    const { name, provider, model, apiKeyEnvVar, baseUrl, temperature, maxTokens, isDefault } = req.body
+    const {
+      name, provider, model, apiKeyEnvVar, baseUrl, temperature, maxTokens, isDefault,
+      projectPath, generatePlanJson, generateLog, generateTaskPrompt, generateSpecFile
+    } = req.body
 
     if (!name || typeof name !== 'string' || name.trim().length < 3) {
       res.status(400).json({ message: 'Name is required (min 3 chars)' })
@@ -103,6 +106,11 @@ export class AgentsController {
         isDefault: Boolean(isDefault),
         sortOrder: 0,
         systemPromptId: null,
+        projectPath: typeof projectPath === 'string' && projectPath.trim() ? projectPath.trim() : '.',
+        generatePlanJson: typeof generatePlanJson === 'boolean' ? generatePlanJson : true,
+        generateLog: typeof generateLog === 'boolean' ? generateLog : true,
+        generateTaskPrompt: typeof generateTaskPrompt === 'boolean' ? generateTaskPrompt : true,
+        generateSpecFile: typeof generateSpecFile === 'boolean' ? generateSpecFile : true,
       })
 
       if (created.isDefault) {
@@ -122,7 +130,10 @@ export class AgentsController {
 
   async update(req: Request, res: Response): Promise<void> {
     const { id } = req.params
-    const { name, provider, model, apiKeyEnvVar, baseUrl, temperature, maxTokens, isActive, isDefault } = req.body
+    const {
+      name, provider, model, apiKeyEnvVar, baseUrl, temperature, maxTokens, isActive, isDefault,
+      projectPath, generatePlanJson, generateLog, generateTaskPrompt, generateSpecFile
+    } = req.body
 
     const existing = await repository.findById(id)
     if (!existing) {
@@ -182,6 +193,26 @@ export class AgentsController {
 
     if (typeof isDefault === 'boolean') {
       data.isDefault = isDefault
+    }
+
+    if (typeof projectPath === 'string') {
+      data.projectPath = projectPath.trim() || '.'
+    }
+
+    if (typeof generatePlanJson === 'boolean') {
+      data.generatePlanJson = generatePlanJson
+    }
+
+    if (typeof generateLog === 'boolean') {
+      data.generateLog = generateLog
+    }
+
+    if (typeof generateTaskPrompt === 'boolean') {
+      data.generateTaskPrompt = generateTaskPrompt
+    }
+
+    if (typeof generateSpecFile === 'boolean') {
+      data.generateSpecFile = generateSpecFile
     }
 
     try {
