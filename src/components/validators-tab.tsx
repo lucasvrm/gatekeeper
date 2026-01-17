@@ -15,6 +15,30 @@ type ValidatorItem = {
   value: string
 }
 
+const VALIDATOR_DESCRIPTIONS: Record<string, string> = {
+  'TOKEN_BUDGET_FIT': 'Verifica se o tamanho do contexto (arquivos + prompt) cabe dentro do orçamento de tokens configurado',
+  'TASK_SCOPE_SIZE': 'Garante que a tarefa não envolva muitos arquivos além do limite permitido',
+  'TASK_CLARITY_CHECK': 'Valida se a descrição da tarefa é clara e não contém termos ambíguos',
+  'SENSITIVE_FILES_LOCK': 'Bloqueia alterações em arquivos sensíveis (env, migrations, secrets, CI/CD)',
+  'DANGER_MODE_EXPLICIT': 'Exige que danger mode seja explicitamente habilitado quando arquivos sensíveis são modificados',
+  'TEST_SYNTAX_VALID': 'Verifica se o arquivo de teste possui sintaxe válida e pode ser parseado',
+  'TEST_HAS_ASSERTIONS': 'Garante que o teste contenha pelo menos uma assertion (expect, assert, toBe, etc)',
+  'TEST_COVERS_HAPPY_AND_SAD_PATH': 'Valida se o teste cobre tanto casos de sucesso quanto casos de erro',
+  'TEST_FAILS_BEFORE_IMPLEMENTATION': 'Verifica se o teste falha antes da implementação (TDD red phase)',
+  'NO_DECORATIVE_TESTS': 'Bloqueia testes decorativos que apenas chamam código sem validar comportamento',
+  'MANIFEST_FILE_LOCK': 'Garante que apenas arquivos declarados no manifest sejam modificados',
+  'NO_IMPLICIT_FILES': 'Proíbe modificações em arquivos não listados explicitamente no manifest',
+  'IMPORT_REALITY_CHECK': 'Valida se os imports no código realmente existem e estão disponíveis',
+  'TEST_INTENT_ALIGNMENT': 'Verifica se o teste está alinhado com a intenção da tarefa descrita no prompt',
+  'DIFF_SCOPE_ENFORCEMENT': 'Garante que as mudanças no diff estão dentro do escopo declarado no manifest',
+  'TEST_READ_ONLY_ENFORCEMENT': 'Valida que o arquivo de teste não modifica estado global ou cria side-effects',
+  'TASK_TEST_PASSES': 'Executa o teste da tarefa e verifica se ele passa após a implementação',
+  'STRICT_COMPILATION': 'Compila o código em modo strict e verifica se não há erros de tipo',
+  'STYLE_CONSISTENCY_LINT': 'Executa linter para garantir consistência de estilo e boas práticas',
+  'FULL_REGRESSION_PASS': 'Executa toda a suíte de testes de regressão do projeto',
+  'PRODUCTION_BUILD_PASS': 'Realiza build de produção e verifica se não há erros de compilação',
+}
+
 interface ValidatorsTabProps {
   validators: ValidatorItem[]
   actionId: string | null
@@ -50,6 +74,7 @@ export function ValidatorsTab({
           <TableHeader>
             <TableRow>
               <TableHead className="text-xs uppercase tracking-wide">Validator</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Status</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Actions</TableHead>
             </TableRow>
@@ -57,9 +82,13 @@ export function ValidatorsTab({
           <TableBody>
             {validators.map((validator) => {
               const isActive = validator.value === "true"
+              const description = VALIDATOR_DESCRIPTIONS[validator.key] || 'Sem descrição disponível'
               return (
                 <TableRow key={validator.key}>
                   <TableCell className="font-medium">{validator.key}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-md">
+                    {description}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={isActive ? "default" : "secondary"}>
                       {isActive ? "Active" : "Inactive"}
