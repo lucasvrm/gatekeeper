@@ -1,84 +1,299 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
-import type { ConfigItem } from "@/lib/types"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
+import { ConfigSection } from "@/components/config-section"
+import { ValidatorsTab } from "@/components/validators-tab"
+import { type ConfigModalField } from "@/components/config-modal"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
-import { Check, X } from "@phosphor-icons/react"
+
+type SensitiveFileRule = {
+  id: string
+  pattern: string
+  category: string
+  severity: string
+  description?: string | null
+  isActive: boolean
+}
+
+type AmbiguousTerm = {
+  id: string
+  term: string
+  category: string
+  suggestion?: string | null
+  isActive: boolean
+}
+
+type ValidationConfigItem = {
+  id: string
+  key: string
+  value: string
+  type: string
+  category: string
+  description?: string | null
+}
+
+type ValidatorConfigItem = {
+  key: string
+  value: string
+}
+
+const sensitiveCreateFields: ConfigModalField[] = [
+  { name: "pattern", label: "Pattern", type: "text", required: true },
+  { name: "category", label: "Category", type: "text", required: true },
+  { name: "severity", label: "Severity", type: "text", required: true },
+  { name: "description", label: "Description", type: "textarea" },
+  { name: "isActive", label: "Active", type: "boolean" },
+]
+
+const sensitiveEditFields = sensitiveCreateFields
+
+const ambiguousCreateFields: ConfigModalField[] = [
+  { name: "term", label: "Term", type: "text", required: true },
+  { name: "category", label: "Category", type: "text", required: true },
+  { name: "suggestion", label: "Suggestion", type: "textarea" },
+  { name: "isActive", label: "Active", type: "boolean" },
+]
+
+const ambiguousEditFields = ambiguousCreateFields
+
+const validationCreateFields: ConfigModalField[] = [
+  { name: "key", label: "Key", type: "text", required: true },
+  { name: "value", label: "Value", type: "text", required: true },
+  { name: "type", label: "Type", type: "text", required: true },
+  { name: "category", label: "Category", type: "text", required: true },
+  { name: "description", label: "Description", type: "textarea" },
+]
+
+const validationEditFields = validationCreateFields
 
 export function ConfigPage() {
-  const [configs, setConfigs] = useState<ConfigItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingValues, setEditingValues] = useState<Record<string, string | number | boolean>>({})
-  const [saving, setSaving] = useState<Set<string>>(new Set())
+  const [validators, setValidators] = useState<ValidatorConfigItem[]>([])
+  const [sensitiveRules, setSensitiveRules] = useState<SensitiveFileRule[]>([])
+  const [ambiguousTerms, setAmbiguousTerms] = useState<AmbiguousTerm[]>([])
+  const [validationConfigs, setValidationConfigs] = useState<ValidationConfigItem[]>([])
+  const [validatorActionId, setValidatorActionId] = useState<string | null>(null)
 
   useEffect(() => {
-    const loadConfigs = async () => {
+    const loadAll = async () => {
       setLoading(true)
       try {
-        const data = await api.config.list()
-        setConfigs(data)
-        const initialValues: Record<string, string | number | boolean> = {}
-        data.forEach((config) => {
-          initialValues[config.key] = config.value
-        })
-        setEditingValues(initialValues)
+        const [validatorList, rules, terms, configs] = await Promise.all([
+          api.validators.list(),
+          api.configTables.sensitiveFileRules.list(),
+          api.configTables.ambiguousTerms.list(),
+          api.configTables.validationConfigs.list(),
+        ])
+        setValidators(validatorList)
+        setSensitiveRules(rules)
+        setAmbiguousTerms(terms)
+        setValidationConfigs(configs)
       } catch (error) {
-        console.error("Failed to load config:", error)
-        toast.error("Failed to load configuration")
+        console.error("Failed to load config data:", error)
+        toast.error("Failed to load configuration data")
       } finally {
         setLoading(false)
       }
     }
 
-    loadConfigs()
+    loadAll()
   }, [])
 
-  const handleSave = async (config: ConfigItem) => {
-    setSaving((prev) => new Set(prev).add(config.key))
+  const handleToggleValidator = async (name: string, isActive: boolean) => {
+    setValidatorActionId(name)
     try {
-      const value = editingValues[config.key]
-      await api.config.update(config.key, value)
-      setConfigs((prev) =>
-        prev.map((c) =>
-          c.key === config.key ? { ...c, value } : c
-        )
-      )
-      toast.success(`Updated ${config.key}`)
+      const updated = await api.validators.update(name, isActive)
+      setValidators((prev) => prev.map((item) => (item.key === name ? updated : item)))
+      toast.success("Validator updated")
     } catch (error) {
-      console.error("Failed to update config:", error)
-      toast.error(`Failed to update ${config.key}`)
+      console.error("Failed to update validator:", error)
+      toast.error("Failed to update validator")
     } finally {
-      setSaving((prev) => {
-        const next = new Set(prev)
-        next.delete(config.key)
-        return next
+      setValidatorActionId(null)
+    }
+  }
+
+  const activeValidators = validators.filter((validator) => validator.value === "true").length
+  const inactiveValidators = validators.length - activeValidators
+
+  const handleCreateSensitive = async (values: Record<string, string | boolean>) => {
+    try {
+      const created = await api.configTables.sensitiveFileRules.create({
+        pattern: String(values.pattern ?? ""),
+        category: String(values.category ?? ""),
+        severity: String(values.severity ?? ""),
+        description: typeof values.description === "string" ? values.description : undefined,
+        isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
       })
+      setSensitiveRules((prev) => [created, ...prev])
+      toast.success("Sensitive file rule created")
+      return true
+    } catch (error) {
+      console.error("Failed to create sensitive file rule:", error)
+      toast.error("Failed to create sensitive file rule")
+      return false
     }
   }
 
-  const hasChanged = (config: ConfigItem) => {
-    return editingValues[config.key] !== config.value
-  }
-
-  const handleReset = (config: ConfigItem) => {
-    setEditingValues((prev) => ({
-      ...prev,
-      [config.key]: config.value,
-    }))
-  }
-
-  const groupedConfigs = configs.reduce((acc, config) => {
-    if (!acc[config.category]) {
-      acc[config.category] = []
+  const handleUpdateSensitive = async (id: string, values: Record<string, string | boolean>) => {
+    try {
+      const updated = await api.configTables.sensitiveFileRules.update(id, {
+        pattern: String(values.pattern ?? ""),
+        category: String(values.category ?? ""),
+        severity: String(values.severity ?? ""),
+        description: typeof values.description === "string" ? values.description : null,
+        isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
+      })
+      setSensitiveRules((prev) => prev.map((item) => (item.id === id ? updated : item)))
+      toast.success("Sensitive file rule updated")
+      return true
+    } catch (error) {
+      console.error("Failed to update sensitive file rule:", error)
+      toast.error("Failed to update sensitive file rule")
+      return false
     }
-    acc[config.category].push(config)
-    return acc
-  }, {} as Record<string, ConfigItem[]>)
+  }
+
+  const handleDeleteSensitive = async (id: string) => {
+    try {
+      await api.configTables.sensitiveFileRules.delete(id)
+      setSensitiveRules((prev) => prev.filter((item) => item.id !== id))
+      toast.success("Sensitive file rule deleted")
+      return true
+    } catch (error) {
+      console.error("Failed to delete sensitive file rule:", error)
+      toast.error("Failed to delete sensitive file rule")
+      return false
+    }
+  }
+
+  const handleToggleSensitive = async (id: string, isActive: boolean) => {
+    try {
+      const updated = await api.configTables.sensitiveFileRules.update(id, { isActive })
+      setSensitiveRules((prev) => prev.map((item) => (item.id === id ? updated : item)))
+      toast.success("Sensitive file rule updated")
+      return true
+    } catch (error) {
+      console.error("Failed to update sensitive file rule:", error)
+      toast.error("Failed to update sensitive file rule")
+      return false
+    }
+  }
+
+  const handleCreateAmbiguous = async (values: Record<string, string | boolean>) => {
+    try {
+      const created = await api.configTables.ambiguousTerms.create({
+        term: String(values.term ?? ""),
+        category: String(values.category ?? ""),
+        suggestion: typeof values.suggestion === "string" ? values.suggestion : undefined,
+        isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
+      })
+      setAmbiguousTerms((prev) => [created, ...prev])
+      toast.success("Ambiguous term created")
+      return true
+    } catch (error) {
+      console.error("Failed to create ambiguous term:", error)
+      toast.error("Failed to create ambiguous term")
+      return false
+    }
+  }
+
+  const handleUpdateAmbiguous = async (id: string, values: Record<string, string | boolean>) => {
+    try {
+      const updated = await api.configTables.ambiguousTerms.update(id, {
+        term: String(values.term ?? ""),
+        category: String(values.category ?? ""),
+        suggestion: typeof values.suggestion === "string" ? values.suggestion : null,
+        isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
+      })
+      setAmbiguousTerms((prev) => prev.map((item) => (item.id === id ? updated : item)))
+      toast.success("Ambiguous term updated")
+      return true
+    } catch (error) {
+      console.error("Failed to update ambiguous term:", error)
+      toast.error("Failed to update ambiguous term")
+      return false
+    }
+  }
+
+  const handleDeleteAmbiguous = async (id: string) => {
+    try {
+      await api.configTables.ambiguousTerms.delete(id)
+      setAmbiguousTerms((prev) => prev.filter((item) => item.id !== id))
+      toast.success("Ambiguous term deleted")
+      return true
+    } catch (error) {
+      console.error("Failed to delete ambiguous term:", error)
+      toast.error("Failed to delete ambiguous term")
+      return false
+    }
+  }
+
+  const handleToggleAmbiguous = async (id: string, isActive: boolean) => {
+    try {
+      const updated = await api.configTables.ambiguousTerms.update(id, { isActive })
+      setAmbiguousTerms((prev) => prev.map((item) => (item.id === id ? updated : item)))
+      toast.success("Ambiguous term updated")
+      return true
+    } catch (error) {
+      console.error("Failed to update ambiguous term:", error)
+      toast.error("Failed to update ambiguous term")
+      return false
+    }
+  }
+
+  const handleCreateValidation = async (values: Record<string, string | boolean>) => {
+    try {
+      const created = await api.configTables.validationConfigs.create({
+        key: String(values.key ?? ""),
+        value: String(values.value ?? ""),
+        type: String(values.type ?? ""),
+        category: String(values.category ?? ""),
+        description: typeof values.description === "string" ? values.description : undefined,
+      })
+      setValidationConfigs((prev) => [created, ...prev])
+      toast.success("Validation config created")
+      return true
+    } catch (error) {
+      console.error("Failed to create validation config:", error)
+      toast.error("Failed to create validation config")
+      return false
+    }
+  }
+
+  const handleUpdateValidation = async (id: string, values: Record<string, string | boolean>) => {
+    try {
+      const updated = await api.configTables.validationConfigs.update(id, {
+        key: String(values.key ?? ""),
+        value: String(values.value ?? ""),
+        type: String(values.type ?? ""),
+        category: String(values.category ?? ""),
+        description: typeof values.description === "string" ? values.description : null,
+      })
+      setValidationConfigs((prev) => prev.map((item) => (item.id === id ? updated : item)))
+      toast.success("Validation config updated")
+      return true
+    } catch (error) {
+      console.error("Failed to update validation config:", error)
+      toast.error("Failed to update validation config")
+      return false
+    }
+  }
+
+  const handleDeleteValidation = async (id: string) => {
+    try {
+      await api.configTables.validationConfigs.delete(id)
+      setValidationConfigs((prev) => prev.filter((item) => item.id !== id))
+      toast.success("Validation config deleted")
+      return true
+    } catch (error) {
+      console.error("Failed to delete validation config:", error)
+      toast.error("Failed to delete validation config")
+      return false
+    }
+  }
 
   if (loading) {
     return (
@@ -87,124 +302,159 @@ export function ConfigPage() {
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
+        {[1, 2, 3].map((index) => (
+          <Skeleton key={index} className="h-40" />
+        ))}
       </div>
     )
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configuration</h1>
         <p className="text-muted-foreground mt-1">
-          Manage system configuration settings
+          Manage sensitive rules, ambiguous terms, and validation settings.
         </p>
       </div>
 
-      {Object.entries(groupedConfigs).map(([category, items]) => (
-        <div key={category}>
-          <h2 className="text-xl font-semibold mb-4 capitalize">{category}</h2>
-          <div className="space-y-3">
-            {items.map((config) => {
-              const changed = hasChanged(config)
-              const isSaving = saving.has(config.key)
+      <Tabs defaultValue="validators" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="validators">Validators</TabsTrigger>
+          <TabsTrigger value="sensitive-file-rules">Sensitive File Rules</TabsTrigger>
+          <TabsTrigger value="ambiguous-terms">Ambiguous Terms</TabsTrigger>
+          <TabsTrigger value="validation-configs">Validation Configs</TabsTrigger>
+        </TabsList>
 
-              return (
-                <Card key={config.id} className="p-5 bg-card border-border">
-                  <div className="flex items-start gap-6">
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold font-mono text-sm">{config.key}</h3>
-                        <Badge variant="outline" className="text-xs">
-                          {config.type}
-                        </Badge>
-                      </div>
+        <TabsContent value="validators">
+          <ValidatorsTab
+            validators={validators}
+            actionId={validatorActionId}
+            activeCount={activeValidators}
+            inactiveCount={inactiveValidators}
+            onToggle={handleToggleValidator}
+          />
+        </TabsContent>
 
-                      <p className="text-sm text-muted-foreground">
-                        {config.description}
-                      </p>
-
-                      <div className="flex items-center gap-3">
-                        {config.type === "BOOLEAN" ? (
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id={config.key}
-                              checked={editingValues[config.key] as boolean}
-                              onCheckedChange={(checked) =>
-                                setEditingValues((prev) => ({
-                                  ...prev,
-                                  [config.key]: checked as boolean,
-                                }))
-                              }
-                            />
-                            <label
-                              htmlFor={config.key}
-                              className="text-sm font-medium cursor-pointer"
-                            >
-                              {editingValues[config.key] ? "Enabled" : "Disabled"}
-                            </label>
-                          </div>
-                        ) : config.type === "NUMBER" ? (
-                          <Input
-                            type="number"
-                            value={editingValues[config.key] as number}
-                            onChange={(e) =>
-                              setEditingValues((prev) => ({
-                                ...prev,
-                                [config.key]: Number(e.target.value),
-                              }))
-                            }
-                            className="max-w-xs"
-                          />
-                        ) : (
-                          <Input
-                            type="text"
-                            value={editingValues[config.key] as string}
-                            onChange={(e) =>
-                              setEditingValues((prev) => ({
-                                ...prev,
-                                [config.key]: e.target.value,
-                              }))
-                            }
-                            className="max-w-md"
-                          />
-                        )}
-
-                        {changed && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleSave(config)}
-                              disabled={isSaving}
-                              className="bg-primary hover:bg-primary/90"
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              {isSaving ? "Saving..." : "Save"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleReset(config)}
-                              disabled={isSaving}
-                            >
-                              <X className="w-4 h-4 mr-1" />
-                              Reset
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              )
+        <TabsContent value="sensitive-file-rules">
+          <ConfigSection
+            title="Sensitive File Rules"
+            description="Patterns used to flag sensitive files."
+            items={sensitiveRules}
+            columns={[
+              { key: "pattern", label: "Pattern" },
+              { key: "category", label: "Category" },
+              { key: "severity", label: "Severity" },
+              {
+                key: "isActive",
+                label: "Status",
+                render: (item) => (
+                  <Badge variant={item.isActive ? "default" : "secondary"}>
+                    {item.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                ),
+              },
+            ]}
+            createFields={sensitiveCreateFields}
+            editFields={sensitiveEditFields}
+            createDefaults={{
+              pattern: "",
+              category: "",
+              severity: "",
+              description: "",
+              isActive: true,
+            }}
+            getEditValues={(item) => ({
+              pattern: item.pattern,
+              category: item.category,
+              severity: item.severity,
+              description: item.description ?? "",
+              isActive: item.isActive,
             })}
-          </div>
-        </div>
-      ))}
+            onCreate={handleCreateSensitive}
+            onUpdate={handleUpdateSensitive}
+            onDelete={handleDeleteSensitive}
+            onToggle={handleToggleSensitive}
+          />
+        </TabsContent>
+
+        <TabsContent value="ambiguous-terms">
+          <ConfigSection
+            title="Ambiguous Terms"
+            description="Terms that require clarification or review."
+            items={ambiguousTerms}
+            columns={[
+              { key: "term", label: "Term" },
+              { key: "category", label: "Category" },
+              {
+                key: "suggestion",
+                label: "Suggestion",
+                render: (item) => item.suggestion ?? "-",
+              },
+              {
+                key: "isActive",
+                label: "Status",
+                render: (item) => (
+                  <Badge variant={item.isActive ? "default" : "secondary"}>
+                    {item.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                ),
+              },
+            ]}
+            createFields={ambiguousCreateFields}
+            editFields={ambiguousEditFields}
+            createDefaults={{
+              term: "",
+              category: "",
+              suggestion: "",
+              isActive: true,
+            }}
+            getEditValues={(item) => ({
+              term: item.term,
+              category: item.category,
+              suggestion: item.suggestion ?? "",
+              isActive: item.isActive,
+            })}
+            onCreate={handleCreateAmbiguous}
+            onUpdate={handleUpdateAmbiguous}
+            onDelete={handleDeleteAmbiguous}
+            onToggle={handleToggleAmbiguous}
+          />
+        </TabsContent>
+
+        <TabsContent value="validation-configs">
+          <ConfigSection
+            title="Validation Configs"
+            description="Config values used by validation checks."
+            items={validationConfigs}
+            columns={[
+              { key: "key", label: "Key" },
+              { key: "value", label: "Value" },
+              { key: "type", label: "Type" },
+              { key: "category", label: "Category" },
+            ]}
+            createFields={validationCreateFields}
+            editFields={validationEditFields}
+            createDefaults={{
+              key: "",
+              value: "",
+              type: "",
+              category: "",
+              description: "",
+            }}
+            getEditValues={(item) => ({
+              key: item.key,
+              value: item.value,
+              type: item.type,
+              category: item.category,
+              description: item.description ?? "",
+            })}
+            onCreate={handleCreateValidation}
+            onUpdate={handleUpdateValidation}
+            onDelete={handleDeleteValidation}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

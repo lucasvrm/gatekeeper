@@ -11,6 +11,7 @@ import type {
 } from "./types"
 
 export const API_BASE = "http://localhost:3000/api"
+const CONFIG_BASE = `${API_BASE}/config`
 
 export const api = {
   runs: {
@@ -90,6 +91,153 @@ export const api = {
         body: JSON.stringify({ value }),
       })
       if (!response.ok) throw new Error("Failed to update config")
+    },
+  },
+
+  configTables: {
+    sensitiveFileRules: {
+      list: async () => {
+        const response = await fetch(`${CONFIG_BASE}/sensitive-file-rules`)
+        if (!response.ok) throw new Error("Failed to fetch sensitive file rules")
+        return response.json()
+      },
+      create: async (data: {
+        pattern: string
+        category: string
+        severity: string
+        description?: string
+        isActive?: boolean
+      }) => {
+        const response = await fetch(`${CONFIG_BASE}/sensitive-file-rules`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to create sensitive file rule")
+        return response.json()
+      },
+      update: async (id: string, data: Partial<{
+        pattern: string
+        category: string
+        severity: string
+        description: string | null
+        isActive: boolean
+      }>) => {
+        const response = await fetch(`${CONFIG_BASE}/sensitive-file-rules/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to update sensitive file rule")
+        return response.json()
+      },
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${CONFIG_BASE}/sensitive-file-rules/${id}`, {
+          method: "DELETE",
+        })
+        if (!response.ok) throw new Error("Failed to delete sensitive file rule")
+      },
+    },
+    ambiguousTerms: {
+      list: async () => {
+        const response = await fetch(`${CONFIG_BASE}/ambiguous-terms`)
+        if (!response.ok) throw new Error("Failed to fetch ambiguous terms")
+        return response.json()
+      },
+      create: async (data: {
+        term: string
+        category: string
+        suggestion?: string
+        isActive?: boolean
+      }) => {
+        const response = await fetch(`${CONFIG_BASE}/ambiguous-terms`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to create ambiguous term")
+        return response.json()
+      },
+      update: async (id: string, data: Partial<{
+        term: string
+        category: string
+        suggestion: string | null
+        isActive: boolean
+      }>) => {
+        const response = await fetch(`${CONFIG_BASE}/ambiguous-terms/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to update ambiguous term")
+        return response.json()
+      },
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${CONFIG_BASE}/ambiguous-terms/${id}`, {
+          method: "DELETE",
+        })
+        if (!response.ok) throw new Error("Failed to delete ambiguous term")
+      },
+    },
+    validationConfigs: {
+      list: async () => {
+        const response = await fetch(`${CONFIG_BASE}/validation-configs`)
+        if (!response.ok) throw new Error("Failed to fetch validation configs")
+        return response.json()
+      },
+      create: async (data: {
+        key: string
+        value: string
+        type: string
+        category: string
+        description?: string
+      }) => {
+        const response = await fetch(`${CONFIG_BASE}/validation-configs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to create validation config")
+        return response.json()
+      },
+      update: async (id: string, data: Partial<{
+        key: string
+        value: string
+        type: string
+        category: string
+        description: string | null
+      }>) => {
+        const response = await fetch(`${CONFIG_BASE}/validation-configs/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to update validation config")
+        return response.json()
+      },
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${CONFIG_BASE}/validation-configs/${id}`, {
+          method: "DELETE",
+        })
+        if (!response.ok) throw new Error("Failed to delete validation config")
+      },
+    },
+  },
+
+  validators: {
+    list: async () => {
+      const response = await fetch(`${API_BASE}/validators`)
+      if (!response.ok) throw new Error("Failed to fetch validators")
+      return response.json()
+    },
+    update: async (name: string, isActive: boolean) => {
+      const response = await fetch(`${API_BASE}/validators/${name}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      })
+      if (!response.ok) throw new Error("Failed to update validator")
+      return response.json()
     },
   },
 }

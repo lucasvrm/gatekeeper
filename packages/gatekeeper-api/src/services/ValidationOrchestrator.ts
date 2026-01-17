@@ -105,6 +105,28 @@ export class ValidationOrchestrator {
       const startTime = Date.now()
       
       try {
+        const isActive = ctx.config.get(validator.code)
+        if (isActive === 'false') {
+          const duration = Date.now() - startTime
+          await this.validatorRepository.create({
+            run: { connect: { id: runId } },
+            gateNumber: gate.number,
+            validatorCode: validator.code,
+            validatorName: validator.name,
+            validatorOrder: validator.order,
+            status: 'SKIPPED',
+            passed: true,
+            isHardBlock: validator.isHardBlock,
+            message: 'Validator disabled',
+            startedAt: new Date(startTime),
+            completedAt: new Date(),
+            durationMs: duration,
+          })
+          RunEventService.emitValidatorComplete(runId, gate.number, validator.code, 'SKIPPED', true)
+          skippedCount++
+          continue
+        }
+
         const result = await validator.execute(ctx)
         const duration = Date.now() - startTime
 
