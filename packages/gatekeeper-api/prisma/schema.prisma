@@ -160,24 +160,32 @@ model ValidationConfig {
 // ============================================================================
 
 model LLMAgent {
-  id             String   @id @default(cuid())
-  name           String   @unique
-  slug           String   @unique
-  provider       String
-  model          String
-  apiKey         String?
-  apiKeyEnvVar   String?
-  baseUrl        String?
-  temperature    Float    @default(0.7)
-  maxTokens      Int      @default(4096)
-  systemPromptId String?
-  isActive       Boolean  @default(true)
-  isDefault      Boolean  @default(false)
-  sortOrder      Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  slug               String   @unique
+  provider           String
+  model              String
+  apiKey             String?
+  apiKeyEnvVar       String?
+  baseUrl            String?
+  temperature        Float    @default(0.7)
+  maxTokens          Int      @default(4096)
+  systemPromptId     String?
+  isActive           Boolean  @default(true)
+  isDefault          Boolean  @default(false)
+  sortOrder          Int      @default(0)
 
-  sessions       ElicitationSession[]
+  // Configurações de Output
+  projectPath        String   @default(".")
+  generatePlanJson   Boolean  @default(true)
+  generateLog        Boolean  @default(true)
+  generateTaskPrompt Boolean  @default(true)
+  generateSpecFile   Boolean  @default(true)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  sessions           ElicitationSession[]
 
   @@index([provider])
   @@index([isActive])

@@ -95,7 +95,8 @@ export class ElicitorEngine {
 
     await this.loadPrompts(detectedType)
 
-    const outputId = this.generateOutputId()
+    // Gerar outputId com slug baseado na tarefa
+    const outputId = this.generateOutputId(initialPrompt)
     const session = await this.sessionRepository.create({
       outputId,
       agentId,
@@ -290,12 +291,23 @@ export class ElicitorEngine {
       throw new Error('Contrato incompleto. Nao e possivel gerar o output ainda.')
     }
 
+    // Buscar configurações do agente
+    const agent = await this.adapterManager.findAgentById(session.agentId)
+    if (!agent) {
+      throw new Error('Agent not found.')
+    }
+
     const taskPrompt = this.taskPromptGenerator.generate(state, session.detectedType)
     const contractMd = this.contractGenerator.generate(state, session.detectedType)
 
+    // Usar projectPath do agente
+    const projectPath = agent.projectPath && agent.projectPath !== '.'
+      ? agent.projectPath
+      : DEFAULT_PROJECT_PATH
+
     const planJson = this.planGenerator.generateWithContext({
       outputId: session.outputId,
-      projectPath: DEFAULT_PROJECT_PATH,
+      projectPath,
       outputDir,
       taskType: session.detectedType,
       state,
@@ -306,10 +318,23 @@ export class ElicitorEngine {
 
     const planJsonPath = path.join(outputPath, 'plan.json')
 
-    await writeFile(planJsonPath, JSON.stringify(planJson, null, 2))
+    // Gerar apenas os arquivos configurados pelo agente
+    if (agent.generatePlanJson) {
+      await writeFile(planJsonPath, JSON.stringify(planJson, null, 2))
+    }
+
+    // contract.md é sempre gerado (obrigatório)
     await writeFile(path.join(outputPath, 'contract.md'), contractMd)
-    await writeFile(path.join(outputPath, 'taskPrompt.md'), taskPrompt)
-    await this.saveElicitationLog(outputPath, completeness)
+
+    if (agent.generateTaskPrompt) {
+      await writeFile(path.join(outputPath, 'taskPrompt.md'), taskPrompt)
+    }
+
+    if (agent.generateLog) {
+      await this.saveElicitationLog(outputPath, completeness)
+    }
+
+    // TODO: generateSpecFile será implementado quando tivermos o spec file generator
 
     const totalDurationMs = this.sessionStartTime ? Date.now() - this.sessionStartTime : 0
 
@@ -676,7 +701,7 @@ export class ElicitorEngine {
     })
   }
 
-  private generateOutputId(): string {
+  private generateOutputId(taskDescription: string): string {
     const now = new Date()
     const date = [
       String(now.getFullYear()),
@@ -684,7 +709,22 @@ export class ElicitorEngine {
       String(now.getDate()).padStart(2, '0'),
     ].join('')
 
-    return `${date}-${nanoid(6)}`
+    // Gerar slug a partir da descrição da tarefa
+    const slug = this.toKebabCase(taskDescription.slice(0, 50))
+
+    // Adicionar ID curto para evitar duplicatas
+    const shortId = nanoid(6)
+
+    return `${date}-${slug}-${shortId}`
+  }
+
+  private toKebabCase(text: string): string {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_]+/g, '-')
+      .replace(/^-+|-+$/g, '')
   }
 
   private async saveElicitationLog(outputPath: string, completeness: CompletenessResult): Promise<void> {

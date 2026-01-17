@@ -23,12 +23,19 @@ import {
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form"
 import { toast } from "sonner"
 
@@ -41,6 +48,11 @@ type AgentFormValues = {
   temperature: number
   maxTokens: number
   isDefault: boolean
+  projectPath: string
+  generatePlanJson: boolean
+  generateLog: boolean
+  generateTaskPrompt: boolean
+  generateSpecFile: boolean
 }
 
 interface AgentFormDialogProps {
@@ -65,6 +77,11 @@ const buildDefaults = (agent?: LLMAgent): AgentFormValues => ({
   temperature: agent?.temperature ?? 0.7,
   maxTokens: agent?.maxTokens ?? 4096,
   isDefault: agent?.isDefault ?? false,
+  projectPath: agent?.projectPath ?? ".",
+  generatePlanJson: agent?.generatePlanJson ?? true,
+  generateLog: agent?.generateLog ?? true,
+  generateTaskPrompt: agent?.generateTaskPrompt ?? true,
+  generateSpecFile: agent?.generateSpecFile ?? true,
 })
 
 export function AgentFormDialog({ open, onClose, agent }: AgentFormDialogProps) {
@@ -96,6 +113,11 @@ export function AgentFormDialog({ open, onClose, agent }: AgentFormDialogProps) 
         temperature: values.temperature,
         maxTokens: values.maxTokens,
         isDefault: values.isDefault,
+        projectPath: values.projectPath.trim() || ".",
+        generatePlanJson: values.generatePlanJson,
+        generateLog: values.generateLog,
+        generateTaskPrompt: values.generateTaskPrompt,
+        generateSpecFile: values.generateSpecFile,
       }
 
       if (agent) {
@@ -284,6 +306,102 @@ export function AgentFormDialog({ open, onClose, agent }: AgentFormDialogProps) 
                 )}
               />
             </div>
+
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="advanced">
+                <AccordionTrigger>Advanced Settings</AccordionTrigger>
+                <AccordionContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="projectPath"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project Path</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="." />
+                        </FormControl>
+                        <FormDescription>
+                          Base path for the project (used for manifest files). Defaults to current directory.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="space-y-3">
+                    <Label>Output Files</Label>
+
+                    <FormField
+                      control={form.control}
+                      name="generatePlanJson"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                            />
+                          </FormControl>
+                          <Label>Generate plan.json</Label>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="generateLog"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                            />
+                          </FormControl>
+                          <Label>Generate elicitation.log.json</Label>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="generateTaskPrompt"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                            />
+                          </FormControl>
+                          <Label>Generate taskPrompt.md</Label>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="generateSpecFile"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                            />
+                          </FormControl>
+                          <Label>Generate {'{slug}'}.spec.tsx</Label>
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="text-sm text-muted-foreground">
+                      Note: contract.md is always generated (required)
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>

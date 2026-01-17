@@ -179,6 +179,11 @@ agentsCommand
         isDefault: answers.isDefault,
         sortOrder: 0,
         systemPromptId: null,
+        projectPath: '.',
+        generatePlanJson: true,
+        generateLog: true,
+        generateTaskPrompt: true,
+        generateSpecFile: true,
       })
 
       if (answers.isDefault) {

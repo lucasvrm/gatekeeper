@@ -71,4 +71,8 @@ export class LLMAdapterManager {
     const adapter = await this.getAdapter(agentId)
     return adapter.validateApiKey()
   }
+
+  async findAgentById(agentId: string) {
+    return this.repository.findById(agentId)
+  }
 }

@@ -101,6 +101,14 @@ export interface LLMAgent {
   isActive: boolean
   isDefault: boolean
   sortOrder: number
+
+  // Configurações de Output
+  projectPath: string
+  generatePlanJson: boolean
+  generateLog: boolean
+  generateTaskPrompt: boolean
+  generateSpecFile: boolean
+
   createdAt: string
   updatedAt: string
 }
@@ -114,6 +122,11 @@ export interface CreateAgentInput {
   temperature: number
   maxTokens: number
   isDefault?: boolean
+  projectPath?: string
+  generatePlanJson?: boolean
+  generateLog?: boolean
+  generateTaskPrompt?: boolean
+  generateSpecFile?: boolean
 }
 
 export interface UpdateAgentInput {
@@ -126,6 +139,11 @@ export interface UpdateAgentInput {
   maxTokens?: number
   isActive?: boolean
   isDefault?: boolean
+  projectPath?: string
+  generatePlanJson?: boolean
+  generateLog?: boolean
+  generateTaskPrompt?: boolean
+  generateSpecFile?: boolean
 }
 
 export interface ManifestFile {

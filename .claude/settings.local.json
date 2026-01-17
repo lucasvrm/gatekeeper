@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npx prisma migrate:*)",
-      "Bash(npm run build:cli:*)"
+      "Bash(npm run build:cli:*)",
+      "Bash(git add:*)"
     ]
   }
 }
