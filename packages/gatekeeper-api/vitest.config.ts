@@ -1,10 +1,19 @@
 import { defineConfig } from 'vitest/config'
 
+const runE2E = process.env.VITEST_RUN_E2E === 'true'
+
 export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: ['test/**/*.spec.ts'],
+    exclude: runE2E ? [] : ['test/**/*.e2e.spec.ts'],
+    setupFiles: ['test/setup.ts'],
+    env: {
+      DATABASE_URL: 'file:./test.db',
+    },
+    hookTimeout: 120000,
+    threads: false,
   },
   resolve: {
     alias: {

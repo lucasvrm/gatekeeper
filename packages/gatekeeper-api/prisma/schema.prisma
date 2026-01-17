@@ -154,3 +154,81 @@ model ValidationConfig {
   description String?
   updatedAt   DateTime @updatedAt
 }
+
+// ============================================================================
+// ELICITOR MODELS
+// ============================================================================
+
+model LLMAgent {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  slug           String   @unique
+  provider       String
+  model          String
+  apiKey         String?
+  apiKeyEnvVar   String?
+  baseUrl        String?
+  temperature    Float    @default(0.7)
+  maxTokens      Int      @default(4096)
+  systemPromptId String?
+  isActive       Boolean  @default(true)
+  isDefault      Boolean  @default(false)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sessions       ElicitationSession[]
+
+  @@index([provider])
+  @@index([isActive])
+}
+
+model ElicitationSession {
+  id                String   @id @default(cuid())
+  outputId           String   @unique
+  agentId            String
+  agent              LLMAgent @relation(fields: [agentId], references: [id])
+  initialPrompt      String
+  detectedType       String
+  status             String   @default("IN_PROGRESS")
+  currentRound       Int      @default(0)
+  maxRounds          Int      @default(10)
+  completenessScore  Int?
+  missingFields      String?
+  contractState      String?
+  taskPrompt         String?
+  planJson           String?
+  totalTokensIn      Int      @default(0)
+  totalTokensOut     Int      @default(0)
+  totalDurationMs    Int?
+  startedAt          DateTime @default(now())
+  completedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  messages           ElicitationMessage[]
+
+  @@index([status])
+  @@index([detectedType])
+  @@index([agentId])
+  @@index([createdAt])
+}
+
+model ElicitationMessage {
+  id         String             @id @default(cuid())
+  sessionId  String
+  session    ElicitationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role       String
+  content    String
+  round      Int
+  tokensIn   Int?
+  tokensOut  Int?
+  durationMs Int?
+  questionId String?
+  wasDefault Boolean            @default(false)
+  createdAt  DateTime           @default(now())
+
+  @@index([sessionId])
+  @@index([role])
+  @@index([round])
+}

@@ -2,7 +2,7 @@ import type { Request, Response } from 'express'
 import { prisma } from '../../db/client.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'
 
-const validatorKeys = new Set(GATES_CONFIG.flatMap((gate) => gate.validators.map((validator) => validator.code)))
+const validatorKeys = new Set<string>(GATES_CONFIG.flatMap((gate) => gate.validators.map((validator) => validator.code)))
 
 export class ValidatorController {
   async listValidators(req: Request, res: Response): Promise<void> {

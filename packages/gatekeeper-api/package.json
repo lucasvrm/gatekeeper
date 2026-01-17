@@ -5,16 +5,27 @@
   "description": "Gatekeeper Backend API - Validation System",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "gatekeeper": "./dist/cli/index.js"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "cli": "ts-node src/cli/index.ts",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test": "vitest",
+    "test": "VITEST_RUN_E2E=true vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run test/**/*Integration*.spec.ts",
+    "test:e2e": "VITEST_RUN_E2E=true vitest run test/**/*.e2e.spec.ts",
+    "test:elicitor": "vitest run test/**/*elicitor*.spec.ts",
     "lint": "eslint src/"
   },
   "dependencies": {
@@ -36,8 +47,16 @@
     "glob": "^11.0.0",
     "minimatch": "^10.0.1",
     "lodash-es": "^4.17.21",
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.2",
     "date-fns": "^3.6.0",
+    "inquirer": "^13.2.0",
+    "marked": "^15.0.12",
+    "marked-terminal": "^7.3.0",
     "nanoid": "^5.0.9",
+    "ora": "^9.0.0",
     "dotenv": "^16.4.7"
   },
   "devDependencies": {

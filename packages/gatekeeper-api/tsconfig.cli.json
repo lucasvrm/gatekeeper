@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/cli/**/*", "src/elicitor/**/*", "src/repositories/**/*", "src/types/**/*"]
+}
