@@ -198,24 +198,14 @@ export class ElicitorEngine {
 
     await this.incrementRound()
 
+    // Antes de fazer perguntas, tentar gerar manifestFiles automaticamente com a LLM
     if (!this.hasManifestFiles(state)) {
-      const question: ElicitorQuestion = {
-        id: 'manifestFiles',
-        text: 'Liste os arquivos impactados como JSON: [{"path":"...","action":"CREATE|MODIFY|DELETE","reason":"..."}]',
-        type: 'text',
-        allowDefault: false,
+      try {
+        await this.generateManifestFilesWithLLM(state, session)
+      } catch (error) {
+        // Se falhar, continuar normalmente e tentar nas próximas rodadas
+        console.error('Erro ao gerar manifestFiles com LLM:', error)
       }
-      this.lastQuestion = question
-      await this.sessionRepository.addMessage(session.id, {
-        role: MessageRole.ASSISTANT,
-        content: question.text,
-        round: session.currentRound,
-        questionId: question.id,
-      })
-
-      this.conversationHistory.push({ role: MessageRole.ASSISTANT, content: question.text })
-      this.trimHistory()
-      return question
     }
 
     const missingFields = completeness.missingFields
@@ -264,13 +254,6 @@ export class ElicitorEngine {
 
     this.conversationHistory.push({ role: MessageRole.USER, content: answer })
     this.trimHistory()
-
-    if (this.lastQuestion.id === 'manifestFiles') {
-      state.manifestFiles = this.parseManifestFiles(answer)
-      this.lastQuestion = null
-      await this.persistState()
-      return
-    }
 
     const update = await this.updateContractState(state, this.lastQuestion, answer, wasDefault)
     const sanitized = this.stripManifestFiles(update)
@@ -543,8 +526,14 @@ export class ElicitorEngine {
   private parseManifestFiles(input: string): ManifestFile[] {
     let parsed: unknown
 
+    // Remover markdown code blocks se presentes (```json...```)
+    let cleanInput = input.trim()
+    if (cleanInput.startsWith('```')) {
+      cleanInput = cleanInput.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
+    }
+
     try {
-      parsed = JSON.parse(input)
+      parsed = JSON.parse(cleanInput)
     } catch {
       throw new Error('Invalid manifestFiles JSON. Provide a JSON array.')
     }
@@ -597,6 +586,66 @@ export class ElicitorEngine {
       this.contractState._defaults = {}
     }
     this.contractState._defaults[path] = true
+  }
+
+  private async generateManifestFilesWithLLM(state: ElicitationState, sessionData: { id: string; detectedType: TaskType; currentRound: number }): Promise<void> {
+    const adapter = this.requireAdapter()
+
+    const prompt = [
+      'TAREFA: Identifique TODOS os arquivos que serão impactados pela implementação desta tarefa.',
+      '',
+      `Tipo: ${sessionData.detectedType}`,
+      `Descrição: ${state._initialPrompt || 'Não informada'}`,
+      '',
+      'Informações coletadas:',
+      JSON.stringify(state, null, 2),
+      '',
+      'INSTRUÇÕES:',
+      '1. Analise a tarefa e determine quais arquivos serão criados, modificados ou deletados.',
+      '2. Seja específico nos nomes de arquivos e caminhos.',
+      '3. Para o projeto Gatekeeper:',
+      '   - Frontend (React): src/components/, src/lib/, src/pages/',
+      '   - Backend API: packages/gatekeeper-api/src/api/, packages/gatekeeper-api/src/repositories/',
+      '   - Testes: packages/gatekeeper-api/test/, src/__tests__/',
+      '4. Inclua arquivos de teste se apropriado.',
+      '5. Use nomes descritivos baseados na funcionalidade.',
+      '',
+      'FORMATO DE RESPOSTA (apenas JSON puro, sem markdown):',
+      '[',
+      '  {"path": "caminho/para/arquivo.tsx", "action": "CREATE", "reason": "Descrição clara"},',
+      '  {"path": "outro/arquivo.ts", "action": "MODIFY", "reason": "O que será modificado"}',
+      ']',
+      '',
+      'AÇÕES VÁLIDAS: CREATE, MODIFY, DELETE',
+      '',
+      'Retorne APENAS o array JSON, sem explicações adicionais.',
+    ].join('\n')
+
+    const response = await adapter.chat(
+      [{ role: MessageRole.USER, content: prompt }],
+      this.systemPrompt ?? undefined
+    )
+
+    let manifestFiles: ManifestFile[]
+    try {
+      manifestFiles = this.parseManifestFiles(response.content)
+    } catch (error) {
+      console.error('Erro ao parsear manifestFiles da LLM:', error)
+      throw error
+    }
+
+    state.manifestFiles = manifestFiles
+
+    await this.sessionRepository.addMessage(sessionData.id, {
+      role: MessageRole.ASSISTANT,
+      content: `Arquivos identificados automaticamente: ${JSON.stringify(manifestFiles)}`,
+      round: sessionData.currentRound,
+      tokensIn: response.tokensIn,
+      tokensOut: response.tokensOut,
+      durationMs: response.durationMs,
+    })
+
+    await this.persistState()
   }
 
   private hasManifestFiles(state: ElicitationState): boolean {
