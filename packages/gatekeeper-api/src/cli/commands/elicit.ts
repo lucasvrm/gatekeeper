@@ -4,6 +4,9 @@ import ora from 'ora'
 import chalk from 'chalk'
 import boxen from 'boxen'
 import { PrismaClient } from '@prisma/client'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { simpleGit } from 'simple-git'
 
 import { ElicitorEngine } from '../../elicitor/ElicitorEngine.js'
 import { LLMAgentRepository } from '../../repositories/LLMAgentRepository.js'
@@ -11,6 +14,17 @@ import { displayContract, displayError } from '../ui/display.js'
 import { askQuestion, type LLMQuestion } from '../ui/prompts.js'
 
 const prisma = new PrismaClient()
+
+async function getProjectRoot(): Promise<string> {
+  try {
+    const git = simpleGit()
+    const rootPath = await git.revparse(['--show-toplevel'])
+    return rootPath.trim()
+  } catch {
+    // Se não for um repositório git, usar o diretório atual
+    return process.cwd()
+  }
+}
 
 export const elicitCommand = new Command('elicit')
   .description('Iniciar nova sessão de elicitação de requisitos')
@@ -25,13 +39,18 @@ export const elicitCommand = new Command('elicit')
     ))
 
     try {
+      const projectRoot = await getProjectRoot()
+      const outputDir = path.isAbsolute(options.output)
+        ? options.output
+        : path.join(projectRoot, options.output)
+
       const agentId = await selectAgent(options.agent)
       if (!agentId) return
 
       const taskDescription = await getTaskDescription(options.task)
       if (!taskDescription) return
 
-      const result = await runElicitation(agentId, taskDescription, options.output)
+      const result = await runElicitation(agentId, taskDescription, outputDir)
       if (!result) return
 
       const approved = await validateWithUser(result.contractMd)
@@ -40,7 +59,7 @@ export const elicitCommand = new Command('elicit')
         return
       }
 
-      await saveOutputFiles(result, options.output)
+      await saveOutputFiles(result, outputDir)
 
       if (options.validate) {
         await runGatekeeper(result.planJsonPath)
