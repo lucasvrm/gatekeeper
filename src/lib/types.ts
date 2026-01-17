@@ -88,6 +88,46 @@ export interface ConfigItem {
   description: string
 }
 
+export interface LLMAgent {
+  id: string
+  name: string
+  slug: string
+  provider: "anthropic" | "openai" | "google" | "ollama"
+  model: string
+  apiKeyEnvVar?: string | null
+  baseUrl?: string | null
+  temperature: number
+  maxTokens: number
+  isActive: boolean
+  isDefault: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateAgentInput {
+  name: string
+  provider: LLMAgent["provider"]
+  model: string
+  apiKeyEnvVar?: string | null
+  baseUrl?: string | null
+  temperature: number
+  maxTokens: number
+  isDefault?: boolean
+}
+
+export interface UpdateAgentInput {
+  name?: string
+  provider?: LLMAgent["provider"]
+  model?: string
+  apiKeyEnvVar?: string | null
+  baseUrl?: string | null
+  temperature?: number
+  maxTokens?: number
+  isActive?: boolean
+  isDefault?: boolean
+}
+
 export interface ManifestFile {
   path: string
   action: "CREATE" | "MODIFY" | "DELETE"

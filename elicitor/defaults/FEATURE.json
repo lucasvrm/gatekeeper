@@ -1,0 +1,215 @@
+{
+  "$schema": "./FeatureContract.json",
+  "$comment": "Valores default para quando o usuário responder 'não sei' ou não responder",
+  
+  "navigation": {
+    "entryPoint": {
+      "location": "context_dependent",
+      "description": "Deriva do contexto da feature"
+    },
+    "exitPoint": {
+      "success": "return_to_origin",
+      "cancel": "return_to_origin",
+      "error": "stay_and_show_error"
+    },
+    "backNavigation": {
+      "enabled": true,
+      "preserveData": true,
+      "description": "Pode voltar sem perder dados preenchidos"
+    }
+  },
+  
+  "cancellation": {
+    "allowed": true,
+    "confirmation": {
+      "when": "has_unsaved_changes",
+      "message": "Tem certeza que deseja sair? As alterações não salvas serão perdidas."
+    },
+    "behavior": "discard_unsaved"
+  },
+  
+  "feedback": {
+    "success": {
+      "type": "toast_and_redirect",
+      "message": "Operação realizada com sucesso!",
+      "redirectDelay": 0
+    },
+    "error": {
+      "type": "inline_and_toast",
+      "message": "Não foi possível completar a operação.",
+      "allowRetry": true
+    },
+    "validation": {
+      "type": "inline",
+      "timing": "on_submit",
+      "scrollToFirst": true
+    }
+  },
+  
+  "loading": {
+    "initial": {
+      "type": "skeleton",
+      "description": "Skeleton loader ao carregar dados iniciais"
+    },
+    "submit": {
+      "type": "button_loading",
+      "disableForm": true,
+      "description": "Botão em loading, formulário desabilitado"
+    }
+  },
+  
+  "errorHandling": {
+    "networkError": {
+      "message": "Erro de conexão. Verifique sua internet e tente novamente.",
+      "allowRetry": true
+    },
+    "serverError": {
+      "message": "Erro no servidor. Tente novamente em alguns instantes.",
+      "allowRetry": true
+    },
+    "validationError": {
+      "message": "Por favor, corrija os campos destacados.",
+      "showInline": true
+    },
+    "permissionError": {
+      "message": "Você não tem permissão para realizar esta ação.",
+      "allowRetry": false,
+      "redirectTo": "previous_page"
+    },
+    "notFoundError": {
+      "message": "O recurso solicitado não foi encontrado.",
+      "redirectTo": "list_page"
+    }
+  },
+  
+  "multiStep": {
+    "progressIndicator": {
+      "enabled": true,
+      "type": "stepper",
+      "showLabels": true
+    },
+    "navigation": {
+      "canSkip": false,
+      "canGoBack": true,
+      "validateBeforeNext": true
+    },
+    "persistence": {
+      "saveOnEachStep": false,
+      "saveOnComplete": true,
+      "description": "Salva tudo no final, não em cada passo"
+    }
+  },
+  
+  "confirmation": {
+    "destructiveActions": {
+      "required": true,
+      "type": "modal",
+      "message": "Tem certeza que deseja {action}? Esta ação não pode ser desfeita."
+    },
+    "nonDestructiveActions": {
+      "required": false
+    }
+  },
+  
+  "accessibility": {
+    "focusManagement": {
+      "onPageLoad": "first_interactive",
+      "afterSubmit": "feedback_message",
+      "afterError": "first_error_field"
+    },
+    "announcements": {
+      "pageChange": true,
+      "formErrors": true,
+      "success": true
+    },
+    "keyboardShortcuts": {
+      "submit": "Ctrl+Enter",
+      "cancel": "Escape"
+    }
+  },
+  
+  "emptyStates": {
+    "noData": {
+      "showMessage": true,
+      "message": "Nenhum item encontrado.",
+      "showAction": true,
+      "actionLabel": "Criar novo"
+    },
+    "noResults": {
+      "showMessage": true,
+      "message": "Nenhum resultado para sua busca.",
+      "showAction": true,
+      "actionLabel": "Limpar filtros"
+    }
+  },
+  
+  "byFlowType": {
+    "crud_create": {
+      "entryLabel": "Novo {entity}",
+      "submitLabel": "Salvar",
+      "cancelLabel": "Cancelar",
+      "successMessage": "{entity} criado com sucesso!",
+      "exitPoint": "list_page"
+    },
+    "crud_edit": {
+      "entryLabel": "Editar {entity}",
+      "submitLabel": "Salvar alterações",
+      "cancelLabel": "Cancelar",
+      "successMessage": "{entity} atualizado com sucesso!",
+      "exitPoint": "detail_page"
+    },
+    "crud_delete": {
+      "confirmRequired": true,
+      "confirmMessage": "Tem certeza que deseja excluir este {entity}?",
+      "confirmLabel": "Sim, excluir",
+      "cancelLabel": "Não, manter",
+      "successMessage": "{entity} excluído com sucesso!",
+      "exitPoint": "list_page"
+    },
+    "wizard": {
+      "showProgress": true,
+      "allowBack": true,
+      "validatePerStep": true,
+      "submitLabel": "Finalizar",
+      "nextLabel": "Próximo",
+      "backLabel": "Voltar"
+    },
+    "search_filter": {
+      "debounce": 300,
+      "minChars": 2,
+      "clearable": true,
+      "preserveOnNavigate": true
+    },
+    "bulk_action": {
+      "confirmRequired": true,
+      "showCount": true,
+      "confirmMessage": "Tem certeza que deseja {action} {count} itens?",
+      "progressFeedback": true
+    }
+  },
+  
+  "testDefaults": {
+    "happyPath": [
+      "completes full flow successfully",
+      "shows success feedback",
+      "navigates to correct destination",
+      "data is persisted correctly"
+    ],
+    "sadPath": [
+      "shows validation errors",
+      "handles network failure gracefully",
+      "handles server error gracefully",
+      "handles permission denied"
+    ],
+    "navigation": [
+      "can cancel and return",
+      "can go back without losing data",
+      "handles browser back button"
+    ],
+    "edgeCases": [
+      "handles empty required fields",
+      "handles double submit",
+      "handles session expiry mid-flow"
+    ]
+  }
+}

@@ -1,0 +1,308 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "UIComponentContract",
+  "title": "UI Component Contract Schema",
+  "description": "Schema para definição de contratos de componentes de UI",
+  "type": "object",
+  "required": ["name", "props", "behaviors"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do componente em PascalCase",
+      "pattern": "^[A-Z][a-zA-Z0-9]*$",
+      "examples": ["Button", "CopyIdButton", "LeadCard"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Descrição breve do propósito do componente"
+    },
+    "filePath": {
+      "type": "string",
+      "description": "Caminho do arquivo do componente",
+      "pattern": "^src/.*\\.(tsx|jsx)$"
+    },
+    "props": {
+      "type": "array",
+      "description": "Lista de props que o componente aceita",
+      "items": {
+        "$ref": "#/definitions/Prop"
+      },
+      "minItems": 0
+    },
+    "visualStates": {
+      "type": "array",
+      "description": "Estados visuais do componente",
+      "items": {
+        "$ref": "#/definitions/VisualState"
+      },
+      "minItems": 1
+    },
+    "variants": {
+      "type": "array",
+      "description": "Variantes visuais do componente",
+      "items": {
+        "$ref": "#/definitions/Variant"
+      }
+    },
+    "behaviors": {
+      "type": "array",
+      "description": "Comportamentos e interações",
+      "items": {
+        "$ref": "#/definitions/Behavior"
+      },
+      "minItems": 1
+    },
+    "accessibility": {
+      "$ref": "#/definitions/Accessibility"
+    },
+    "edgeCases": {
+      "type": "array",
+      "description": "Casos de borda e comportamentos especiais",
+      "items": {
+        "$ref": "#/definitions/EdgeCase"
+      }
+    },
+    "tests": {
+      "type": "array",
+      "description": "Lista de testes obrigatórios",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "Prop": {
+      "type": "object",
+      "required": ["name", "type", "required"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome da prop em camelCase"
+        },
+        "type": {
+          "type": "string",
+          "description": "Tipo TypeScript da prop",
+          "examples": ["string", "number", "boolean", "() => void", "React.ReactNode"]
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Se a prop é obrigatória"
+        },
+        "default": {
+          "description": "Valor padrão se não fornecido"
+        },
+        "description": {
+          "type": "string",
+          "description": "Descrição do propósito da prop"
+        },
+        "validation": {
+          "type": "string",
+          "description": "Regras de validação"
+        },
+        "testCases": {
+          "type": "array",
+          "description": "Casos de teste para esta prop",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {},
+              "expectedBehavior": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "VisualState": {
+      "type": "object",
+      "required": ["state", "description"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["default", "hover", "focus", "active", "disabled", "loading", "error", "success", "selected", "empty"],
+          "description": "Nome do estado visual"
+        },
+        "description": {
+          "type": "string",
+          "description": "Descrição do estado"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Condição para ativar este estado"
+        },
+        "cssIndicators": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Classes CSS ou propriedades que indicam este estado"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Ícone associado ao estado"
+        },
+        "ariaAttributes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Atributos ARIA para este estado"
+        },
+        "duration": {
+          "type": "string",
+          "description": "Duração do estado (se temporário)",
+          "pattern": "^\\d+(\\.\\d+)?(ms|s)$"
+        }
+      }
+    },
+    "Variant": {
+      "type": "object",
+      "required": ["name", "description"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome da variante"
+        },
+        "description": {
+          "type": "string",
+          "description": "Descrição da variante"
+        },
+        "visualDiff": {
+          "type": "string",
+          "description": "O que muda visualmente"
+        },
+        "cssClasses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Classes CSS específicas desta variante"
+        }
+      }
+    },
+    "Behavior": {
+      "type": "object",
+      "required": ["trigger", "action"],
+      "properties": {
+        "trigger": {
+          "type": "string",
+          "enum": ["click", "doubleClick", "hover", "focus", "blur", "keydown", "keyup", "change", "submit", "mount", "unmount", "scroll", "resize"],
+          "description": "Evento que dispara o comportamento"
+        },
+        "action": {
+          "type": "string",
+          "description": "Ação executada"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Condição para executar a ação"
+        },
+        "onSuccess": {
+          "type": "object",
+          "properties": {
+            "visual": {
+              "type": "string",
+              "description": "Feedback visual de sucesso"
+            },
+            "feedback": {
+              "type": "string",
+              "description": "Mensagem de feedback"
+            },
+            "navigate": {
+              "type": "string",
+              "description": "Navegação após sucesso"
+            }
+          }
+        },
+        "onError": {
+          "type": "object",
+          "properties": {
+            "visual": {
+              "type": "string",
+              "description": "Feedback visual de erro"
+            },
+            "feedback": {
+              "type": "string",
+              "description": "Mensagem de erro"
+            }
+          }
+        },
+        "debounce": {
+          "type": "integer",
+          "description": "Debounce em milissegundos"
+        }
+      }
+    },
+    "Accessibility": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Role ARIA do componente",
+          "examples": ["button", "checkbox", "dialog", "listbox", "menu"]
+        },
+        "ariaLabel": {
+          "type": "string",
+          "description": "Aria-label para leitores de tela"
+        },
+        "ariaDescribedBy": {
+          "type": "string",
+          "description": "ID do elemento que descreve este componente"
+        },
+        "ariaLive": {
+          "type": "string",
+          "enum": ["off", "polite", "assertive"],
+          "description": "Configuração de live region"
+        },
+        "keyboard": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "Tecla ou combinação"
+              },
+              "action": {
+                "type": "string",
+                "description": "Ação executada"
+              }
+            }
+          },
+          "description": "Navegação por teclado"
+        },
+        "focusTrap": {
+          "type": "boolean",
+          "description": "Se deve capturar o foco (para modais)"
+        },
+        "announceOnSuccess": {
+          "type": "string",
+          "description": "Texto anunciado no sucesso"
+        },
+        "announceOnError": {
+          "type": "string",
+          "description": "Texto anunciado no erro"
+        }
+      }
+    },
+    "EdgeCase": {
+      "type": "object",
+      "required": ["scenario", "behavior"],
+      "properties": {
+        "scenario": {
+          "type": "string",
+          "description": "Descrição do cenário"
+        },
+        "behavior": {
+          "type": "string",
+          "description": "Comportamento esperado"
+        },
+        "test": {
+          "type": "string",
+          "description": "Descrição do teste para este caso"
+        }
+      }
+    }
+  }
+}

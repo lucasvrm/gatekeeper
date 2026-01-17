@@ -9,4 +9,4 @@ a) Refatorei algo sem pedido? Alterei formatação, nomes de variáveis, estilo 
 b) Deduzi algo por contexto? Assumi a existência de funções, variáveis ou imports?
 c) Adicionei dependências não solicitadas?
 d) Criei algo por achar que era plausível, sem solicitação expressa?
-e) Caso alguma das respostas seja sim, AVISE claramente no preview de resultados: EU INVENTEI.
+e) Caso alguma das respostas seja sim, informe claramente o que foi inventado/deduzido/criado por plausabilidade e porque.

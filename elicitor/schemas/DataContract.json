@@ -1,0 +1,415 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "DataContract",
+  "title": "Data/Entity Contract Schema",
+  "description": "Schema para definição de contratos de operações de dados (CRUD)",
+  "type": "object",
+  "required": ["entity", "operation", "fields"],
+  "properties": {
+    "entity": {
+      "type": "string",
+      "description": "Nome da entidade",
+      "examples": ["Lead", "User", "Task", "Order"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Descrição da entidade"
+    },
+    "tableName": {
+      "type": "string",
+      "description": "Nome da tabela no banco (se diferente)"
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["create", "read", "update", "delete", "list", "bulk_create", "bulk_update", "bulk_delete"],
+      "description": "Operação a ser realizada"
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Field"
+      },
+      "description": "Campos da entidade"
+    },
+    "validations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Validation"
+      },
+      "description": "Validações de negócio"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Relationship"
+      },
+      "description": "Relacionamentos com outras entidades"
+    },
+    "permissions": {
+      "$ref": "#/definitions/Permissions"
+    },
+    "deletion": {
+      "$ref": "#/definitions/DeletionConfig"
+    },
+    "audit": {
+      "$ref": "#/definitions/AuditConfig"
+    },
+    "sideEffects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/SideEffect"
+      },
+      "description": "Efeitos colaterais da operação"
+    },
+    "indexes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Index"
+      },
+      "description": "Índices do banco"
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lista de testes obrigatórios"
+    }
+  },
+  "definitions": {
+    "Field": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome do campo"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "text", "integer", "decimal", "boolean", "date", "datetime", "json", "uuid", "email", "phone", "cpf", "cnpj", "url", "enum", "relation"],
+          "description": "Tipo do campo"
+        },
+        "label": {
+          "type": "string",
+          "description": "Label para exibição"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Se é obrigatório"
+        },
+        "unique": {
+          "type": "boolean",
+          "default": false,
+          "description": "Se deve ser único"
+        },
+        "default": {
+          "description": "Valor padrão"
+        },
+        "immutable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Se não pode ser alterado após criação"
+        },
+        "nullable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Se aceita null"
+        },
+        "validation": {
+          "$ref": "#/definitions/FieldValidation"
+        },
+        "enum": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "default": {
+              "type": "string"
+            }
+          },
+          "description": "Configuração para campos enum"
+        },
+        "relation": {
+          "$ref": "#/definitions/FieldRelation"
+        }
+      }
+    },
+    "FieldValidation": {
+      "type": "object",
+      "properties": {
+        "minLength": {
+          "type": "integer"
+        },
+        "maxLength": {
+          "type": "integer"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regex pattern"
+        },
+        "custom": {
+          "type": "string",
+          "description": "Nome do validador customizado"
+        },
+        "errorMessage": {
+          "type": "string",
+          "description": "Mensagem de erro customizada"
+        }
+      }
+    },
+    "FieldRelation": {
+      "type": "object",
+      "required": ["target"],
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "Entidade alvo"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["belongsTo", "hasOne", "hasMany", "belongsToMany"],
+          "description": "Tipo de relacionamento"
+        },
+        "foreignKey": {
+          "type": "string",
+          "description": "Chave estrangeira"
+        }
+      }
+    },
+    "Validation": {
+      "type": "object",
+      "required": ["rule", "errorCode", "errorMessage"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identificador da validação"
+        },
+        "rule": {
+          "type": "string",
+          "description": "Descrição da regra"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Condição para aplicar (código ou descrição)"
+        },
+        "errorCode": {
+          "type": "string",
+          "description": "Código do erro"
+        },
+        "errorMessage": {
+          "type": "string",
+          "description": "Mensagem de erro"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Campos envolvidos na validação"
+        }
+      }
+    },
+    "Relationship": {
+      "type": "object",
+      "required": ["name", "target", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome do relacionamento"
+        },
+        "target": {
+          "type": "string",
+          "description": "Entidade relacionada"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["one-to-one", "one-to-many", "many-to-one", "many-to-many"],
+          "description": "Tipo do relacionamento"
+        },
+        "foreignKey": {
+          "type": "string",
+          "description": "Campo de chave estrangeira"
+        },
+        "onDelete": {
+          "type": "string",
+          "enum": ["cascade", "set_null", "restrict", "no_action"],
+          "default": "restrict",
+          "description": "Ação ao deletar pai"
+        },
+        "onUpdate": {
+          "type": "string",
+          "enum": ["cascade", "restrict", "no_action"],
+          "default": "cascade",
+          "description": "Ação ao atualizar pai"
+        }
+      }
+    },
+    "Permissions": {
+      "type": "object",
+      "properties": {
+        "create": {
+          "$ref": "#/definitions/Permission"
+        },
+        "read": {
+          "$ref": "#/definitions/Permission"
+        },
+        "update": {
+          "$ref": "#/definitions/Permission"
+        },
+        "delete": {
+          "$ref": "#/definitions/Permission"
+        }
+      }
+    },
+    "Permission": {
+      "type": "object",
+      "properties": {
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Roles permitidos"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["all", "own", "team", "organization"],
+          "description": "Escopo do acesso"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Condição adicional"
+        }
+      }
+    },
+    "DeletionConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["hard", "soft"],
+          "default": "soft",
+          "description": "Tipo de deleção"
+        },
+        "softDeleteField": {
+          "type": "string",
+          "default": "deletedAt",
+          "description": "Campo para soft delete"
+        },
+        "retentionPeriod": {
+          "type": "string",
+          "description": "Período de retenção antes de excluir definitivamente"
+        },
+        "cascadeConfig": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "relation": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": ["cascade", "set_null", "restrict"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "AuditConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "level": {
+          "type": "string",
+          "enum": ["none", "basic", "full"],
+          "default": "basic",
+          "description": "Nível de auditoria"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Campos a rastrear (se não todos)"
+        },
+        "storeChanges": {
+          "type": "boolean",
+          "default": false,
+          "description": "Guardar histórico de mudanças"
+        }
+      }
+    },
+    "SideEffect": {
+      "type": "object",
+      "required": ["trigger", "action"],
+      "properties": {
+        "trigger": {
+          "type": "string",
+          "enum": ["before_create", "after_create", "before_update", "after_update", "before_delete", "after_delete"],
+          "description": "Quando executar"
+        },
+        "action": {
+          "type": "string",
+          "description": "Ação a executar"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Condição para executar"
+        },
+        "async": {
+          "type": "boolean",
+          "default": false,
+          "description": "Se é assíncrono"
+        },
+        "rollbackOnFailure": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reverter operação principal se falhar"
+        }
+      }
+    },
+    "Index": {
+      "type": "object",
+      "required": ["fields"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome do índice"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Campos do índice"
+        },
+        "unique": {
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "type": "string",
+          "enum": ["btree", "hash", "gin", "gist"],
+          "default": "btree"
+        }
+      }
+    }
+  }
+}
