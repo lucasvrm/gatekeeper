@@ -15,13 +15,34 @@ const CLAUSE_TAG_REGEX = /^\s*\/\/\s*@clause\s+(CL-[A-Z_]+-\d{3,})\s*$/
  * @param filePath - Path to the test file (for reporting)
  * @returns Array of ClauseTag objects found in the file
  */
-export function parseClauseTags(fileContent: string, filePath: string): ClauseTag[] {
+export interface ClauseTagOptions {
+  tagPattern?: string
+}
+
+const buildTagRegex = (pattern?: string): RegExp => {
+  if (!pattern) {
+    return CLAUSE_TAG_REGEX
+  }
+
+  try {
+    return new RegExp(pattern)
+  } catch {
+    return CLAUSE_TAG_REGEX
+  }
+}
+
+export function parseClauseTags(
+  fileContent: string,
+  filePath: string,
+  options?: ClauseTagOptions,
+): ClauseTag[] {
   const lines = fileContent.split('\n')
   const tags: ClauseTag[] = []
+  const regex = buildTagRegex(options?.tagPattern)
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    const match = line?.match(CLAUSE_TAG_REGEX)
+    const match = line?.match(regex)
 
     if (match && match[1]) {
       tags.push({

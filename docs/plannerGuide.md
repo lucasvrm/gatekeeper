@@ -16,6 +16,10 @@ This guide ensures Planners generate valid, complete `plan.json` files that pass
 4. [STRICT vs CREATIVE Mode](#strict-vs-creative-mode)
 5. [Pre-Delivery Checklist](#pre-delivery-checklist)
 6. [Common Mistakes](#common-mistakes)
+7. [Contract Pipeline Responsibilities](#contract-pipeline-responsibilities)
+8. [Decision Checklists](#decision-checklists)
+9. [Clause & Assertion Guidance](#clause--assertion-guidance)
+10. [Quick Reference Commands](#quick-reference-commands)
 
 ---
 
@@ -712,6 +716,53 @@ test('should login', () => {})
   }
 }
 ```
+
+## Contract Pipeline Responsibilities (T381-T389, T391)
+
+1. **Elicitor generates the plan.** Pair `plan.json` with `contract_<slug>.md` and embed the structured contract inside `plan.json.contract`. The plan must describe the test file path that the LLM will write.
+2. **Contract drives tests.** The contract defines modes, assertion surfaces, clauses, and expected mappings. The downstream LLM must keep assertions within the declared surfaces and tag every `test()`/`it()` with its clause IDs.
+3. **LLM test generator duties.** Consume `plan.json` and the contract markdown, emit exactly one test file at `testFilePath`, tag clauses per `testMapping`, and keep assertions inside the declared surfaces. Request contract expansion before inventing new observable behavior.
+4. **Gatekeeper gating order.** Gate 0 (sanitization) always runs before Gate 1 (contract validators). Gate 1 must pass (or issue acceptable warnings in CREATIVE mode) before Gate 2/3 run, ensuring the contract and tagged tests dictate implementation work.
+
+This pipeline enforces the mantra "tests are law; contracts are law," keeping behavior derivations explicit.
+
+## Decision Checklists (T392-T394)
+
+### When to mark STRICT vs CREATIVE (T392)
+
+- [ ] **STRICT:** new or modified endpoints, authentication/authorization, payment flows, security-critical logic, or when the contract surfaces must never be violated.
+- [ ] **CREATIVE:** UI/UX polish, prototypes, low-risk behavior tweaks, or exploratory work where partial coverage/warnings are acceptable.
+- [ ] **Fallback:** If uncertain, default to STRICT and let Gate 1 warnings prompt a review for possibly switching to CREATIVE.
+
+### When to generate a contract (T393)
+
+- [ ] New endpoints or UI surfaces introduced in this task.
+- [ ] Behavioral changes to existing endpoints (response contract, error handling, status codes).
+- [ ] Bugfixes affecting observable behavior.
+- [ ] Refactors that surface new behavior; omit the contract only if the behavior is provably unchanged.
+
+### When to update a contract after endpoint changes (T394)
+
+- [ ] Endpoint method/path/status codes change -> update clauses, observables, and assertion surfaces.
+- [ ] Response schema changes -> update `payloadPaths` and clause specs.
+- [ ] Added sad/happy cases -> add clauses or `negativeCases`.
+- [ ] New selectors, payloads, or logs become observable -> extend `assertionSurface`.
+
+## Clause & Assertion Guidance (T398-T399)
+
+### How to write better clauses (T398)
+
+1. Keep clauses focused on observable behavior (`spec` describes what the consumer sees, not implementation).
+2. Declare required observables (http method/path, status codes, selectors, payload paths) so validators can map assertions accurately.
+3. Use `normativity: "MUST"` for hard guarantees, `"SHOULD"`/`"MAY"` for softer ones, and provide `negativeCases` for error/security clauses.
+4. Cross-reference clause IDs in tests with stable titles and specs; include `testMapping` info so `TEST_CLAUSE_MAPPING_VALID` can verify alignment.
+
+### How to avoid fragile asserts (T399)
+
+1. Avoid CSS/DOM queries unless part of the declared `assertionSurface`; prefer semantic selectors tied to the contract.
+2. Never assert on implementation internals (helpers, logs) unless the contract explicitly names those logs in `observables`.
+3. Keep payload assertions tied to declared `payloadPaths`. If a new path is needed, expand the contract rather than adjusting selectors inside tests.
+4. Treat assertion surfaces as the shielding contract: add new endpoints/payloads to `assertionSurface` before Gatekeeper allows corresponding asserts.
 
 ---
 

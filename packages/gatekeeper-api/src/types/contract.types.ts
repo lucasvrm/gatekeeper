@@ -302,6 +302,14 @@ export interface ExpectedCoverage {
   minNegativeTestsForError?: number
 }
 
+export type AssertionTargetType = 'endpoint' | 'statusCode' | 'errorCode' | 'payloadPath' | 'selector'
+
+export interface AssertionTarget {
+  type: AssertionTargetType
+  value: string
+  context?: string
+}
+
 /**
  * Assertion found in test code that needs contract validation.
  * Used by NO_OUT_OF_CONTRACT_ASSERTIONS validator.
@@ -331,6 +339,11 @@ export interface TestAssertion {
    * Clause IDs this assertion is mapped to (from nearby @clause tags)
    */
   mappedClauses: string[]
+
+  /**
+   * Targets extracted from the assertion line (endpoints, status codes, selectors, etc.)
+   */
+  targets: AssertionTarget[]
 
   /**
    * Test block name containing this assertion

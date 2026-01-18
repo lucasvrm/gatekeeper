@@ -170,6 +170,14 @@ interface Contract {
 }
 ```
 
+### Test Mapping Guidelines
+
+- Tests (`it` or `test`) are the units that must reference clauses via `@clause CL-<TYPE>-<SEQUENCE>` tags (`format: comment_tags` by default).
+- The validator associates each tag with the next test definition, so keep the comment adjacent to the test (before or inside the block).
+- `testMapping.allowMultiple` (default `true`) permits multiple tags on one test; disabling it causes validation to fail if more than one tag is present.
+- Untagged tests are only allowed when `testMapping.allowUntagged` is `true` (defaults to `CREATIVE` mode) or the test name matches an entry in `testMapping.untaggedAllowlist` (regex patterns).
+- Custom tag patterns (`testMapping.tagPattern`) can override the default `// @clause …` matcher; the pattern must capture the clause ID.
+
 **Contract schema validations (ContractSchemaValid)**:
 - `schemaVersion` must be `1.0.0` and follow semantic versioning.
 - Clause IDs must be unique; duplicate IDs fail on `CONTRACT_SCHEMA_VALID`.
@@ -302,6 +310,8 @@ This section documents which validators consume which contract fields.
   - `high`: 90% minimum
   - `critical`: 100% minimum (overrides CREATIVE mode)
 
+Coverage expectations depend on the contract clauses: each clause derives `testRequired` from its `normativity`/`kind`, and any `expectedCoverage` overrides (e.g., `minTestsPerClause`, `minTestsForMUST`) raise the required number of tagged tests per clause. The validator lists the uncovered clause IDs (with titles) and a snapshot of the tests covering other clauses so reviewers can quickly address missing mappings. Add `// @clause <CLAUSE_ID>` annotations to the relevant tests or mark informational clauses as `normativity: MAY` to resolve the gaps.
+
 **Returns:**
 - SKIPPED: When `contract` is absent
 - FAILED (STRICT) / WARNING (CREATIVE): When coverage insufficient
@@ -328,6 +338,16 @@ This section documents which validators consume which contract fields.
 **Mapping Heuristic:**
 - Assertion mapped to nearest `@clause` tag within 50 lines above it
 - Multiple tags within 5 lines of each other are all applied
+
+**Assertion Surface Enforcement:**
+- Endpoints (`.get()`, `.post()`, `fetch()`) are validated against `assertionSurface.http.endpoints`.
+- Status codes (`.status(404)`, `.toBe(500)`) must appear in `assertionSurface.http.statusCodes` or `endpointStatusCodes`.
+- Payload paths (`response.body.user.id`) must be declared in `assertionSurface.payloadPaths`.
+- Selectors (`cy.get('[data-testid="login-submit"]')`) must match `assertionSurface.ui.selectors`.
+- Error codes referenced via assertions must come from `assertionSurface.errors.codes`.
+- Structural assertions without targets (setup helpers) are allowed through the structural allowlist.
+- STRICT mode blocks runs with unfamiliar surfaces; CREATIVE mode downgrades the result to WARNING.
+- When the `contract` field is absent, the validator returns `SKIPPED` with message “No contract provided; validator skipped” for backward compatibility.
 
 **Returns:**
 - SKIPPED: When `contract` is absent
@@ -431,6 +451,22 @@ Status: PASSED ✅
 4. **NO_OUT_OF_CONTRACT_ASSERTIONS** (order: 4)
 5. TEST_SYNTAX_VALID (order: 5)
 6. ... (existing validators)
+
+### TEST_CLAUSE_MAPPING_VALID behavior
+
+- Scans `it(...)` and `test(...)` definitions (including `.only`/`.skip`) and associates adjacent `@clause CL-...` tags.
+- Invalid clause IDs (not defined in `contract.clauses`) fail in STRICT and warn in CREATIVE, and the validator reports the offending lines.
+- Multiple tags on the same test are acceptable only when `testMapping.allowMultiple` is `true`; disabling `allowMultiple` turns the validator into a hard failure for that test.
+- Untagged tests are only permitted when `testMapping.allowUntagged` is `true` (defaulting to CREATIVE) or when the test name matches an entry in `testMapping.untaggedAllowlist` (regex patterns that typically describe fixtures like `beforeEach`/`setup`).
+- Custom tag patterns (`testMapping.tagPattern`) can override the default `// @clause ...` matcher, but the pattern must capture the clause ID so the validator knows which clause the tag refers to.
+
+The validator returns detailed evidence for invalid tags, tests that lack `@clause` metadata, and the tests that were exempted via the `untaggedAllowlist`. The configured `testMapping` rules (`allowMultiple`, `allowUntagged`, and `untaggedAllowlist`) are honored so that setup/helpers can remain untagged without triggering failures.
+
+#### Failure catalog
+
+- **Invalid clause tag:** Tag references a clause ID not defined in the contract; STRICT fails, CREATIVE warns with the offending tag list.
+- **Missing tags:** Test without tags is invalid unless allowMapped or allowlist is satisfied; STRICT fails, CREATIVE warns and reports the test names.
+- **Multiple tags when disabled:** If `testMapping.allowMultiple` is `false`, any test carrying more than one `@clause` is a hard failure with the test name and tag count.
 
 ### SKIP Behavior (T094)
 

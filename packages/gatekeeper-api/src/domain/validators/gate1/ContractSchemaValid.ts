@@ -29,7 +29,7 @@ export const ContractSchemaValidValidator: ValidatorDefinition = {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'No contract provided - validation skipped',
+        message: 'No contract provided; validator skipped',
       }
     }
 

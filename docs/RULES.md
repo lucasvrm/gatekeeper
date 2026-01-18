@@ -712,6 +712,22 @@ This document specifies the structure and semantics of the `contract.json` forma
 
 ---
 
+### T101: NO_OUT_OF_CONTRACT_ASSERTIONS (T301–T310)
+
+The `NO_OUT_OF_CONTRACT_ASSERTIONS` validator ensures every assertion lines up with the surfaces declared in `assertionSurface`. It parses expect/assert/snapshot/mock/structural assertions, maps them to clauses, and then extracts five target categories:
+
+- **Endpoints:** Detects `.get()`, `.post()`, `fetch()`, `axios`, and other HTTP helpers and normalizes them to `METHOD /path`; any missing endpoint entry under `assertionSurface.http.endpoints` triggers a violation.
+- **Status codes:** Numeric expectations (`response.status`, `.toBe(404)`, `.statusCode(403)`) must appear in `assertionSurface.http.statusCodes` or the endpoint-specific `assertionSurface.http.endpointStatusCodes`.
+- **Payload paths:** Accesses like `response.body.user.id` are validated against `assertionSurface.payloadPaths`.
+- **Selectors:** DOM assertions (`cy.get('[data-testid=\"login-submit\"]')`, `document.querySelector(...)`) are accepted only if they match `assertionSurface.ui.selectors`.
+- **Error codes:** Any assertion retrieving `error.code`/`err.code` must resolve to a value listed in `assertionSurface.errors.codes`.
+
+Structural assertions without extracted targets (setup helpers) are whitelisted, but they still need clause mappings when running in STRICT mode. When you need coverage on a new surface, extend the contract’s `assertionSurface` rather than editing the validator.
+
+- **STRICT:** Unlisted surfaces fail the run (hard block).
+- **CREATIVE:** Such violations emit `WARNING`; the run continues but evidence lists the unauthorized targets.
+- **SKIP:** Missing `contract` field immediately returns `status: 'SKIPPED'` with message “No contract provided; validator skipped.”
+
 ### T251: Contract schema validation (ContractSchemaValid)
 
 **Purpose:** Validates that the optional `contract` payload follows the structured schema before other gate validators execute.
@@ -1002,6 +1018,18 @@ This document specifies the structure and semantics of the `contract.json` forma
 - No changes to non-contract validators
 
 **Implementation:** Already enforced (T015).
+
+---
+
+### T081a: Contract-aware validator interactions
+
+**Rule:** Gate 1 validators coordinate with clause metadata when a contract is present, keeping `@clause` coverage as the primary signal.
+
+- `TEST_COVERS_HAPPY_AND_SAD_PATH` now walks `behavior` clauses via `@clause` tags and requires a happy scenario per clause plus a sad scenario when the clause is `MUST` or declares `negativeCases`. Creative mode turns clause gaps into WARNINGS while reporting the missing clauses in `details.missingClauseCoverage`.
+- `TEST_INTENT_ALIGNMENT` de-emphasizes keyword-based warnings whenever clause tags exist and returns `PASSED` with `details.alignmentDeemphasized` set, since clause coverage should already protect the intent.
+- `NO_OUT_OF_CONTRACT_ASSERTIONS` ignores helper assertions such as renders, screen helpers, and console logs (recorded in `details.skippedAssertions`) but still validates real assertions against the contract's `assertionSurface`. Extend the assertion surface rather than modifying tests whenever new targets are introduced.
+
+**Implementation:** Validator logic in `gateway1` handles these interactions before the legacy keyword and surface checks (see `packages/gatekeeper-api/src/domain/validators/gate1`).
 
 ---
 
