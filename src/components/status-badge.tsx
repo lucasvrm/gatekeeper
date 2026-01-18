@@ -19,12 +19,12 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     PASSED: {
       icon: CheckCircle,
       label: "Passed",
-      className: "bg-status-passed/20 text-status-passed border-status-passed/30",
+      className: "bg-status-passed/20 text-status-passed border-status-passed",
     },
     FAILED: {
       icon: XCircle,
       label: "Failed",
-      className: "bg-status-failed/20 text-status-failed border-status-failed/30",
+      className: "bg-status-failed/20 text-status-failed border-status-failed",
     },
     WARNING: {
       icon: Warning,
@@ -34,7 +34,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     RUNNING: {
       icon: ArrowsClockwise,
       label: "Running",
-      className: "bg-status-running/20 text-status-running border-status-running/30",
+      className: "bg-status-running/20 text-status-passed border-status-running/30",
     },
     PENDING: {
       icon: Clock,

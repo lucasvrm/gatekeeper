@@ -91,6 +91,15 @@ const defaultTheme = {
         overlay: "var(--color-bg-overlay)",
       },
       "focus-ring": "var(--color-focus-ring)",
+      status: {
+        passed: "hsl(142, 76%, 36%)",
+        failed: "hsl(0, 84%, 60%)",
+        warning: "hsl(38, 92%, 50%)",
+        running: "hsl(217, 91%, 60%)",
+        pending: "hsl(215, 20%, 65%)",
+        aborted: "hsl(0, 0%, 45%)",
+        skipped: "hsl(215, 14%, 34%)",
+      },
     },
     borderRadius: {
       sm: "var(--radius-sm)",
