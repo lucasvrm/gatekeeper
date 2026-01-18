@@ -1,5 +1,3 @@
-import type { ContractV1 } from './contract.types.js'
-
 export type GateNumber = 0 | 1 | 2 | 3
 
 export type ValidatorStatus = 
@@ -120,9 +118,6 @@ export interface ValidationContext {
   config: Map<string, string>
   sensitivePatterns: string[]
   ambiguousTerms: string[]
-  contract?: ContractV1
-  contractJson?: string
-  contractParseError?: string
 }
 
 export interface ValidatorOutput {

@@ -4,11 +4,9 @@ import type { LogService as ILogService } from '../types/index.js'
 export class LogService implements ILogService {
   private logger: pino.Logger
   private runId: string
-  private contractMetadata?: Record<string, unknown>
 
-  constructor(runId: string, contractMetadata?: Record<string, unknown>) {
+  constructor(runId: string) {
     this.runId = runId
-    this.contractMetadata = contractMetadata
     this.logger = pino({
       level: process.env.LOG_LEVEL || 'info',
       transport:
@@ -28,7 +26,6 @@ export class LogService implements ILogService {
   private enrichMetadata(metadata?: Record<string, unknown>) {
     return {
       runId: this.runId,
-      ...(this.contractMetadata || {}),
       ...metadata,
     }
   }

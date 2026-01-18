@@ -11,7 +11,6 @@ export default defineConfig({
     setupFiles: ['test/setup.ts'],
     env: {
       DATABASE_URL: 'file:./test.db',
-      GATEKEEPER_SKIP_VALIDATOR_QUEUE: 'true',
     },
     hookTimeout: 120000,
     threads: false,

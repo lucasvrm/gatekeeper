@@ -10,17 +10,11 @@ import { LintService } from './LintService.js'
 import { BuildService } from './BuildService.js'
 import { TokenCounterService } from './TokenCounterService.js'
 import { LogService } from './LogService.js'
-import type { ContractV1 } from '../types/contract.types.js'
-import {
-  createContractLogMetadata,
-  isContractPayloadTooLarge,
-} from '../utils/contract.utils.js'
 import { ValidationRunRepository } from '../repositories/ValidationRunRepository.js'
 import { GateResultRepository } from '../repositories/GateResultRepository.js'
 import { ValidatorResultRepository } from '../repositories/ValidatorResultRepository.js'
 import { RunEventService } from './RunEventService.js'
 import type { ValidationRun } from '@prisma/client'
-type ValidationRunWithContract = ValidationRun & { contractJson?: string | null }
 
 export class ValidationOrchestrator {
   private queue: PQueue
@@ -225,7 +219,7 @@ export class ValidationOrchestrator {
     return { passed: gatePassed, failedValidatorCode }
   }
 
-  private async buildContext(run: ValidationRunWithContract): Promise<ValidationContext> {
+  private async buildContext(run: ValidationRun): Promise<ValidationContext> {
     const config = await prisma.validationConfig.findMany()
     const configMap = new Map<string, string>()
     
@@ -267,20 +261,6 @@ export class ValidationOrchestrator {
       }
     }
 
-    let contract: ContractV1 | null = null
-    let contractParseError: string | null = null
-    if (run.contractJson) {
-      if (isContractPayloadTooLarge(run.contractJson)) {
-        contractParseError = 'Contract payload exceeds maximum allowed size'
-      } else {
-        try {
-          contract = JSON.parse(run.contractJson) as ContractV1
-        } catch (error) {
-          contractParseError = error instanceof Error ? error.message : String(error)
-        }
-      }
-    }
-
     const gitService = new GitService(run.projectPath)
     const astService = new ASTService()
     const testRunnerService = new TestRunnerService(run.projectPath)
@@ -288,7 +268,7 @@ export class ValidationOrchestrator {
     const lintService = new LintService(run.projectPath)
     const buildService = new BuildService(run.projectPath)
     const tokenCounterService = new TokenCounterService()
-    const logService = new LogService(run.id, contract ? createContractLogMetadata(contract) : undefined)
+    const logService = new LogService(run.id)
 
     return {
       runId: run.id,
@@ -312,9 +292,6 @@ export class ValidationOrchestrator {
       config: configMap,
       sensitivePatterns,
       ambiguousTerms,
-      contract: contract ?? undefined,
-      contractJson: run.contractJson ?? undefined,
-      contractParseError: contractParseError ?? undefined,
     }
   }
 
