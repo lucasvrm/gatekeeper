@@ -3,6 +3,7 @@ import { minimatch } from 'minimatch'
 import { IGenerator, GeneratorContext } from './IGenerator.js'
 import { ElicitationState, ManifestFile, TaskType } from '../types/elicitor.types.js'
 import { TaskPromptGenerator } from './TaskPromptGenerator.js'
+import { DEFAULT_GIT_REFS, SENSITIVE_FILE_PATTERNS } from '../../config/defaults.js'
 
 export interface PlanJson {
   outputId: string
@@ -17,18 +18,6 @@ export interface PlanJson {
   testFilePath: string
   dangerMode: boolean
 }
-
-const DEFAULT_BASE_REF = 'HEAD~1'
-const DEFAULT_TARGET_REF = 'HEAD'
-
-const SENSITIVE_PATTERNS = [
-  '.env*',
-  '**/.env',
-  '**/migrations/**',
-  '**/.github/**',
-  '**/*.pem',
-  '**/*.key',
-]
 
 export class PlanJsonGenerator implements IGenerator<PlanJson> {
   private taskPromptGenerator = new TaskPromptGenerator()
@@ -46,8 +35,8 @@ export class PlanJsonGenerator implements IGenerator<PlanJson> {
     return {
       outputId: context.outputId,
       projectPath: context.projectPath,
-      baseRef: DEFAULT_BASE_REF,
-      targetRef: DEFAULT_TARGET_REF,
+      baseRef: DEFAULT_GIT_REFS.BASE_REF,
+      targetRef: DEFAULT_GIT_REFS.TARGET_REF,
       taskPrompt,
       manifest,
       testFilePath,
@@ -76,7 +65,7 @@ export class PlanJsonGenerator implements IGenerator<PlanJson> {
 
   private requiresDangerMode(files: ManifestFile[]): boolean {
     for (const file of files) {
-      for (const pattern of SENSITIVE_PATTERNS) {
+      for (const pattern of SENSITIVE_FILE_PATTERNS) {
         if (minimatch(file.path, pattern, { dot: true })) {
           return true
         }
