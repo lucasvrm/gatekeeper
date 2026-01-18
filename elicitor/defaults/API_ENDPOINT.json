@@ -223,44 +223,5 @@
       "handles malformed JSON",
       "handles very long strings"
     ]
-  },
-
-  "assertionSurface": {
-    "$comment": "T185: Defaults para quando usuário não souber especificar assertion surfaces",
-    "http": {
-      "endpoints": [
-        {
-          "method": "{{INFERRED_FROM_OPERATION}}",
-          "path": "{{INFERRED_FROM_RESOURCE}}",
-          "description": "{{INFERRED_FROM_DESCRIPTION}}"
-        }
-      ],
-      "statusCodes": {
-        "$comment": "Status codes comuns por operação",
-        "GET_ONE": [200, 401, 403, 404, 500],
-        "GET_LIST": [200, 401, 500],
-        "CREATE": [201, 400, 401, 403, 409, 500],
-        "UPDATE": [200, 400, 401, 403, 404, 500],
-        "DELETE": [204, 401, 403, 404, 500]
-      }
-    },
-    "errors": {
-      "codes": [
-        "VALIDATION_ERROR",
-        "UNAUTHORIZED",
-        "FORBIDDEN",
-        "NOT_FOUND",
-        "CONFLICT",
-        "INTERNAL_ERROR"
-      ]
-    },
-    "payloadPaths": {
-      "$comment": "Campos comuns a serem validados, inferidos do schema da resposta",
-      "GET_ONE": ["id", "createdAt", "updatedAt"],
-      "GET_LIST": ["items", "total", "page", "limit"],
-      "CREATE": ["id", "createdAt"],
-      "UPDATE": ["id", "updatedAt"],
-      "DELETE": []
-    }
   }
 }

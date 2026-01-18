@@ -10,8 +10,7 @@
       "Bash(npx prisma db seed:*)",
       "Bash(npm install:*)",
       "Bash(npm run lint:*)",
-      "Bash(npm run typecheck:*)",
-      "Bash(npx prisma generate:*)"
+      "Bash(npm run typecheck:*)"
     ]
   }
 }

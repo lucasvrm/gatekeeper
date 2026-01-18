@@ -13,59 +13,6 @@ export const ManifestSchema = z.object({
 })
 
 /**
- * HTTP endpoint schema (T056)
- */
-export const HttpEndpointSchema = z.object({
-  method: z.string().min(1),
-  path: z.string().min(1),
-  description: z.string().optional(),
-})
-
-/**
- * HTTP assertion surface schema (T056-T057)
- */
-export const HttpAssertionSurfaceSchema = z.object({
-  endpoints: z.array(HttpEndpointSchema).optional(),
-  statusCodes: z.array(z.number()).optional(),
-  endpointStatusCodes: z.record(z.array(z.number())).optional(),
-})
-
-/**
- * Error assertion surface schema (T058)
- */
-export const ErrorAssertionSurfaceSchema = z.object({
-  codes: z.array(z.string()).optional(),
-})
-
-/**
- * UI assertion surface schema (T060)
- */
-export const UIAssertionSurfaceSchema = z.object({
-  routes: z.array(z.string()).optional(),
-  tabs: z.array(z.string()).optional(),
-  selectors: z.record(z.string()).optional(),
-})
-
-/**
- * Effects assertion surface schema (T061)
- */
-export const EffectsAssertionSurfaceSchema = z.object({
-  database: z.array(z.string()).optional(),
-  events: z.array(z.string()).optional(),
-})
-
-/**
- * Assertion surface schema (T056-T061)
- */
-export const AssertionSurfaceSchema = z.object({
-  http: HttpAssertionSurfaceSchema.optional(),
-  errors: ErrorAssertionSurfaceSchema.optional(),
-  payloadPaths: z.array(z.string()).optional(),
-  ui: UIAssertionSurfaceSchema.optional(),
-  effects: EffectsAssertionSurfaceSchema.optional(),
-})
-
-/**
  * Contract clause schema following RULES.md specification (T041-T052).
  * ID format: CL-<TYPE>-<SEQUENCE> (e.g., CL-AUTH-001)
  */
@@ -99,7 +46,6 @@ export const ContractSchema = z.object({
   owners: z.array(z.string()).optional(),
   criticality: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   clauses: z.array(ContractClauseSchema).min(1),
-  assertionSurface: AssertionSurfaceSchema.optional(),
   createdAt: z.string().optional(),
   elicitorVersion: z.string().optional(),
   inputsHash: z.string().optional(),

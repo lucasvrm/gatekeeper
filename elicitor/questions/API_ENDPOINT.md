@@ -176,7 +176,7 @@ Detectar quando a tarefa menciona:
 ```
 8.1 [Se criar/atualizar/deletar] Acontece mais alguma coisa além de salvar?
     (ex: enviar email, notificação, atualizar outro sistema)
-
+    
     A) Sim → Perguntar: "O quê?"
     B) Não, só salva
     C) Não sei / tanto faz → Default: sem efeitos colaterais
@@ -185,64 +185,6 @@ Detectar quando a tarefa menciona:
     A) Permanente (remove de verdade)
     B) Soft delete (marca como deletado, pode recuperar)
     C) Não sei / tanto faz → Default: soft delete
-```
-
----
-
-### 9. SUPERFÍCIE DE TESTES (T180-T183)
-
-**IMPORTANTE**: Para contratos em modo STRICT, estas perguntas são OBRIGATÓRIAS.
-
-```
-9.1 Quais códigos de STATUS você espera que a API retorne?
-    (Marque todos que se aplicam)
-
-    Sucesso:
-    [ ] 200 (OK - retorna dados)
-    [ ] 201 (Criado - novo item)
-    [ ] 204 (Sem conteúdo - apenas sucesso)
-
-    Erro:
-    [ ] 400 (Dados inválidos)
-    [ ] 401 (Não autenticado)
-    [ ] 403 (Sem permissão)
-    [ ] 404 (Não encontrado)
-    [ ] 409 (Conflito/duplicado)
-    [ ] 422 (Validação falhou)
-    [ ] 500 (Erro do servidor)
-    [ ] Outro → Qual?
-
-    → Se não souber: incluir 200/201, 400, 401, 404, 500 como padrão
-
-9.2 [T181] A API usa códigos de erro estruturados?
-    (ex: "AUTH_INVALID", "VALIDATION_ERROR" em vez de apenas mensagens)
-
-    A) Sim → Perguntar: "Quais códigos podem aparecer?"
-       Exemplos: AUTH_INVALID_CREDENTIALS, AUTH_ACCOUNT_LOCKED, VALIDATION_ERROR, NOT_FOUND
-    B) Não, só mensagens de erro em texto
-    C) Não sei / tanto faz → Default: sem códigos estruturados
-
-9.3 [T183] Quais campos IMPORTANTES da resposta os testes devem verificar?
-    (resposta livre - liste os campos principais usando ponto para aninhados)
-
-    Exemplos:
-    - Para login: "token", "user.id", "user.email", "expiresIn"
-    - Para buscar lead: "id", "name", "email", "status", "createdAt"
-    - Para lista: "items", "total", "page"
-
-    **IMPORTANTE**: Prefira IDs estáveis (id, uuid, slug) em vez de nomes ou textos variáveis
-
-    → Se não souber: incluir campos mencionados na resposta de sucesso
-
-9.4 [T182] Cenários de ERRO - O que exatamente deve acontecer em cada caso?
-    (Para cada erro que marcou em 6.1, especifique o comportamento)
-
-    Exemplos:
-    - "Senha incorreta → retorna 401 com código AUTH_INVALID_CREDENTIALS"
-    - "Email já existe → retorna 409 com código USER_ALREADY_EXISTS"
-    - "Campo obrigatório faltando → retorna 400 com details.field"
-
-    → Se não souber: usar padrões REST (400 para validação, 401 para auth, 404 para não encontrado)
 ```
 
 ---
@@ -263,13 +205,7 @@ Rodada 2 (Detalhamento):
 ├── 7.1 Validações específicas
 └── 2.3 Paginação (se lista)
 
-Rodada 3 (Superfície de Testes - T180-T183):
-├── 9.1 Status codes esperados
-├── 9.2 Códigos de erro estruturados (T181)
-├── 9.3 Campos importantes da resposta (T183)
-└── 9.4 Cenários de erro detalhados (T182)
-
-Rodada 4 (Refinamento):
+Rodada 3 (Refinamento):
 ├── 5.2 Verificar ownership
 ├── 8.1 Efeitos colaterais
 └── 8.2 Tipo de deleção (se deletar)

@@ -81,28 +81,6 @@ export interface ElicitationState {
   clauses?: ElicitedClause[]
   shouldGenerateContract?: boolean // T153: Decision flag
 
-  // T180-T183: Assertion surface for contract validation
-  assertionSurface?: {
-    http?: {
-      endpoints?: Array<{ method: string; path: string; description?: string }>
-      statusCodes?: number[]
-      endpointStatusCodes?: Record<string, number[]>
-    }
-    errors?: {
-      codes?: string[]
-    }
-    payloadPaths?: string[]
-    ui?: {
-      routes?: string[]
-      tabs?: string[]
-      selectors?: Record<string, string>
-    }
-    effects?: {
-      database?: string[]
-      events?: string[]
-    }
-  }
-
   // Internal fields
   _initialPrompt?: string
   _defaults?: Record<string, boolean>

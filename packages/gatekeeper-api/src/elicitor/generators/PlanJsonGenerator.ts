@@ -139,42 +139,6 @@ export class PlanJsonGenerator implements IGenerator<PlanJson> {
   }
 
   /**
-   * T186: Get explicit decision about contract generation with reason
-   */
-  getContractDecision(state: ElicitationState): { generated: boolean; reason: string } {
-    // Explicit opt-out
-    if (state.shouldGenerateContract === false) {
-      return {
-        generated: false,
-        reason: 'User explicitly opted out of contract generation (shouldGenerateContract=false)'
-      }
-    }
-
-    // No clauses defined
-    if (!Array.isArray(state.clauses) || state.clauses.length === 0) {
-      const taskType = state.type || 'unknown'
-      return {
-        generated: false,
-        reason: `No testable clauses were defined for this ${taskType} task. Contract generation requires at least one clause.`
-      }
-    }
-
-    // Check if it's a refactor (typically doesn't need contract)
-    if (state.changeType === 'refactor' && !state.shouldGenerateContract) {
-      return {
-        generated: false,
-        reason: 'Task is a refactor with no behavior changes. No contract needed.'
-      }
-    }
-
-    // Generate contract
-    return {
-      generated: true,
-      reason: `Contract generated with ${state.clauses.length} clause(s) in ${state.contractMode || 'STRICT'} mode`
-    }
-  }
-
-  /**
    * T152: Generate Contract from ElicitationState.
    * T154: Use agent configuration for mode if not specified.
    */
@@ -208,7 +172,6 @@ export class PlanJsonGenerator implements IGenerator<PlanJson> {
       owners: state.owners,
       criticality: state.criticality,
       clauses: finalizedClauses,
-      assertionSurface: state.assertionSurface, // T180-T183: Include assertion surface
       createdAt: new Date().toISOString(),
       elicitorVersion: '1.0.0', // TODO: Get from package.json
     }

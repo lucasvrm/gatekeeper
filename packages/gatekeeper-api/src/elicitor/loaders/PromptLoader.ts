@@ -6,7 +6,7 @@ import { TaskType } from '../types/elicitor.types.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const PROMPTS_DIR = path.resolve(__dirname, '../prompts')
+const PROMPTS_DIR = path.resolve(__dirname, '../../../../..', 'elicitor')
 
 const schemaMap: Record<TaskType, string> = {
   [TaskType.UI_COMPONENT]: 'UIComponentContract.json',
