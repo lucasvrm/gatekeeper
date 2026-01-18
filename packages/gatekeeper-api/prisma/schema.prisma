@@ -182,9 +182,6 @@ model LLMAgent {
   generateTaskPrompt Boolean  @default(true)
   generateSpecFile   Boolean  @default(true)
 
-  // T172: Configurações de Contrato
-  defaultContractMode String  @default("STRICT") // STRICT or CREATIVE
-
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

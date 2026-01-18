@@ -113,15 +113,10 @@ export class ElicitorEngine {
       maxRounds: session.maxRounds || MAX_ROUNDS,
     }
 
-    // T172: Initialize contract state with agent's default contract mode
-    const agent = await this.adapterManager.findAgentById(agentId)
-    const defaultMode = (agent as { defaultContractMode?: string })?.defaultContractMode as 'STRICT' | 'CREATIVE' | undefined
-
     this.contractState = {
       type: detectedType,
       _initialPrompt: initialPrompt,
       _defaults: {},
-      contractMode: defaultMode || 'STRICT', // T172: Use agent's default or fallback to STRICT
     }
 
     this.conversationHistory = []
@@ -749,20 +744,6 @@ export class ElicitorEngine {
 
   private async saveElicitationLog(outputPath: string, completeness: CompletenessResult): Promise<void> {
     const { state, session } = this.requireState()
-
-    // T177: Include schemaVersion and clause count in log
-    const contractInfo = state.clauses
-      ? {
-          schemaVersion: '1.0.0',
-          clauseCount: state.clauses.length,
-          clausesByKind: this.countClausesByKind(state.clauses),
-          hasContract: true,
-          contractMode: state.contractMode || 'STRICT',
-        }
-      : {
-          hasContract: false,
-        }
-
     const log = {
       outputId: session.outputId,
       taskType: session.detectedType,
@@ -770,7 +751,6 @@ export class ElicitorEngine {
       completedAt: Date.now(),
       durationMs: this.sessionStartTime ? Date.now() - this.sessionStartTime : 0,
       completeness,
-      contract: contractInfo, // T177
       state,
       history: this.conversationHistory,
     }
@@ -779,17 +759,6 @@ export class ElicitorEngine {
       path.join(outputPath, 'elicitation.log.json'),
       JSON.stringify(log, null, 2)
     )
-  }
-
-  /**
-   * T177: Count clauses by kind for logging/telemetry.
-   */
-  private countClausesByKind(clauses: Array<{ kind: string }>): Record<string, number> {
-    const counts: Record<string, number> = {}
-    for (const clause of clauses) {
-      counts[clause.kind] = (counts[clause.kind] || 0) + 1
-    }
-    return counts
   }
 
   private async incrementRound(): Promise<void> {

@@ -36,7 +36,7 @@ agentsCommand
     }
 
     const table = new Table({
-      head: ['Nome', 'Provider', 'Model', 'Status', 'Default', 'Contract Mode'],
+      head: ['Nome', 'Provider', 'Model', 'Status', 'Default'],
       style: { head: ['cyan'] },
     })
 
@@ -47,7 +47,6 @@ agentsCommand
         agent.model,
         agent.isActive ? chalk.green('Ativo') : chalk.red('Inativo'),
         agent.isDefault ? chalk.green('★') : '',
-        agent.defaultContractMode === 'STRICT' ? chalk.blue('STRICT') : chalk.yellow('CREATIVE'),
       ])
     }
 
@@ -151,16 +150,6 @@ agentsCommand
         },
       },
       {
-        type: 'list',
-        name: 'defaultContractMode',
-        message: 'Default contract mode:',
-        choices: [
-          { name: 'STRICT (requires observables for all clauses)', value: 'STRICT' },
-          { name: 'CREATIVE (allows partial observables)', value: 'CREATIVE' },
-        ],
-        default: 'STRICT',
-      },
-      {
         type: 'confirm',
         name: 'isDefault',
         message: 'Definir como agente padrão?',
@@ -195,7 +184,6 @@ agentsCommand
         generateLog: true,
         generateTaskPrompt: true,
         generateSpecFile: true,
-        defaultContractMode: answers.defaultContractMode, // T172: Default contract mode
       })
 
       if (answers.isDefault) {
@@ -270,8 +258,6 @@ agentsCommand
 
       if (isValid) {
         spinner.succeed(`Conexão OK! (${durationMs}ms)`)
-        console.log(chalk.gray(`Provider: ${agent.provider} | Model: ${agent.model}`))
-        console.log(chalk.gray(`Contract Mode: ${agent.defaultContractMode}`))
       } else {
         spinner.fail(`Falha na conexão. Verifique API key. (${durationMs}ms)`)
       }
