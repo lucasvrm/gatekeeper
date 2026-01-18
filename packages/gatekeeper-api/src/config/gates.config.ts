@@ -6,10 +6,6 @@ import { TaskClarityCheckValidator } from '../domain/validators/gate0/TaskClarit
 import { SensitiveFilesLockValidator } from '../domain/validators/gate0/SensitiveFilesLock.js'
 import { DangerModeExplicitValidator } from '../domain/validators/gate0/DangerModeExplicit.js'
 
-import { ContractSchemaValidValidator } from '../domain/validators/gate1/ContractSchemaValid.js'
-import { TestClauseMappingValidValidator } from '../domain/validators/gate1/TestClauseMappingValid.js'
-import { ContractClauseCoverageValidator } from '../domain/validators/gate1/ContractClauseCoverage.js'
-import { NoOutOfContractAssertionsValidator } from '../domain/validators/gate1/NoOutOfContractAssertions.js'
 import { TestSyntaxValidValidator } from '../domain/validators/gate1/TestSyntaxValid.js'
 import { TestHasAssertionsValidator } from '../domain/validators/gate1/TestHasAssertions.js'
 import { TestCoversHappyAndSadPathValidator } from '../domain/validators/gate1/TestCoversHappyAndSadPath.js'
@@ -49,10 +45,6 @@ export const GATES_CONFIG: GateDefinition[] = [
     emoji: '📜',
     description: 'Validação de contrato e testes',
     validators: [
-      ContractSchemaValidValidator,
-      TestClauseMappingValidValidator,
-      ContractClauseCoverageValidator,
-      NoOutOfContractAssertionsValidator,
       TestSyntaxValidValidator,
       TestHasAssertionsValidator,
       TestCoversHappyAndSadPathValidator,

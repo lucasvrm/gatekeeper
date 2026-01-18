@@ -1,6 +1,6 @@
 # Gatekeeper API - Quick Reference
 
-## 🚀 All 25 Validators (Updated)
+## 🚀 All 21 Validators
 
 ### Gate 0: SANITIZATION 🧹 (5 validators)
 Validates input and scope before processing
@@ -27,62 +27,42 @@ Validates input and scope before processing
 
 ---
 
-### Gate 1: CONTRACT 📜 (13 validators)
+### Gate 1: CONTRACT 📜 (9 validators)
 Validates test contract and TDD compliance
 
-6. **CONTRACT_SCHEMA_VALID** (order: 1, hard) ⭐ NEW 📜
-   - Validates contract structure when present
-   - Checks: Zod schema, duplicate clause IDs, required fields
-   - SKIPS if contract absent (backward compatible)
+6. **TEST_SYNTAX_VALID** (order: 1, hard)
+   - Verifies test file compiles
+   - Runs: tsc --noEmit on test file
 
-7. **TEST_CLAUSE_MAPPING_VALID** (order: 2, mode-dependent) ⭐ NEW 📜
-   - Validates @clause tags reference valid clause IDs
-   - STRICT: FAILED on invalid tags | CREATIVE: WARNING
-   - SKIPS if contract absent
+7. **TEST_HAS_ASSERTIONS** (order: 2, hard)
+   - Ensures test contains assertions
+   - Checks: expect(), assert(), should patterns
 
-8. **CONTRACT_CLAUSE_COVERAGE** (order: 3, mode-dependent) ⭐ NEW 📜
-   - Validates all clauses have test mappings
-   - STRICT: 100% required | CREATIVE: criticality-based minimum
-   - SKIPS if contract absent
+8. **TEST_COVERS_HAPPY_AND_SAD_PATH** (order: 3, hard) ⭐ NEW
+   - Validates both success and error scenarios
+   - Checks: Happy path (success, should, valid) + Sad path (error, fail, throws)
 
-9. **NO_OUT_OF_CONTRACT_ASSERTIONS** (order: 4, mode-dependent) ⭐ NEW 📜
-   - Validates all assertions mapped to clauses
-   - STRICT: FAILED on unmapped | CREATIVE: WARNING
-   - SKIPS if contract absent
+9. **TEST_FAILS_BEFORE_IMPLEMENTATION** (order: 4, hard) 🔒 CLÁUSULA PÉTREA
+   - TDD red phase enforcement (IMMUTABLE)
+   - Runs: Test at base_ref must fail
 
-10. **TEST_SYNTAX_VALID** (order: 5, hard)
-    - Verifies test file compiles
-    - Runs: tsc --noEmit on test file
-
-11. **TEST_HAS_ASSERTIONS** (order: 6, hard)
-    - Ensures test contains assertions
-    - Checks: expect(), assert(), should patterns
-
-12. **TEST_COVERS_HAPPY_AND_SAD_PATH** (order: 7, hard)
-    - Validates both success and error scenarios
-    - Checks: Happy path (success, should, valid) + Sad path (error, fail, throws)
-
-13. **TEST_FAILS_BEFORE_IMPLEMENTATION** (order: 8, hard) 🔒 CLÁUSULA PÉTREA
-    - TDD red phase enforcement (IMMUTABLE)
-    - Runs: Test at base_ref must fail
-
-14. **NO_DECORATIVE_TESTS** (order: 9, hard)
+10. **NO_DECORATIVE_TESTS** (order: 5, hard) ⭐ NEW
     - Blocks empty/meaningless tests
     - Checks: Empty test bodies, render without assertions, snapshot-only
 
-15. **MANIFEST_FILE_LOCK** (order: 10, hard)
+11. **MANIFEST_FILE_LOCK** (order: 6, hard) ⭐ NEW
     - Verifies manifest integrity
     - Checks: Valid structure, no globs, no vague terms, proper actions
 
-16. **NO_IMPLICIT_FILES** (order: 11, hard)
+12. **NO_IMPLICIT_FILES** (order: 7, hard) ⭐ NEW
     - Blocks vague file references
     - Checks: "other files", "etc", "...", "related files"
 
-17. **IMPORT_REALITY_CHECK** (order: 12, hard)
+13. **IMPORT_REALITY_CHECK** (order: 8, hard) ⭐ NEW
     - Validates imports exist
     - Checks: Relative paths + package.json dependencies
 
-18. **TEST_INTENT_ALIGNMENT** (order: 13, **SOFT**) 💡
+14. **TEST_INTENT_ALIGNMENT** (order: 9, **SOFT**) ⭐ NEW 💡
     - Warns on low prompt/test alignment
     - Returns: WARNING (not FAILED) if < 30% keyword overlap
 
@@ -91,23 +71,23 @@ Validates test contract and TDD compliance
 ### Gate 2: EXECUTION ⚙️ (5 validators)
 Validates execution and code quality
 
-19. **DIFF_SCOPE_ENFORCEMENT** (order: 1, hard)
+15. **DIFF_SCOPE_ENFORCEMENT** (order: 1, hard)
     - Ensures diff matches manifest
     - Checks: All diff files ∈ manifest files
 
-20. **TEST_READ_ONLY_ENFORCEMENT** (order: 2, hard)
+16. **TEST_READ_ONLY_ENFORCEMENT** (order: 2, hard)
     - Prevents modification of existing tests
     - Exception: Allows manifest.testFile creation
 
-21. **TASK_TEST_PASSES** (order: 3, hard)
+17. **TASK_TEST_PASSES** (order: 3, hard)
     - Verifies task test passes
     - Runs: Test at target_ref
 
-22. **STRICT_COMPILATION** (order: 4, hard)
+18. **STRICT_COMPILATION** (order: 4, hard) ⭐ NEW
     - Ensures code compiles
     - Runs: tsc --noEmit on entire project
 
-23. **STYLE_CONSISTENCY_LINT** (order: 5, hard)
+19. **STYLE_CONSISTENCY_LINT** (order: 5, hard) ⭐ NEW
     - Validates code style
     - Runs: ESLint on manifest files (skips if no config)
 
@@ -116,11 +96,11 @@ Validates execution and code quality
 ### Gate 3: INTEGRITY 🏗️ (2 validators)
 Final system integrity validation
 
-24. **FULL_REGRESSION_PASS** (order: 1, hard)
+20. **FULL_REGRESSION_PASS** (order: 1, hard)
     - All tests must pass
     - Runs: npm test
 
-25. **PRODUCTION_BUILD_PASS** (order: 2, hard)
+21. **PRODUCTION_BUILD_PASS** (order: 2, hard)
     - Production build succeeds
     - Runs: npm run build
 
@@ -142,30 +122,20 @@ Final system integrity validation
 - Requires explicit activation
 - Must be justified by actual sensitive file presence
 
-### Contract (Optional)
-- **Tests as Contracts**: Structured validation of behavioral contracts
-- **Optional Field**: Contract field in plan.json is optional (backward compatible)
-- **STRICT Mode**: 100% coverage, all assertions mapped (hard-block)
-- **CREATIVE Mode**: Partial coverage allowed, unmapped assertions → WARNING
-- **SKIP Behavior**: All 4 contract validators SKIP when contract absent
-- **Tag Format**: `// @clause CL-<TYPE>-<SEQUENCE>`
-
 ---
 
 ## 📊 Validation Pipeline
 
 ```
-POST /api/runs (with plan.json + optional contract)
+POST /api/runs
     ↓
 Queue (single concurrency)
     ↓
-Build Context (load contract if present)
+Build Context
     ↓
 Gate 0: SANITIZATION (5 validators)
     ↓ PASS
-Gate 1: CONTRACT (13 validators)
-    ├─ 4 contract validators (SKIP if no contract)
-    └─ 9 existing validators
+Gate 1: CONTRACT (9 validators)
     ↓ PASS
 Gate 2: EXECUTION (5 validators)
     ↓ PASS
@@ -174,9 +144,8 @@ Gate 3: INTEGRITY (2 validators)
 Status: PASSED ✅
 ```
 
-If any **hard block** fails → Status: FAILED ❌
+If any **hard block** fails → Status: FAILED ❌  
 If only **soft gates** fail → Status: PASSED with WARNINGS ⚠️
-Contract validators **SKIP** if contract field absent (backward compatible)
 
 ---
 
@@ -223,25 +192,18 @@ packages/gatekeeper-api/
 ├── src/
 │   ├── domain/validators/
 │   │   ├── gate0/ (5 validators)
-│   │   ├── gate1/ (13 validators) ⭐ 4 contract validators
-│   │   ├── gate2/ (5 validators)
+│   │   ├── gate1/ (9 validators) ⭐ 6 new
+│   │   ├── gate2/ (5 validators) ⭐ 2 new
 │   │   └── gate3/ (2 validators)
-│   ├── utils/
-│   │   ├── clauseTagParser.ts (contract tag parsing)
-│   │   └── assertionParser.ts (assertion detection)
-│   ├── types/
-│   │   └── contract.types.ts (contract type definitions)
-│   ├── config/
-│   │   ├── gates.config.ts (25 validators)
-│   │   └── defaults.ts (git ref defaults)
+│   ├── config/gates.config.ts (updated)
 │   ├── services/ (8 services)
 │   ├── repositories/ (3 repos)
 │   └── api/ (12 endpoints)
 ├── tests/
-│   ├── unit/validators/ (25 validator tests)
-│   └── integration/
+│   ├── unit/validators/ (7 new test files)
+│   └── integration/ (2 new test files)
 └── prisma/
-    └── schema.prisma (9+ models)
+    └── schema.prisma (9 models)
 ```
 
 ---
@@ -285,32 +247,23 @@ Response:
 
 - **Code Coverage**: 100% TypeScript
 - **Test Cases**: 100+
-- **Validators**: 25/25 (100%) ⭐ +4 contract validators
+- **Validators**: 21/21 (100%)
 - **API Endpoints**: 12/12 (100%)
 - **Services**: 8/8 (100%)
-- **Documentation**: Complete with contract support
+- **Documentation**: Complete
 
 ---
 
 ## 📚 Documentation Files
 
-**Project Docs:**
 - `README.md` - Project overview
-- `QUICK_REFERENCE.md` - This file (25 validators)
-- `BUILD_STATUS.md` - Implementation status
-- `IMPLEMENTATION_GUIDE.md` - Setup guide
-- `PROJECT_STRUCTURE.md` - File structure
-
-**Gatekeeper Docs (docs/):**
-- `REFERENCE.md` - Complete API reference (plan.json + contract)
-- `RULES.md` - Contract.json v1 specification
-- `TESTS_RULES.md` - Test writing rules
-- `plannerGuide.md` - Planner guide (generating plan.json)
-- `execGuide.md` - Executor guide (running validation)
-- `examples/` - Reference contract examples
+- `BUILD_STATUS.md` - Detailed implementation status
+- `IMPLEMENTATION_GUIDE.md` - Setup and usage guide
+- `COMPLETION_SUMMARY.md` - Final implementation summary
+- `QUICK_REFERENCE.md` - This file
 
 ---
 
-**Last Updated**: January 2026
-**Status**: ✅ Production Ready
-**Version**: 1.0.0 (Contract Support)
+**Last Updated**: January 2025  
+**Status**: ✅ Production Ready  
+**Version**: 1.0.0
