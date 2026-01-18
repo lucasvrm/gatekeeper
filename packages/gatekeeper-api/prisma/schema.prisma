@@ -21,6 +21,7 @@ model ValidationRun {
   contractRunId   String?
   contractRun     ValidationRun?  @relation("ExecutionToContract", fields: [contractRunId], references: [id])
   executionRuns   ValidationRun[] @relation("ExecutionToContract")
+  contractJson    String?
   status          String   @default("PENDING")
   currentGate     Int      @default(0)
   passed          Boolean  @default(false)

@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import { DEFAULT_GIT_REFS, DEFAULT_RUN_CONFIG } from '../../config/defaults.js'
 
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'] as const
+const JSON_PATH_PATTERN = /^[a-zA-Z0-9_$.]+(?:\.[a-zA-Z0-9_$.]+|\[[^\]]+\])*$/u
+
 export const ManifestFileSchema = z.object({
   path: z.string().min(1),
   action: z.enum(['CREATE', 'MODIFY', 'DELETE']),
@@ -16,8 +19,11 @@ export const ManifestSchema = z.object({
  * HTTP endpoint schema (T056)
  */
 export const HttpEndpointSchema = z.object({
-  method: z.string().min(1),
-  path: z.string().min(1),
+  method: z.enum(HTTP_METHODS),
+  path: z.string().regex(
+    /^\/[A-Za-z0-9_\-\/:\[\]\{\}\(\)\*\.]+$/,
+    'HTTP path must start with / and contain only allowed characters'
+  ),
   description: z.string().optional(),
 })
 
@@ -60,9 +66,36 @@ export const EffectsAssertionSurfaceSchema = z.object({
 export const AssertionSurfaceSchema = z.object({
   http: HttpAssertionSurfaceSchema.optional(),
   errors: ErrorAssertionSurfaceSchema.optional(),
-  payloadPaths: z.array(z.string()).optional(),
+  payloadPaths: z.array(
+    z.string().regex(JSON_PATH_PATTERN, 'payloadPath must be a valid JSON path expression'),
+  ).optional(),
   ui: UIAssertionSurfaceSchema.optional(),
   effects: EffectsAssertionSurfaceSchema.optional(),
+})
+
+const TestMappingTagPatternSchema = z.string().refine((value) => {
+  try {
+    new RegExp(value)
+    return true
+  } catch {
+    return false
+  }
+}, 'Invalid testMapping.tagPattern: must be a valid regular expression')
+
+export const TestMappingSchema = z.object({
+  required: z.boolean().optional(),
+  format: z.enum(['comment_tags', 'bracket_tags']).optional(),
+  tagPattern: TestMappingTagPatternSchema.optional(),
+  allowMultiple: z.boolean().optional(),
+  allowUntagged: z.boolean().optional(),
+  untaggedAllowlist: z.array(z.string().min(1)).optional(),
+})
+
+export const ExpectedCoverageSchema = z.object({
+  minTestsPerClause: z.number().int().min(1).optional(),
+  minTestsForMUST: z.number().int().min(1).optional(),
+  minTestsForSecurity: z.number().int().min(1).optional(),
+  minNegativeTestsForError: z.number().int().min(1).optional(),
 })
 
 /**
@@ -82,6 +115,16 @@ export const ContractClauseSchema = z.object({
   negativeCases: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   notes: z.string().optional(),
+}).superRefine((clause, ctx) => {
+  if (['error', 'security'].includes(clause.kind)) {
+    if (!clause.negativeCases || clause.negativeCases.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'negativeCases are required for error and security clauses',
+        path: ['negativeCases'],
+      })
+    }
+  }
 })
 
 /**
@@ -100,6 +143,8 @@ export const ContractSchema = z.object({
   criticality: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   clauses: z.array(ContractClauseSchema).min(1),
   assertionSurface: AssertionSurfaceSchema.optional(),
+  testMapping: TestMappingSchema.optional(),
+  expectedCoverage: ExpectedCoverageSchema.optional(),
   createdAt: z.string().optional(),
   elicitorVersion: z.string().optional(),
   inputsHash: z.string().optional(),

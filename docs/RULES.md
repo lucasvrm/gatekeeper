@@ -712,6 +712,18 @@ This document specifies the structure and semantics of the `contract.json` forma
 
 ---
 
+### T251: Contract schema validation (ContractSchemaValid)
+
+**Purpose:** Validates that the optional `contract` payload follows the structured schema before other gate validators execute.
+
+**Rules:**
+- `schemaVersion` must be exactly `1.0.0` and follow semantic versioning.
+- Clause IDs must be unique; duplicates cause `CONTRACT_SCHEMA_VALID` to fail.
+- `error` and `security` clauses must provide `negativeCases`.
+- `testMapping.untaggedAllowlist` is invalid unless `testMapping.allowUntagged` is `true`.
+- `STRICT` mode requires a non-empty `assertionSurface`; `CREATIVE` mode only emits a WARNING for its absence.
+- `expectedCoverage` entries (`minTestsForMUST`, `minTestsForSecurity`, `minNegativeTestsForError`) must reference clauses that exist in the contract.
+
 ### T062: Invariants - "Must Not Happen X"
 
 **Format:** Use `kind === "invariant"` with negative assertions
@@ -1381,3 +1393,4 @@ CL-AUTH-002        | auth.test.ts            | 89   | should reject invalid pass
 ---
 
 **END OF SPECIFICATION**
+

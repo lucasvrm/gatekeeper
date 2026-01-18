@@ -1,5 +1,5 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
-import type { Contract } from '../../../types/contract.types.js'
+import type { ContractV1 } from '../../../types/contract.types.js'
 import { parseClauseTags, findInvalidClauseTags } from '../../../utils/clauseTagParser.js'
 
 /**
@@ -21,7 +21,7 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
 
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
     // T015: SKIP if contract field is absent
-    const contract = (ctx as unknown as { contract?: Contract }).contract
+    const contract = (ctx as unknown as { contract?: ContractV1 }).contract
 
     if (!contract) {
       return {

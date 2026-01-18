@@ -5,8 +5,10 @@ import { prisma } from '../../db/client.js'
 import { ValidationOrchestrator } from '../../services/ValidationOrchestrator.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'
 import type { CreateRunInput } from '../schemas/validation.schema.js'
+import type { Prisma } from '@prisma/client'
 
 const orchestrator = new ValidationOrchestrator()
+const shouldSkipQueue = process.env.GATEKEEPER_SKIP_VALIDATOR_QUEUE === 'true'
 const maxTestFileBytes = 1048576
 const allowedTestExtensions = new Set([
   '.spec.ts',
@@ -106,25 +108,32 @@ export class ValidationController {
         }
       }
 
+      const runData: Prisma.ValidationRunCreateInput & { contractJson?: string | null } = {
+        outputId: data.outputId,
+        projectPath: data.projectPath,
+        taskPrompt: data.taskPrompt,
+        manifestJson: JSON.stringify(data.manifest),
+        testFilePath: data.testFilePath,
+        baseRef: data.baseRef,
+        targetRef: data.targetRef,
+        dangerMode: data.dangerMode,
+        status: 'PENDING',
+        runType: data.runType,
+        contractRunId: data.contractRunId,
+        ...(data.contract ? { contractJson: JSON.stringify(data.contract) } : {}),
+      }
+
       const run = await prisma.validationRun.create({
-        data: {
-          outputId: data.outputId,
-          projectPath: data.projectPath,
-          taskPrompt: data.taskPrompt,
-          manifestJson: JSON.stringify(data.manifest),
-          testFilePath: data.testFilePath,
-          baseRef: data.baseRef,
-          targetRef: data.targetRef,
-          dangerMode: data.dangerMode,
-          status: 'PENDING',
-          runType: data.runType,
-          contractRunId: data.contractRunId,
-        },
+        data: runData,
       })
 
-      orchestrator.addToQueue(run.id).catch((error) => {
-        console.error(`Error executing run ${run.id}:`, error)
-      })
+      if (!shouldSkipQueue) {
+        orchestrator.addToQueue(run.id).catch((error) => {
+          console.error(`Error executing run ${run.id}:`, error)
+        })
+      } else {
+        console.info(`Skipping validation queue for run ${run.id} (GATEKEEPER_SKIP_VALIDATOR_QUEUE enabled)`)
+      }
 
       res.status(201).json({
         runId: run.id,

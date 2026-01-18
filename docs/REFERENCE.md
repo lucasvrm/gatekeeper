@@ -170,6 +170,13 @@ interface Contract {
 }
 ```
 
+**Contract schema validations (ContractSchemaValid)**:
+- `schemaVersion` must be `1.0.0` and follow semantic versioning.
+- Clause IDs must be unique; duplicate IDs fail on `CONTRACT_SCHEMA_VALID`.
+- `STRICT` mode requires a populated `assertionSurface`; `CREATIVE` mode emits a WARNING instead.
+- `testMapping.untaggedAllowlist` is invalid unless `allowUntagged` is `true`.
+- `expectedCoverage` entries such as `minTestsForMUST`, `minTestsForSecurity`, and `minNegativeTestsForError` reference clauses that exist in the contract.
+
 ### ContractClause Schema (T092)
 
 ```typescript
@@ -388,6 +395,7 @@ Users can override defaults in API requests:
 ```
 POST /api/runs (with plan.json)
     ↓
+    • Supports an optional `contract` payload that is stored on the run for contract-aware validators
 Schema Validation (Zod)
     ↓
 Create ValidationRun record

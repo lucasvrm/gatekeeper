@@ -1,5 +1,5 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
-import type { Contract, ClauseCoverageReport } from '../../../types/contract.types.js'
+import type { ContractV1, ClauseCoverageReport } from '../../../types/contract.types.js'
 import { parseClauseTags, groupTagsByClauseId } from '../../../utils/clauseTagParser.js'
 
 /**
@@ -21,7 +21,7 @@ export const ContractClauseCoverageValidator: ValidatorDefinition = {
 
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
     // T015: SKIP if contract field is absent
-    const contract = (ctx as unknown as { contract?: Contract }).contract
+    const contract = (ctx as unknown as { contract?: ContractV1 }).contract
 
     if (!contract) {
       return {
@@ -59,6 +59,22 @@ export const ContractClauseCoverageValidator: ValidatorDefinition = {
 
     // Calculate coverage
     const totalClauses = contract.clauses.length
+    if (totalClauses === 0) {
+      const isCreative = contract.mode === 'CREATIVE'
+      return {
+        passed: false,
+        status: isCreative ? 'WARNING' : 'FAILED',
+        message: 'Contract does not define any clauses',
+        details: {
+          contractMode: contract.mode,
+        },
+        evidence: [
+          'Contract validation requires at least one clause to assess coverage.',
+          'Add clauses to the contract before running coverage checks.',
+          `Mode: ${contract.mode} (${isCreative ? 'warnings allow zero clauses' : 'STRICT requires clauses to fail fast'})`,
+        ].join('\n'),
+      }
+    }
     const coveredClauseIds = new Set(clauseTags.map(tag => tag.clauseId))
     const coveredClauses = coveredClauseIds.size
     const coveragePercent = totalClauses > 0 ? (coveredClauses / totalClauses) * 100 : 0
