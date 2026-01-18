@@ -256,7 +256,7 @@ export function AgentFormDialog({ open, onClose, agent }: AgentFormDialogProps) 
                       min={0}
                       max={1}
                       step={0.01}
-                      value={[field.value]}
+                      value={[field.value ?? 0]}
                       onValueChange={(value) => field.onChange(value[0] ?? 0)}
                     />
                   </FormControl>

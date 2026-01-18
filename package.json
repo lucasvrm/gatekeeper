@@ -8,6 +8,8 @@
         "kill": "fuser -k 5000/tcp",
         "build": "tsc -b --noCheck && vite build",
         "typecheck": "tsc --noEmit",
+        "typecheck:backend": "npm run typecheck --workspace=gatekeeper-api",
+        "typecheck:all": "npm run typecheck && npm run typecheck:backend",
         "lint": "eslint .",
         "test": "vitest run",
         "optimize": "vite optimize",

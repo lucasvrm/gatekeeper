@@ -95,7 +95,7 @@ export function ConfigModal({
                     }
                   />
                   <span className="text-sm text-muted-foreground">
-                    {Boolean(values[field.name]) ? "Active" : "Inactive"}
+                    {values[field.name] ? "Active" : "Inactive"}
                   </span>
                 </div>
               ) : (

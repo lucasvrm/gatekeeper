@@ -5,7 +5,6 @@ import chalk from 'chalk'
 import boxen from 'boxen'
 import { PrismaClient } from '@prisma/client'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import { simpleGit } from 'simple-git'
 
 import { ElicitorEngine } from '../../elicitor/ElicitorEngine.js'
