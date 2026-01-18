@@ -24,30 +24,20 @@ type VisualState = {
 
 export class TaskPromptGenerator implements IGenerator<string> {
   generate(state: ElicitationState, taskType: TaskType): string {
-    let basePrompt: string
-
     switch (taskType) {
       case TaskType.UI_COMPONENT:
-        basePrompt = this.generateUIComponentPrompt(state)
-        break
+        return this.generateUIComponentPrompt(state)
       case TaskType.API_ENDPOINT:
-        basePrompt = this.generateAPIEndpointPrompt(state)
-        break
+        return this.generateAPIEndpointPrompt(state)
       case TaskType.FEATURE:
-        basePrompt = this.generateFeaturePrompt(state)
-        break
+        return this.generateFeaturePrompt(state)
       case TaskType.AUTH:
-        basePrompt = this.generateAuthPrompt(state)
-        break
+        return this.generateAuthPrompt(state)
       case TaskType.DATA:
-        basePrompt = this.generateDataPrompt(state)
-        break
+        return this.generateDataPrompt(state)
       default:
         throw new Error(`Unsupported task type: ${taskType}`)
     }
-
-    // T159: Append clause information for traceability when clauses exist
-    return this.appendClauseInformation(basePrompt, state)
   }
 
   private generateUIComponentPrompt(state: ElicitationState): string {
@@ -214,39 +204,5 @@ export class TaskPromptGenerator implements IGenerator<string> {
     }
 
     return lines
-  }
-
-  /**
-   * T159: Append clause information to task prompt for traceability.
-   * Includes clause IDs so test writers know which clauses to tag.
-   */
-  private appendClauseInformation(basePrompt: string, state: ElicitationState): string {
-    if (!state.clauses || state.clauses.length === 0) {
-      return basePrompt
-    }
-
-    const lines: string[] = [basePrompt, '']
-
-    lines.push('\nContract Clauses (for test mapping):')
-    lines.push('')
-
-    for (const clause of state.clauses) {
-      const clauseId = clause.id || '(ID will be generated)'
-      lines.push(`- ${clauseId}: ${clause.title}`)
-      lines.push(`  ${clause.normativity} ${clause.kind}`)
-      lines.push(`  Spec: ${clause.spec.slice(0, 100)}${clause.spec.length > 100 ? '...' : ''}`)
-      lines.push('')
-    }
-
-    lines.push('Test Tag Convention:')
-    lines.push('Use // @clause <CLAUSE_ID> before each test to map it to a clause.')
-    lines.push('')
-    lines.push('Example:')
-    lines.push(`// @clause ${state.clauses[0]?.id || 'CL-EXAMPLE-001'}`)
-    lines.push(`test('${state.clauses[0]?.title || 'example test'}', () => {`)
-    lines.push('  // test implementation')
-    lines.push('})')
-
-    return lines.join('\n')
   }
 }
