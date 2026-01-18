@@ -323,23 +323,8 @@ export class ElicitorEngine {
       await writeFile(planJsonPath, JSON.stringify(planJson, null, 2))
     }
 
-    // T156-T158: Generate both contract.md (legacy) and contract_<slug>.md (structured)
-    // contract.md é sempre gerado (obrigatório) - legacy format for compatibility (T157)
+    // contract.md é sempre gerado (obrigatório)
     await writeFile(path.join(outputPath, 'contract.md'), contractMd)
-
-    // T156: Write structured contract if contract was generated in plan.json
-    if (planJson.contract) {
-      const structuredContractMd = this.contractGenerator.generateStructuredContract(planJson.contract)
-      const slug = planJson.contract.slug
-
-      // T156: Write contract_<slug>.md with structured format
-      await writeFile(path.join(outputPath, `contract_${slug}.md`), structuredContractMd)
-
-      // T158: Ensure contract.md and contract_<slug>.md don't diverge
-      // They contain different formats but same source of truth (planJson.contract)
-      // contract.md = legacy human-readable format from ElicitationState
-      // contract_<slug>.md = structured format from Contract object
-    }
 
     if (agent.generateTaskPrompt) {
       await writeFile(path.join(outputPath, 'taskPrompt.md'), taskPrompt)
