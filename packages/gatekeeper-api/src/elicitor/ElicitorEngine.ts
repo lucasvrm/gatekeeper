@@ -19,6 +19,7 @@ import {
   MessageRole,
   TaskType,
 } from './types/elicitor.types.js'
+import { ContractSchema } from '../api/schemas/validation.schema.js'
 
 export interface ElicitorSession {
   outputId: string
@@ -42,6 +43,10 @@ export interface ElicitorOutput {
   planJsonPath: string
   taskPrompt: string
   completenessScore: number
+  contractDecision: {
+    generated: boolean
+    reason: string
+  } // T186: Explicit decision about contract generation
 }
 
 const MAX_ROUNDS = 10
@@ -318,6 +323,75 @@ export class ElicitorEngine {
       state,
     })
 
+    // T186: Get explicit decision about contract generation
+    const contractDecision = this.planGenerator.getContractDecision(state)
+
+    // T187: Log contract generation decision for telemetry
+    console.log(`[Elicitor] Contract decision for ${session.outputId}:`, {
+      generated: contractDecision.generated,
+      reason: contractDecision.reason,
+      taskType: session.detectedType,
+      changeType: state.changeType,
+      clauseCount: state.clauses?.length || 0,
+    })
+
+    // T178: Fail-fast validation of contract schema if contract is present
+    if (planJson.contract) {
+      const validation = ContractSchema.safeParse(planJson.contract)
+
+      if (!validation.success) {
+        const errors = validation.error.errors.map(err => {
+          const path = err.path.join('.')
+          return `  - ${path}: ${err.message}`
+        })
+
+        throw new Error(
+          `CONTRACT_SCHEMA_VALID validation failed (${errors.length} error(s)):\n` +
+          errors.join('\n') + '\n\n' +
+          'Fix these errors before generating the contract.'
+        )
+      }
+
+      // Validate clause ID uniqueness
+      const clauseIds = planJson.contract.clauses.map(c => c.id)
+      const duplicates = clauseIds.filter((id, index) => clauseIds.indexOf(id) !== index)
+
+      if (duplicates.length > 0) {
+        throw new Error(
+          `CONTRACT_SCHEMA_VALID validation failed: Duplicate clause IDs found:\n` +
+          Array.from(new Set(duplicates)).map(id => `  - ${id}`).join('\n') + '\n\n' +
+          'Ensure all clause IDs are unique.'
+        )
+      }
+
+      // T179: Validate assertionSurface is not empty when mode is STRICT
+      if (planJson.contract.mode === 'STRICT') {
+        const surface = planJson.contract.assertionSurface
+
+        // Check if assertionSurface is completely empty or missing
+        const isEmpty = !surface || (
+          !surface.http &&
+          !surface.errors &&
+          !surface.payloadPaths &&
+          !surface.ui &&
+          !surface.effects
+        )
+
+        if (isEmpty) {
+          throw new Error(
+            `CONTRACT_SCHEMA_VALID validation failed: assertionSurface cannot be empty when mode is STRICT.\n\n` +
+            `In STRICT mode, you must specify at least one assertion surface:\n` +
+            `  - http: { endpoints, statusCodes }\n` +
+            `  - errors: { codes }\n` +
+            `  - payloadPaths: []\n` +
+            `  - ui: { routes, tabs, selectors }\n` +
+            `  - effects: { database, events }\n\n` +
+            `This helps ensure tests can validate the contract clauses.`
+          )
+        }
+      }
+    }
+
     const outputPath = path.join(outputDir, session.outputId)
     await mkdir(outputPath, { recursive: true })
 
@@ -372,6 +446,7 @@ export class ElicitorEngine {
       planJsonPath,
       taskPrompt,
       completenessScore: completeness.completenessScore,
+      contractDecision, // T186: Explicit decision about contract generation
     }
   }
 

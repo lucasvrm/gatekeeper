@@ -233,6 +233,95 @@ Antes de gerar o output, verifique:
 
 ---
 
+## Coleta de Assertion Surfaces (T180-T183)
+
+Para contratos em modo STRICT, você DEVE coletar informações sobre onde os testes podem validar o comportamento. Isso é chamado de "assertion surface" (superfície de asserção).
+
+### Para API_ENDPOINT: Coletar HTTP Surface
+
+**Endpoints** (sempre coletar):
+- Método HTTP (GET, POST, PUT, DELETE)
+- Caminho da rota (ex: `/api/leads/:id`)
+- Descrição breve
+
+**Status Codes** (sempre coletar):
+- Códigos de sucesso (ex: 200, 201, 204)
+- Códigos de erro (ex: 400, 401, 403, 404, 500)
+
+**Error Codes** (T181 - sempre coletar):
+- Códigos de erro estruturados (ex: "AUTH_INVALID_CREDENTIALS", "VALIDATION_ERROR")
+- Prefira códigos estáveis ao invés de mensagens de erro variáveis
+
+**Payload Paths** (T183 - coletar campos importantes):
+- Campos da resposta que podem ser validados
+- Use IDs estáveis quando possível (ex: `user.id`, `lead.uuid`)
+- Exemplo: `["token", "user.id", "user.email", "expiresIn"]`
+
+### Para UI_COMPONENT: Coletar UI Surface
+
+**Routes** (se aplicável):
+- Rotas onde o componente aparece (ex: `["/login", "/dashboard"]`)
+
+**Selectors** (sempre coletar):
+- Atributos `data-testid` ou ARIA roles para elementos testáveis
+- Exemplo: `{ "loginButton": "[data-testid='login-submit']", "errorMessage": "[role='alert']" }`
+
+**Tabs/Sections** (se aplicável):
+- Abas ou seções navegáveis (ex: `["Profile", "Settings"]`)
+
+### Para FEATURE/DATA: Coletar Effects Surface
+
+**Database Effects** (quando houver mudança de dados):
+- Descrições de mudanças no banco (ex: `["users table: row created", "sessions table: row created"]`)
+
+**Events** (quando houver eventos):
+- Eventos emitidos (ex: `["UserLoggedIn event emitted"]`)
+
+### Sad Paths e Negative Cases (T182)
+
+Para TODAS as tarefas, sempre colete "casos que podem dar errado":
+
+**Como perguntar** (linguagem simples):
+```
+O que pode dar errado nessa operação?
+(Marque todos que se aplicam)
+
+[ ] Dados inválidos ou mal formatados
+[ ] Campo obrigatório faltando
+[ ] Item não encontrado
+[ ] Sem permissão
+[ ] Já existe (duplicado)
+[ ] Limite excedido
+[ ] Outro → Qual?
+```
+
+**Para clauses de tipo "error" ou "security"**:
+- SEMPRE inclua pelo menos 1 negative case
+- Exemplo: "Wrong password returns 401", "Missing required field returns 400"
+
+### Quando NÃO Coletar Surfaces
+
+Se o usuário disser "não sei" ou "tanto faz" sobre surfaces:
+- Para modo **CREATIVE**: Preencha com surfaces mínimos genéricos (T185)
+- Para modo **STRICT**: Tente uma vez com pergunta reformulada, se ainda "não sei", use defaults inteligentes baseados no tipo da tarefa
+
+### Termos Proibidos (T184)
+
+NUNCA use ou pergunte sobre:
+- Nomes de funções privadas ou métodos internos
+- Detalhes de implementação (ex: "qual middleware", "qual biblioteca")
+- Estrutura de classes ou arquitetura interna
+- Nomes de variáveis locais
+
+Use APENAS termos observáveis:
+- ✅ "endpoint `/api/login`"
+- ✅ "botão com texto 'Entrar'"
+- ✅ "mensagem de erro 'Email inválido'"
+- ❌ "função `validateUser()`"
+- ❌ "variável `isAuthenticated`"
+
+---
+
 ## Arquivos de Referência
 
 Para cada tipo de tarefa, consulte:
