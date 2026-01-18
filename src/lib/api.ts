@@ -64,6 +64,18 @@ export const api = {
       if (!response.ok) throw new Error("Failed to rerun gate")
       return response.json()
     },
+
+    uploadFiles: async (id: string, formData: FormData): Promise<{ message: string; files: Array<{ type: string; path: string; size: number }>; runReset: boolean }> => {
+      const response = await fetch(`${API_BASE}/runs/${id}/files`, {
+        method: "PUT",
+        body: formData,
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to upload files")
+      }
+      return response.json()
+    },
   },
 
   gates: {
@@ -275,7 +287,10 @@ export const api = {
     },
     delete: async (id: string): Promise<void> => {
       const response = await fetch(`${API_BASE}/agents/${id}`, { method: "DELETE" })
-      if (!response.ok) throw new Error("Failed to delete agent")
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Failed to delete agent" }))
+        throw new Error(error.message || "Failed to delete agent")
+      }
     },
     setDefault: async (id: string): Promise<LLMAgent> => {
       const response = await fetch(`${API_BASE}/agents/${id}/default`, { method: "POST" })

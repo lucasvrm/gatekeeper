@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express'
 import { prisma } from '../../db/client.js'
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
 
 export class RunsController {
   async getRun(req: Request, res: Response): Promise<void> {
@@ -172,5 +174,120 @@ export class RunsController {
     })
 
     res.json({ message: 'Run queued for re-execution', runId: id })
+  }
+
+  async uploadFiles(req: Request, res: Response): Promise<void> {
+    const { id } = req.params
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined
+
+    if (!files || Object.keys(files).length === 0) {
+      res.status(400).json({ error: 'No files provided' })
+      return
+    }
+
+    const run = await prisma.validationRun.findUnique({
+      where: { id },
+    })
+
+    if (!run) {
+      res.status(404).json({ error: 'Run not found' })
+      return
+    }
+
+    try {
+      const artifactsPath = path.join(process.cwd(), '../../artifacts', run.outputId)
+      const uploadedFiles: { type: string; path: string; size: number }[] = []
+
+      // Process plan.json
+      if (files['planJson'] && files['planJson'][0]) {
+        const planFile = files['planJson'][0]
+
+        // Validate file size (max 5MB)
+        if (planFile.size > 5 * 1024 * 1024) {
+          res.status(400).json({ error: 'plan.json exceeds maximum size of 5MB' })
+          return
+        }
+
+        // Validate JSON content
+        try {
+          JSON.parse(planFile.buffer.toString('utf-8'))
+        } catch {
+          res.status(400).json({ error: 'plan.json is not valid JSON' })
+          return
+        }
+
+        const planPath = path.join(artifactsPath, 'plan.json')
+        await fs.writeFile(planPath, planFile.buffer)
+        uploadedFiles.push({ type: 'plan.json', path: planPath, size: planFile.size })
+      }
+
+      // Process spec file
+      if (files['specFile'] && files['specFile'][0]) {
+        const specFile = files['specFile'][0]
+
+        // Validate file size (max 5MB)
+        if (specFile.size > 5 * 1024 * 1024) {
+          res.status(400).json({ error: 'Spec file exceeds maximum size of 5MB' })
+          return
+        }
+
+        // Extract original filename to get the proper spec filename
+        const specFileName = specFile.originalname
+        if (!specFileName.endsWith('.spec.tsx') && !specFileName.endsWith('.spec.ts')) {
+          res.status(400).json({ error: 'Spec file must have .spec.tsx or .spec.ts extension' })
+          return
+        }
+
+        const specPath = path.join(artifactsPath, specFileName)
+        await fs.writeFile(specPath, specFile.buffer)
+        uploadedFiles.push({ type: 'spec', path: specPath, size: specFile.size })
+      }
+
+      // Reset the run if it was completed/failed
+      if (run.status === 'PASSED' || run.status === 'FAILED' || run.status === 'ABORTED') {
+        // Delete all gate and validator results
+        await prisma.validatorResult.deleteMany({
+          where: { runId: id },
+        })
+
+        await prisma.gateResult.deleteMany({
+          where: { runId: id },
+        })
+
+        // Reset run to initial state
+        const firstGate = run.runType === 'EXECUTION' ? 2 : 0
+        await prisma.validationRun.update({
+          where: { id },
+          data: {
+            status: 'PENDING',
+            currentGate: firstGate,
+            passed: false,
+            failedAt: null,
+            failedValidatorCode: null,
+            startedAt: null,
+            completedAt: null,
+          },
+        })
+
+        // Queue the run for re-execution
+        const { ValidationOrchestrator } = await import('../../services/ValidationOrchestrator.js')
+        const orchestrator = new ValidationOrchestrator()
+        orchestrator.addToQueue(id).catch((error) => {
+          console.error(`Error re-executing run ${id} after file upload:`, error)
+        })
+      }
+
+      res.json({
+        message: 'Files uploaded successfully',
+        files: uploadedFiles,
+        runReset: run.status === 'PASSED' || run.status === 'FAILED' || run.status === 'ABORTED'
+      })
+    } catch (error) {
+      console.error('Error uploading files:', error)
+      res.status(500).json({
+        error: 'Failed to upload files',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
   }
 }

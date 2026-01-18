@@ -1,9 +1,18 @@
 import { Router } from 'express'
+import multer from 'multer'
 import { RunsController } from '../controllers/RunsController.js'
 import { RunEventService, type RunEvent } from '../../services/RunEventService.js'
 
 const router = Router()
 const controller = new RunsController()
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max file size
+  },
+})
 
 router.get('/runs/:id/events', (req, res) => {
   const { id } = req.params
@@ -62,6 +71,13 @@ router.delete('/runs/:id', (req, res, next) => {
 
 router.post('/runs/:id/rerun/:gateNumber', (req, res, next) => {
   controller.rerunGate(req, res).catch(next)
+})
+
+router.put('/runs/:id/files', upload.fields([
+  { name: 'planJson', maxCount: 1 },
+  { name: 'specFile', maxCount: 1 }
+]), (req, res, next) => {
+  controller.uploadFiles(req, res).catch(next)
 })
 
 export { router as runsRoutes }

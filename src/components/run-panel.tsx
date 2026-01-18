@@ -4,6 +4,7 @@ import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { FileUploadDialog } from "@/components/file-upload-dialog"
 import {
   CaretDown,
   CaretRight,
@@ -15,6 +16,7 @@ import {
   Stop,
   Trash,
   ArrowClockwise,
+  Upload,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 
@@ -24,6 +26,7 @@ interface RunPanelProps {
   onAbort?: () => void
   onDelete?: () => void
   onRerunGate?: (gateNumber: number) => void
+  onUploadSuccess?: () => void
   executionLoading?: boolean
   actionLoading?: boolean
   compact?: boolean
@@ -35,11 +38,13 @@ export function RunPanel({
   onAbort,
   onDelete,
   onRerunGate,
+  onUploadSuccess,
   executionLoading = false,
   actionLoading = false,
   compact = false,
 }: RunPanelProps) {
   const [taskPromptOpen, setTaskPromptOpen] = useState(true)
+  const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [expandedGates, setExpandedGates] = useState<Set<number>>(
     new Set(
       run.runType === 'CONTRACT'
@@ -116,6 +121,15 @@ export function RunPanel({
               {executionLoading ? "..." : "Execução"}
             </Button>
           )}
+          <Button
+            variant="outline"
+            size={compact ? "sm" : "default"}
+            onClick={() => setShowUploadDialog(true)}
+            disabled={actionLoading}
+            title="Upload plan.json or spec file"
+          >
+            <Upload className="w-4 h-4" />
+          </Button>
           {canAbort && onAbort && (
             <Button
               variant="outline"
@@ -305,6 +319,16 @@ export function RunPanel({
             })}
         </div>
       </Card>
+
+      <FileUploadDialog
+        open={showUploadDialog}
+        onClose={() => setShowUploadDialog(false)}
+        runId={run.id}
+        onUploadSuccess={() => {
+          setShowUploadDialog(false)
+          onUploadSuccess?.()
+        }}
+      />
     </div>
   )
 }

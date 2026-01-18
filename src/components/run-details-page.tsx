@@ -188,6 +188,16 @@ export function RunDetailsPage() {
     }
   }
 
+  const handleUploadSuccess = async () => {
+    if (!id) return
+    try {
+      const updated = await api.runs.getWithResults(id)
+      setPrimaryRun(updated)
+    } catch (error) {
+      console.error("Failed to refresh run after upload:", error)
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-8 space-y-6">
@@ -230,7 +240,9 @@ export function RunDetailsPage() {
           Voltar
         </Button>
         <div>
-          <p className="text-sm text-muted-foreground">{primaryRun.projectPath}</p>
+          <p className="text-sm text-muted-foreground">
+            {primaryRun.projectPath} <span className="text-primary">/ {primaryRun.outputId}</span>
+          </p>
         </div>
       </div>
 
@@ -254,6 +266,7 @@ export function RunDetailsPage() {
               setShowDeleteDialog(true)
             }}
             onRerunGate={(gateNumber) => handleRerunGate(contractRun.id, gateNumber)}
+            onUploadSuccess={handleUploadSuccess}
             actionLoading={actionLoading}
           />
         )}
@@ -273,6 +286,7 @@ export function RunDetailsPage() {
               setShowDeleteDialog(true)
             }}
             onRerunGate={(gateNumber) => handleRerunGate(executionRun.id, gateNumber)}
+            onUploadSuccess={handleUploadSuccess}
             actionLoading={actionLoading}
           />
         )}
