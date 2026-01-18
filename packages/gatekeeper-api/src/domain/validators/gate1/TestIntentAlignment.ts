@@ -1,5 +1,4 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
-import { parseClauseTags } from '../../../utils/clauseTagParser.js'
 
 export const TestIntentAlignmentValidator: ValidatorDefinition = {
   code: 'TEST_INTENT_ALIGNMENT',
@@ -38,11 +37,6 @@ export const TestIntentAlignmentValidator: ValidatorDefinition = {
       const testText = testDescriptions.join(' ')
       const testKeywords = extractKeywords(testText)
       
-      const clauseTags = parseClauseTags(testContent, ctx.testFilePath, {
-        tagPattern: ctx.contract?.testMapping?.tagPattern,
-      })
-      const deEmphasizeAlignment = Boolean(ctx.contract?.clauses?.length && clauseTags.length > 0)
-
       const commonKeywords = Array.from(promptKeywords).filter(word => testKeywords.has(word))
       
       const alignmentRatio = promptKeywords.size > 0 
@@ -52,33 +46,13 @@ export const TestIntentAlignmentValidator: ValidatorDefinition = {
       const threshold = 0.3
 
       if (alignmentRatio < threshold) {
-        const evidence = `Prompt keywords: ${Array.from(promptKeywords).slice(0, 10).join(', ')}\n` +
-          `Test keywords: ${Array.from(testKeywords).slice(0, 10).join(', ')}\n` +
-          `Common keywords: ${commonKeywords.length > 0 ? commonKeywords.slice(0, 10).join(', ') : 'none'}`
-
-        if (deEmphasizeAlignment) {
-          return {
-            passed: true,
-            status: 'PASSED',
-            message: `Low alignment (${Math.round(alignmentRatio * 100)}%) but contract clause tags are present; prioritizing clause coverage.`,
-            evidence: `${evidence}\nClause tags detected; alignment warnings de-emphasized when clauses drive validation.`,
-            details: {
-              alignmentRatio: Math.round(alignmentRatio * 100) / 100,
-              promptKeywordCount: promptKeywords.size,
-              testKeywordCount: testKeywords.size,
-              commonKeywordCount: commonKeywords.length,
-              threshold,
-              clauseTagCount: clauseTags.length,
-              alignmentDeemphasized: true,
-            },
-          }
-        }
-
         return {
           passed: true,
           status: 'WARNING',
           message: `Low alignment between prompt and test (${Math.round(alignmentRatio * 100)}%)`,
-          evidence,
+          evidence: `Prompt keywords: ${Array.from(promptKeywords).slice(0, 10).join(', ')}\n` +
+                   `Test keywords: ${Array.from(testKeywords).slice(0, 10).join(', ')}\n` +
+                   `Common keywords: ${commonKeywords.length > 0 ? commonKeywords.slice(0, 10).join(', ') : 'none'}`,
           details: {
             alignmentRatio: Math.round(alignmentRatio * 100) / 100,
             promptKeywordCount: promptKeywords.size,

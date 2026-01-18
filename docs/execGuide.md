@@ -108,19 +108,6 @@ Status: PASSED ✅
 
 ---
 
-## 1.1. Pipeline Contract/Test Responsibilities (T381–T389, T390)
-
-> **Tests are law. Contracts are law. Tags make the link.**
-
-1. **Elicitor duties:** generate `plan.json` plus a matching `contract_<slug>.md`, embed the structured contract inside `plan.json.contract`, and direct the LLM to produce a single test file at `plan.json.testFilePath`. The contract defines the mode, clauses, assertionSurface, and any other observables the tests must cover.
-2. **LLM test generator duties:** consume `plan.json` and the structured contract, emit exactly one test file at `testFilePath`, tag every `test()`/`it()` block with the clause IDs declared in `testMapping`, and never assert outside the declared assertion surface. When a new assertion target is required, request contract expansion rather than inventing new behavior.
-3. **Gatekeeper duties:** run Gate 0 (sanitization validators) first, then Gate 1 (contract-aware validators). Only after Gate 1 passes do Gate 2/3 run and the Executor proceeds. The order ensures the contract and tagged tests define what comes next.
-4. **Mode behavior:** STRICT treats missing tags, coverage, or out-of-contract assertions as hard-blocks. CREATIVE may downgrade them to warnings when allowed by `contract.mode` and the gate configuration. Preference is always to expand the contract or adjust tags before changing tests.
-
-> Pipeline summary: **Elicitor → LLM tests → Gatekeeper (Gate 0 & Gate 1) → Executor**. Contracts and tags drive the validation policy.
-
----
-
 ## 2. Input Requirements (T108)
 
 ### Required Inputs
@@ -630,17 +617,6 @@ Action required:
 
 See full results: /api/runs/{runId}
 ```
-## 6.1. Correction Flow for Contract Validators (T395–T397)
-
-When Gate 1 flags the run, follow this correction flow:
-
-1. **TEST_CLAUSE_MAPPING_VALID failure:** fix @clause tags so every tag references a valid clause ID. Add, correct, or remove tags before retrying.
-2. **CONTRACT_CLAUSE_COVERAGE failure:** add tagged tests for the uncovered clauses, highlight how existing tests already map to them, or adjust the contract/mode so coverage requirements match the intended change.
-3. **NO_OUT_OF_CONTRACT_ASSERTIONS failure:** expand the contract’s assertionSurface to cover the asserted endpoint/payload/selector or remove the assertion. Helper/log assertions skip only when a tagged assertion already covers the surface.
-
-This keeps the contract, tests, and Gatekeeper synchronized before Executor work continues.
-
-
 
 ---
 

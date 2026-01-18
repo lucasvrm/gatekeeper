@@ -22,7 +22,7 @@ This document defines rules and best practices for writing tests that will be va
 
 These validators actively enforce test quality and contract compliance. All are in Gate 1 (CONTRACT).
 
-### Contract Validators (Core)
+### Contract Validators (New)
 
 #### CONTRACT_SCHEMA_VALID
 **Status:** ✅ Implemented
@@ -105,7 +105,6 @@ These validators actively enforce test quality and contract compliance. All are 
 **What it checks:**
 - All assertions are mapped to contract clauses
 - No "rogue" assertions in unmapped tests
-- All assertions reference surfaces declared in `assertionSurface` (endpoints, status codes, selectors, payload paths, error codes)
 
 **Assertion types detected:**
 - `expect()` - Expect-style assertions
@@ -117,17 +116,11 @@ These validators actively enforce test quality and contract compliance. All are 
 **What triggers FAILED (STRICT) / WARNING (CREATIVE):**
 - Assertion in test without `@clause` tag
 - Assertion more than 50 lines below nearest tag
-- Assertion touching an endpoint, status code, payload path, selector, or error code that is not listed in `assertionSurface`
 
 **How to fix:**
 - Add `@clause` tag above test with assertions
 - Move tag closer to assertions (within 50 lines)
 - Add clause to contract if needed
-- Extend the contract’s `assertionSurface` before introducing new assertions so the validator recognizes the target
-
-The validator now ignores helper assertions such as render/screen/fireEvent interactions or console logging. When that happens it reports them under `details.skippedAssertions`, so keep at least one real assertion that maps to the declared surfaces if you rely on tag-based coverage.
-
-The validator returns `status: SKIPPED` with message “No contract provided; validator skipped” whenever the optional `contract` field is omitted, so legacy plans continue to work.
 
 ---
 
@@ -199,8 +192,6 @@ The validator returns `status: SKIPPED` with message “No contract provided; va
 - Add error handling tests
 - Add success scenario tests
 - Balance coverage
-
-When a contract with `behavior` clauses is present, annotate each scenario with `// @clause CL-<TYPE>-<SEQ>` so the validator can map happy and sad tests back to the clause. Behavior clauses marked with `normativity: MUST` or a `negativeCases` list must include both happy and sad coverage; creative mode only emits WARNING instead of FAILED for that clause. Missing clause-level coverage now becomes a clause-aware failure rather than just keyword heuristics.
 
 ---
 
@@ -345,8 +336,6 @@ When a contract with `behavior` clauses is present, annotate each scenario with 
 - Consider if test is actually needed
 
 **NOTE:** This is a soft gate - returns WARNING, not FAILED.
-
-When a contract is provided and tests include `@clause` tags, this validator de-emphasizes keyword-based warnings and returns `PASSED` with `details.alignmentDeemphasized` set. Clause coverage becomes the primary signal, so keep tags in sync with prompt intent instead of relying solely on surface keywords.
 
 ---
 

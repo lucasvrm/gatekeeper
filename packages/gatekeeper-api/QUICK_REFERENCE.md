@@ -38,23 +38,16 @@ Validates test contract and TDD compliance
 7. **TEST_CLAUSE_MAPPING_VALID** (order: 2, mode-dependent) ⭐ NEW 📜
    - Validates @clause tags reference valid clause IDs
    - STRICT: FAILED on invalid tags | CREATIVE: WARNING
-   - Honors `testMapping.allowMultiple`, `allowUntagged`, and `untaggedAllowlist` so setup helpers can remain untagged.
-   - Evidence surfaces invalid tags, tests missing tags, and allowlisted helpers for quick triage.
    - SKIPS if contract absent
 
 8. **CONTRACT_CLAUSE_COVERAGE** (order: 3, mode-dependent) ⭐ NEW 📜
    - Validates all clauses have test mappings
    - STRICT: 100% required | CREATIVE: criticality-based minimum
-   - Derives per-clause minimums from `expectedCoverage` or the contract's `normativity`/`kind`; creative runs warn unless `criticality=critical`.
-   - Returns uncovered clause IDs plus a snapshot of tests covering other clauses as evidence.
    - SKIPS if contract absent
 
 9. **NO_OUT_OF_CONTRACT_ASSERTIONS** (order: 4, mode-dependent) ⭐ NEW 📜
    - Validates all assertions mapped to clauses
    - STRICT: FAILED on unmapped | CREATIVE: WARNING
-   - Validates endpoints / status codes / payload paths / selectors / error codes against `assertionSurface`
-   - Ignores helper assertions (render/fireEvent/screen/console logging) and reports them in `details.skippedAssertions`
-   - Structural assertions without surfaces remain allowed; extend `assertionSurface` when new targets need coverage
    - SKIPS if contract absent
 
 10. **TEST_SYNTAX_VALID** (order: 5, hard)
@@ -68,7 +61,6 @@ Validates test contract and TDD compliance
 12. **TEST_COVERS_HAPPY_AND_SAD_PATH** (order: 7, hard)
     - Validates both success and error scenarios
     - Checks: Happy path (success, should, valid) + Sad path (error, fail, throws)
-    - When a contract with behavior clauses is present, ensures clauses have both happy and sad coverage when required; creative mode only warns
 
 13. **TEST_FAILS_BEFORE_IMPLEMENTATION** (order: 8, hard) 🔒 CLÁUSULA PÉTREA
     - TDD red phase enforcement (IMMUTABLE)
@@ -93,9 +85,8 @@ Validates test contract and TDD compliance
 18. **TEST_INTENT_ALIGNMENT** (order: 13, **SOFT**) 💡
     - Warns on low prompt/test alignment
     - Returns: WARNING (not FAILED) if < 30% keyword overlap
-    - Clause tags suppress warnings and return PASSED with `details.alignmentDeemphasized` when contract coverage already drives the intent check
 
---- 
+---
 
 ### Gate 2: EXECUTION ⚙️ (5 validators)
 Validates execution and code quality

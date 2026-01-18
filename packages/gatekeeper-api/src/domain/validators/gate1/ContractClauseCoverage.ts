@@ -1,50 +1,6 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
-import type {
-  ContractV1,
-  ClauseCoverageReport,
-  ContractClause,
-  ExpectedCoverage,
-  Criticality,
-} from '../../../types/contract.types.js'
+import type { ContractV1, ClauseCoverageReport } from '../../../types/contract.types.js'
 import { parseClauseTags, groupTagsByClauseId } from '../../../utils/clauseTagParser.js'
-
-const CREATIVE_COVERAGE_THRESHOLDS: Record<Criticality, number> = {
-  low: 60,
-  medium: 80,
-  high: 90,
-  critical: 100,
-}
-
-const deriveClauseMinTests = (
-  clause: ContractClause,
-  expectedCoverage?: ExpectedCoverage,
-): number => {
-  const requiresTests =
-    clause.normativity !== 'MAY' || clause.kind === 'error' || clause.kind === 'security'
-  let minTests = requiresTests ? 1 : 0
-
-  if (!expectedCoverage) {
-    return minTests
-  }
-
-  if (expectedCoverage.minTestsPerClause !== undefined) {
-    minTests = Math.max(minTests, expectedCoverage.minTestsPerClause)
-  }
-
-  if (clause.normativity === 'MUST' && expectedCoverage.minTestsForMUST !== undefined) {
-    minTests = Math.max(minTests, expectedCoverage.minTestsForMUST)
-  }
-
-  if (clause.kind === 'security' && expectedCoverage.minTestsForSecurity !== undefined) {
-    minTests = Math.max(minTests, expectedCoverage.minTestsForSecurity)
-  }
-
-  if (clause.kind === 'error' && expectedCoverage.minNegativeTestsForError !== undefined) {
-    minTests = Math.max(minTests, expectedCoverage.minNegativeTestsForError)
-  }
-
-  return minTests
-}
 
 /**
  * CONTRACT_CLAUSE_COVERAGE validator (T015, T018, T019, T023, T028)
@@ -61,19 +17,21 @@ export const ContractClauseCoverageValidator: ValidatorDefinition = {
   description: 'Valida que todas as cláusulas do contrato têm testes mapeados',
   gate: 1,
   order: 3,
-  isHardBlock: true,
+  isHardBlock: true, // Can be WARNING in CREATIVE mode (adjusted in execution)
 
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
+    // T015: SKIP if contract field is absent
     const contract = (ctx as unknown as { contract?: ContractV1 }).contract
 
     if (!contract) {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'No contract provided; validator skipped',
+        message: 'No contract provided - validation skipped',
       }
     }
 
+    // Read test file content
     if (!ctx.testFilePath) {
       return {
         passed: false,
@@ -93,134 +51,103 @@ export const ContractClauseCoverageValidator: ValidatorDefinition = {
       }
     }
 
+    // Parse @clause tags from test file
     const clauseTags = parseClauseTags(testFileContent, ctx.testFilePath)
+
+    // Group tags by clause ID
     const clauseToTests = groupTagsByClauseId(clauseTags)
 
+    // Calculate coverage
     const totalClauses = contract.clauses.length
     if (totalClauses === 0) {
-      const treatAsStrict = contract.mode === 'STRICT' || contract.criticality === 'critical'
+      const isCreative = contract.mode === 'CREATIVE'
       return {
         passed: false,
-        status: treatAsStrict ? 'FAILED' : 'WARNING',
+        status: isCreative ? 'WARNING' : 'FAILED',
         message: 'Contract does not define any clauses',
         details: {
           contractMode: contract.mode,
-          criticality: contract.criticality ?? 'medium',
         },
         evidence: [
           'Contract validation requires at least one clause to assess coverage.',
           'Add clauses to the contract before running coverage checks.',
-          `Mode: ${contract.mode} (${treatAsStrict ? 'STRICT enforces clauses' : 'CREATIVE allows warnings'})`,
+          `Mode: ${contract.mode} (${isCreative ? 'warnings allow zero clauses' : 'STRICT requires clauses to fail fast'})`,
         ].join('\n'),
       }
     }
+    const coveredClauseIds = new Set(clauseTags.map(tag => tag.clauseId))
+    const coveredClauses = coveredClauseIds.size
+    const coveragePercent = totalClauses > 0 ? (coveredClauses / totalClauses) * 100 : 0
 
-    const clauseRequirements = contract.clauses.map((clause) => ({
-      clause,
-      minTests: deriveClauseMinTests(clause, contract.expectedCoverage),
-      tests: clauseToTests.get(clause.id) ?? [],
-    }))
-
-    const requiredClauses = clauseRequirements.filter((entry) => entry.minTests > 0)
-    const coveredRequiredClauses = requiredClauses.filter((entry) => entry.tests.length >= entry.minTests)
-
-    const coveragePercent =
-      requiredClauses.length === 0
-        ? 100
-        : (coveredRequiredClauses.length / requiredClauses.length) * 100
-
-    const underCoveredClauses = requiredClauses.filter((entry) => entry.tests.length < entry.minTests)
-    const clausesCoveredSet = new Set(clauseTags.map((tag) => tag.clauseId))
-    const clauseToTestsObject = Object.fromEntries(Array.from(clauseToTests.entries()))
-
-    const treatAsStrict = contract.mode === 'STRICT' || contract.criticality === 'critical'
-    const status =
-      underCoveredClauses.length === 0 ? 'PASSED' : treatAsStrict ? 'FAILED' : 'WARNING'
+    // Find uncovered clauses
+    const uncoveredClauseIds = contract.clauses
+      .filter(clause => !coveredClauseIds.has(clause.id))
+      .map(clause => clause.id)
 
     const coverageReport: ClauseCoverageReport = {
       totalClauses,
-      coveredClauses: clausesCoveredSet.size,
+      coveredClauses,
       coveragePercent,
-      uncoveredClauseIds: underCoveredClauses.map((entry) => entry.clause.id),
-      clauseToTests: clauseToTestsObject,
+      uncoveredClauseIds,
+      clauseToTests: Object.fromEntries(clauseToTests),
     }
 
-    const evidenceLines: string[] = []
-    const requiredClauseCount = requiredClauses.length || 1
-    evidenceLines.push(
-      `Coverage: ${coveragePercent.toFixed(1)}% (${coveredRequiredClauses.length}/${requiredClauseCount} required clauses satisfied)`,
-    )
-    const threshold = CREATIVE_COVERAGE_THRESHOLDS[contract.criticality ?? 'medium']
-    evidenceLines.push(
-      `Mode: ${contract.mode}${treatAsStrict ? ' (STRICT)' : ` (CREATIVE target >= ${threshold}% coverage)`}`,
-    )
+    // Check if coverage is acceptable
+    const hasFullCoverage = uncoveredClauseIds.length === 0
 
-    if (underCoveredClauses.length > 0) {
-      evidenceLines.push('', `Clauses missing coverage (${underCoveredClauses.length}):`)
-      underCoveredClauses.slice(0, 10).forEach((entry) => {
-        evidenceLines.push(
-          `  - ${entry.clause.id} (${entry.clause.title}) -> ${entry.tests.length}/${entry.minTests} tags`,
-        )
-      })
-      if (underCoveredClauses.length > 10) {
-        evidenceLines.push(`  ...and ${underCoveredClauses.length - 10} more`)
-      }
-      evidenceLines.push(
-        '',
-        'Action required:',
-        '  1. Tag tests with // @clause <CLAUSE_ID> for the missing clauses.',
-        '  2. Remove unused clauses or mark them informational (normativity: MAY).',
-      )
-    }
+    if (!hasFullCoverage) {
+      // T018/T019: In STRICT mode, require 100% coverage (FAILED)
+      // In CREATIVE mode, allow partial coverage (WARNING)
+      const isCreative = contract.mode === 'CREATIVE'
+      const status = isCreative ? 'WARNING' : 'FAILED'
 
-    evidenceLines.push('', 'Clause coverage snapshot:')
-    contract.clauses.slice(0, 5).forEach((clause) => {
-      const tags = clauseToTests.get(clause.id) ?? []
-      const snippet =
-        tags.length === 0
-          ? 'no tags yet'
-          : tags
-              .slice(0, 3)
-              .map((tag) => `${tag.file}:${tag.line}`)
-              .join(', ')
-      evidenceLines.push(`  - ${clause.id}: ${tags.length} tag(s) (${snippet})`)
-    })
-    if (contract.clauses.length > 5) {
-      evidenceLines.push(`  ...and ${contract.clauses.length - 5} more clauses recorded`)
-    }
-
-    if (status !== 'PASSED') {
       return {
         passed: false,
         status,
-        message: `Contract clause coverage ${status === 'FAILED' ? 'failed' : 'returned warnings'}`,
+        message: `Contract clause coverage is ${coveragePercent.toFixed(1)}% (${coveredClauses}/${totalClauses} clauses covered)`,
         details: {
           coverageReport,
           contractMode: contract.mode,
-          criticality: contract.criticality ?? 'medium',
-          clauseIssues: underCoveredClauses.map((entry) => ({
-            clauseId: entry.clause.id,
-            title: entry.clause.title,
-            minTests: entry.minTests,
-            actualTests: entry.tests.length,
-            normativity: entry.clause.normativity,
-            kind: entry.clause.kind,
-          })),
         },
-        evidence: evidenceLines.join('\n'),
+        evidence: [
+          `Coverage: ${coveragePercent.toFixed(1)}% (${coveredClauses}/${totalClauses} clauses)`,
+          '',
+          `Uncovered clauses (${uncoveredClauseIds.length}):`,
+          ...uncoveredClauseIds.slice(0, 20).map(id => {
+            const clause = contract.clauses.find(c => c.id === id)
+            return `  - ${id}: ${clause?.title || '(no title)'}`
+          }),
+          uncoveredClauseIds.length > 20 ? `  ...and ${uncoveredClauseIds.length - 20} more` : '',
+          '',
+          'Action required:',
+          '  1. Add @clause tags to test file for uncovered clauses, OR',
+          '  2. Remove unused clauses from contract',
+          '',
+          `Mode: ${contract.mode} (${isCreative ? 'partial coverage allowed with WARNING' : '100% coverage required'})`,
+        ].filter(Boolean).join('\n'),
       }
     }
 
+    // Full coverage achieved
     return {
       passed: true,
       status: 'PASSED',
-      message: `Full contract coverage: ${clausesCoveredSet.size}/${totalClauses} clause(s) covered by ${clauseTags.length} mapping(s)`,
+      message: `Full contract coverage: ${totalClauses} clause(s) covered by ${clauseTags.length} test mapping(s)`,
       details: {
         coverageReport,
         contractMode: contract.mode,
-        criticality: contract.criticality ?? 'medium',
       },
-      evidence: evidenceLines.join('\n'),
+      evidence: [
+        `Coverage: 100% (${totalClauses}/${totalClauses} clauses)`,
+        `Total @clause tags: ${clauseTags.length}`,
+        '',
+        'All clauses have test coverage:',
+        ...contract.clauses.slice(0, 10).map(clause => {
+          const testCount = clauseToTests.get(clause.id)?.length || 0
+          return `  - ${clause.id}: ${testCount} test(s)`
+        }),
+        contract.clauses.length > 10 ? `  ...and ${contract.clauses.length - 10} more` : '',
+      ].filter(Boolean).join('\n'),
     }
   },
 }
