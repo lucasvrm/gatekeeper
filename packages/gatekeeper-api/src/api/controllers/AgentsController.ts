@@ -111,6 +111,7 @@ export class AgentsController {
         generateLog: typeof generateLog === 'boolean' ? generateLog : true,
         generateTaskPrompt: typeof generateTaskPrompt === 'boolean' ? generateTaskPrompt : true,
         generateSpecFile: typeof generateSpecFile === 'boolean' ? generateSpecFile : true,
+        defaultContractMode: 'STRICT', // T172: Default contract mode
       })
 
       if (created.isDefault) {
