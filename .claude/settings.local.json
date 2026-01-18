@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npx prisma migrate:*)",
       "Bash(npm run build:cli:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run build:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx prisma db seed:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run typecheck:*)"
     ]
   }
 }

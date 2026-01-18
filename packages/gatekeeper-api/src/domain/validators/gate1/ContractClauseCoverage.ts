@@ -99,7 +99,7 @@ export const ContractClauseCoverageValidator: ValidatorDefinition = {
           `Uncovered clauses (${uncoveredClauseIds.length}):`,
           ...uncoveredClauseIds.slice(0, 20).map(id => {
             const clause = contract.clauses.find(c => c.id === id)
-            return `  - ${id}: ${clause?.description || '(no description)'}`
+            return `  - ${id}: ${clause?.title || '(no title)'}`
           }),
           uncoveredClauseIds.length > 20 ? `  ...and ${uncoveredClauseIds.length - 20} more` : '',
           '',

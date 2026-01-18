@@ -13,29 +13,42 @@ export const ManifestSchema = z.object({
 })
 
 /**
- * Contract clause schema following T020 decision.
- * ID format: CL-<TYPE>-<SEQUENCE> (e.g., CL-ENDPOINT-001)
+ * Contract clause schema following RULES.md specification (T041-T052).
+ * ID format: CL-<TYPE>-<SEQUENCE> (e.g., CL-AUTH-001)
  */
 export const ContractClauseSchema = z.object({
   id: z.string().regex(/^CL-[A-Z_]+-\d{3,}$/, 'Clause ID must follow format: CL-<TYPE>-<SEQUENCE>'),
-  description: z.string().min(1),
-  type: z.enum(['ENDPOINT', 'UI', 'BUSINESS_LOGIC', 'ERROR_HANDLING', 'INTEGRATION', 'SIDE_EFFECT', 'STRUCTURE', 'OTHER']).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  kind: z.enum(['behavior', 'error', 'invariant', 'constraint', 'security', 'ui']),
+  normativity: z.enum(['MUST', 'SHOULD', 'MAY']),
+  title: z.string().min(1).max(80),
+  spec: z.string().min(1),
+  observables: z.array(z.enum(['http', 'ui', 'db-effect', 'event', 'file', 'log'])).min(1),
+  when: z.array(z.string()).optional(),
+  inputs: z.record(z.string()).optional(),
+  outputs: z.record(z.string()).optional(),
+  negativeCases: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+  notes: z.string().optional(),
 })
 
 /**
- * Contract schema following T014-T019 decisions.
+ * Contract schema following RULES.md specification (T031-T040).
  * Optional field - validators SKIP if absent (T015)
  */
 export const ContractSchema = z.object({
+  schemaVersion: z.string().regex(/^\d+\.\d+\.\d+$/, 'schemaVersion must be semantic version (e.g., "1.0.0")'),
+  slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'slug must be lowercase kebab-case').max(64),
+  title: z.string().min(1).max(120),
   mode: z.enum(['STRICT', 'CREATIVE']),
+  scope: z.enum(['internal', 'external', 'mixed']).optional(),
+  changeType: z.enum(['new', 'modify', 'bugfix', 'refactor']),
+  targetArtifacts: z.array(z.string()).min(1),
+  owners: z.array(z.string()).optional(),
+  criticality: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   clauses: z.array(ContractClauseSchema).min(1),
-  version: z.string().optional(),
-  metadata: z.object({
-    generatedBy: z.string().optional(),
-    generatedAt: z.string().optional(),
-    taskType: z.string().optional(),
-  }).optional(),
+  createdAt: z.string().optional(),
+  elicitorVersion: z.string().optional(),
+  inputsHash: z.string().optional(),
 })
 
 export const CreateRunSchema = z.object({

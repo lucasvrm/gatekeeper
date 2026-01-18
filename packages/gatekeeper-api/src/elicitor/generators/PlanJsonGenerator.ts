@@ -4,7 +4,12 @@ import { IGenerator, GeneratorContext } from './IGenerator.js'
 import { ElicitationState, ManifestFile, TaskType } from '../types/elicitor.types.js'
 import { TaskPromptGenerator } from './TaskPromptGenerator.js'
 import { DEFAULT_GIT_REFS, SENSITIVE_FILE_PATTERNS } from '../../config/defaults.js'
+import { Contract } from '../../types/contract.types.js'
 
+/**
+ * plan.json structure for Gatekeeper validation runs.
+ * T151: Added optional contract field for structured contract validation.
+ */
 export interface PlanJson {
   outputId: string
   projectPath: string
@@ -17,6 +22,7 @@ export interface PlanJson {
   }
   testFilePath: string
   dangerMode: boolean
+  contract?: Contract // T151: Optional contract field (backward compatible)
 }
 
 export class PlanJsonGenerator implements IGenerator<PlanJson> {
@@ -32,6 +38,11 @@ export class PlanJsonGenerator implements IGenerator<PlanJson> {
     const manifest = this.generateManifest(context.state, testFilePath)
     const dangerMode = this.requiresDangerMode(manifest.files)
 
+    // T152, T153: Generate contract only if shouldGenerateContract is true and clauses exist
+    const contract = this.shouldGenerateContract(context.state)
+      ? this.generateContract(context)
+      : undefined
+
     return {
       outputId: context.outputId,
       projectPath: context.projectPath,
@@ -41,6 +52,7 @@ export class PlanJsonGenerator implements IGenerator<PlanJson> {
       manifest,
       testFilePath,
       dangerMode,
+      ...(contract && { contract }), // T151: Include contract only if generated
     }
   }
 
@@ -108,5 +120,98 @@ export class PlanJsonGenerator implements IGenerator<PlanJson> {
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')
       .toLowerCase()
+  }
+
+  /**
+   * T153: Determine if contract should be generated for this task.
+   * Contract is generated when:
+   * - shouldGenerateContract flag is explicitly true, OR
+   * - clauses exist and shouldGenerateContract is not explicitly false
+   */
+  private shouldGenerateContract(state: ElicitationState): boolean {
+    // Explicit decision takes precedence
+    if (state.shouldGenerateContract === false) {
+      return false
+    }
+
+    // Generate if clauses exist
+    return Array.isArray(state.clauses) && state.clauses.length > 0
+  }
+
+  /**
+   * T152: Generate Contract from ElicitationState.
+   * T154: Use agent configuration for mode if not specified.
+   */
+  private generateContract(context: GeneratorContext): Contract {
+    const state = context.state
+    const clauses = state.clauses || []
+
+    // Generate slug from name or outputId
+    const slug = this.generateSlug(state, context.outputId)
+
+    // Determine mode (T154: from state or default to STRICT)
+    const mode = state.contractMode || 'STRICT'
+
+    // Generate clause IDs if not present
+    const finalizedClauses = clauses.map((clause, index) => ({
+      ...clause,
+      id: clause.id || this.generateClauseId(clause.kind, index + 1),
+    }))
+
+    // Build targetArtifacts from manifestFiles
+    const targetArtifacts = (state.manifestFiles || []).map((f) => f.path)
+
+    return {
+      schemaVersion: '1.0.0',
+      slug,
+      title: state.contractTitle || state.name || `Contract for ${slug}`,
+      mode,
+      scope: state.contractScope,
+      changeType: state.changeType || this.inferChangeType(state),
+      targetArtifacts,
+      owners: state.owners,
+      criticality: state.criticality,
+      clauses: finalizedClauses,
+      createdAt: new Date().toISOString(),
+      elicitorVersion: '1.0.0', // TODO: Get from package.json
+    }
+  }
+
+  /**
+   * Generate slug for contract from state.
+   */
+  private generateSlug(state: ElicitationState, fallback: string): string {
+    const source = state.name || state._initialPrompt || fallback
+    return this.toKebabCase(source.slice(0, 50))
+  }
+
+  /**
+   * Generate clause ID following format: CL-<TYPE>-<SEQUENCE>
+   */
+  private generateClauseId(kind: string, sequence: number): string {
+    const type = kind.toUpperCase().replace(/-/g, '_')
+    const seq = String(sequence).padStart(3, '0')
+    return `CL-${type}-${seq}`
+  }
+
+  /**
+   * Infer changeType from task metadata.
+   */
+  private inferChangeType(state: ElicitationState): 'new' | 'modify' | 'bugfix' | 'refactor' {
+    const prompt = state._initialPrompt?.toLowerCase() || ''
+
+    if (prompt.includes('fix') || prompt.includes('bug')) {
+      return 'bugfix'
+    }
+
+    if (prompt.includes('refactor') || prompt.includes('restructure')) {
+      return 'refactor'
+    }
+
+    if (prompt.includes('modify') || prompt.includes('update') || prompt.includes('change')) {
+      return 'modify'
+    }
+
+    return 'new'
   }
 }
