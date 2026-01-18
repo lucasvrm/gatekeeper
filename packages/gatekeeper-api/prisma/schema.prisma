@@ -195,7 +195,7 @@ model ElicitationSession {
   id                String   @id @default(cuid())
   outputId           String   @unique
   agentId            String
-  agent              LLMAgent @relation(fields: [agentId], references: [id])
+  agent              LLMAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
   initialPrompt      String
   detectedType       String
   status             String   @default("IN_PROGRESS")

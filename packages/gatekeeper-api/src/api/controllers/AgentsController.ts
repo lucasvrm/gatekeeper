@@ -242,9 +242,17 @@ export class AgentsController {
       return
     }
 
-    await repository.delete(id)
-    adapterManager.invalidate(id)
-    res.status(204).send()
+    try {
+      await repository.delete(id)
+      adapterManager.invalidate(id)
+      res.status(204).send()
+    } catch (error: unknown) {
+      console.error('Error deleting agent:', error)
+      res.status(500).json({
+        message: 'Failed to delete agent',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
   }
 
   async setDefault(req: Request, res: Response): Promise<void> {

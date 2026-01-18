@@ -111,7 +111,8 @@ export function AgentsTab() {
       toast.success("Agent deleted")
     } catch (error) {
       console.error("Failed to delete agent:", error)
-      toast.error("Failed to delete agent")
+      const message = error instanceof Error ? error.message : "Failed to delete agent"
+      toast.error(message)
     } finally {
       setActionId(null)
       setPendingDelete(null)
