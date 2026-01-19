@@ -88,63 +88,29 @@ export interface ConfigItem {
   description: string
 }
 
-export interface LLMAgent {
-  id: string
-  name: string
-  slug: string
-  provider: "anthropic" | "openai" | "google" | "ollama"
-  model: string
-  apiKeyEnvVar?: string | null
-  baseUrl?: string | null
-  temperature: number
-  maxTokens: number
-  isActive: boolean
-  isDefault: boolean
-  sortOrder: number
-
-  // Configurações de Output
-  projectPath: string
-  generatePlanJson: boolean
-  generateLog: boolean
-  generateTaskPrompt: boolean
-  generateSpecFile: boolean
-
-  createdAt: string
-  updatedAt: string
+export interface CustomizationSettings {
+  appName: string
+  appSubtitle: string
+  logoUrl: string | null
+  faviconUrl: string | null
+  fonts: {
+    sans: string
+    serif: string
+    mono: string
+  }
+  maxUploadMb: number
+  colors: {
+    accent: { background: string | null; text: string | null }
+    primary: { background: string | null; text: string | null }
+    secondary: { background: string | null; text: string | null }
+    base: { background: string | null; text: string | null }
+    background: { background: string | null; text: string | null }
+    text: { background: string | null; text: string | null }
+  }
 }
 
-export interface CreateAgentInput {
-  name: string
-  provider: LLMAgent["provider"]
-  model: string
-  apiKeyEnvVar?: string | null
-  baseUrl?: string | null
-  temperature: number
-  maxTokens: number
-  isDefault?: boolean
-  projectPath?: string
-  generatePlanJson?: boolean
-  generateLog?: boolean
-  generateTaskPrompt?: boolean
-  generateSpecFile?: boolean
-}
 
-export interface UpdateAgentInput {
-  name?: string
-  provider?: LLMAgent["provider"]
-  model?: string
-  apiKeyEnvVar?: string | null
-  baseUrl?: string | null
-  temperature?: number
-  maxTokens?: number
-  isActive?: boolean
-  isDefault?: boolean
-  projectPath?: string
-  generatePlanJson?: boolean
-  generateLog?: boolean
-  generateTaskPrompt?: boolean
-  generateSpecFile?: boolean
-}
+
 
 export interface ManifestFile {
   path: string

@@ -7,21 +7,24 @@ import { RunDetailsPage } from "@/components/run-details-page"
 import { NewValidationPage } from "@/components/new-validation-page"
 import { GatesPage } from "@/components/gates-page"
 import { ConfigPage } from "@/components/config-page"
+import { CustomizationProvider } from "@/hooks/use-customization"
 
 function App() {
   return (
     <BrowserRouter>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/runs" element={<RunsListPage />} />
-          <Route path="/runs/new" element={<NewValidationPage />} />
-          <Route path="/runs/:id" element={<RunDetailsPage />} />
-          <Route path="/gates" element={<GatesPage />} />
-          <Route path="/config" element={<ConfigPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AppLayout>
+      <CustomizationProvider>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/runs" element={<RunsListPage />} />
+            <Route path="/runs/new" element={<NewValidationPage />} />
+            <Route path="/runs/:id" element={<RunDetailsPage />} />
+            <Route path="/gates" element={<GatesPage />} />
+            <Route path="/config" element={<ConfigPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppLayout>
+      </CustomizationProvider>
       <Toaster />
     </BrowserRouter>
   )

@@ -3,6 +3,20 @@ import { prisma } from '../../db/client.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'
 
 const validatorKeys = new Set<string>(GATES_CONFIG.flatMap((gate) => gate.validators.map((validator) => validator.code)))
+const gateCategoryLabels: Record<number, string> = {
+  0: 'Sanitização',
+  1: 'Contratos/Testes',
+  2: 'Execução',
+  3: 'Integridade',
+}
+const validatorCategoryMap = new Map<string, string>(
+  GATES_CONFIG.flatMap((gate) =>
+    gate.validators.map((validator) => [
+      validator.code,
+      gateCategoryLabels[gate.number] ?? gate.name,
+    ]),
+  ),
+)
 
 export class ValidatorController {
   async listValidators(req: Request, res: Response): Promise<void> {
@@ -11,7 +25,11 @@ export class ValidatorController {
       where: { key: { in: keys }, category: 'VALIDATOR' },
       orderBy: { key: 'asc' },
     })
-    res.json(validators)
+    const response = validators.map((validator) => ({
+      ...validator,
+      gateCategory: validatorCategoryMap.get(validator.key) ?? 'Desconhecida',
+    }))
+    res.json(response)
   }
 
   async getValidator(req: Request, res: Response): Promise<void> {

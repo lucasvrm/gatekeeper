@@ -2,59 +2,6 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-async function seedElicitorAgents() {
-  console.log('V Seeding LLM agents')
-
-  const agents = [
-    {
-      name: 'Claude Sonnet 4',
-      slug: 'claude-sonnet-4',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
-      isDefault: true,
-    },
-    {
-      name: 'Claude Opus 4.5',
-      slug: 'claude-opus-4-5',
-      provider: 'anthropic',
-      model: 'claude-opus-4-5-20250514',
-      isDefault: false,
-    },
-    {
-      name: 'GPT-4 Turbo',
-      slug: 'gpt-4-turbo',
-      provider: 'openai',
-      model: 'gpt-4-turbo',
-      isDefault: false,
-    },
-    {
-      name: 'Gemini Pro',
-      slug: 'gemini-pro',
-      provider: 'google',
-      model: 'gemini-pro',
-      isDefault: false,
-    },
-    {
-      name: 'Ollama Llama 3.2',
-      slug: 'llama-3-2-local',
-      provider: 'ollama',
-      model: 'llama3.2',
-      baseUrl: 'http://localhost:11434',
-      isDefault: false,
-    },
-  ]
-
-  for (const agent of agents) {
-    await prisma.lLMAgent.upsert({
-      where: { slug: agent.slug },
-      create: agent,
-      update: agent,
-    })
-  }
-
-  console.log(`V Seeded ${agents.length} LLM agents`)
-}
-
 async function main() {
   console.log('Starting seed...')
 
@@ -199,8 +146,6 @@ async function main() {
   }
 
   console.log(`✓ Seeded ${validatorConfigs.length} validator configs`)
-
-  await seedElicitorAgents()
 
   console.log('✓ Seed completed successfully')
 }

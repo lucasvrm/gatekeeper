@@ -1,0 +1,19 @@
+@layer base {
+  :root {
+    --font-sans: "Inter", sans-serif;
+    --font-serif: "Merriweather", serif;
+    --font-mono: "JetBrains Mono", monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+  }
+
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}

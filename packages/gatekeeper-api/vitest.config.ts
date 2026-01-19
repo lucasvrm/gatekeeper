@@ -8,7 +8,6 @@ export default defineConfig({
     environment: 'node',
     include: ['test/**/*.spec.ts'],
     exclude: runE2E ? [] : ['test/**/*.e2e.spec.ts'],
-    setupFiles: ['test/setup.ts'],
     env: {
       DATABASE_URL: 'file:./test.db',
     },

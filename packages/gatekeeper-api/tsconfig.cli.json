@@ -5,5 +5,5 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src/cli/**/*", "src/elicitor/**/*", "src/repositories/**/*", "src/types/**/*"]
+  "include": ["src/cli/**/*", "src/repositories/**/*", "src/types/**/*"]
 }

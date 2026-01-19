@@ -26,7 +26,6 @@
     "test:unit": "vitest run",
     "test:integration": "vitest run test/**/*Integration*.spec.ts",
     "test:e2e": "VITEST_RUN_E2E=true vitest run test/**/*.e2e.spec.ts",
-    "test:elicitor": "vitest run test/**/*elicitor*.spec.ts",
     "lint": "eslint src/"
   },
   "dependencies": {

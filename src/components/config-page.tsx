@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
 import { ConfigSection } from "@/components/config-section"
 import { ValidatorsTab } from "@/components/validators-tab"
-import { AgentsTab } from "@/components/agents-tab"
+import { CustomizationTab } from "@/components/customization-tab"
 import { type ConfigModalField } from "@/components/config-modal"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -319,18 +319,14 @@ export function ConfigPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="agents" className="space-y-4">
+      <Tabs defaultValue="validators" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="validators">Validators</TabsTrigger>
           <TabsTrigger value="sensitive-file-rules">Sensitive File Rules</TabsTrigger>
           <TabsTrigger value="ambiguous-terms">Ambiguous Terms</TabsTrigger>
           <TabsTrigger value="validation-configs">Validation Configs</TabsTrigger>
+          <TabsTrigger value="customization">Customização</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="agents">
-          <AgentsTab />
-        </TabsContent>
 
         <TabsContent value="validators">
           <ValidatorsTab
@@ -459,6 +455,10 @@ export function ConfigPage() {
             onUpdate={handleUpdateValidation}
             onDelete={handleDeleteValidation}
           />
+        </TabsContent>
+
+        <TabsContent value="customization">
+          <CustomizationTab />
         </TabsContent>
       </Tabs>
     </div>

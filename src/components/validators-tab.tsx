@@ -13,6 +13,7 @@ import {
 type ValidatorItem = {
   key: string
   value: string
+  gateCategory?: string
 }
 
 const VALIDATOR_DESCRIPTIONS: Record<string, string> = {
@@ -74,6 +75,7 @@ export function ValidatorsTab({
           <TableHeader>
             <TableRow>
               <TableHead className="text-xs uppercase tracking-wide">Validator</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Categoria</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Status</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Actions</TableHead>
@@ -86,7 +88,10 @@ export function ValidatorsTab({
               return (
                 <TableRow key={validator.key}>
                   <TableCell className="font-medium">{validator.key}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-md">
+                  <TableCell className="text-sm text-muted-foreground">
+                    {validator.gateCategory ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-md whitespace-normal break-words">
                     {description}
                   </TableCell>
                   <TableCell>

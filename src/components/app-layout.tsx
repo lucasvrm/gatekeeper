@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom"
 import { List, ShieldCheck, Gear, SquaresFour } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { useCustomization } from "@/hooks/use-customization"
 
 const navigation = [
   { name: "Dashboard", path: "/", icon: SquaresFour },
@@ -11,6 +12,7 @@ const navigation = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
+  const { customization } = useCustomization()
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -18,11 +20,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-primary-foreground" weight="fill" />
+              {customization.logoUrl ? (
+                <img
+                  src={customization.logoUrl}
+                  alt={customization.appName}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <ShieldCheck className="w-6 h-6 text-primary-foreground" weight="fill" />
+              )}
             </div>
             <div>
-              <h1 className="text-lg font-bold">Gatekeeper</h1>
-              <p className="text-xs text-muted-foreground">Dashboard de Validações</p>
+              <h1 className="text-lg font-bold">{customization.appName}</h1>
+              <p className="text-xs text-muted-foreground">{customization.appSubtitle}</p>
             </div>
           </div>
         </div>

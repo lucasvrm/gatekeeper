@@ -8,9 +8,7 @@ import type {
   ConfigItem,
   CreateRunRequest,
   CreateRunResponse,
-  LLMAgent,
-  CreateAgentInput,
-  UpdateAgentInput,
+  CustomizationSettings,
 } from "./types"
 
 export const API_BASE = "http://localhost:3000/api"
@@ -237,6 +235,22 @@ export const api = {
         if (!response.ok) throw new Error("Failed to delete validation config")
       },
     },
+    customization: {
+      get: async (): Promise<CustomizationSettings> => {
+        const response = await fetch(`${CONFIG_BASE}/customization`)
+        if (!response.ok) throw new Error("Failed to fetch customization")
+        return response.json()
+      },
+      update: async (data: Partial<CustomizationSettings>): Promise<CustomizationSettings> => {
+        const response = await fetch(`${CONFIG_BASE}/customization`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to update customization")
+        return response.json()
+      },
+    },
   },
 
   validators: {
@@ -256,51 +270,4 @@ export const api = {
     },
   },
 
-  agents: {
-    list: async (): Promise<LLMAgent[]> => {
-      const response = await fetch(`${API_BASE}/agents`)
-      if (!response.ok) throw new Error("Failed to fetch agents")
-      return response.json()
-    },
-    get: async (id: string): Promise<LLMAgent> => {
-      const response = await fetch(`${API_BASE}/agents/${id}`)
-      if (!response.ok) throw new Error("Failed to fetch agent")
-      return response.json()
-    },
-    create: async (data: CreateAgentInput): Promise<LLMAgent> => {
-      const response = await fetch(`${API_BASE}/agents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      })
-      if (!response.ok) throw new Error("Failed to create agent")
-      return response.json()
-    },
-    update: async (id: string, data: UpdateAgentInput): Promise<LLMAgent> => {
-      const response = await fetch(`${API_BASE}/agents/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      })
-      if (!response.ok) throw new Error("Failed to update agent")
-      return response.json()
-    },
-    delete: async (id: string): Promise<void> => {
-      const response = await fetch(`${API_BASE}/agents/${id}`, { method: "DELETE" })
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: "Failed to delete agent" }))
-        throw new Error(error.message || "Failed to delete agent")
-      }
-    },
-    setDefault: async (id: string): Promise<LLMAgent> => {
-      const response = await fetch(`${API_BASE}/agents/${id}/default`, { method: "POST" })
-      if (!response.ok) throw new Error("Failed to set default agent")
-      return response.json()
-    },
-    test: async (id: string): Promise<{ ok: boolean; latencyMs: number }> => {
-      const response = await fetch(`${API_BASE}/agents/${id}/test`, { method: "POST" })
-      if (!response.ok) throw new Error("Failed to test agent")
-      return response.json()
-    },
-  },
 }

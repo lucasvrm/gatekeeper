@@ -52,4 +52,12 @@ router.delete('/config/validation-configs/:id', (req, res, next) => {
   controller.deleteValidationConfig(req, res).catch(next)
 })
 
+router.get('/config/customization', (req, res, next) => {
+  controller.getCustomization(req, res).catch(next)
+})
+
+router.put('/config/customization', (req, res, next) => {
+  controller.updateCustomization(req, res).catch(next)
+})
+
 export { router as configRoutes }
