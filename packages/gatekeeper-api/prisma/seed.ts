@@ -101,6 +101,27 @@ async function main() {
       category: 'GLOBAL',
       description: 'Allow soft gate failures to not block execution',
     },
+    {
+      key: 'ARTIFACTS_BASE_PATH',
+      value: '',
+      type: 'STRING',
+      category: 'PATHS',
+      description: 'Base path for artifacts storage (relative to projectPath when not absolute)',
+    },
+    {
+      key: 'PROJECT_BASE_PATH',
+      value: '',
+      type: 'STRING',
+      category: 'PATHS',
+      description: 'Base path for resolving relative projectPath values',
+    },
+    {
+      key: 'TEST_FILE_ARTIFACTS_SUBDIR',
+      value: '',
+      type: 'STRING',
+      category: 'PATHS',
+      description: 'Optional subdirectory under artifacts/outputId for test files',
+    },
   ]
 
   for (const config of validationConfigs) {

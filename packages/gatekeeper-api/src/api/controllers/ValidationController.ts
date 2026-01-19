@@ -1,12 +1,17 @@
 import type { Request, Response } from 'express'
 import { mkdir, writeFile } from 'fs/promises'
-import { join } from 'path'
+import { join, isAbsolute, resolve } from 'path'
 import { prisma } from '../../db/client.js'
 import { ValidationOrchestrator } from '../../services/ValidationOrchestrator.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'
 import type { CreateRunInput } from '../schemas/validation.schema.js'
 
 const orchestrator = new ValidationOrchestrator()
+const PATH_CONFIG_KEYS = {
+  artifactsBasePath: 'ARTIFACTS_BASE_PATH',
+  projectBasePath: 'PROJECT_BASE_PATH',
+  testFileArtifactsSubdir: 'TEST_FILE_ARTIFACTS_SUBDIR',
+} as const
 const maxTestFileBytes = 1048576
 const allowedTestExtensions = new Set([
   '.spec.ts',
@@ -23,9 +28,34 @@ const sanitizeOutputId = (outputId: string): string => {
   return outputId.replace(/\.\./g, '').replace(/[\\/ ]/g, '')
 }
 
-const saveTestFile = async (projectPath: string, outputId: string, fileName: string, content: string): Promise<string> => {
-  const artifactsDir = join(projectPath, 'artifacts', outputId)
-  const filePath = join(artifactsDir, fileName)
+const normalizeConfigValue = (value?: string | null): string | null => {
+  if (!value) return null
+  const trimmed = value.trim()
+  return trimmed === '' || trimmed === '.' ? null : trimmed
+}
+
+const resolveProjectPath = (projectPath: string, basePath: string | null): string => {
+  const trimmed = projectPath.trim()
+  if (!basePath || isAbsolute(trimmed)) {
+    return trimmed
+  }
+  return resolve(basePath, trimmed)
+}
+
+const resolveArtifactsBasePath = (artifactsBasePath: string | null, projectPath: string): string => {
+  if (!artifactsBasePath) {
+    return join(projectPath, 'artifacts')
+  }
+  return isAbsolute(artifactsBasePath) ? artifactsBasePath : resolve(projectPath, artifactsBasePath)
+}
+
+const resolveTestFileDir = (artifactsDir: string, subdir: string | null): string => {
+  if (!subdir) return artifactsDir
+  return join(artifactsDir, subdir)
+}
+
+const saveTestFile = async (targetDir: string, fileName: string, content: string): Promise<string> => {
+  const filePath = join(targetDir, fileName)
   await writeFile(filePath, content, 'utf8')
   return filePath
 }
@@ -86,7 +116,17 @@ export class ValidationController {
         }
       }
 
-      const artifactsDir = join(data.projectPath, 'artifacts', sanitizedOutputId)
+      const pathConfigs = await prisma.validationConfig.findMany({
+        where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
+      })
+      const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
+      const projectBasePath = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.projectBasePath))
+      const artifactsBasePathConfig = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.artifactsBasePath))
+      const testFileArtifactsSubdir = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.testFileArtifactsSubdir))
+
+      const resolvedProjectPath = resolveProjectPath(data.projectPath, projectBasePath)
+      const artifactsBasePath = resolveArtifactsBasePath(artifactsBasePathConfig, resolvedProjectPath)
+      const artifactsDir = join(artifactsBasePath, sanitizedOutputId)
       await mkdir(artifactsDir, { recursive: true })
 
       if (data.testFileContent) {
@@ -96,7 +136,9 @@ export class ValidationController {
             return
           }
 
-          await saveTestFile(data.projectPath, sanitizedOutputId, testFileName, data.testFileContent)
+          const testFileDir = resolveTestFileDir(artifactsDir, testFileArtifactsSubdir)
+          await mkdir(testFileDir, { recursive: true })
+          await saveTestFile(testFileDir, testFileName, data.testFileContent)
         } catch (error) {
           res.status(500).json({
             error: 'Failed to save test file',
@@ -109,7 +151,7 @@ export class ValidationController {
       const run = await prisma.validationRun.create({
         data: {
           outputId: data.outputId,
-          projectPath: data.projectPath,
+          projectPath: resolvedProjectPath,
           taskPrompt: data.taskPrompt,
           manifestJson: JSON.stringify(data.manifest),
           testFilePath: data.testFilePath,

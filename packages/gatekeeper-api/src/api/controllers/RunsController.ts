@@ -3,6 +3,23 @@ import { prisma } from '../../db/client.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
+const ARTIFACTS_BASE_PATH_KEY = 'ARTIFACTS_BASE_PATH'
+
+const normalizeConfigValue = (value?: string | null): string | null => {
+  if (!value) return null
+  const trimmed = value.trim()
+  return trimmed === '' || trimmed === '.' ? null : trimmed
+}
+
+const resolveArtifactsBasePath = (artifactsBasePath: string | null, projectPath: string): string => {
+  if (!artifactsBasePath) {
+    return path.join(projectPath, 'artifacts')
+  }
+  return path.isAbsolute(artifactsBasePath)
+    ? artifactsBasePath
+    : path.resolve(projectPath, artifactsBasePath)
+}
+
 export class RunsController {
   async getRun(req: Request, res: Response): Promise<void> {
     const { id } = req.params
@@ -195,7 +212,15 @@ export class RunsController {
     }
 
     try {
-      const artifactsPath = path.join(process.cwd(), '../../artifacts', run.outputId)
+      const artifactsConfig = await prisma.validationConfig.findUnique({
+        where: { key: ARTIFACTS_BASE_PATH_KEY },
+      })
+      const artifactsBasePath = resolveArtifactsBasePath(
+        normalizeConfigValue(artifactsConfig?.value),
+        run.projectPath,
+      )
+      const artifactsPath = path.join(artifactsBasePath, run.outputId)
+      await fs.mkdir(artifactsPath, { recursive: true })
       const uploadedFiles: { type: string; path: string; size: number }[] = []
 
       // Process plan.json
