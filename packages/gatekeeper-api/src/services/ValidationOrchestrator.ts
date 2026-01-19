@@ -1,7 +1,7 @@
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
 import { GATES_CONFIG, CONTRACT_GATE_NUMBERS, EXECUTION_GATE_NUMBERS } from '../config/gates.config.js'
-import type { ValidationContext, GateDefinition, ManifestInput } from '../types/index.js'
+import type { ValidationContext, GateDefinition, ManifestInput, ContractInput } from '../types/index.js'
 import { GitService } from './GitService.js'
 import { ASTService } from './ASTService.js'
 import { TestRunnerService } from './TestRunnerService.js'
@@ -103,7 +103,31 @@ export class ValidationOrchestrator {
 
     for (const validator of gate.validators) {
       const startTime = Date.now()
-      
+      const isBypassed = ctx.bypassedValidators.has(validator.code)
+
+      if (isBypassed) {
+        const duration = Date.now() - startTime
+
+        await this.validatorRepository.create({
+          run: { connect: { id: runId } },
+          gateNumber: gate.number,
+          validatorCode: validator.code,
+          validatorName: validator.name,
+          validatorOrder: validator.order,
+          status: 'SKIPPED',
+          passed: true,
+          isHardBlock: validator.isHardBlock,
+          message: 'Validator bypassed by user',
+          startedAt: new Date(startTime),
+          completedAt: new Date(),
+          durationMs: duration,
+          bypassed: true,
+        })
+        RunEventService.emitValidatorComplete(runId, gate.number, validator.code, 'SKIPPED', true)
+        skippedCount++
+        continue
+      }
+
       try {
         const isActive = ctx.config.get(validator.code)
         if (isActive === 'false') {
@@ -261,6 +285,27 @@ export class ValidationOrchestrator {
       }
     }
 
+    let contract: ContractInput | null = null
+    if (run.contractJson) {
+      try {
+        contract = JSON.parse(run.contractJson) as ContractInput
+      } catch (error) {
+        console.error('Failed to parse contract JSON:', error)
+      }
+    }
+
+    let bypassedValidators = new Set<string>()
+    if (run.bypassedValidators) {
+      try {
+        const parsed = JSON.parse(run.bypassedValidators)
+        if (Array.isArray(parsed)) {
+          bypassedValidators = new Set(parsed.filter((item) => typeof item === 'string'))
+        }
+      } catch (error) {
+        console.error('Failed to parse bypassed validators JSON:', error)
+      }
+    }
+
     const gitService = new GitService(run.projectPath)
     const astService = new ASTService()
     const testRunnerService = new TestRunnerService(run.projectPath)
@@ -277,6 +322,7 @@ export class ValidationOrchestrator {
       targetRef: run.targetRef,
       taskPrompt: run.taskPrompt,
       manifest,
+      contract,
       testFilePath: run.testFilePath,
       dangerMode: run.dangerMode,
       services: {
@@ -292,6 +338,7 @@ export class ValidationOrchestrator {
       config: configMap,
       sensitivePatterns,
       ambiguousTerms,
+      bypassedValidators,
     }
   }
 

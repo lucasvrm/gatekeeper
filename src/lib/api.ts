@@ -63,6 +63,15 @@ export const api = {
       return response.json()
     },
 
+    bypassValidator: async (id: string, validatorCode: string): Promise<{ message: string; runId: string }> => {
+      const response = await fetch(`${API_BASE}/runs/${id}/validators/${validatorCode}/bypass`, { method: "POST" })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || "Failed to bypass validator")
+      }
+      return response.json()
+    },
+
     uploadFiles: async (id: string, formData: FormData): Promise<{ message: string; files: Array<{ type: string; path: string; size: number }>; runReset: boolean }> => {
       const response = await fetch(`${API_BASE}/runs/${id}/files`, {
         method: "PUT",

@@ -73,6 +73,10 @@ router.post('/runs/:id/rerun/:gateNumber', (req, res, next) => {
   controller.rerunGate(req, res).catch(next)
 })
 
+router.post('/runs/:id/validators/:validatorCode/bypass', (req, res, next) => {
+  controller.bypassValidator(req, res).catch(next)
+})
+
 router.put('/runs/:id/files', upload.fields([
   { name: 'planJson', maxCount: 1 },
   { name: 'specFile', maxCount: 1 }

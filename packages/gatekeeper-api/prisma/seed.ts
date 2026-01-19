@@ -116,11 +116,11 @@ async function main() {
       description: 'Base path for resolving relative projectPath values',
     },
     {
-      key: 'TEST_FILE_ARTIFACTS_SUBDIR',
+      key: 'TEST_FILE_PATH',
       value: '',
       type: 'STRING',
       category: 'PATHS',
-      description: 'Optional subdirectory under artifacts/outputId for test files',
+      description: 'Override path recorded on runs and plan.json testFilePath',
     },
   ]
 

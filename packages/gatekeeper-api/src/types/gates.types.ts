@@ -51,6 +51,40 @@ export interface ManifestInput {
   testFile: string
 }
 
+export interface ContractClause {
+  id: string
+  kind: 'behavior' | 'error' | 'invariant'
+  normativity: 'MUST' | 'SHOULD' | 'MAY'
+  when: string
+  then: string
+}
+
+export interface AssertionSurface {
+  http?: {
+    methods?: string[]
+    successStatuses?: number[]
+    errorStatuses?: number[]
+    payloadPaths?: string[]
+  }
+  effects?: string[]
+}
+
+export interface TestMapping {
+  tagPattern?: string
+}
+
+export interface ContractInput {
+  schemaVersion: string
+  slug: string
+  title: string
+  mode: string
+  changeType: string
+  criticality?: string
+  clauses: ContractClause[]
+  assertionSurface?: AssertionSurface
+  testMapping?: TestMapping
+}
+
 export interface GitService {
   diff(baseRef: string, targetRef: string): Promise<string>
   readFile(filePath: string, ref?: string): Promise<string>
@@ -99,6 +133,7 @@ export interface ValidationContext {
   targetRef: string
   taskPrompt: string
   manifest: ManifestInput | null
+  contract: ContractInput | null
   testFilePath: string | null
   dangerMode: boolean
   services: {
@@ -114,6 +149,7 @@ export interface ValidationContext {
   config: Map<string, string>
   sensitivePatterns: string[]
   ambiguousTerms: string[]
+  bypassedValidators: Set<string>
 }
 
 export interface ValidatorOutput {

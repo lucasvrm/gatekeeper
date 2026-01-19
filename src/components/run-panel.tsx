@@ -1,10 +1,12 @@
 import { useState } from "react"
 import type { RunWithResults } from "@/lib/types"
+import { api } from "@/lib/api"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { FileUploadDialog } from "@/components/file-upload-dialog"
+import { toast } from "sonner"
 import {
   CaretDown,
   CaretRight,
@@ -54,6 +56,7 @@ export function RunPanel({
         : [run.gateResults[0]?.gateNumber ?? 0]
     )
   )
+  const [bypassLoading, setBypassLoading] = useState<string | null>(null)
 
   const normalizeStatus = (status: string, passed?: boolean | null) => {
     if (status === "COMPLETED") {
@@ -86,6 +89,19 @@ export function RunPanel({
         return <Minus className={`${size} text-status-skipped`} weight="fill" />
       default:
         return <CheckCircle className={`${size} text-muted-foreground`} weight="regular" />
+    }
+  }
+
+  const handleBypassValidator = async (validatorCode: string) => {
+    setBypassLoading(validatorCode)
+    try {
+      await api.runs.bypassValidator(run.id, validatorCode)
+      toast.success("Validator bypassed; run queued for re-execution")
+    } catch (error) {
+      console.error("Failed to bypass validator:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to bypass validator")
+    } finally {
+      setBypassLoading(null)
     }
   }
 
@@ -282,36 +298,63 @@ export function RunPanel({
 
                   {isExpanded && (
                     <div className="px-3 pb-3 space-y-2">
-                      {validators.map((validator) => (
-                        <div
-                          key={validator.validatorCode}
-                          className="p-3 bg-card rounded-lg border border-border"
-                        >
-                          <div className="flex items-start gap-2">
-                            {getStatusIcon(validator.status, "w-4 h-4")}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h5 className="text-sm font-medium">{validator.validatorName}</h5>
-                                {validator.isHardBlock && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium">
-                                    Hard
-                                  </span>
+                      {validators.map((validator) => {
+                        const shouldShowBypass =
+                          validator.status === 'FAILED' &&
+                          validator.isHardBlock &&
+                          !validator.bypassed
+                        const isBypassInProgress = bypassLoading === validator.validatorCode
+
+                        return (
+                          <div
+                            key={validator.validatorCode}
+                            className="p-3 bg-card rounded-lg border border-border"
+                          >
+                            <div className="flex items-start gap-2">
+                              {getStatusIcon(validator.status, "w-4 h-4")}
+                              <div className="flex-1 min-w-0 space-y-2">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h5 className="text-sm font-medium">{validator.validatorName}</h5>
+                                    {validator.isHardBlock && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium">
+                                        Hard
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1">
+                                    <StatusBadge status={validator.status} className="min-w-[72px]" />
+                                    {shouldShowBypass && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="px-2 py-1 text-xs"
+                                        onClick={(event) => {
+                                          event.stopPropagation()
+                                          handleBypassValidator(validator.validatorCode)
+                                        }}
+                                        disabled={isBypassInProgress || actionLoading}
+                                      >
+                                        {isBypassInProgress ? "Bypassing…" : "Bypass"}
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                                {validator.message && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {validator.message}
+                                  </p>
+                                )}
+                                {validator.evidence && (
+                                  <pre className="text-[10px] bg-muted p-2 rounded font-mono whitespace-pre-wrap overflow-x-auto mt-2 max-h-24 overflow-y-auto">
+                                    {validator.evidence}
+                                  </pre>
                                 )}
                               </div>
-                              {validator.message && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {validator.message}
-                                </p>
-                              )}
-                              {validator.evidence && (
-                                <pre className="text-[10px] bg-muted p-2 rounded font-mono whitespace-pre-wrap overflow-x-auto mt-2 max-h-24 overflow-y-auto">
-                                  {validator.evidence}
-                                </pre>
-                              )}
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </Card>

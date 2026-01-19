@@ -11,18 +11,55 @@ export const ManifestSchema = z.object({
   testFile: z.string().min(1),
 })
 
+export const ContractClauseSchema = z.object({
+  id: z.string().min(1),
+  kind: z.enum(['behavior', 'error', 'invariant']),
+  normativity: z.enum(['MUST', 'SHOULD', 'MAY']),
+  when: z.string().min(1),
+  then: z.string().min(1),
+})
+
+export const AssertionSurfaceHttpSchema = z.object({
+  methods: z.array(z.string()).min(1).optional(),
+  successStatuses: z.array(z.number().int()).min(1).optional(),
+  errorStatuses: z.array(z.number().int()).min(1).optional(),
+  payloadPaths: z.array(z.string()).min(1).optional(),
+})
+
+export const AssertionSurfaceSchema = z.object({
+  http: AssertionSurfaceHttpSchema.optional(),
+  effects: z.array(z.string().min(1)).optional(),
+})
+
+export const TestMappingSchema = z
+  .object({
+    tagPattern: z.string().min(1).default('// @clause'),
+  })
+  .partial()
+
+export const ContractSchema = z.object({
+  schemaVersion: z.string().min(1).default('1.0'),
+  slug: z.string().min(1),
+  title: z.string().min(1),
+  mode: z.string().min(1).default('STRICT'),
+  changeType: z.string().min(1),
+  criticality: z.string().min(1).optional(),
+  clauses: z.array(ContractClauseSchema).min(1),
+  assertionSurface: AssertionSurfaceSchema.optional(),
+  testMapping: TestMappingSchema.optional(),
+})
+
 export const CreateRunSchema = z.object({
   outputId: z.string().min(1),
   projectPath: z.string().min(1),
   taskPrompt: z.string().min(10),
   manifest: ManifestSchema,
-  testFilePath: z.string().min(1),
+  contract: ContractSchema.optional(),
   baseRef: z.string().default('origin/main'),
   targetRef: z.string().default('HEAD'),
   dangerMode: z.boolean().default(false),
   runType: z.enum(['CONTRACT', 'EXECUTION']).default('CONTRACT'),
   contractRunId: z.string().optional(),
-  testFileContent: z.string().optional(),
 })
 
 export type CreateRunInput = z.infer<typeof CreateRunSchema>

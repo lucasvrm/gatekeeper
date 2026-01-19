@@ -1,6 +1,6 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
 import { readFileSync, existsSync } from 'fs'
-import { resolve, dirname } from 'path'
+import { resolve, dirname, isAbsolute } from 'path'
 
 // Node.js built-in modules (não precisam estar em package.json)
 const NODE_BUILTIN_MODULES = [
@@ -30,11 +30,13 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
     }
 
     try {
-        const absoluteTestPath = resolve(ctx.projectPath, ctx.testFilePath)
+      const absoluteTestPath = isAbsolute(ctx.testFilePath)
+        ? ctx.testFilePath
+        : resolve(ctx.projectPath, ctx.testFilePath)
       const imports = await ctx.services.ast.getImports(absoluteTestPath)
-      
+
       const invalidImports: Array<{path: string, reason: string}> = []
-      const testFileDir = dirname(resolve(ctx.projectPath, ctx.testFilePath))
+      const testFileDir = dirname(absoluteTestPath)
       
       for (const importPath of imports) {
         if (importPath.startsWith('.') || importPath.startsWith('/') || importPath.startsWith('@/')) {

@@ -49,8 +49,6 @@ const isLLMPlanOutput = (value: unknown): value is LLMPlanOutput => {
     value.targetRef.length > 0 &&
     typeof value.taskPrompt === "string" &&
     value.taskPrompt.length > 0 &&
-    typeof value.testFilePath === "string" &&
-    value.testFilePath.length > 0 &&
     typeof value.dangerMode === "boolean" &&
     hasFilesArray &&
     hasManifestTestFile
@@ -60,7 +58,6 @@ const isLLMPlanOutput = (value: unknown): value is LLMPlanOutput => {
 export function NewValidationPage() {
   const navigate = useNavigate()
   const [planData, setPlanData] = useState<LLMPlanOutput | null>(null)
-  const [testFileContent, setTestFileContent] = useState<string | null>(null)
   const [testFileMode, setTestFileMode] = useState<"upload" | "manual">("upload")
   const [manualTestPath, setManualTestPath] = useState("")
   const [uploadedTestPath, setUploadedTestPath] = useState("")
@@ -71,10 +68,10 @@ export function NewValidationPage() {
   const canSubmit = useMemo(() => {
     if (!planData) return false
     if (testFileMode === "upload") {
-      return Boolean(testFileContent && uploadedTestPath)
+      return Boolean(uploadedTestPath)
     }
     return Boolean(manualTestPath)
-  }, [manualTestPath, planData, testFileContent, testFileMode, uploadedTestPath])
+  }, [manualTestPath, planData, testFileMode, uploadedTestPath])
 
   const handleJsonContent = (content: string) => {
     setError(null)
@@ -116,10 +113,6 @@ export function NewValidationPage() {
         taskPrompt: planData.taskPrompt,
         dangerMode: planData.dangerMode,
         manifest: planData.manifest,
-        testFilePath: testFileMode === "manual"
-          ? manualTestPath
-          : planData.manifest.testFile,
-        testFileContent: testFileMode === "upload" ? testFileContent ?? undefined : undefined,
         runType,
       }
 
@@ -135,23 +128,21 @@ export function NewValidationPage() {
     }
   }
 
-  const handleTestFileContent = (content: string, filename: string) => {
+  const handleTestFilePath = (filename: string) => {
     setTestFileMode("upload")
-    setTestFileContent(content)
     setUploadedTestPath(filename)
     setManualTestPath("")
     setError(null)
   }
 
   const handleManualPath = (path: string) => {
-    if (path) {
-      setTestFileMode("manual")
-      setManualTestPath(path)
-      setTestFileContent(null)
-      setUploadedTestPath("")
-    } else {
-      setManualTestPath("")
-    }
+      if (path) {
+        setTestFileMode("manual")
+        setManualTestPath(path)
+        setUploadedTestPath("")
+      } else {
+        setManualTestPath("")
+      }
   }
 
   return (
@@ -199,7 +190,7 @@ export function NewValidationPage() {
                 </Label>
               </div>
               <TestFileInput
-                onFileContent={handleTestFileContent}
+                onFilePath={handleTestFilePath}
                 onPathManual={handleManualPath}
                 onError={(message) => setError(message)}
               />

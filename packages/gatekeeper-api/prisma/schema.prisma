@@ -20,6 +20,8 @@ model ValidationRun {
   runType         String   @default("CONTRACT")
   contractRunId   String?
   contractRun     ValidationRun?  @relation("ExecutionToContract", fields: [contractRunId], references: [id])
+  contractJson    String?
+  bypassedValidators String?
   executionRuns   ValidationRun[] @relation("ExecutionToContract")
   status          String   @default("PENDING")
   currentGate     Int      @default(0)
@@ -77,6 +79,7 @@ model ValidatorResult {
   status         String    @default("PENDING")
   passed         Boolean   @default(false)
   isHardBlock    Boolean   @default(true)
+  bypassed       Boolean   @default(false)
   message        String?
   details        String?
   evidence       String?

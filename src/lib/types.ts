@@ -43,6 +43,7 @@ export interface ValidatorResult {
   status: ValidatorStatus
   passed: boolean
   isHardBlock: boolean
+  bypassed?: boolean
   message?: string
   details?: string
   evidence?: string
@@ -129,7 +130,6 @@ export interface LLMPlanOutput {
   baseRef: string
   targetRef: string
   taskPrompt: string
-  testFilePath: string
   dangerMode: boolean
   manifest: ValidationManifest
 }
@@ -139,8 +139,6 @@ export interface CreateRunRequest {
   projectPath: string
   taskPrompt: string
   manifest: ValidationManifest
-  testFilePath: string
-  testFileContent?: string
   baseRef?: string
   targetRef?: string
   dangerMode?: boolean

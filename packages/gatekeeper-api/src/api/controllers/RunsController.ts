@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { prisma } from '../../db/client.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { RunEventService } from '../../services/RunEventService.js'
 
 const ARTIFACTS_BASE_PATH_KEY = 'ARTIFACTS_BASE_PATH'
 
@@ -193,6 +194,122 @@ export class RunsController {
     res.json({ message: 'Run queued for re-execution', runId: id })
   }
 
+  async bypassValidator(req: Request, res: Response): Promise<void> {
+    const { id, validatorCode } = req.params
+
+    const run = await prisma.validationRun.findUnique({
+      where: { id },
+    })
+
+    if (!run) {
+      res.status(404).json({ error: 'Run not found' })
+      return
+    }
+
+    if (run.status !== 'FAILED') {
+      res.status(400).json({
+        error: 'Cannot bypass validator',
+        message: 'Run must be failed to bypass a validator',
+      })
+      return
+    }
+
+    const validatorResult = await prisma.validatorResult.findUnique({
+      where: {
+        runId_validatorCode: {
+          runId: id,
+          validatorCode,
+        },
+      },
+    })
+
+    if (!validatorResult) {
+      res.status(404).json({ error: 'Validator result not found' })
+      return
+    }
+
+    if (!validatorResult.isHardBlock) {
+      res.status(400).json({
+        error: 'Cannot bypass validator',
+        message: 'Only hard block validators can be bypassed this way',
+      })
+      return
+    }
+
+    if (validatorResult.status !== 'FAILED') {
+      res.status(400).json({
+        error: 'Cannot bypass validator',
+        message: 'Validator must be in failed state to bypass',
+      })
+      return
+    }
+
+    if (validatorResult.bypassed) {
+      res.status(400).json({
+        error: 'Validator already bypassed',
+      })
+      return
+    }
+
+    let bypassedList: string[] = []
+    if (run.bypassedValidators) {
+      try {
+        const parsed = JSON.parse(run.bypassedValidators)
+        if (Array.isArray(parsed)) {
+          bypassedList = parsed.filter((item) => typeof item === 'string')
+        }
+      } catch (error) {
+        console.error('Failed to parse bypassed validators JSON:', error)
+      }
+    }
+
+    if (bypassedList.includes(validatorCode)) {
+      res.status(400).json({
+        error: 'Validator already bypassed',
+      })
+      return
+    }
+
+    const updatedBypassList = Array.from(new Set([...bypassedList, validatorCode]))
+    const firstGate = run.runType === 'EXECUTION' ? 2 : 0
+
+    await prisma.validatorResult.deleteMany({
+      where: { runId: id },
+    })
+
+    await prisma.gateResult.deleteMany({
+      where: { runId: id },
+    })
+
+    await prisma.validationRun.update({
+      where: { id },
+      data: {
+        status: 'PENDING',
+        currentGate: firstGate,
+        passed: false,
+        failedAt: null,
+        failedValidatorCode: null,
+        startedAt: null,
+        completedAt: null,
+        summary: null,
+        bypassedValidators: JSON.stringify(updatedBypassList),
+      },
+    })
+
+    RunEventService.emitRunStatus(id, 'PENDING')
+
+    const { ValidationOrchestrator } = await import('../../services/ValidationOrchestrator.js')
+    const orchestrator = new ValidationOrchestrator()
+    orchestrator.addToQueue(id).catch((error) => {
+      console.error(`Error executing run ${id} after bypassing validator:`, error)
+    })
+
+    res.json({
+      message: 'Validator bypassed and run queued for re-execution',
+      runId: id,
+    })
+  }
+
   async uploadFiles(req: Request, res: Response): Promise<void> {
     const { id } = req.params
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined
@@ -215,12 +332,23 @@ export class RunsController {
       const artifactsConfig = await prisma.validationConfig.findUnique({
         where: { key: ARTIFACTS_BASE_PATH_KEY },
       })
-      const artifactsBasePath = resolveArtifactsBasePath(
-        normalizeConfigValue(artifactsConfig?.value),
+      const normalizedArtifactsBase = normalizeConfigValue(artifactsConfig?.value)
+      const fallbackArtifactsBase = resolveArtifactsBasePath(
+        normalizedArtifactsBase,
         run.projectPath,
       )
-      const artifactsPath = path.join(artifactsBasePath, run.outputId)
-      await fs.mkdir(artifactsPath, { recursive: true })
+      const runTestFilePath = run.testFilePath
+      let artifactDir: string
+      let resolvedSpecPath: string | null = null
+
+      if (runTestFilePath && path.isAbsolute(runTestFilePath)) {
+        resolvedSpecPath = runTestFilePath
+        artifactDir = path.dirname(resolvedSpecPath)
+      } else {
+        artifactDir = path.join(fallbackArtifactsBase, run.outputId)
+      }
+
+      await fs.mkdir(artifactDir, { recursive: true })
       const uploadedFiles: { type: string; path: string; size: number }[] = []
 
       // Process plan.json
@@ -233,7 +361,6 @@ export class RunsController {
           return
         }
 
-        // Validate JSON content
         try {
           JSON.parse(planFile.buffer.toString('utf-8'))
         } catch {
@@ -241,7 +368,7 @@ export class RunsController {
           return
         }
 
-        const planPath = path.join(artifactsPath, 'plan.json')
+        const planPath = path.join(artifactDir, 'plan.json')
         await fs.writeFile(planPath, planFile.buffer)
         uploadedFiles.push({ type: 'plan.json', path: planPath, size: planFile.size })
       }
@@ -263,9 +390,12 @@ export class RunsController {
           return
         }
 
-        const specPath = path.join(artifactsPath, specFileName)
-        await fs.writeFile(specPath, specFile.buffer)
-        uploadedFiles.push({ type: 'spec', path: specPath, size: specFile.size })
+        const targetSpecPath =
+          resolvedSpecPath && path.basename(resolvedSpecPath) === specFileName
+            ? resolvedSpecPath
+            : path.join(artifactDir, specFileName)
+        await fs.writeFile(targetSpecPath, specFile.buffer)
+        uploadedFiles.push({ type: 'spec', path: targetSpecPath, size: specFile.size })
       }
 
       // Reset the run if it was completed/failed

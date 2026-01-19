@@ -1,6 +1,6 @@
 import { simpleGit, SimpleGit } from 'simple-git'
 import { readFile } from 'fs/promises'
-import { join } from 'path'
+import { isAbsolute, join } from 'path'
 import type { GitService as IGitService } from '../types/index.js'
 
 export class GitService implements IGitService {
@@ -22,7 +22,7 @@ export class GitService implements IGitService {
       const content = await this.git.show([`${ref}:${filePath}`])
       return content
     }
-    const fullPath = join(this.projectPath, filePath)
+    const fullPath = isAbsolute(filePath) ? filePath : join(this.projectPath, filePath)
     return await readFile(fullPath, 'utf-8')
   }
 

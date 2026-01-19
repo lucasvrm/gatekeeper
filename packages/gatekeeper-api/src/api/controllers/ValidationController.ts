@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express'
-import { mkdir, writeFile } from 'fs/promises'
-import { join, isAbsolute, resolve } from 'path'
+import { basename, join, isAbsolute, resolve } from 'path'
 import { prisma } from '../../db/client.js'
 import { ValidationOrchestrator } from '../../services/ValidationOrchestrator.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'
@@ -8,11 +7,9 @@ import type { CreateRunInput } from '../schemas/validation.schema.js'
 
 const orchestrator = new ValidationOrchestrator()
 const PATH_CONFIG_KEYS = {
-  artifactsBasePath: 'ARTIFACTS_BASE_PATH',
   projectBasePath: 'PROJECT_BASE_PATH',
-  testFileArtifactsSubdir: 'TEST_FILE_ARTIFACTS_SUBDIR',
+  artifactsBasePath: 'ARTIFACTS_BASE_PATH',
 } as const
-const maxTestFileBytes = 1048576
 const allowedTestExtensions = new Set([
   '.spec.ts',
   '.spec.tsx',
@@ -42,23 +39,16 @@ const resolveProjectPath = (projectPath: string, basePath: string | null): strin
   return resolve(basePath, trimmed)
 }
 
-const resolveArtifactsBasePath = (artifactsBasePath: string | null, projectPath: string): string => {
+const resolveArtifactsBasePath = (artifactsBasePath: string | null, resolvedProjectPath: string): string => {
   if (!artifactsBasePath) {
-    return join(projectPath, 'artifacts')
+    return join(resolvedProjectPath, 'artifacts')
   }
-  return isAbsolute(artifactsBasePath) ? artifactsBasePath : resolve(projectPath, artifactsBasePath)
+  return isAbsolute(artifactsBasePath)
+    ? artifactsBasePath
+    : resolve(resolvedProjectPath, artifactsBasePath)
 }
 
-const resolveTestFileDir = (artifactsDir: string, subdir: string | null): string => {
-  if (!subdir) return artifactsDir
-  return join(artifactsDir, subdir)
-}
-
-const saveTestFile = async (targetDir: string, fileName: string, content: string): Promise<string> => {
-  const filePath = join(targetDir, fileName)
-  await writeFile(filePath, content, 'utf8')
-  return filePath
-}
+const sanitizeTestFileName = (value: string): string => basename(value.trim())
 
 export class ValidationController {
   async createRun(req: Request, res: Response): Promise<void> {
@@ -71,23 +61,29 @@ export class ValidationController {
         return
       }
 
-      if (data.testFileContent) {
-        const contentSize = Buffer.byteLength(data.testFileContent, 'utf8')
-        if (contentSize > maxTestFileBytes) {
-          res.status(413).json({ error: 'testFileContent exceeds maximum size' })
-          return
-        }
+      const pathConfigs = await prisma.validationConfig.findMany({
+        where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
+      })
+      const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
+      const projectBasePath = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.projectBasePath))
+      const artifactsBasePath = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.artifactsBasePath))
+      const resolvedProjectPath = resolveProjectPath(data.projectPath, projectBasePath)
+      const finalArtifactsBasePath = resolveArtifactsBasePath(artifactsBasePath, resolvedProjectPath)
+      const manifestTestFileName = sanitizeTestFileName(data.manifest.testFile)
+      if (!manifestTestFileName) {
+        res.status(400).json({ error: 'Invalid test file name in manifest' })
+        return
       }
-
-      const testFileName = data.testFilePath.split(/[\\/]/).pop()
-      const lowerFileName = testFileName?.toLowerCase() ?? ''
+      const lowerFileName = manifestTestFileName.toLowerCase()
       const hasAllowedExtension = Array.from(allowedTestExtensions).some((ext) =>
         lowerFileName.endsWith(ext),
       )
       if (!hasAllowedExtension) {
-        res.status(400).json({ error: 'Invalid testFilePath extension' })
+        res.status(400).json({ error: 'Invalid testFile extension' })
         return
       }
+      const artifactDir = join(finalArtifactsBasePath, sanitizedOutputId)
+      const testFileAbsolutePath = join(artifactDir, manifestTestFileName)
 
       // Validação para runs do tipo EXECUTION
       if (data.runType === 'EXECUTION') {
@@ -116,51 +112,20 @@ export class ValidationController {
         }
       }
 
-      const pathConfigs = await prisma.validationConfig.findMany({
-        where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
-      })
-      const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
-      const projectBasePath = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.projectBasePath))
-      const artifactsBasePathConfig = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.artifactsBasePath))
-      const testFileArtifactsSubdir = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.testFileArtifactsSubdir))
-
-      const resolvedProjectPath = resolveProjectPath(data.projectPath, projectBasePath)
-      const artifactsBasePath = resolveArtifactsBasePath(artifactsBasePathConfig, resolvedProjectPath)
-      const artifactsDir = join(artifactsBasePath, sanitizedOutputId)
-      await mkdir(artifactsDir, { recursive: true })
-
-      if (data.testFileContent) {
-        try {
-          if (!testFileName) {
-            res.status(400).json({ error: 'Invalid testFilePath file name' })
-            return
-          }
-
-          const testFileDir = resolveTestFileDir(artifactsDir, testFileArtifactsSubdir)
-          await mkdir(testFileDir, { recursive: true })
-          await saveTestFile(testFileDir, testFileName, data.testFileContent)
-        } catch (error) {
-          res.status(500).json({
-            error: 'Failed to save test file',
-            message: error instanceof Error ? error.message : String(error),
-          })
-          return
-        }
-      }
-
       const run = await prisma.validationRun.create({
         data: {
           outputId: data.outputId,
           projectPath: resolvedProjectPath,
           taskPrompt: data.taskPrompt,
           manifestJson: JSON.stringify(data.manifest),
-          testFilePath: data.testFilePath,
+          testFilePath: testFileAbsolutePath,
           baseRef: data.baseRef,
           targetRef: data.targetRef,
           dangerMode: data.dangerMode,
           status: 'PENDING',
           runType: data.runType,
           contractRunId: data.contractRunId,
+          contractJson: data.contract ? JSON.stringify(data.contract) : null,
         },
       })
 
