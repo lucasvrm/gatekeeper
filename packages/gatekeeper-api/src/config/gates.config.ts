@@ -15,6 +15,7 @@ import { ManifestFileLockValidator } from '../domain/validators/gate1/ManifestFi
 import { NoImplicitFilesValidator } from '../domain/validators/gate1/NoImplicitFiles.js'
 import { ImportRealityCheckValidator } from '../domain/validators/gate1/ImportRealityCheck.js'
 import { TestIntentAlignmentValidator } from '../domain/validators/gate1/TestIntentAlignment.js'
+import { TestClauseMappingValidValidator } from '../domain/validators/gate1/TestClauseMappingValid.js'
 
 import { DiffScopeEnforcementValidator } from '../domain/validators/gate2/DiffScopeEnforcement.js'
 import { TestReadOnlyEnforcementValidator } from '../domain/validators/gate2/TestReadOnlyEnforcement.js'
@@ -54,6 +55,7 @@ export const GATES_CONFIG: GateDefinition[] = [
       NoImplicitFilesValidator,
       ImportRealityCheckValidator,
       TestIntentAlignmentValidator,
+      TestClauseMappingValidValidator,
     ],
   },
   {

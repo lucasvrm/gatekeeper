@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npx prisma migrate:*)",
       "Bash(npm run build:cli:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

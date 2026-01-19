@@ -126,7 +126,7 @@ export interface ValidationManifest {
 
 export interface LLMPlanOutput {
   outputId: string
-  projectPath: string
+  projectPath?: string
   baseRef: string
   targetRef: string
   taskPrompt: string
@@ -136,7 +136,7 @@ export interface LLMPlanOutput {
 
 export interface CreateRunRequest {
   outputId: string
-  projectPath: string
+  projectPath?: string
   taskPrompt: string
   manifest: ValidationManifest
   baseRef?: string

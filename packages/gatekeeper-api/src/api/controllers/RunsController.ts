@@ -4,22 +4,10 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { RunEventService } from '../../services/RunEventService.js'
 
-const ARTIFACTS_BASE_PATH_KEY = 'ARTIFACTS_BASE_PATH'
-
-const normalizeConfigValue = (value?: string | null): string | null => {
-  if (!value) return null
-  const trimmed = value.trim()
-  return trimmed === '' || trimmed === '.' ? null : trimmed
-}
-
-const resolveArtifactsBasePath = (artifactsBasePath: string | null, projectPath: string): string => {
-  if (!artifactsBasePath) {
-    return path.join(projectPath, 'artifacts')
-  }
-  return path.isAbsolute(artifactsBasePath)
-    ? artifactsBasePath
-    : path.resolve(projectPath, artifactsBasePath)
-}
+const PATH_CONFIG_KEYS = {
+  projectRoot: 'PROJECT_ROOT',
+  artifactsDir: 'ARTIFACTS_DIR',
+} as const
 
 export class RunsController {
   async getRun(req: Request, res: Response): Promise<void> {
@@ -329,14 +317,22 @@ export class RunsController {
     }
 
     try {
-      const artifactsConfig = await prisma.validationConfig.findUnique({
-        where: { key: ARTIFACTS_BASE_PATH_KEY },
+      // Ler configs - source of truth
+      const pathConfigs = await prisma.validationConfig.findMany({
+        where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
       })
-      const normalizedArtifactsBase = normalizeConfigValue(artifactsConfig?.value)
-      const fallbackArtifactsBase = resolveArtifactsBasePath(
-        normalizedArtifactsBase,
-        run.projectPath,
-      )
+      const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
+
+      const projectRoot = configMap.get(PATH_CONFIG_KEYS.projectRoot)?.trim() || ''
+      const artifactsDir = configMap.get(PATH_CONFIG_KEYS.artifactsDir)?.trim() || 'artifacts'
+
+      if (!projectRoot) {
+        res.status(500).json({ error: 'PROJECT_ROOT config is required. Please configure it in /config.' })
+        return
+      }
+
+      // Resolver paths
+      const artifactsBasePath = path.join(projectRoot, artifactsDir)
       const runTestFilePath = run.testFilePath
       let artifactDir: string
       let resolvedSpecPath: string | null = null
@@ -345,7 +341,7 @@ export class RunsController {
         resolvedSpecPath = runTestFilePath
         artifactDir = path.dirname(resolvedSpecPath)
       } else {
-        artifactDir = path.join(fallbackArtifactsBase, run.outputId)
+        artifactDir = path.join(artifactsBasePath, run.outputId)
       }
 
       await fs.mkdir(artifactDir, { recursive: true })
@@ -371,6 +367,21 @@ export class RunsController {
         const planPath = path.join(artifactDir, 'plan.json')
         await fs.writeFile(planPath, planFile.buffer)
         uploadedFiles.push({ type: 'plan.json', path: planPath, size: planFile.size })
+
+        // Extract contract from plan.json and update run
+        try {
+          const planData = JSON.parse(planFile.buffer.toString('utf-8'))
+          if (planData.contract) {
+            await prisma.validationRun.update({
+              where: { id },
+              data: {
+                contractJson: JSON.stringify(planData.contract),
+              },
+            })
+          }
+        } catch (error) {
+          console.error('Failed to extract contract from plan.json:', error)
+        }
       }
 
       // Process spec file

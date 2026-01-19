@@ -41,8 +41,6 @@ const isLLMPlanOutput = (value: unknown): value is LLMPlanOutput => {
   return (
     typeof value.outputId === "string" &&
     value.outputId.length > 0 &&
-    typeof value.projectPath === "string" &&
-    value.projectPath.length > 0 &&
     typeof value.baseRef === "string" &&
     value.baseRef.length > 0 &&
     typeof value.targetRef === "string" &&
@@ -107,7 +105,6 @@ export function NewValidationPage() {
     try {
       const requestData = {
         outputId: planData.outputId,
-        projectPath: planData.projectPath,
         baseRef: planData.baseRef,
         targetRef: planData.targetRef,
         taskPrompt: planData.taskPrompt,

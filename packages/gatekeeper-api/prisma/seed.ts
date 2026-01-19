@@ -102,18 +102,25 @@ async function main() {
       description: 'Allow soft gate failures to not block execution',
     },
     {
-      key: 'ARTIFACTS_BASE_PATH',
+      key: 'PROJECT_ROOT',
       value: '',
       type: 'STRING',
       category: 'PATHS',
-      description: 'Base path for artifacts storage (relative to projectPath when not absolute)',
+      description: 'Absolute path to project repository root (where package.json and .git are located)',
     },
     {
-      key: 'PROJECT_BASE_PATH',
-      value: '',
+      key: 'BACKEND_WORKSPACE',
+      value: 'packages/gatekeeper-api',
       type: 'STRING',
       category: 'PATHS',
-      description: 'Base path for resolving relative projectPath values',
+      description: 'Relative path from PROJECT_ROOT to backend workspace (for manifest resolution)',
+    },
+    {
+      key: 'ARTIFACTS_DIR',
+      value: 'artifacts',
+      type: 'STRING',
+      category: 'PATHS',
+      description: 'Relative path from PROJECT_ROOT to artifacts directory',
     },
     {
       key: 'TEST_FILE_PATH',
@@ -121,6 +128,13 @@ async function main() {
       type: 'STRING',
       category: 'PATHS',
       description: 'Override path recorded on runs and plan.json testFilePath',
+    },
+    {
+      key: 'ALLOW_UNTAGGED_TESTS',
+      value: 'false',
+      type: 'BOOLEAN',
+      category: 'GATE1',
+      description: 'Allow tests without @clause tags (WARNING instead of FAILED)',
     },
   ]
 
@@ -149,6 +163,7 @@ async function main() {
     { key: 'NO_IMPLICIT_FILES', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'IMPORT_REALITY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_INTENT_ALIGNMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
+    { key: 'TEST_CLAUSE_MAPPING_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'DIFF_SCOPE_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_READ_ONLY_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TASK_TEST_PASSES', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },

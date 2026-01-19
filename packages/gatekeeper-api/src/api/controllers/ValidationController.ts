@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { basename, join, isAbsolute, resolve } from 'path'
+import { basename, join } from 'path'
 import { prisma } from '../../db/client.js'
 import { ValidationOrchestrator } from '../../services/ValidationOrchestrator.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'
@@ -7,8 +7,9 @@ import type { CreateRunInput } from '../schemas/validation.schema.js'
 
 const orchestrator = new ValidationOrchestrator()
 const PATH_CONFIG_KEYS = {
-  projectBasePath: 'PROJECT_BASE_PATH',
-  artifactsBasePath: 'ARTIFACTS_BASE_PATH',
+  projectRoot: 'PROJECT_ROOT',
+  backendWorkspace: 'BACKEND_WORKSPACE',
+  artifactsDir: 'ARTIFACTS_DIR',
 } as const
 const allowedTestExtensions = new Set([
   '.spec.ts',
@@ -25,29 +26,6 @@ const sanitizeOutputId = (outputId: string): string => {
   return outputId.replace(/\.\./g, '').replace(/[\\/ ]/g, '')
 }
 
-const normalizeConfigValue = (value?: string | null): string | null => {
-  if (!value) return null
-  const trimmed = value.trim()
-  return trimmed === '' || trimmed === '.' ? null : trimmed
-}
-
-const resolveProjectPath = (projectPath: string, basePath: string | null): string => {
-  const trimmed = projectPath.trim()
-  if (!basePath || isAbsolute(trimmed)) {
-    return trimmed
-  }
-  return resolve(basePath, trimmed)
-}
-
-const resolveArtifactsBasePath = (artifactsBasePath: string | null, resolvedProjectPath: string): string => {
-  if (!artifactsBasePath) {
-    return join(resolvedProjectPath, 'artifacts')
-  }
-  return isAbsolute(artifactsBasePath)
-    ? artifactsBasePath
-    : resolve(resolvedProjectPath, artifactsBasePath)
-}
-
 const sanitizeTestFileName = (value: string): string => basename(value.trim())
 
 export class ValidationController {
@@ -61,14 +39,24 @@ export class ValidationController {
         return
       }
 
+      // Ler configs - source of truth
       const pathConfigs = await prisma.validationConfig.findMany({
         where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
       })
       const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
-      const projectBasePath = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.projectBasePath))
-      const artifactsBasePath = normalizeConfigValue(configMap.get(PATH_CONFIG_KEYS.artifactsBasePath))
-      const resolvedProjectPath = resolveProjectPath(data.projectPath, projectBasePath)
-      const finalArtifactsBasePath = resolveArtifactsBasePath(artifactsBasePath, resolvedProjectPath)
+
+      const projectRoot = configMap.get(PATH_CONFIG_KEYS.projectRoot)?.trim() || ''
+      const artifactsDir = configMap.get(PATH_CONFIG_KEYS.artifactsDir)?.trim() || 'artifacts'
+
+      // Validar PROJECT_ROOT obrigatório
+      if (!projectRoot) {
+        res.status(500).json({ error: 'PROJECT_ROOT config is required. Please configure it in /config.' })
+        return
+      }
+
+      // Resolver paths
+      const projectPath = projectRoot
+      const artifactsBasePath = join(projectRoot, artifactsDir)
       const manifestTestFileName = sanitizeTestFileName(data.manifest.testFile)
       if (!manifestTestFileName) {
         res.status(400).json({ error: 'Invalid test file name in manifest' })
@@ -82,7 +70,7 @@ export class ValidationController {
         res.status(400).json({ error: 'Invalid testFile extension' })
         return
       }
-      const artifactDir = join(finalArtifactsBasePath, sanitizedOutputId)
+      const artifactDir = join(artifactsBasePath, sanitizedOutputId)
       const testFileAbsolutePath = join(artifactDir, manifestTestFileName)
 
       // Validação para runs do tipo EXECUTION
@@ -115,7 +103,7 @@ export class ValidationController {
       const run = await prisma.validationRun.create({
         data: {
           outputId: data.outputId,
-          projectPath: resolvedProjectPath,
+          projectPath: projectPath,
           taskPrompt: data.taskPrompt,
           manifestJson: JSON.stringify(data.manifest),
           testFilePath: testFileAbsolutePath,

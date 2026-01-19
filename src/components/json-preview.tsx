@@ -67,10 +67,6 @@ export function JsonPreview({ data }: JsonPreviewProps) {
             <div className="text-sm font-medium">{data.outputId}</div>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Project Path</div>
-            <div className="text-sm font-medium">{data.projectPath}</div>
-          </div>
-          <div className="space-y-1">
             <div className="text-xs text-muted-foreground">Base Ref</div>
             <div className="text-sm font-medium">{data.baseRef}</div>
           </div>
@@ -81,12 +77,6 @@ export function JsonPreview({ data }: JsonPreviewProps) {
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">Danger Mode</div>
             <div className="text-sm font-medium">{renderValue(data.dangerMode)}</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Test File Path</div>
-            <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-medium">
-              {data.testFilePath}
-            </div>
           </div>
         </div>
       </div>

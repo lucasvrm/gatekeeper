@@ -30,6 +30,7 @@ export type ValidatorCode =
   | 'NO_IMPLICIT_FILES'
   | 'IMPORT_REALITY_CHECK'
   | 'TEST_INTENT_ALIGNMENT'
+  | 'TEST_CLAUSE_MAPPING_VALID'
   | 'DIFF_SCOPE_ENFORCEMENT'
   | 'TEST_READ_ONLY_ENFORCEMENT'
   | 'TASK_TEST_PASSES'
@@ -93,9 +94,16 @@ export interface GitService {
   getCurrentRef(): Promise<string>
 }
 
+export interface TestBlock {
+  name: string
+  startLine: number
+  precedingComments: string[]
+}
+
 export interface ASTService {
   parseFile(filePath: string): Promise<unknown>
   getImports(filePath: string): Promise<string[]>
+  getTestBlocksWithComments(filePath: string): Promise<TestBlock[]>
 }
 
 export interface TestRunnerService {

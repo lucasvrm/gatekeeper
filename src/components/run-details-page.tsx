@@ -102,12 +102,10 @@ export function RunDetailsPage() {
       const manifest = JSON.parse(primaryRun.manifestJson)
       const response = await api.runs.create({
         outputId: primaryRun.outputId,
-        projectPath: primaryRun.projectPath,
         baseRef: primaryRun.baseRef,
         targetRef: primaryRun.targetRef,
         taskPrompt: primaryRun.taskPrompt || '',
         manifest,
-        testFilePath: primaryRun.testFilePath,
         dangerMode: primaryRun.dangerMode,
         runType: 'EXECUTION',
         contractRunId: primaryRun.id,

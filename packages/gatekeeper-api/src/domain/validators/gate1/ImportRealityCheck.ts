@@ -1,6 +1,6 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
 import { readFileSync, existsSync } from 'fs'
-import { resolve, dirname, isAbsolute } from 'path'
+import { resolve, dirname, isAbsolute, relative } from 'path'
 
 // Node.js built-in modules (não precisam estar em package.json)
 const NODE_BUILTIN_MODULES = [
@@ -11,6 +11,17 @@ const NODE_BUILTIN_MODULES = [
   'http2', 'inspector', 'worker_threads', 'trace_events', 'process'
 ]
 
+
+const toPosixPath = (value: string): string => value.replace(/\\/g, '/')
+
+const stripLeadingDotSegments = (value: string): string => {
+  const parts = value.split(/[\\/]+/).filter(Boolean)
+  let start = 0
+  while (start < parts.length && (parts[start] === '..' || parts[start] === '.')) {
+    start++
+  }
+  return parts.slice(start).join('/')
+}
 
 export const ImportRealityCheckValidator: ValidatorDefinition = {
   code: 'IMPORT_REALITY_CHECK',
@@ -37,24 +48,50 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
 
       const invalidImports: Array<{path: string, reason: string}> = []
       const testFileDir = dirname(absoluteTestPath)
+      const projectPath = resolve(ctx.projectPath)
+      const relativeToProject = relative(projectPath, testFileDir)
+      const isTestFileOutsideProject = relativeToProject.startsWith('..') || relativeToProject.includes('..\\') || relativeToProject.includes('../')
+      const baseDirForRelativeImports = isTestFileOutsideProject ? projectPath : testFileDir
+      const manifestCreateAbsolute = new Set(
+        ctx.manifest?.files
+          .filter((file) => file.action === 'CREATE')
+          .map((file) => isAbsolute(file.path) ? file.path : resolve(projectPath, file.path)) ?? []
+      )
+      const manifestCreateRelative = new Set(
+        ctx.manifest?.files
+          .filter((file) => file.action === 'CREATE')
+          .map((file) => stripLeadingDotSegments(toPosixPath(file.path)))
+          .filter((normalized) => normalized !== '') ?? []
+      )
       
       for (const importPath of imports) {
         if (importPath.startsWith('.') || importPath.startsWith('/') || importPath.startsWith('@/')) {
           let resolvedPath = importPath
           if (importPath.startsWith('.')) {
-            resolvedPath = resolve(testFileDir, importPath)
+            resolvedPath = resolve(baseDirForRelativeImports, importPath)
+            const relativeTarget = relative(projectPath, resolvedPath)
+            if (relativeTarget.startsWith('..') || relativeTarget.startsWith('..\\')) {
+              const strippedImport = importPath.replace(/^(?:\.\.[\\/])+/, '')
+              if (strippedImport && strippedImport !== importPath) {
+                resolvedPath = resolve(projectPath, strippedImport)
+              }
+            }
           } else if (importPath.startsWith('@/')) {
             // @/ é path alias para src/
-            resolvedPath = resolve(ctx.projectPath, 'src', importPath.slice(2))
+            resolvedPath = resolve(projectPath, 'src', importPath.slice(2))
           } else {
-            resolvedPath = resolve(ctx.projectPath, importPath.slice(1))
+            resolvedPath = resolve(projectPath, importPath.slice(1))
           }
 
           const possibleExtensions = ['', '.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.tsx', '/index.js', '/index.jsx']
           let exists = false
 
           for (const ext of possibleExtensions) {
-            if (existsSync(resolvedPath + ext)) {
+            const candidatePath = resolvedPath + ext
+            const relativeFromProject = stripLeadingDotSegments(toPosixPath(relative(projectPath, candidatePath)))
+            const matchesManifestRelative = relativeFromProject && manifestCreateRelative.has(relativeFromProject)
+            const matchesManifestAbsolute = manifestCreateAbsolute.has(candidatePath)
+            if (existsSync(candidatePath) || matchesManifestRelative || matchesManifestAbsolute) {
               exists = true
               break
             }

@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/**/*.spec.ts'],
+    ...(runE2E ? {} : { include: ['test/**/*.spec.ts'] }),
     exclude: runE2E ? [] : ['test/**/*.e2e.spec.ts'],
     env: {
       DATABASE_URL: 'file:./test.db',
