@@ -589,4 +589,93 @@ export class ConfigController {
 
     res.json(next)
   }
+
+  async listTestPathConventions(req: Request, res: Response): Promise<void> {
+    const conventions = await prisma.testPathConvention.findMany({
+      where: { isActive: true },
+      orderBy: { testType: 'asc' },
+    })
+    res.json(conventions)
+  }
+
+  async createTestPathConvention(req: Request, res: Response): Promise<void> {
+    const { testType, pathPattern, description, isActive } = req.body
+    const missing = hasMissingFields([
+      ['testType', testType],
+      ['pathPattern', pathPattern],
+    ])
+
+    if (missing.length > 0) {
+      res.status(400).json({ message: `Missing required fields: ${missing.join(', ')}` })
+      return
+    }
+
+    const existing = await prisma.testPathConvention.findUnique({
+      where: { testType: String(testType) },
+    })
+
+    if (existing) {
+      res.status(400).json({ message: 'Duplicate testType exists' })
+      return
+    }
+
+    const created = await prisma.testPathConvention.create({
+      data: {
+        testType: String(testType),
+        pathPattern: String(pathPattern),
+        description: typeof description === 'string' ? description : undefined,
+        isActive: typeof isActive === 'boolean' ? isActive : undefined,
+      },
+    })
+
+    res.status(201).json(created)
+  }
+
+  async updateTestPathConvention(req: Request, res: Response): Promise<void> {
+    const { testType } = req.params
+    const { pathPattern, description, isActive } = req.body
+
+    const existing = await prisma.testPathConvention.findUnique({ where: { testType } })
+    if (!existing) {
+      res.status(404).json({ message: 'TestPathConvention not found' })
+      return
+    }
+
+    const data: {
+      pathPattern?: string
+      description?: string | null
+      isActive?: boolean
+    } = {}
+
+    if (getStringField(pathPattern)) data.pathPattern = String(pathPattern)
+    if ('description' in req.body) {
+      data.description = description === null || typeof description === 'string' ? description : undefined
+    }
+    if (typeof isActive === 'boolean') data.isActive = isActive
+
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ message: 'Missing fields to update' })
+      return
+    }
+
+    const updated = await prisma.testPathConvention.update({
+      where: { testType },
+      data,
+    })
+
+    res.json(updated)
+  }
+
+  async deleteTestPathConvention(req: Request, res: Response): Promise<void> {
+    const { testType } = req.params
+
+    const existing = await prisma.testPathConvention.findUnique({ where: { testType } })
+    if (!existing) {
+      res.status(404).json({ message: 'TestPathConvention not found' })
+      return
+    }
+
+    await prisma.testPathConvention.delete({ where: { testType } })
+    res.status(204).send()
+  }
 }

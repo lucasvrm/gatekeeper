@@ -158,3 +158,13 @@ model ValidationConfig {
   updatedAt   DateTime @updatedAt
 }
 
+model TestPathConvention {
+  id          String   @id @default(cuid())
+  testType    String   @unique
+  pathPattern String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

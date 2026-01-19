@@ -331,6 +331,17 @@ export class RunsController {
         return
       }
 
+      // Detect test type from manifest files
+      let detectedTestType: string | null = null
+      if (run.manifestJson) {
+        try {
+          const manifest = JSON.parse(run.manifestJson)
+          detectedTestType = this.detectTestType(manifest.files)
+        } catch (error) {
+          console.error('Failed to parse manifest or detect test type:', error)
+        }
+      }
+
       // Resolver paths
       const artifactsBasePath = path.join(projectRoot, artifactsDir)
       const runTestFilePath = run.testFilePath
@@ -401,12 +412,53 @@ export class RunsController {
           return
         }
 
-        const targetSpecPath =
-          resolvedSpecPath && path.basename(resolvedSpecPath) === specFileName
-            ? resolvedSpecPath
-            : path.join(artifactDir, specFileName)
+        // Resolve test path using convention if test type detected
+        let targetSpecPath: string
+        if (detectedTestType) {
+          const convention = await prisma.testPathConvention.findUnique({
+            where: { testType: detectedTestType, isActive: true },
+          })
+
+          if (convention) {
+            // Extract base name from spec file (remove .spec.tsx or .spec.ts)
+            const baseName = specFileName
+              .replace(/\.spec\.(tsx|ts)$/, '')
+              .replace(/\.test\.(tsx|ts)$/, '')
+
+            // Resolve pattern: replace {name} with base name and {gate} with gate number
+            const currentGate = run.currentGate || 0
+            const resolvedPattern = convention.pathPattern
+              .replace(/{name}/g, baseName)
+              .replace(/{gate}/g, String(currentGate))
+
+            targetSpecPath = path.join(projectRoot, resolvedPattern)
+
+            // Ensure directory exists
+            const targetDir = path.dirname(targetSpecPath)
+            await fs.mkdir(targetDir, { recursive: true })
+          } else {
+            // Fallback to artifacts if convention not found
+            targetSpecPath =
+              resolvedSpecPath && path.basename(resolvedSpecPath) === specFileName
+                ? resolvedSpecPath
+                : path.join(artifactDir, specFileName)
+          }
+        } else {
+          // Fallback to artifacts if test type not detected
+          targetSpecPath =
+            resolvedSpecPath && path.basename(resolvedSpecPath) === specFileName
+              ? resolvedSpecPath
+              : path.join(artifactDir, specFileName)
+        }
+
         await fs.writeFile(targetSpecPath, specFile.buffer)
         uploadedFiles.push({ type: 'spec', path: targetSpecPath, size: specFile.size })
+
+        // Update run.testFilePath with resolved path
+        await prisma.validationRun.update({
+          where: { id },
+          data: { testFilePath: targetSpecPath },
+        })
       }
 
       // Reset the run if it was completed/failed
@@ -455,5 +507,45 @@ export class RunsController {
         message: error instanceof Error ? error.message : 'Unknown error'
       })
     }
+  }
+
+  private detectTestType(files: Array<{ path: string; action: string }>): string | null {
+    const typePatterns: Record<string, RegExp> = {
+      component: /\/components?\//i,
+      hook: /\/hooks?\//i,
+      lib: /\/lib\//i,
+      util: /\/utils?\//i,
+      service: /\/services?\//i,
+      context: /\/contexts?\//i,
+      page: /\/pages?\//i,
+      store: /\/stores?\//i,
+      api: /\/api\//i,
+      validator: /\/validators?\//i,
+    }
+
+    const typeCounts: Record<string, number> = {}
+
+    for (const file of files) {
+      if (file.action === 'DELETE') continue
+
+      for (const [type, pattern] of Object.entries(typePatterns)) {
+        if (pattern.test(file.path)) {
+          typeCounts[type] = (typeCounts[type] || 0) + 1
+        }
+      }
+    }
+
+    // Return the type with the most matches
+    let maxCount = 0
+    let detectedType: string | null = null
+
+    for (const [type, count] of Object.entries(typeCounts)) {
+      if (count > maxCount) {
+        maxCount = count
+        detectedType = type
+      }
+    }
+
+    return detectedType
   }
 }

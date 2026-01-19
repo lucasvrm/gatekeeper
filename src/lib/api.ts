@@ -260,6 +260,46 @@ export const api = {
         return response.json()
       },
     },
+    testPaths: {
+      list: async () => {
+        const response = await fetch(`${CONFIG_BASE}/test-paths`)
+        if (!response.ok) throw new Error("Failed to fetch test path conventions")
+        return response.json()
+      },
+      create: async (data: {
+        testType: string
+        pathPattern: string
+        description?: string
+        isActive?: boolean
+      }) => {
+        const response = await fetch(`${CONFIG_BASE}/test-paths`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to create test path convention")
+        return response.json()
+      },
+      update: async (testType: string, data: Partial<{
+        pathPattern: string
+        description: string | null
+        isActive: boolean
+      }>) => {
+        const response = await fetch(`${CONFIG_BASE}/test-paths/${testType}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error("Failed to update test path convention")
+        return response.json()
+      },
+      delete: async (testType: string): Promise<void> => {
+        const response = await fetch(`${CONFIG_BASE}/test-paths/${testType}`, {
+          method: "DELETE",
+        })
+        if (!response.ok) throw new Error("Failed to delete test path convention")
+      },
+    },
   },
 
   validators: {

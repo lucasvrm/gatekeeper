@@ -183,6 +183,69 @@ async function main() {
 
   console.log(`✓ Seeded ${validatorConfigs.length} validator configs`)
 
+  const testPathConventions = [
+    {
+      testType: 'component',
+      pathPattern: 'src/components/{name}.spec.tsx',
+      description: 'React components',
+    },
+    {
+      testType: 'hook',
+      pathPattern: 'src/hooks/{name}.spec.ts',
+      description: 'Custom React hooks',
+    },
+    {
+      testType: 'lib',
+      pathPattern: 'src/lib/{name}.spec.ts',
+      description: 'Library functions',
+    },
+    {
+      testType: 'util',
+      pathPattern: 'src/lib/utils/{name}.spec.ts',
+      description: 'Utility functions',
+    },
+    {
+      testType: 'service',
+      pathPattern: 'src/services/{name}.spec.ts',
+      description: 'API services',
+    },
+    {
+      testType: 'context',
+      pathPattern: 'src/context/{name}.spec.tsx',
+      description: 'React Context providers',
+    },
+    {
+      testType: 'page',
+      pathPattern: 'src/pages/{name}.spec.tsx',
+      description: 'Page components',
+    },
+    {
+      testType: 'store',
+      pathPattern: 'src/store/{name}.spec.ts',
+      description: 'State management',
+    },
+    {
+      testType: 'api',
+      pathPattern: 'src/lib/api/{name}.spec.ts',
+      description: 'API clients',
+    },
+    {
+      testType: 'validator',
+      pathPattern: 'packages/gatekeeper-api/src/domain/validators/{gate}/{name}.spec.ts',
+      description: 'Gatekeeper validators',
+    },
+  ]
+
+  for (const convention of testPathConventions) {
+    await prisma.testPathConvention.upsert({
+      where: { testType: convention.testType },
+      create: convention,
+      update: convention,
+    })
+  }
+
+  console.log(`✓ Seeded ${testPathConventions.length} test path conventions`)
+
   console.log('✓ Seed completed successfully')
 }
 

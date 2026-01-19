@@ -22,14 +22,15 @@ interface ConfigSectionProps<T extends { id: string }> {
   description?: string
   items: T[]
   columns: Array<ConfigSectionColumn<T>>
-  createFields: ConfigModalField[]
+  createFields?: ConfigModalField[]
   editFields: ConfigModalField[]
-  createDefaults: Record<string, string | boolean>
+  createDefaults?: Record<string, string | boolean>
   getEditValues: (item: T) => Record<string, string | boolean>
-  onCreate: (values: Record<string, string | boolean>) => Promise<boolean>
+  onCreate?: (values: Record<string, string | boolean>) => Promise<boolean>
   onUpdate: (id: string, values: Record<string, string | boolean>) => Promise<boolean>
-  onDelete: (id: string) => Promise<boolean>
+  onDelete?: (id: string) => Promise<boolean>
   onToggle?: (id: string, isActive: boolean) => Promise<boolean>
+  hideCreate?: boolean
 }
 
 export function ConfigSection<T extends { id: string; isActive?: boolean }>({
@@ -45,6 +46,7 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
   onUpdate,
   onDelete,
   onToggle,
+  hideCreate,
 }: ConfigSectionProps<T>) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editItem, setEditItem] = useState<T | null>(null)
@@ -52,6 +54,7 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
   const [actionId, setActionId] = useState<string | null>(null)
 
   const handleCreate = async (values: Record<string, string | boolean>) => {
+    if (!onCreate) return false
     setSubmitting(true)
     const ok = await onCreate(values)
     setSubmitting(false)
@@ -68,6 +71,7 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
   }
 
   const handleDelete = async (id: string) => {
+    if (!onDelete) return false
     setActionId(id)
     const ok = await onDelete(id)
     setActionId(null)
@@ -89,7 +93,9 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
           <h2 className="text-xl font-semibold">{title}</h2>
           {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
         </div>
-        <Button onClick={() => setCreateOpen(true)}>Add</Button>
+        {!hideCreate && onCreate && (
+          <Button onClick={() => setCreateOpen(true)}>Add</Button>
+        )}
       </div>
 
       {items.length === 0 ? (
@@ -129,14 +135,16 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
                         {item.isActive ? "Deactivate" : "Activate"}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(item.id)}
-                      disabled={actionId === item.id}
-                    >
-                      Delete
-                    </Button>
+                    {onDelete && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(item.id)}
+                        disabled={actionId === item.id}
+                      >
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -145,17 +153,19 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
         </Table>
       )}
 
-      <ConfigModal
-        open={createOpen}
-        title={`Add ${title}`}
-        description={`Create a new ${title.toLowerCase()} record.`}
-        fields={createFields}
-        initialValues={createDefaults}
-        submitLabel="Create"
-        onClose={() => setCreateOpen(false)}
-        onSubmit={handleCreate}
-        submitting={submitting}
-      />
+      {createFields && createDefaults && (
+        <ConfigModal
+          open={createOpen}
+          title={`Add ${title}`}
+          description={`Create a new ${title.toLowerCase()} record.`}
+          fields={createFields}
+          initialValues={createDefaults}
+          submitLabel="Create"
+          onClose={() => setCreateOpen(false)}
+          onSubmit={handleCreate}
+          submitting={submitting}
+        />
+      )}
 
       {editItem && (
         <ConfigModal

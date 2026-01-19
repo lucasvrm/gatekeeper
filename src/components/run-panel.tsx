@@ -5,6 +5,8 @@ import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
 import { FileUploadDialog } from "@/components/file-upload-dialog"
 import { toast } from "sonner"
 import {
@@ -47,34 +49,15 @@ export function RunPanel({
 }: RunPanelProps) {
   const [taskPromptOpen, setTaskPromptOpen] = useState(true)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
-  const [expandedGates, setExpandedGates] = useState<Set<number>>(
-    new Set(
-      run.runType === 'CONTRACT'
-        ? [0]
-        : run.runType === 'EXECUTION'
-        ? [2]
-        : [run.gateResults[0]?.gateNumber ?? 0]
-    )
-  )
   const [bypassLoading, setBypassLoading] = useState<string | null>(null)
+  const defaultTab = run.runType === 'CONTRACT' ? 'sanitization' : 'execution'
+  const [activeTab, setActiveTab] = useState(defaultTab)
 
   const normalizeStatus = (status: string, passed?: boolean | null) => {
     if (status === "COMPLETED") {
       return passed ? "PASSED" : "FAILED"
     }
     return status
-  }
-
-  const toggleGate = (gateNumber: number) => {
-    setExpandedGates((prev) => {
-      const next = new Set(prev)
-      if (next.has(gateNumber)) {
-        next.delete(gateNumber)
-      } else {
-        next.add(gateNumber)
-      }
-      return next
-    })
   }
 
   const getStatusIcon = (status: string, size = "w-5 h-5") => {
@@ -90,6 +73,25 @@ export function RunPanel({
       default:
         return <CheckCircle className={`${size} text-muted-foreground`} weight="regular" />
     }
+  }
+
+  // Calculate progress percentage based on passed validators only
+  const calculateProgress = () => {
+    const relevantValidators = run.validatorResults ?? []
+    if (relevantValidators.length === 0) return 0
+
+    const passedCount = relevantValidators.filter(
+      (v) => v.status === 'PASSED'
+    ).length
+
+    return Math.round((passedCount / relevantValidators.length) * 100)
+  }
+
+  // Get progress bar color based on run status
+  const getProgressBarColor = () => {
+    if (run.status === 'PASSED') return 'bg-status-passed'
+    if (run.status === 'FAILED') return 'bg-status-failed'
+    return 'bg-status-running'
   }
 
   const handleBypassValidator = async (validatorCode: string) => {
@@ -113,6 +115,8 @@ export function RunPanel({
     : run.runType === 'EXECUTION'
     ? [2, 3]
     : run.gateResults.map((gate) => gate.gateNumber)
+
+  const progressPercentage = calculateProgress()
 
   return (
     <div className="space-y-4">
@@ -192,97 +196,115 @@ export function RunPanel({
       )}
 
       <Card className="p-4 bg-card border-border">
-        <div className="flex items-center gap-2 mb-4">
-          {gatesToShow.map((gateNum, idx) => {
-            const gateResult = run.gateResults.find((g) => g.gateNumber === gateNum)
-            const isActive = run.currentGate === gateNum
-            const isPast = run.currentGate > gateNum
-            const isFailed = run.failedAt === gateNum
-
-            return (
-              <div key={gateNum} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div
-                    className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center border-2 font-semibold text-sm transition-colors",
-                      isPast && !isFailed
-                        ? "bg-status-passed border-status-passed text-background"
-                        : isFailed
-                        ? "bg-status-failed border-status-failed text-background"
-                        : isActive
-                        ? "bg-status-running border-status-running text-background"
-                        : "bg-muted border-muted-foreground text-muted-foreground"
-                    )}
-                  >
-                  {gateResult?.status !== 'PENDING' && gateResult?.completedAt ? (
-                    gateResult.passed ? '✅' : '❌'
-                  ) : (
-                    gateNum
-                  )}
-                  </div>
-                  <p className="text-[10px] mt-1 text-muted-foreground font-medium text-center">
-                    {gateResult?.gateName || `Gate ${gateNum}`}
-                  </p>
-                </div>
-                {idx < gatesToShow.length - 1 && (
-                  <div
-                    className={cn(
-                      "h-0.5 flex-1 transition-colors",
-                      isPast && !isFailed ? "bg-status-passed" : "bg-muted"
-                    )}
-                  />
-                )}
-              </div>
-            )
-          })}
+        {/* Progress Bar */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold">Progresso</h3>
+            <span data-testid="gate-progress-label" className="text-sm font-mono">
+              {progressPercentage}%
+            </span>
+          </div>
+          <Progress
+            data-testid="gate-progress"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercentage}
+            value={progressPercentage}
+            className={cn(
+              "h-2",
+              run.status === 'PASSED' && "passed success green",
+              run.status === 'FAILED' && "failed error red"
+            )}
+            indicatorClassName={cn(
+              run.status === 'PASSED' && "bg-status-passed",
+              run.status === 'FAILED' && "bg-status-failed",
+              run.status === 'RUNNING' && "bg-status-running"
+            )}
+          />
         </div>
 
-        <div className="space-y-2">
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} data-testid="gate-tabs">
+          <TabsList className="w-full">
+            {run.runType === 'CONTRACT' ? (
+              <>
+                <TabsTrigger
+                  value="sanitization"
+                  data-testid="tab-sanitization"
+                  className="flex-1"
+                  onClick={() => setActiveTab('sanitization')}
+                >
+                  Sanitization
+                </TabsTrigger>
+                <TabsTrigger
+                  value="contract"
+                  data-testid="tab-contract"
+                  className="flex-1"
+                  onClick={() => setActiveTab('contract')}
+                >
+                  Contract
+                </TabsTrigger>
+              </>
+            ) : (
+              <>
+                <TabsTrigger
+                  value="execution"
+                  data-testid="tab-execution"
+                  className="flex-1"
+                  onClick={() => setActiveTab('execution')}
+                >
+                  Execution
+                </TabsTrigger>
+                <TabsTrigger
+                  value="integrity"
+                  data-testid="tab-integrity"
+                  className="flex-1"
+                  onClick={() => setActiveTab('integrity')}
+                >
+                  Integrity
+                </TabsTrigger>
+              </>
+            )}
+          </TabsList>
+
           {run.gateResults
             .filter((g) => gatesToShow.includes(g.gateNumber))
             .map((gate) => {
               const validators = (run.validatorResults ?? []).filter(
                 (v) => v.gateNumber === gate.gateNumber
               )
-              const isExpanded = expandedGates.has(gate.gateNumber)
+
+              const tabValue =
+                gate.gateNumber === 0 ? 'sanitization' :
+                gate.gateNumber === 1 ? 'contract' :
+                gate.gateNumber === 2 ? 'execution' :
+                'integrity'
 
               return (
-                <Card key={gate.gateNumber} className="bg-muted/30 border-border">
-                  <div className="w-full p-3 flex items-center justify-between hover:bg-muted/50 transition-colors rounded-lg">
-                    <button
-                      onClick={() => toggleGate(gate.gateNumber)}
-                      className="flex items-center gap-3 flex-1"
-                    >
-                      {isExpanded ? (
-                        <CaretDown className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <CaretRight className="w-4 h-4 text-muted-foreground" />
-                      )}
-                      <div className="text-left">
-                        <h4 className="text-sm font-semibold flex items-center gap-2">
-                          {gate.gateName}
-                          <span className="text-[10px] font-mono text-muted-foreground">
-                            G{gate.gateNumber}
-                          </span>
-                        </h4>
-                        <div className="flex items-center gap-3 mt-0.5 text-[10px]">
-                          <span className="text-status-passed">{gate.passedCount}P</span>
-                          <span className="text-status-failed">{gate.failedCount}F</span>
-                          {gate.warningCount > 0 && (
-                            <span className="text-status-warning">{gate.warningCount}W</span>
-                          )}
-                        </div>
+                <TabsContent key={gate.gateNumber} value={tabValue} className="space-y-2 mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        {gate.gateName}
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          G{gate.gateNumber}
+                        </span>
+                      </h4>
+                      <div className="flex items-center gap-3 mt-0.5 text-[10px]">
+                        <span className="text-status-passed">{gate.passedCount}P</span>
+                        <span className="text-status-failed">{gate.failedCount}F</span>
+                        {gate.warningCount > 0 && (
+                          <span className="text-status-warning">{gate.warningCount}W</span>
+                        )}
                       </div>
-                    </button>
+                    </div>
                     <div className="flex items-center gap-2">
                       {onRerunGate && gate.status !== 'PENDING' && gate.status !== 'RUNNING' && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onRerunGate(gate.gateNumber)
-                          }}
+                          onClick={() => onRerunGate(gate.gateNumber)}
                           disabled={actionLoading}
                           aria-label={`Rerun gate ${gate.gateNumber}`}
                           className="h-7 hover:bg-white hover:text-white hover:border-white"
@@ -296,71 +318,69 @@ export function RunPanel({
                     </div>
                   </div>
 
-                  {isExpanded && (
-                    <div className="px-3 pb-3 space-y-2">
-                      {validators.map((validator) => {
-                        const shouldShowBypass =
-                          validator.status === 'FAILED' &&
-                          validator.isHardBlock &&
-                          !validator.bypassed
-                        const isBypassInProgress = bypassLoading === validator.validatorCode
+                  <div className="space-y-2">
+                    {validators.map((validator) => {
+                      const shouldShowBypass =
+                        validator.status === 'FAILED' &&
+                        validator.isHardBlock &&
+                        !validator.bypassed
+                      const isBypassInProgress = bypassLoading === validator.validatorCode
 
-                        return (
-                          <div
-                            key={validator.validatorCode}
-                            className="p-3 bg-card rounded-lg border border-border"
-                          >
-                            <div className="flex items-start gap-2">
-                              {getStatusIcon(validator.status, "w-4 h-4")}
-                              <div className="flex-1 min-w-0 space-y-2">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <h5 className="text-sm font-medium">{validator.validatorName}</h5>
-                                    {validator.isHardBlock && (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium">
-                                        Hard
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1">
-                                    <StatusBadge status={validator.status} className="min-w-[72px]" />
-                                    {shouldShowBypass && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="px-2 py-1 text-xs"
-                                        onClick={(event) => {
-                                          event.stopPropagation()
-                                          handleBypassValidator(validator.validatorCode)
-                                        }}
-                                        disabled={isBypassInProgress || actionLoading}
-                                      >
-                                        {isBypassInProgress ? "Bypassing…" : "Bypass"}
-                                      </Button>
-                                    )}
-                                  </div>
+                      return (
+                        <div
+                          key={validator.validatorCode}
+                          className="p-3 bg-muted/30 rounded-lg border border-border"
+                        >
+                          <div className="flex items-start gap-2">
+                            {getStatusIcon(validator.status, "w-4 h-4")}
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h5 className="text-sm font-medium">{validator.validatorName}</h5>
+                                  {validator.isHardBlock && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium">
+                                      Hard
+                                    </span>
+                                  )}
                                 </div>
-                                {validator.message && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {validator.message}
-                                  </p>
-                                )}
-                                {validator.evidence && (
-                                  <pre className="text-[10px] bg-muted p-2 rounded font-mono whitespace-pre-wrap overflow-x-auto mt-2 max-h-24 overflow-y-auto">
-                                    {validator.evidence}
-                                  </pre>
-                                )}
+                                <div className="flex flex-col items-end gap-1">
+                                  <StatusBadge status={validator.status} className="min-w-[72px]" />
+                                  {shouldShowBypass && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="px-2 py-1 text-xs"
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        handleBypassValidator(validator.validatorCode)
+                                      }}
+                                      disabled={isBypassInProgress || actionLoading}
+                                    >
+                                      {isBypassInProgress ? "Bypassing…" : "Bypass"}
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
+                              {validator.message && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {validator.message}
+                                </p>
+                              )}
+                              {validator.evidence && (
+                                <pre className="text-[10px] bg-muted p-2 rounded font-mono whitespace-pre-wrap overflow-x-auto mt-2 max-h-24 overflow-y-auto">
+                                  {validator.evidence}
+                                </pre>
+                              )}
                             </div>
                           </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </Card>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </TabsContent>
               )
             })}
-        </div>
+        </Tabs>
       </Card>
 
       <FileUploadDialog

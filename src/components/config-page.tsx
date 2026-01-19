@@ -3,6 +3,7 @@ import { api } from "@/lib/api"
 import { ConfigSection } from "@/components/config-section"
 import { ValidatorsTab } from "@/components/validators-tab"
 import { CustomizationTab } from "@/components/customization-tab"
+import { PathConfigsTab } from "@/components/path-configs-tab"
 import { type ConfigModalField } from "@/components/config-modal"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -322,6 +323,7 @@ export function ConfigPage() {
       <Tabs defaultValue="validators" className="space-y-4">
         <TabsList>
           <TabsTrigger value="validators">Validators</TabsTrigger>
+          <TabsTrigger value="path-configs">Path Configs</TabsTrigger>
           <TabsTrigger value="sensitive-file-rules">Sensitive File Rules</TabsTrigger>
           <TabsTrigger value="ambiguous-terms">Ambiguous Terms</TabsTrigger>
           <TabsTrigger value="validation-configs">Validation Configs</TabsTrigger>
@@ -336,6 +338,10 @@ export function ConfigPage() {
             inactiveCount={inactiveValidators}
             onToggle={handleToggleValidator}
           />
+        </TabsContent>
+
+        <TabsContent value="path-configs">
+          <PathConfigsTab />
         </TabsContent>
 
         <TabsContent value="sensitive-file-rules">

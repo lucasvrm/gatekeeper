@@ -60,4 +60,20 @@ router.put('/config/customization', (req, res, next) => {
   controller.updateCustomization(req, res).catch(next)
 })
 
+router.get('/config/test-paths', (req, res, next) => {
+  controller.listTestPathConventions(req, res).catch(next)
+})
+
+router.post('/config/test-paths', (req, res, next) => {
+  controller.createTestPathConvention(req, res).catch(next)
+})
+
+router.put('/config/test-paths/:testType', (req, res, next) => {
+  controller.updateTestPathConvention(req, res).catch(next)
+})
+
+router.delete('/config/test-paths/:testType', (req, res, next) => {
+  controller.deleteTestPathConvention(req, res).catch(next)
+})
+
 export { router as configRoutes }

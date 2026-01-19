@@ -6,7 +6,11 @@
       "Bash(git add:*)",
       "Bash(npm run typecheck:*)",
       "Bash(npm run lint:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(npm test:*)",
+      "Bash(npx prisma db seed:*)",
+      "Bash(npm run db:seed:*)",
+      "Bash(npm run db:migrate:*)"
     ]
   }
 }

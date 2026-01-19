@@ -5,6 +5,7 @@ import { TaskScopeSizeValidator } from '../domain/validators/gate0/TaskScopeSize
 import { TaskClarityCheckValidator } from '../domain/validators/gate0/TaskClarityCheck.js'
 import { SensitiveFilesLockValidator } from '../domain/validators/gate0/SensitiveFilesLock.js'
 import { DangerModeExplicitValidator } from '../domain/validators/gate0/DangerModeExplicit.js'
+import { PathConventionValidator } from '../domain/validators/gate0/PathConvention.js'
 
 import { TestSyntaxValidValidator } from '../domain/validators/gate1/TestSyntaxValid.js'
 import { TestHasAssertionsValidator } from '../domain/validators/gate1/TestHasAssertions.js'
@@ -38,6 +39,7 @@ export const GATES_CONFIG: GateDefinition[] = [
       TaskClarityCheckValidator,
       SensitiveFilesLockValidator,
       DangerModeExplicitValidator,
+      PathConventionValidator,
     ],
   },
   {
