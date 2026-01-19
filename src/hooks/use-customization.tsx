@@ -40,7 +40,7 @@ const buildFontFamilyParam = (fontName: string, weights: string) => {
   return `family=${encoded}:${weights}`
 }
 
-const loadFontFamilies = (fonts: Array<{ name: string; weights: string }>) => {
+  const loadFontFamilies = (fonts: Array<{ name: string; weights: string }>) => {
   const uniqueFonts = new Map<string, string>()
   fonts.forEach((font) => {
     if (font.name) {
@@ -90,7 +90,10 @@ const applyCustomization = (settings: CustomizationSettings) => {
   ])
 
   const setColor = (variable: string, value: string | null) => {
-    if (!value) return
+    if (!value) {
+      root.style.removeProperty(variable)
+      return
+    }
     root.style.setProperty(variable, value)
   }
 

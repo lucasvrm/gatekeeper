@@ -453,6 +453,21 @@ export class ConfigController {
     })
 
     const current = buildCustomizationResponse(existing)
+    const payloadColors =
+      typeof payload.colors === 'object' && payload.colors
+        ? (payload.colors as Record<string, unknown>)
+        : null
+    const readColorValue = (group: string, field: string, fallback: string | null) => {
+      if (!payloadColors) return fallback
+      const groupValue = payloadColors[group]
+      if (!groupValue || typeof groupValue !== 'object') return fallback
+      if (!Object.prototype.hasOwnProperty.call(groupValue, field)) return fallback
+      const nextValue = (groupValue as Record<string, unknown>)[field]
+      if (nextValue === null || typeof nextValue === 'string') {
+        return nextValue
+      }
+      return fallback
+    }
     const next = {
       ...current,
       appName: typeof payload.appName === 'string' && payload.appName.trim() ? payload.appName.trim() : current.appName,
@@ -473,52 +488,28 @@ export class ConfigController {
       maxUploadMb: parseNumberField(payload.maxUploadMb) ?? current.maxUploadMb,
       colors: {
         accent: {
-          background: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).accent === 'object'
-            ? (((payload.colors as Record<string, unknown>).accent as Record<string, unknown>).background as string | null) ?? current.colors.accent.background
-            : current.colors.accent.background,
-          text: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).accent === 'object'
-            ? (((payload.colors as Record<string, unknown>).accent as Record<string, unknown>).text as string | null) ?? current.colors.accent.text
-            : current.colors.accent.text,
+          background: readColorValue('accent', 'background', current.colors.accent.background),
+          text: readColorValue('accent', 'text', current.colors.accent.text),
         },
         primary: {
-          background: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).primary === 'object'
-            ? (((payload.colors as Record<string, unknown>).primary as Record<string, unknown>).background as string | null) ?? current.colors.primary.background
-            : current.colors.primary.background,
-          text: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).primary === 'object'
-            ? (((payload.colors as Record<string, unknown>).primary as Record<string, unknown>).text as string | null) ?? current.colors.primary.text
-            : current.colors.primary.text,
+          background: readColorValue('primary', 'background', current.colors.primary.background),
+          text: readColorValue('primary', 'text', current.colors.primary.text),
         },
         secondary: {
-          background: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).secondary === 'object'
-            ? (((payload.colors as Record<string, unknown>).secondary as Record<string, unknown>).background as string | null) ?? current.colors.secondary.background
-            : current.colors.secondary.background,
-          text: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).secondary === 'object'
-            ? (((payload.colors as Record<string, unknown>).secondary as Record<string, unknown>).text as string | null) ?? current.colors.secondary.text
-            : current.colors.secondary.text,
+          background: readColorValue('secondary', 'background', current.colors.secondary.background),
+          text: readColorValue('secondary', 'text', current.colors.secondary.text),
         },
         base: {
-          background: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).base === 'object'
-            ? (((payload.colors as Record<string, unknown>).base as Record<string, unknown>).background as string | null) ?? current.colors.base.background
-            : current.colors.base.background,
-          text: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).base === 'object'
-            ? (((payload.colors as Record<string, unknown>).base as Record<string, unknown>).text as string | null) ?? current.colors.base.text
-            : current.colors.base.text,
+          background: readColorValue('base', 'background', current.colors.base.background),
+          text: readColorValue('base', 'text', current.colors.base.text),
         },
         background: {
-          background: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).background === 'object'
-            ? (((payload.colors as Record<string, unknown>).background as Record<string, unknown>).background as string | null) ?? current.colors.background.background
-            : current.colors.background.background,
-          text: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).background === 'object'
-            ? (((payload.colors as Record<string, unknown>).background as Record<string, unknown>).text as string | null) ?? current.colors.background.text
-            : current.colors.background.text,
+          background: readColorValue('background', 'background', current.colors.background.background),
+          text: readColorValue('background', 'text', current.colors.background.text),
         },
         text: {
-          background: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).text === 'object'
-            ? (((payload.colors as Record<string, unknown>).text as Record<string, unknown>).background as string | null) ?? current.colors.text.background
-            : current.colors.text.background,
-          text: typeof payload?.colors === 'object' && payload.colors && typeof (payload.colors as Record<string, unknown>).text === 'object'
-            ? (((payload.colors as Record<string, unknown>).text as Record<string, unknown>).text as string | null) ?? current.colors.text.text
-            : current.colors.text.text,
+          background: readColorValue('text', 'background', current.colors.text.background),
+          text: readColorValue('text', 'text', current.colors.text.text),
         },
       },
     }

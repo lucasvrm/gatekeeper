@@ -78,6 +78,8 @@ const FONT_OPTIONS = {
   ],
 }
 
+type ColorOption = { label: string; value: string }
+
 const COLOR_FAMILIES = [
   { label: "Slate", value: "slate" },
   { label: "Gray", value: "gray" },
@@ -96,15 +98,15 @@ const COLOR_FAMILIES = [
   { label: "Pink", value: "pink" },
 ]
 
-const COLOR_OPTION_DEFAULT = { label: "Padrao", value: "default" }
-const TEXT_COLOR_OPTIONS = [
+const COLOR_OPTION_DEFAULT: ColorOption = { label: "Padrao", value: "default" }
+const TEXT_COLOR_OPTIONS: ColorOption[] = [
   COLOR_OPTION_DEFAULT,
   ...COLOR_FAMILIES.map((family) => ({
     label: `${family.label} 11`,
     value: `var(--${family.value}-11)`,
   })),
 ]
-const BACKGROUND_COLOR_OPTIONS = [
+const BACKGROUND_COLOR_OPTIONS: ColorOption[] = [
   COLOR_OPTION_DEFAULT,
   ...COLOR_FAMILIES.map((family) => ({
     label: `${family.label} 9`,
@@ -129,6 +131,14 @@ export function CustomizationTab() {
     [form.maxUploadMb],
   )
 
+  const applyFormUpdate = (updater: (prev: CustomizationSettings) => CustomizationSettings) => {
+    setForm((prev) => {
+      const next = updater(prev)
+      setCustomization(next)
+      return next
+    })
+  }
+
   const normalizeColorValue = (value: string) => {
     const trimmed = value.trim()
     if (!trimmed || trimmed === "default") {
@@ -138,7 +148,7 @@ export function CustomizationTab() {
   }
 
   const updateColor = (group: ColorGroupKey, field: ColorFieldKey, value: string) => {
-    setForm((prev) => ({
+    applyFormUpdate((prev) => ({
       ...prev,
       colors: {
         ...prev.colors,
@@ -149,6 +159,20 @@ export function CustomizationTab() {
       },
     }))
   }
+
+  const getColorOption = (value: string, options: ColorOption[]) => {
+    return options.find((option) => option.value === value) ?? COLOR_OPTION_DEFAULT
+  }
+
+  const renderColorOption = (option: ColorOption, withSlot?: boolean) => (
+    <span data-slot={withSlot ? "select-value" : undefined} className="flex items-center gap-2">
+      <span
+        className="h-3 w-3 rounded-[4px] border border-border shrink-0"
+        style={{ backgroundColor: option.value === "default" ? "transparent" : option.value }}
+      />
+      <span>{option.label}</span>
+    </span>
+  )
 
   const handleFileChange = (field: "logoUrl" | "faviconUrl") => async (
     event: ChangeEvent<HTMLInputElement>,
@@ -173,7 +197,7 @@ export function CustomizationTab() {
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : null
       if (!result) return
-      setForm((prev) => ({
+      applyFormUpdate((prev) => ({
         ...prev,
         [field]: result,
       }))
@@ -212,7 +236,9 @@ export function CustomizationTab() {
             <Input
               id="custom-app-name"
               value={form.appName}
-              onChange={(event) => setForm((prev) => ({ ...prev, appName: event.target.value }))}
+              onChange={(event) =>
+                applyFormUpdate((prev) => ({ ...prev, appName: event.target.value }))
+              }
             />
           </div>
           <div className="space-y-2">
@@ -220,7 +246,9 @@ export function CustomizationTab() {
             <Input
               id="custom-app-subtitle"
               value={form.appSubtitle}
-              onChange={(event) => setForm((prev) => ({ ...prev, appSubtitle: event.target.value }))}
+              onChange={(event) =>
+                applyFormUpdate((prev) => ({ ...prev, appSubtitle: event.target.value }))
+              }
             />
           </div>
         </div>
@@ -252,7 +280,7 @@ export function CustomizationTab() {
                 step="0.1"
                 value={Number.isFinite(form.maxUploadMb) ? form.maxUploadMb : ""}
                 onChange={(event) =>
-                  setForm((prev) => ({
+                  applyFormUpdate((prev) => ({
                     ...prev,
                     maxUploadMb: Number(event.target.value || 0),
                   }))
@@ -293,7 +321,7 @@ export function CustomizationTab() {
               <Select
                 value={form.fonts.sans}
                 onValueChange={(value) =>
-                  setForm((prev) => ({ ...prev, fonts: { ...prev.fonts, sans: value } }))
+                  applyFormUpdate((prev) => ({ ...prev, fonts: { ...prev.fonts, sans: value } }))
                 }
               >
                 <SelectTrigger className="w-full">
@@ -313,7 +341,7 @@ export function CustomizationTab() {
               <Select
                 value={form.fonts.serif}
                 onValueChange={(value) =>
-                  setForm((prev) => ({ ...prev, fonts: { ...prev.fonts, serif: value } }))
+                  applyFormUpdate((prev) => ({ ...prev, fonts: { ...prev.fonts, serif: value } }))
                 }
               >
                 <SelectTrigger className="w-full">
@@ -333,7 +361,7 @@ export function CustomizationTab() {
               <Select
                 value={form.fonts.mono}
                 onValueChange={(value) =>
-                  setForm((prev) => ({ ...prev, fonts: { ...prev.fonts, mono: value } }))
+                  applyFormUpdate((prev) => ({ ...prev, fonts: { ...prev.fonts, mono: value } }))
                 }
               >
                 <SelectTrigger className="w-full">
@@ -370,12 +398,15 @@ export function CustomizationTab() {
                     onValueChange={(value) => updateColor("accent", "text", value)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha uma cor" />
+                      {renderColorOption(
+                        getColorOption(form.colors.accent.text ?? "default", TEXT_COLOR_OPTIONS),
+                        true,
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       {TEXT_COLOR_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          {renderColorOption(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -387,12 +418,18 @@ export function CustomizationTab() {
                     onValueChange={(value) => updateColor("accent", "background", value)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha uma cor" />
+                      {renderColorOption(
+                        getColorOption(
+                          form.colors.accent.background ?? "default",
+                          BACKGROUND_COLOR_OPTIONS,
+                        ),
+                        true,
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       {BACKGROUND_COLOR_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          {renderColorOption(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -407,12 +444,15 @@ export function CustomizationTab() {
                     onValueChange={(value) => updateColor("primary", "text", value)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha uma cor" />
+                      {renderColorOption(
+                        getColorOption(form.colors.primary.text ?? "default", TEXT_COLOR_OPTIONS),
+                        true,
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       {TEXT_COLOR_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          {renderColorOption(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -424,12 +464,18 @@ export function CustomizationTab() {
                     onValueChange={(value) => updateColor("primary", "background", value)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha uma cor" />
+                      {renderColorOption(
+                        getColorOption(
+                          form.colors.primary.background ?? "default",
+                          BACKGROUND_COLOR_OPTIONS,
+                        ),
+                        true,
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       {BACKGROUND_COLOR_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          {renderColorOption(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -444,12 +490,15 @@ export function CustomizationTab() {
                     onValueChange={(value) => updateColor("secondary", "text", value)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha uma cor" />
+                      {renderColorOption(
+                        getColorOption(form.colors.secondary.text ?? "default", TEXT_COLOR_OPTIONS),
+                        true,
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       {TEXT_COLOR_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          {renderColorOption(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -461,12 +510,18 @@ export function CustomizationTab() {
                     onValueChange={(value) => updateColor("secondary", "background", value)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha uma cor" />
+                      {renderColorOption(
+                        getColorOption(
+                          form.colors.secondary.background ?? "default",
+                          BACKGROUND_COLOR_OPTIONS,
+                        ),
+                        true,
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       {BACKGROUND_COLOR_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          {renderColorOption(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -481,12 +536,15 @@ export function CustomizationTab() {
                     onValueChange={(value) => updateColor("base", "text", value)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha uma cor" />
+                      {renderColorOption(
+                        getColorOption(form.colors.base.text ?? "default", TEXT_COLOR_OPTIONS),
+                        true,
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       {TEXT_COLOR_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          {renderColorOption(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -498,12 +556,18 @@ export function CustomizationTab() {
                     onValueChange={(value) => updateColor("base", "background", value)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha uma cor" />
+                      {renderColorOption(
+                        getColorOption(
+                          form.colors.base.background ?? "default",
+                          BACKGROUND_COLOR_OPTIONS,
+                        ),
+                        true,
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       {BACKGROUND_COLOR_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          {renderColorOption(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
