@@ -10,7 +10,9 @@
       "Bash(npm test:*)",
       "Bash(npx prisma db seed:*)",
       "Bash(npm run db:seed:*)",
-      "Bash(npm run db:migrate:*)"
+      "Bash(npm run db:migrate:*)",
+      "Bash(timeout 2 npm run dev:*)",
+      "Bash(npm run seed:*)"
     ]
   }
 }

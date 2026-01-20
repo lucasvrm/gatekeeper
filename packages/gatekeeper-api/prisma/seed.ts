@@ -142,7 +142,12 @@ async function main() {
     await prisma.validationConfig.upsert({
       where: { key: config.key },
       create: config,
-      update: config,
+      update: {
+        // Only update metadata, preserve user's value setting
+        type: config.type,
+        category: config.category,
+        description: config.description,
+      },
     })
   }
 
@@ -154,6 +159,7 @@ async function main() {
     { key: 'TASK_CLARITY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'SENSITIVE_FILES_LOCK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'DANGER_MODE_EXPLICIT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
+    { key: 'PATH_CONVENTION', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_SYNTAX_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_HAS_ASSERTIONS', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_COVERS_HAPPY_AND_SAD_PATH', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
@@ -177,7 +183,11 @@ async function main() {
     await prisma.validationConfig.upsert({
       where: { key: config.key },
       create: config,
-      update: config,
+      update: {
+        // Only update metadata, preserve user's value setting
+        type: config.type,
+        category: config.category,
+      },
     })
   }
 
@@ -226,12 +236,12 @@ async function main() {
     },
     {
       testType: 'api',
-      pathPattern: 'src/lib/api/{name}.spec.ts',
-      description: 'API clients',
+      pathPattern: 'packages/gatekeeper-api/src/api/{name}.spec.ts',
+      description: 'Backend API routes and controllers',
     },
     {
       testType: 'validator',
-      pathPattern: 'packages/gatekeeper-api/src/domain/validators/{gate}/{name}.spec.ts',
+      pathPattern: 'packages/gatekeeper-api/src/domain/validators/{name}.spec.ts',
       description: 'Gatekeeper validators',
     },
   ]

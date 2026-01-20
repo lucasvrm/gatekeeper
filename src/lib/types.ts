@@ -124,6 +124,50 @@ export interface ValidationManifest {
   testFile: string
 }
 
+export interface ContractClause {
+  id: string
+  kind: 'behavior' | 'error' | 'invariant' | 'ui'
+  normativity: 'MUST' | 'SHOULD' | 'MAY'
+  when: string
+  then: string
+}
+
+export interface AssertionSurfaceHttp {
+  methods?: string[]
+  successStatuses?: number[]
+  errorStatuses?: number[]
+  payloadPaths?: string[]
+}
+
+export interface AssertionSurfaceUi {
+  routes?: string[]
+  testIds?: string[]
+  roles?: string[]
+  ariaLabels?: string[]
+}
+
+export interface AssertionSurface {
+  http?: AssertionSurfaceHttp
+  ui?: AssertionSurfaceUi
+  effects?: string[]
+}
+
+export interface TestMapping {
+  tagPattern?: string
+}
+
+export interface Contract {
+  schemaVersion: string
+  slug: string
+  title: string
+  mode: string
+  changeType: string
+  criticality?: string
+  clauses: ContractClause[]
+  assertionSurface?: AssertionSurface
+  testMapping?: TestMapping
+}
+
 export interface LLMPlanOutput {
   outputId: string
   projectPath?: string
@@ -132,6 +176,7 @@ export interface LLMPlanOutput {
   taskPrompt: string
   dangerMode: boolean
   manifest: ValidationManifest
+  contract?: Contract
 }
 
 export interface CreateRunRequest {
@@ -139,6 +184,7 @@ export interface CreateRunRequest {
   projectPath?: string
   taskPrompt: string
   manifest: ValidationManifest
+  contract?: Contract
   baseRef?: string
   targetRef?: string
   dangerMode?: boolean

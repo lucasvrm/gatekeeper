@@ -110,6 +110,40 @@ export function RunDetailsPage() {
         runType: 'EXECUTION',
         contractRunId: primaryRun.id,
       })
+
+      // CRITICAL: Upload files from the CONTRACT run to trigger execution
+      // The backend expects files to be uploaded to queue the run
+      try {
+        const formData = new FormData()
+
+        // Fetch and upload plan.json from contract run artifacts
+        const planJsonPath = `artifacts/${primaryRun.outputId}/plan.json`
+        const planJsonResponse = await fetch(`/${planJsonPath}`)
+        if (planJsonResponse.ok) {
+          const planJsonContent = await planJsonResponse.text()
+          const planBlob = new Blob([planJsonContent], { type: 'application/json' })
+          formData.append('planJson', planBlob, 'plan.json')
+        }
+
+        // Fetch and upload spec file from contract run
+        const specFileName = manifest.testFile || 'test.spec.tsx'
+        const specPath = `artifacts/${primaryRun.outputId}/${specFileName}`
+        const specResponse = await fetch(`/${specPath}`)
+        if (specResponse.ok) {
+          const specContent = await specResponse.text()
+          const specBlob = new Blob([specContent], { type: 'text/plain' })
+          formData.append('specFile', specBlob, specFileName)
+        }
+
+        // Upload files to trigger execution
+        if (formData.has('planJson') || formData.has('specFile')) {
+          await api.runs.uploadFiles(response.runId, formData)
+        }
+      } catch (uploadError) {
+        console.error("Failed to upload files from contract run:", uploadError)
+        toast.error("Files uploaded from contract run, but execution may not start automatically. Try uploading manually.")
+      }
+
       toast.success("Execution run started")
 
       // Load the new execution run as secondary

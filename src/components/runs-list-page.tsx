@@ -232,7 +232,7 @@ export function RunsListPage() {
                     Run ID
                   </TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
-                    Path do Projeto
+                    Output ID
                   </TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
                     Status
@@ -242,6 +242,9 @@ export function RunsListPage() {
                   </TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
                     Rejeitado Por
+                  </TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider">
+                    Path do Projeto
                   </TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
                     Criado Em
@@ -272,7 +275,7 @@ export function RunsListPage() {
                     <TableCell className="font-mono text-sm">
                       {run.id.substring(0, 8)}
                     </TableCell>
-                    <TableCell className="font-medium">{run.projectPath}</TableCell>
+                    <TableCell className="font-medium">{run.outputId}</TableCell>
                     <TableCell>
                       <StatusBadge status={run.status} />
                     </TableCell>
@@ -282,6 +285,7 @@ export function RunsListPage() {
                     <TableCell className="font-mono text-sm text-muted-foreground">
                       {run.failedValidatorCode || "-"}
                     </TableCell>
+                    <TableCell className="font-medium">{run.projectPath}</TableCell>
                     <TableCell className="text-muted-foreground font-mono text-sm">
                       {formatDate(run.createdAt)}
                     </TableCell>

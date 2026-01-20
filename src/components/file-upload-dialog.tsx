@@ -171,7 +171,7 @@ export function FileUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => (!isOpen ? handleClose() : null)}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Upload Files</DialogTitle>
           <DialogDescription>
@@ -196,11 +196,11 @@ export function FileUploadDialog({
             >
               {planFile ? (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileJson className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-medium">{planFile.file.name}</span>
-                      <span className="text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <FileJson className="h-5 w-5 text-primary flex-shrink-0" />
+                      <span className="text-sm font-medium truncate">{planFile.file.name}</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">
                         ({(planFile.file.size / 1024).toFixed(2)} KB)
                       </span>
                     </div>
@@ -213,7 +213,7 @@ export function FileUploadDialog({
                     </Button>
                   </div>
                   <div className="bg-muted rounded p-3 max-h-40 overflow-auto">
-                    <pre className="text-xs">{planFile.content.slice(0, 500)}</pre>
+                    <pre className="text-xs whitespace-pre-wrap break-all">{planFile.content.slice(0, 500)}</pre>
                     {planFile.content.length > 500 && (
                       <span className="text-xs text-muted-foreground">...</span>
                     )}
@@ -260,11 +260,11 @@ export function FileUploadDialog({
             >
               {specFile ? (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileCode className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-medium">{specFile.file.name}</span>
-                      <span className="text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <FileCode className="h-5 w-5 text-primary flex-shrink-0" />
+                      <span className="text-sm font-medium truncate">{specFile.file.name}</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">
                         ({(specFile.file.size / 1024).toFixed(2)} KB)
                       </span>
                     </div>
@@ -277,7 +277,7 @@ export function FileUploadDialog({
                     </Button>
                   </div>
                   <div className="bg-muted rounded p-3 max-h-40 overflow-auto">
-                    <pre className="text-xs">{specFile.content.slice(0, 500)}</pre>
+                    <pre className="text-xs whitespace-pre-wrap break-all">{specFile.content.slice(0, 500)}</pre>
                     {specFile.content.length > 500 && (
                       <span className="text-xs text-muted-foreground">...</span>
                     )}

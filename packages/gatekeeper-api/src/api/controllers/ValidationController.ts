@@ -31,8 +31,10 @@ const sanitizeTestFileName = (value: string): string => basename(value.trim())
 export class ValidationController {
   async createRun(req: Request, res: Response): Promise<void> {
     try {
+      console.log('[createRun] Started with body:', JSON.stringify(req.body, null, 2))
       const data = req.body as CreateRunInput
       const sanitizedOutputId = sanitizeOutputId(data.outputId)
+      console.log('[createRun] Sanitized outputId:', sanitizedOutputId)
 
       if (sanitizedOutputId !== data.outputId || sanitizedOutputId.length === 0) {
         res.status(400).json({ error: 'Invalid outputId' })
@@ -40,16 +42,21 @@ export class ValidationController {
       }
 
       // Ler configs - source of truth
+      console.log('[createRun] Fetching path configs...')
       const pathConfigs = await prisma.validationConfig.findMany({
         where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
       })
+      console.log('[createRun] Path configs:', pathConfigs)
       const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
 
       const projectRoot = configMap.get(PATH_CONFIG_KEYS.projectRoot)?.trim() || ''
       const artifactsDir = configMap.get(PATH_CONFIG_KEYS.artifactsDir)?.trim() || 'artifacts'
+      console.log('[createRun] projectRoot:', projectRoot)
+      console.log('[createRun] artifactsDir:', artifactsDir)
 
       // Validar PROJECT_ROOT obrigatório
       if (!projectRoot) {
+        console.log('[createRun] PROJECT_ROOT is empty!')
         res.status(500).json({ error: 'PROJECT_ROOT config is required. Please configure it in /config.' })
         return
       }
@@ -70,10 +77,42 @@ export class ValidationController {
         res.status(400).json({ error: 'Invalid testFile extension' })
         return
       }
+
+      // Detect test type and resolve path using convention
+      console.log('[createRun] Detecting test type from manifest...')
+      const detectedTestType = this.detectTestType(data.manifest.files)
+      console.log('[createRun] Detected test type:', detectedTestType)
+
+      let testFileAbsolutePath: string
       const artifactDir = join(artifactsBasePath, sanitizedOutputId)
-      const testFileAbsolutePath = join(artifactDir, manifestTestFileName)
+
+      if (detectedTestType) {
+        const convention = await prisma.testPathConvention.findFirst({
+          where: { testType: detectedTestType, isActive: true },
+        })
+
+        if (convention) {
+          console.log('[createRun] Found convention:', convention.pathPattern)
+          // Extract base name from test file (remove .spec.tsx or .spec.ts)
+          const baseName = manifestTestFileName
+            .replace(/\.spec\.(tsx?|jsx?)$/, '')
+            .replace(/\.test\.(tsx?|jsx?)$/, '')
+
+          // Resolve pattern: replace {name} with base name
+          const resolvedPattern = convention.pathPattern.replace(/{name}/g, baseName)
+          testFileAbsolutePath = join(projectRoot, resolvedPattern)
+          console.log('[createRun] Resolved test path:', testFileAbsolutePath)
+        } else {
+          console.log('[createRun] No convention found, using artifacts')
+          testFileAbsolutePath = join(artifactDir, manifestTestFileName)
+        }
+      } else {
+        console.log('[createRun] Could not detect test type, using artifacts')
+        testFileAbsolutePath = join(artifactDir, manifestTestFileName)
+      }
 
       // Validação para runs do tipo EXECUTION
+      console.log('[createRun] Checking EXECUTION validation...')
       if (data.runType === 'EXECUTION') {
         if (!data.contractRunId) {
           res.status(400).json({ error: 'contractRunId is required for EXECUTION runs' })
@@ -100,6 +139,7 @@ export class ValidationController {
         }
       }
 
+      console.log('[createRun] Creating run in database...')
       const run = await prisma.validationRun.create({
         data: {
           outputId: data.outputId,
@@ -117,10 +157,10 @@ export class ValidationController {
         },
       })
 
-      orchestrator.addToQueue(run.id).catch((error) => {
-        console.error(`Error executing run ${run.id}:`, error)
-      })
+      console.log('[createRun] Run created:', run.id)
+      console.log('[createRun] Run is in PENDING state, waiting for file upload to start execution...')
 
+      console.log('[createRun] Sending response...')
       res.status(201).json({
         runId: run.id,
         outputId: run.outputId,
@@ -128,6 +168,7 @@ export class ValidationController {
         createdAt: run.createdAt,
       })
     } catch (error) {
+      console.error('[createRun] ERROR:', error)
       res.status(500).json({
         error: 'Failed to create validation run',
         message: error instanceof Error ? error.message : String(error),
@@ -182,6 +223,46 @@ export class ValidationController {
     })
 
     res.json(updated)
+  }
+
+  private detectTestType(files: Array<{ path: string; action: string }>): string | null {
+    const typePatterns: Record<string, RegExp> = {
+      component: /\/components?\//i,
+      hook: /\/hooks?\//i,
+      lib: /\/lib\//i,
+      util: /\/utils?\//i,
+      service: /\/services?\//i,
+      context: /\/contexts?\//i,
+      page: /\/pages?\//i,
+      store: /\/stores?\//i,
+      api: /\/api\//i,
+      validator: /\/validators?\//i,
+    }
+
+    const typeCounts: Record<string, number> = {}
+
+    for (const file of files) {
+      if (file.action === 'DELETE') continue
+
+      for (const [type, pattern] of Object.entries(typePatterns)) {
+        if (pattern.test(file.path)) {
+          typeCounts[type] = (typeCounts[type] || 0) + 1
+        }
+      }
+    }
+
+    // Return the type with the most matches
+    let maxCount = 0
+    let detectedType: string | null = null
+
+    for (const [type, count] of Object.entries(typeCounts)) {
+      if (count > maxCount) {
+        maxCount = count
+        detectedType = type
+      }
+    }
+
+    return detectedType
   }
 }
 

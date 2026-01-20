@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { FileDropZone } from "./file-drop-zone"
 
 export interface TestFileInputProps {
-  onFilePath: (path: string) => void
+  onFilePath: (path: string, content?: string) => void
   onPathManual: (path: string) => void
   onError: (error: string) => void
 }
@@ -45,10 +45,10 @@ export function TestFileInput({
     onPathManual("")
   }
 
-  const handleDropZoneContent = (_content: string, filename: string) => {
+  const handleDropZoneContent = (content: string, filename: string) => {
     setUploadedFileName(filename)
     setErrorMessage(null)
-    onFilePath(filename)
+    onFilePath(filename, content)
   }
 
   const handleDropZoneError = (message: string) => {

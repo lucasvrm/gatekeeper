@@ -415,7 +415,7 @@ export class RunsController {
         // Resolve test path using convention if test type detected
         let targetSpecPath: string
         if (detectedTestType) {
-          const convention = await prisma.testPathConvention.findUnique({
+          const convention = await prisma.testPathConvention.findFirst({
             where: { testType: detectedTestType, isActive: true },
           })
 
@@ -461,7 +461,7 @@ export class RunsController {
         })
       }
 
-      // Reset the run if it was completed/failed
+      // Reset and queue the run based on its current status
       if (run.status === 'PASSED' || run.status === 'FAILED' || run.status === 'ABORTED') {
         // Delete all gate and validator results
         await prisma.validatorResult.deleteMany({
@@ -486,19 +486,25 @@ export class RunsController {
             completedAt: null,
           },
         })
+      }
 
-        // Queue the run for re-execution
+      // Always queue the run for execution after file upload (initial or re-execution)
+      if (run.status === 'PENDING' || run.status === 'PASSED' || run.status === 'FAILED' || run.status === 'ABORTED') {
         const { ValidationOrchestrator } = await import('../../services/ValidationOrchestrator.js')
         const orchestrator = new ValidationOrchestrator()
         orchestrator.addToQueue(id).catch((error) => {
-          console.error(`Error re-executing run ${id} after file upload:`, error)
+          console.error(`Error executing run ${id} after file upload:`, error)
         })
       }
+
+      const shouldQueue = run.status === 'PENDING' || run.status === 'PASSED' || run.status === 'FAILED' || run.status === 'ABORTED'
+      const wasReset = run.status === 'PASSED' || run.status === 'FAILED' || run.status === 'ABORTED'
 
       res.json({
         message: 'Files uploaded successfully',
         files: uploadedFiles,
-        runReset: run.status === 'PASSED' || run.status === 'FAILED' || run.status === 'ABORTED'
+        runReset: wasReset,
+        runQueued: shouldQueue
       })
     } catch (error) {
       console.error('Error uploading files:', error)

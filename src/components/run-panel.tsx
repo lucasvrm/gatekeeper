@@ -291,11 +291,11 @@ export function RunPanel({
                           G{gate.gateNumber}
                         </span>
                       </h4>
-                      <div className="flex items-center gap-3 mt-0.5 text-[10px]">
-                        <span className="text-status-passed">{gate.passedCount}P</span>
-                        <span className="text-status-failed">{gate.failedCount}F</span>
+                      <div className="flex items-center gap-3 mt-0.5 text-[13px]">
+                        <span className="text-status-passed">{gate.passedCount} Passed</span>
+                        <span className="text-status-failed">{gate.failedCount} Failed</span>
                         {gate.warningCount > 0 && (
-                          <span className="text-status-warning">{gate.warningCount}W</span>
+                          <span className="text-status-warning">{gate.warningCount} Warning</span>
                         )}
                       </div>
                     </div>

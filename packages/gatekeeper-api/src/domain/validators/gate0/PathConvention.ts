@@ -65,7 +65,7 @@ export const PathConventionValidator: ValidatorDefinition = {
       .replace(/\.spec\.(tsx?|jsx?)$/, '')
       .replace(/\.test\.(tsx?|jsx?)$/, '')
 
-    const currentGate = ctx.gate || 0
+    const currentGate = 0 // PathConvention validator runs in Gate 0
     const expectedPattern = convention.pathPattern
       .replace(/{name}/g, baseName)
       .replace(/{gate}/g, String(currentGate))

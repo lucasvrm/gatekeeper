@@ -13,21 +13,29 @@ export const ManifestSchema = z.object({
 
 export const ContractClauseSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(['behavior', 'error', 'invariant']),
+  kind: z.enum(['behavior', 'error', 'invariant', 'ui']),
   normativity: z.enum(['MUST', 'SHOULD', 'MAY']),
   when: z.string().min(1),
   then: z.string().min(1),
 })
 
 export const AssertionSurfaceHttpSchema = z.object({
-  methods: z.array(z.string()).min(1).optional(),
-  successStatuses: z.array(z.number().int()).min(1).optional(),
-  errorStatuses: z.array(z.number().int()).min(1).optional(),
-  payloadPaths: z.array(z.string()).min(1).optional(),
+  methods: z.array(z.string()).optional(),
+  successStatuses: z.array(z.number().int()).optional(),
+  errorStatuses: z.array(z.number().int()).optional(),
+  payloadPaths: z.array(z.string()).optional(),
+})
+
+export const AssertionSurfaceUiSchema = z.object({
+  routes: z.array(z.string()).optional(),
+  testIds: z.array(z.string()).optional(),
+  roles: z.array(z.string()).optional(),
+  ariaLabels: z.array(z.string()).optional(),
 })
 
 export const AssertionSurfaceSchema = z.object({
   http: AssertionSurfaceHttpSchema.optional(),
+  ui: AssertionSurfaceUiSchema.optional(),
   effects: z.array(z.string().min(1)).optional(),
 })
 

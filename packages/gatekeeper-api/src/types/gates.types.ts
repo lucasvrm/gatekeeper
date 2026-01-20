@@ -21,6 +21,7 @@ export type ValidatorCode =
   | 'TASK_CLARITY_CHECK'
   | 'SENSITIVE_FILES_LOCK'
   | 'DANGER_MODE_EXPLICIT'
+  | 'PATH_CONVENTION'
   | 'TEST_SYNTAX_VALID'
   | 'TEST_HAS_ASSERTIONS'
   | 'TEST_COVERS_HAPPY_AND_SAD_PATH'
@@ -54,7 +55,7 @@ export interface ManifestInput {
 
 export interface ContractClause {
   id: string
-  kind: 'behavior' | 'error' | 'invariant'
+  kind: 'behavior' | 'error' | 'invariant' | 'ui'
   normativity: 'MUST' | 'SHOULD' | 'MAY'
   when: string
   then: string
@@ -66,6 +67,12 @@ export interface AssertionSurface {
     successStatuses?: number[]
     errorStatuses?: number[]
     payloadPaths?: string[]
+  }
+  ui?: {
+    routes?: string[]
+    testIds?: string[]
+    roles?: string[]
+    ariaLabels?: string[]
   }
   effects?: string[]
 }

@@ -56,9 +56,11 @@ const isLLMPlanOutput = (value: unknown): value is LLMPlanOutput => {
 export function NewValidationPage() {
   const navigate = useNavigate()
   const [planData, setPlanData] = useState<LLMPlanOutput | null>(null)
+  const [planJsonContent, setPlanJsonContent] = useState<string | null>(null)
   const [testFileMode, setTestFileMode] = useState<"upload" | "manual">("upload")
   const [manualTestPath, setManualTestPath] = useState("")
   const [uploadedTestPath, setUploadedTestPath] = useState("")
+  const [uploadedTestContent, setUploadedTestContent] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [runType, setRunType] = useState<'CONTRACT' | 'EXECUTION'>('CONTRACT')
@@ -77,12 +79,15 @@ export function NewValidationPage() {
       const parsed = JSON.parse(content)
       if (!isLLMPlanOutput(parsed)) {
         setPlanData(null)
+        setPlanJsonContent(null)
         setError("JSON invalido: estrutura inesperada")
         return
       }
       setPlanData(parsed)
+      setPlanJsonContent(content)
     } catch {
       setPlanData(null)
+      setPlanJsonContent(null)
       setError("JSON invalido: falha ao interpretar")
     }
   }
@@ -110,10 +115,29 @@ export function NewValidationPage() {
         taskPrompt: planData.taskPrompt,
         dangerMode: planData.dangerMode,
         manifest: planData.manifest,
+        contract: planData.contract,
         runType,
       }
 
+      // Step 1: Create run (stays in PENDING, not added to queue yet)
       const response = await api.runs.create(requestData)
+
+      // Step 2: Upload files if available
+      if (testFileMode === "upload" && planJsonContent && uploadedTestContent && uploadedTestPath) {
+        const formData = new FormData()
+
+        // Add plan.json
+        const planBlob = new Blob([planJsonContent], { type: 'application/json' })
+        formData.append('planJson', planBlob, 'plan.json')
+
+        // Add spec file
+        const specBlob = new Blob([uploadedTestContent], { type: 'text/plain' })
+        formData.append('specFile', specBlob, uploadedTestPath)
+
+        // Upload files (this will queue the run for execution)
+        await api.runs.uploadFiles(response.runId, formData)
+      }
+
       toast.success("Validacao iniciada com sucesso")
       navigate(`/runs/${response.runId}`)
     } catch (error) {
@@ -125,9 +149,10 @@ export function NewValidationPage() {
     }
   }
 
-  const handleTestFilePath = (filename: string) => {
+  const handleTestFilePath = (filename: string, content?: string) => {
     setTestFileMode("upload")
     setUploadedTestPath(filename)
+    setUploadedTestContent(content || null)
     setManualTestPath("")
     setError(null)
   }
@@ -143,7 +168,7 @@ export function NewValidationPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-8 space-y-6">
       <div className="mb-6">
         <Button variant="ghost" size="sm" onClick={() => navigate("/runs")}>
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -210,23 +235,16 @@ export function NewValidationPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate("/runs")}>
+        <div className="flex items-center justify-start gap-3">
+          <Button
+            type="submit"
+            disabled={!canSubmit || isSubmitting}
+            data-testid="btn-run-gates"
+          >
+            {isSubmitting ? "Iniciando..." : "Run Gates 0 e 1"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => navigate("/runs")} data-testid="btn-cancel">
             Cancelar
-          </Button>
-          <Button
-            type="submit"
-            disabled={!canSubmit || isSubmitting}
-            onClick={() => setRunType('CONTRACT')}
-          >
-            {isSubmitting && runType === 'CONTRACT' ? "Iniciando..." : "Validar Contrato (Gates 0-1)"}
-          </Button>
-          <Button
-            type="submit"
-            disabled={!canSubmit || isSubmitting}
-            onClick={() => setRunType('EXECUTION')}
-          >
-            {isSubmitting && runType === 'EXECUTION' ? "Iniciando..." : "Validar Execução (Gates 2-3)"}
           </Button>
         </div>
       </form>
