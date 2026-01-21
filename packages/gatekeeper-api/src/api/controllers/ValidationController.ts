@@ -41,28 +41,72 @@ export class ValidationController {
         return
       }
 
-      // Ler configs - source of truth
-      console.log('[createRun] Fetching path configs...')
-      const pathConfigs = await prisma.validationConfig.findMany({
-        where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
-      })
-      console.log('[createRun] Path configs:', pathConfigs)
-      const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
+      let projectRoot: string
+      let artifactsDir: string
+      let baseRef: string
+      let targetRef: string
+      let backendWorkspace: string | undefined
+      let projectPath: string
+      let resolvedProjectId: string | undefined = data.projectId
 
-      const projectRoot = configMap.get(PATH_CONFIG_KEYS.projectRoot)?.trim() || ''
-      const artifactsDir = configMap.get(PATH_CONFIG_KEYS.artifactsDir)?.trim() || 'artifacts'
-      console.log('[createRun] projectRoot:', projectRoot)
-      console.log('[createRun] artifactsDir:', artifactsDir)
+      // If projectId is provided, use workspace/project settings
+      if (data.projectId) {
+        console.log('[createRun] Using project-based configuration with projectId:', data.projectId)
+        const project = await prisma.project.findUnique({
+          where: { id: data.projectId },
+          include: { workspace: true },
+        })
 
-      // Validar PROJECT_ROOT obrigatório
-      if (!projectRoot) {
-        console.log('[createRun] PROJECT_ROOT is empty!')
-        res.status(500).json({ error: 'PROJECT_ROOT config is required. Please configure it in /config.' })
-        return
+        if (!project) {
+          res.status(400).json({ error: 'Project not found' })
+          return
+        }
+
+        if (!project.isActive) {
+          res.status(400).json({ error: 'Project is not active' })
+          return
+        }
+
+        projectRoot = project.workspace.rootPath
+        artifactsDir = project.workspace.artifactsDir
+        baseRef = project.baseRef
+        targetRef = project.targetRef
+        backendWorkspace = project.backendWorkspace || undefined
+        projectPath = projectRoot
+
+        console.log('[createRun] Project settings:', {
+          projectRoot,
+          artifactsDir,
+          baseRef,
+          targetRef,
+          backendWorkspace,
+        })
+      } else {
+        // Fallback to global configs for backward compatibility
+        console.log('[createRun] Using global configuration (backward compatibility)')
+        const pathConfigs = await prisma.validationConfig.findMany({
+          where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
+        })
+        const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
+
+        projectRoot = configMap.get(PATH_CONFIG_KEYS.projectRoot)?.trim() || ''
+        artifactsDir = configMap.get(PATH_CONFIG_KEYS.artifactsDir)?.trim() || 'artifacts'
+        baseRef = data.baseRef || 'origin/main'
+        targetRef = data.targetRef || 'HEAD'
+        backendWorkspace = configMap.get(PATH_CONFIG_KEYS.backendWorkspace)?.trim() || undefined
+        projectPath = projectRoot
+
+        console.log('[createRun] Global configs:', { projectRoot, artifactsDir, baseRef, targetRef })
+
+        // Validar PROJECT_ROOT obrigatório quando não usando projectId
+        if (!projectRoot) {
+          console.log('[createRun] PROJECT_ROOT is empty!')
+          res.status(500).json({ error: 'PROJECT_ROOT config is required. Please configure it in /config or use projectId.' })
+          return
+        }
       }
 
       // Resolver paths
-      const projectPath = projectRoot
       const artifactsBasePath = join(projectRoot, artifactsDir)
       const manifestTestFileName = sanitizeTestFileName(data.manifest.testFile)
       if (!manifestTestFileName) {
@@ -142,13 +186,14 @@ export class ValidationController {
       console.log('[createRun] Creating run in database...')
       const run = await prisma.validationRun.create({
         data: {
+          projectId: resolvedProjectId,
           outputId: data.outputId,
           projectPath: projectPath,
           taskPrompt: data.taskPrompt,
           manifestJson: JSON.stringify(data.manifest),
           testFilePath: testFileAbsolutePath,
-          baseRef: data.baseRef,
-          targetRef: data.targetRef,
+          baseRef: baseRef,
+          targetRef: targetRef,
           dangerMode: data.dangerMode,
           status: 'PENDING',
           runType: data.runType,

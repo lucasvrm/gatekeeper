@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "@/lib/api"
-import type { LLMPlanOutput, ManifestFile } from "@/lib/types"
+import type { LLMPlanOutput, ManifestFile, Project } from "@/lib/types"
 import { FileDropZone } from "@/components/file-drop-zone"
 import { TestFileInput } from "@/components/test-file-input"
 import { JsonPreview } from "@/components/json-preview"
@@ -10,6 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { toast } from "sonner"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
@@ -64,6 +71,20 @@ export function NewValidationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [runType, setRunType] = useState<'CONTRACT' | 'EXECUTION'>('CONTRACT')
+  const [projects, setProjects] = useState<Project[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("__NONE__")
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const response = await api.projects.list(1, 100)
+        setProjects(response.data)
+      } catch (error) {
+        console.error("Failed to load projects:", error)
+      }
+    }
+    loadProjects()
+  }, [])
 
   const canSubmit = useMemo(() => {
     if (!planData) return false
@@ -117,6 +138,7 @@ export function NewValidationPage() {
         manifest: planData.manifest,
         contract: planData.contract,
         runType,
+        ...(selectedProjectId !== "__NONE__" && { projectId: selectedProjectId }),
       }
 
       // Step 1: Create run (stays in PENDING, not added to queue yet)
@@ -182,6 +204,36 @@ export function NewValidationPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="p-6 bg-card border-border">
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium uppercase tracking-wider">
+                Projeto (Opcional)
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Selecione um projeto para usar suas configurações de workspace. Se não selecionado, usará as configurações globais.
+              </p>
+            </div>
+            <Select
+              value={selectedProjectId}
+              onValueChange={setSelectedProjectId}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Usar configurações globais" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__NONE__">Usar configurações globais</SelectItem>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.workspace?.name} / {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </Card>
+
         <div
           className={`grid gap-6 lg:grid-cols-[1.1fr_0.9fr] ${
             isSubmitting ? "pointer-events-none opacity-70" : ""

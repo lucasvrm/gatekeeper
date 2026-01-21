@@ -20,6 +20,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "migrate-runs": "tsx scripts/migrate-runs-to-projects.ts",
     "test": "cross-env VITEST_RUN_E2E=true vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

@@ -7,8 +7,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Workspace {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  description  String?
+  rootPath     String
+  artifactsDir String   @default("artifacts")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projects           Project[]
+  workspaceConfigs   WorkspaceConfig[]
+  testPathConventions TestPathConvention[]
+
+  @@index([isActive])
+}
+
+model Project {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name             String
+  description      String?
+  baseRef          String   @default("origin/main")
+  targetRef        String   @default("HEAD")
+  backendWorkspace String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  validationRuns ValidationRun[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@index([isActive])
+}
+
+model WorkspaceConfig {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  key         String
+  value       String
+  type        String   @default("STRING")
+  category    String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+}
+
 model ValidationRun {
   id              String   @id @default(cuid())
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   outputId        String
   projectPath     String
   baseRef         String   @default("origin/main")
@@ -39,6 +93,7 @@ model ValidationRun {
   logs             ValidationLog[]
   manifestFiles    ManifestFile[]
 
+  @@index([projectId])
   @@index([status])
   @@index([createdAt])
   @@index([projectPath])
@@ -159,12 +214,17 @@ model ValidationConfig {
 }
 
 model TestPathConvention {
-  id          String   @id @default(cuid())
-  testType    String   @unique
+  id          String     @id @default(cuid())
+  workspaceId String     @default("__global__")
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  testType    String
   pathPattern String
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([workspaceId, testType])
+  @@index([workspaceId])
 }
 

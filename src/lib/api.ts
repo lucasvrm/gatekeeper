@@ -9,6 +9,9 @@ import type {
   CreateRunRequest,
   CreateRunResponse,
   CustomizationSettings,
+  Workspace,
+  Project,
+  WorkspaceConfig,
 } from "./types"
 
 export const API_BASE = "http://localhost:3000/api"
@@ -316,6 +319,154 @@ export const api = {
       })
       if (!response.ok) throw new Error("Failed to update validator")
       return response.json()
+    },
+  },
+
+  workspaces: {
+    list: async (page = 1, limit = 20, includeInactive = false): Promise<PaginatedResponse<Workspace>> => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+      if (includeInactive) params.append("includeInactive", "true")
+      const response = await fetch(`${API_BASE}/workspaces?${params}`)
+      if (!response.ok) throw new Error("Failed to fetch workspaces")
+      return response.json()
+    },
+
+    get: async (id: string): Promise<Workspace> => {
+      const response = await fetch(`${API_BASE}/workspaces/${id}`)
+      if (!response.ok) throw new Error("Failed to fetch workspace")
+      return response.json()
+    },
+
+    create: async (data: {
+      name: string
+      description?: string
+      rootPath: string
+      artifactsDir?: string
+    }): Promise<Workspace> => {
+      const response = await fetch(`${API_BASE}/workspaces`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to create workspace")
+      }
+      return response.json()
+    },
+
+    update: async (id: string, data: Partial<{
+      name: string
+      description: string
+      rootPath: string
+      artifactsDir: string
+      isActive: boolean
+    }>): Promise<Workspace> => {
+      const response = await fetch(`${API_BASE}/workspaces/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to update workspace")
+      }
+      return response.json()
+    },
+
+    delete: async (id: string): Promise<void> => {
+      const response = await fetch(`${API_BASE}/workspaces/${id}`, { method: "DELETE" })
+      if (!response.ok) throw new Error("Failed to delete workspace")
+    },
+
+    getConfigs: async (id: string): Promise<WorkspaceConfig[]> => {
+      const response = await fetch(`${API_BASE}/workspaces/${id}/configs`)
+      if (!response.ok) throw new Error("Failed to fetch workspace configs")
+      return response.json()
+    },
+
+    updateConfig: async (workspaceId: string, key: string, data: {
+      value: string
+      type?: string
+      category?: string
+      description?: string
+    }): Promise<WorkspaceConfig> => {
+      const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/configs/${key}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) throw new Error("Failed to update workspace config")
+      return response.json()
+    },
+
+    deleteConfig: async (workspaceId: string, key: string): Promise<void> => {
+      const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/configs/${key}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) throw new Error("Failed to delete workspace config")
+    },
+  },
+
+  projects: {
+    list: async (page = 1, limit = 20, workspaceId?: string, includeInactive = false): Promise<PaginatedResponse<Project>> => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+      if (workspaceId) params.append("workspaceId", workspaceId)
+      if (includeInactive) params.append("includeInactive", "true")
+      const response = await fetch(`${API_BASE}/projects?${params}`)
+      if (!response.ok) throw new Error("Failed to fetch projects")
+      return response.json()
+    },
+
+    get: async (id: string): Promise<Project> => {
+      const response = await fetch(`${API_BASE}/projects/${id}`)
+      if (!response.ok) throw new Error("Failed to fetch project")
+      return response.json()
+    },
+
+    create: async (data: {
+      workspaceId: string
+      name: string
+      description?: string
+      baseRef?: string
+      targetRef?: string
+      backendWorkspace?: string
+    }): Promise<Project> => {
+      const response = await fetch(`${API_BASE}/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to create project")
+      }
+      return response.json()
+    },
+
+    update: async (id: string, data: Partial<{
+      name: string
+      description: string
+      baseRef: string
+      targetRef: string
+      backendWorkspace: string
+      isActive: boolean
+    }>): Promise<Project> => {
+      const response = await fetch(`${API_BASE}/projects/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to update project")
+      }
+      return response.json()
+    },
+
+    delete: async (id: string): Promise<void> => {
+      const response = await fetch(`${API_BASE}/projects/${id}`, { method: "DELETE" })
+      if (!response.ok) throw new Error("Failed to delete project")
     },
   },
 

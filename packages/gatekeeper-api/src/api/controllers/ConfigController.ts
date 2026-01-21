@@ -611,7 +611,12 @@ export class ConfigController {
     }
 
     const existing = await prisma.testPathConvention.findUnique({
-      where: { testType: String(testType) },
+      where: {
+        workspaceId_testType: {
+          workspaceId: '__global__',
+          testType: String(testType),
+        },
+      },
     })
 
     if (existing) {
@@ -621,6 +626,7 @@ export class ConfigController {
 
     const created = await prisma.testPathConvention.create({
       data: {
+        workspaceId: '__global__',
         testType: String(testType),
         pathPattern: String(pathPattern),
         description: typeof description === 'string' ? description : undefined,
@@ -635,7 +641,14 @@ export class ConfigController {
     const { testType } = req.params
     const { pathPattern, description, isActive } = req.body
 
-    const existing = await prisma.testPathConvention.findUnique({ where: { testType } })
+    const existing = await prisma.testPathConvention.findUnique({
+      where: {
+        workspaceId_testType: {
+          workspaceId: '__global__',
+          testType,
+        },
+      },
+    })
     if (!existing) {
       res.status(404).json({ message: 'TestPathConvention not found' })
       return
@@ -659,7 +672,12 @@ export class ConfigController {
     }
 
     const updated = await prisma.testPathConvention.update({
-      where: { testType },
+      where: {
+        workspaceId_testType: {
+          workspaceId: '__global__',
+          testType,
+        },
+      },
       data,
     })
 
@@ -669,13 +687,27 @@ export class ConfigController {
   async deleteTestPathConvention(req: Request, res: Response): Promise<void> {
     const { testType } = req.params
 
-    const existing = await prisma.testPathConvention.findUnique({ where: { testType } })
+    const existing = await prisma.testPathConvention.findUnique({
+      where: {
+        workspaceId_testType: {
+          workspaceId: '__global__',
+          testType,
+        },
+      },
+    })
     if (!existing) {
       res.status(404).json({ message: 'TestPathConvention not found' })
       return
     }
 
-    await prisma.testPathConvention.delete({ where: { testType } })
+    await prisma.testPathConvention.delete({
+      where: {
+        workspaceId_testType: {
+          workspaceId: '__global__',
+          testType,
+        },
+      },
+    })
     res.status(204).send()
   }
 }

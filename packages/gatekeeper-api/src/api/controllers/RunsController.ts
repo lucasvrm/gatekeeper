@@ -37,6 +37,20 @@ export class RunsController {
         skip,
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              workspace: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
       }),
       prisma.validationRun.count({ where }),
     ])
