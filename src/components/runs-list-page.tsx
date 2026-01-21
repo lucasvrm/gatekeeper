@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "@/lib/api"
-import type { Run, RunStatus } from "@/lib/types"
+import type { Run, RunStatus, Workspace, Project } from "@/lib/types"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,6 +42,10 @@ export function RunsListPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [statusFilter, setStatusFilter] = useState<RunStatus | "ALL">("ALL")
+  const [workspaceFilter, setWorkspaceFilter] = useState<string>("ALL")
+  const [projectFilter, setProjectFilter] = useState<string>("ALL")
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set())
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
@@ -65,6 +69,30 @@ export function RunsListPage() {
   }
 
   useEffect(() => {
+    const loadWorkspaces = async () => {
+      try {
+        const response = await api.workspaces.list(1, 100, true)
+        setWorkspaces(response.data)
+      } catch (error) {
+        console.error("Failed to load workspaces:", error)
+      }
+    }
+    loadWorkspaces()
+  }, [])
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const response = await api.projects.list(1, 100, undefined, true)
+        setProjects(response.data)
+      } catch (error) {
+        console.error("Failed to load projects:", error)
+      }
+    }
+    loadProjects()
+  }, [])
+
+  useEffect(() => {
     loadRuns()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, statusFilter])
@@ -80,6 +108,36 @@ export function RunsListPage() {
       return next
     })
   }, [runs])
+
+  // Projetos disponíveis baseados no workspace selecionado
+  const availableProjects = workspaceFilter === "ALL"
+    ? projects
+    : projects.filter(p => p.workspaceId === workspaceFilter)
+
+  // Resetar filtro de projeto quando workspace mudar e projeto não estiver disponível
+  useEffect(() => {
+    if (projectFilter !== "ALL" && !availableProjects.some(p => p.id === projectFilter)) {
+      setProjectFilter("ALL")
+    }
+  }, [workspaceFilter, projectFilter, availableProjects])
+
+  const filteredRuns = runs.filter((run) => {
+    // Filtro por workspace
+    if (workspaceFilter !== "ALL") {
+      if (!run.project?.workspace?.id || run.project.workspace.id !== workspaceFilter) {
+        return false
+      }
+    }
+
+    // Filtro por projeto
+    if (projectFilter !== "ALL") {
+      if (!run.project?.id || run.project.id !== projectFilter) {
+        return false
+      }
+    }
+
+    return true
+  })
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleString()
@@ -148,13 +206,13 @@ export function RunsListPage() {
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedRunIds(new Set(runs.map((run) => run.id)))
+      setSelectedRunIds(new Set(filteredRuns.map((run) => run.id)))
     } else {
       setSelectedRunIds(new Set())
     }
   }
 
-  const allSelected = runs.length > 0 && selectedRunIds.size === runs.length
+  const allSelected = filteredRuns.length > 0 && selectedRunIds.size === filteredRuns.length
 
   return (
     <div className="p-8 space-y-6">
@@ -176,14 +234,40 @@ export function RunsListPage() {
 
       <Card className="p-6 bg-card border-border">
         <div className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <FunnelSimple className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filtrar por Status:</span>
+              <span className="text-sm font-medium">Filtros:</span>
             </div>
+            <Select value={workspaceFilter} onValueChange={setWorkspaceFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Workspace" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos Workspaces</SelectItem>
+                {workspaces.map((workspace) => (
+                  <SelectItem key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={projectFilter} onValueChange={setProjectFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Projeto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos Projetos</SelectItem>
+                {availableProjects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.workspace?.name} / {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as RunStatus | "ALL")}>
               <SelectTrigger className="w-48">
-                <SelectValue />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos Status</SelectItem>
@@ -212,9 +296,9 @@ export function RunsListPage() {
               <Skeleton key={i} className="h-16" />
             ))}
           </div>
-        ) : runs.length === 0 ? (
+        ) : filteredRuns.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No runs found</p>
+            <p className="text-muted-foreground">Nenhuma run encontrada</p>
           </div>
         ) : (
           <>
@@ -244,7 +328,7 @@ export function RunsListPage() {
                     Rejeitado Por
                   </TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
-                    Path do Projeto
+                    Projeto / Path
                   </TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
                     Criado Em
@@ -255,7 +339,7 @@ export function RunsListPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {runs.map((run) => (
+                {filteredRuns.map((run) => (
                   <TableRow
                     key={run.id}
                     className="cursor-pointer hover:bg-muted/50"
@@ -285,7 +369,22 @@ export function RunsListPage() {
                     <TableCell className="font-mono text-sm text-muted-foreground">
                       {run.failedValidatorCode || "-"}
                     </TableCell>
-                    <TableCell className="font-medium">{run.projectPath}</TableCell>
+                    <TableCell>
+                      {run.project ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">
+                            {run.project.workspace?.name} / {run.project.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground font-mono">
+                            {run.projectPath}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-mono text-sm text-muted-foreground">
+                          {run.projectPath}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-sm">
                       {formatDate(run.createdAt)}
                     </TableCell>

@@ -58,6 +58,7 @@ export const ContractSchema = z.object({
 })
 
 export const CreateRunSchema = z.object({
+  projectId: z.string().optional(),
   outputId: z.string().min(1),
   projectPath: z.string().min(1).optional(),
   taskPrompt: z.string().min(10),

@@ -5,6 +5,46 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Starting seed...')
 
+  // Create default workspace
+  const defaultWorkspace = await prisma.workspace.upsert({
+    where: { name: 'Gatekeeper' },
+    create: {
+      name: 'Gatekeeper',
+      description: 'Default workspace for Gatekeeper project',
+      rootPath: process.env.PROJECT_ROOT || '',
+      artifactsDir: 'artifacts',
+    },
+    update: {
+      description: 'Default workspace for Gatekeeper project',
+      artifactsDir: 'artifacts',
+    },
+  })
+
+  console.log(`✓ Seeded default workspace: ${defaultWorkspace.name}`)
+
+  // Create default project
+  const defaultProject = await prisma.project.upsert({
+    where: {
+      workspaceId_name: {
+        workspaceId: defaultWorkspace.id,
+        name: 'gatekeeper',
+      },
+    },
+    create: {
+      workspaceId: defaultWorkspace.id,
+      name: 'gatekeeper',
+      description: 'Default project for validation runs',
+      baseRef: 'origin/main',
+      targetRef: 'HEAD',
+      backendWorkspace: 'packages/gatekeeper-api',
+    },
+    update: {
+      description: 'Default project for validation runs',
+    },
+  })
+
+  console.log(`✓ Seeded default project: ${defaultProject.name}`)
+
   const sensitiveFileRules = [
     {
       pattern: '.env*',
@@ -246,15 +286,27 @@ async function main() {
     },
   ]
 
+  // Create global conventions (workspaceId = "__global__" for backward compatibility)
   for (const convention of testPathConventions) {
     await prisma.testPathConvention.upsert({
-      where: { testType: convention.testType },
-      create: convention,
-      update: convention,
+      where: {
+        workspaceId_testType: {
+          workspaceId: '__global__',
+          testType: convention.testType,
+        },
+      },
+      create: {
+        ...convention,
+        workspaceId: '__global__',
+      },
+      update: {
+        pathPattern: convention.pathPattern,
+        description: convention.description,
+      },
     })
   }
 
-  console.log(`✓ Seeded ${testPathConventions.length} test path conventions`)
+  console.log(`✓ Seeded ${testPathConventions.length} global test path conventions`)
 
   console.log('✓ Seed completed successfully')
 }

@@ -1,8 +1,66 @@
 export type RunStatus = "PENDING" | "RUNNING" | "PASSED" | "FAILED" | "ABORTED"
 export type ValidatorStatus = "PENDING" | "RUNNING" | "PASSED" | "FAILED" | "WARNING" | "SKIPPED"
 
+export interface Workspace {
+  id: string
+  name: string
+  description?: string
+  rootPath: string
+  artifactsDir: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  _count?: {
+    projects: number
+    workspaceConfigs: number
+    testPathConventions?: number
+  }
+}
+
+export interface Project {
+  id: string
+  workspaceId: string
+  workspace?: {
+    id: string
+    name: string
+    rootPath?: string
+    artifactsDir?: string
+  }
+  name: string
+  description?: string
+  baseRef: string
+  targetRef: string
+  backendWorkspace?: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  _count?: {
+    validationRuns: number
+  }
+}
+
+export interface WorkspaceConfig {
+  id: string
+  workspaceId: string
+  key: string
+  value: string
+  type: 'STRING' | 'NUMBER' | 'BOOLEAN'
+  category: string
+  description?: string
+  updatedAt: string
+}
+
 export interface Run {
   id: string
+  projectId?: string
+  project?: {
+    id: string
+    name: string
+    workspace?: {
+      id: string
+      name: string
+    }
+  }
   outputId: string
   projectPath: string
   baseRef: string
@@ -180,6 +238,7 @@ export interface LLMPlanOutput {
 }
 
 export interface CreateRunRequest {
+  projectId?: string
   outputId: string
   projectPath?: string
   taskPrompt: string

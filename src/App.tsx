@@ -7,6 +7,12 @@ import { RunDetailsPage } from "@/components/run-details-page"
 import { NewValidationPage } from "@/components/new-validation-page"
 import { GatesPage } from "@/components/gates-page"
 import { ConfigPage } from "@/components/config-page"
+import { WorkspacesListPage } from "@/components/workspaces-list-page"
+import { WorkspaceDetailsPage } from "@/components/workspace-details-page"
+import { WorkspaceFormPage } from "@/components/workspace-form-page"
+import { ProjectsListPage } from "@/components/projects-list-page"
+import { ProjectDetailsPage } from "@/components/project-details-page"
+import { ProjectFormPage } from "@/components/project-form-page"
 import { CustomizationProvider } from "@/hooks/use-customization"
 
 function App() {
@@ -21,6 +27,14 @@ function App() {
             <Route path="/runs/:id" element={<RunDetailsPage />} />
             <Route path="/gates" element={<GatesPage />} />
             <Route path="/config" element={<ConfigPage />} />
+            <Route path="/workspaces" element={<WorkspacesListPage />} />
+            <Route path="/workspaces/new" element={<WorkspaceFormPage />} />
+            <Route path="/workspaces/:id/edit" element={<WorkspaceFormPage />} />
+            <Route path="/workspaces/:id" element={<WorkspaceDetailsPage />} />
+            <Route path="/projects" element={<ProjectsListPage />} />
+            <Route path="/projects/new" element={<ProjectFormPage />} />
+            <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppLayout>

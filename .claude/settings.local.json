@@ -12,7 +12,12 @@
       "Bash(npm run db:seed:*)",
       "Bash(npm run db:migrate:*)",
       "Bash(timeout 2 npm run dev:*)",
-      "Bash(npm run seed:*)"
+      "Bash(npm run seed:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm run build)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

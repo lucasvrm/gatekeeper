@@ -1,10 +1,12 @@
 import { Link, useLocation } from "react-router-dom"
-import { List, ShieldCheck, Gear, SquaresFour } from "@phosphor-icons/react"
+import { List, ShieldCheck, Gear, SquaresFour, FolderOpen, Folders } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useCustomization } from "@/hooks/use-customization"
 
 const navigation = [
   { name: "Dashboard", path: "/", icon: SquaresFour },
+  { name: "Workspaces", path: "/workspaces", icon: Folders },
+  { name: "Projetos", path: "/projects", icon: FolderOpen },
   { name: "Runs", path: "/runs", icon: List },
   { name: "Gates", path: "/gates", icon: ShieldCheck },
   { name: "Config", path: "/config", icon: Gear },
