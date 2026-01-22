@@ -13,7 +13,7 @@ export const ManifestSchema = z.object({
 
 export const ContractClauseSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(['behavior', 'error', 'invariant', 'ui']),
+  kind: z.enum(['behavior', 'error', 'invariant', 'ui', 'constraint']),
   normativity: z.enum(['MUST', 'SHOULD', 'MAY']),
   when: z.string().min(1),
   then: z.string().min(1),

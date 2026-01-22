@@ -87,13 +87,6 @@ export function RunPanel({
     return Math.round((passedCount / relevantValidators.length) * 100)
   }
 
-  // Get progress bar color based on run status
-  const getProgressBarColor = () => {
-    if (run.status === 'PASSED') return 'bg-status-passed'
-    if (run.status === 'FAILED') return 'bg-status-failed'
-    return 'bg-status-running'
-  }
-
   const handleBypassValidator = async (validatorCode: string) => {
     setBypassLoading(validatorCode)
     try {

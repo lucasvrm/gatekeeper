@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { api } from "@/lib/api"
-import type { Project, Workspace } from "@/lib/types"
+import type { Workspace } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -27,7 +27,6 @@ export function ProjectFormPage() {
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [project, setProject] = useState<Project | null>(null)
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
 
   const workspaceIdFromUrl = searchParams.get("workspaceId")
@@ -51,7 +50,6 @@ export function ProjectFormPage() {
 
         if (id) {
           const projectData = await api.projects.get(id)
-          setProject(projectData)
           setFormData({
             workspaceId: projectData.workspaceId,
             name: projectData.name,

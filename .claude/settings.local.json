@@ -17,7 +17,24 @@
       "Bash(npx tsx:*)",
       "Bash(npm run build)",
       "Bash(curl:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(npx tsc:*)",
+      "Bash(del srcdomainvalidatorsTestClauseMappingValid.spec.tsx srcdomainvalidatorsTestClauseMappingValid.spec.ts)",
+      "Bash(npx prisma studio:*)",
+      "Bash(npx prisma db execute:*)",
+      "Bash(npm run dev:*)",
+      "Bash(sqlite3:*)",
+      "Bash(dir:*)",
+      "Bash(node -e:*)",
+      "Bash(node check-db.mjs:*)",
+      "Bash(node test-path-resolver.mjs:*)",
+      "Bash(node check-conventions.mjs:*)",
+      "Bash(for file in test-phase*.mjs test-gate*.mjs)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)",
+      "Bash(for dir in flows integration edge-cases workspaces)",
+      "Bash(do for file in $dir/*.mjs)",
+      "Bash(do sed -i \"s|from ''./src/|from ''../../src/|g\" \"$file\")"
     ]
   }
 }

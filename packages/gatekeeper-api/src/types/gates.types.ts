@@ -55,7 +55,7 @@ export interface ManifestInput {
 
 export interface ContractClause {
   id: string
-  kind: 'behavior' | 'error' | 'invariant' | 'ui'
+  kind: 'behavior' | 'error' | 'invariant' | 'ui' | 'constraint'
   normativity: 'MUST' | 'SHOULD' | 'MAY'
   when: string
   then: string
@@ -97,6 +97,8 @@ export interface GitService {
   diff(baseRef: string, targetRef: string): Promise<string>
   readFile(filePath: string, ref?: string): Promise<string>
   checkout(ref: string): Promise<void>
+  stash(): Promise<void>
+  stashPop(): Promise<void>
   getDiffFiles(baseRef: string, targetRef: string): Promise<string[]>
   getCurrentRef(): Promise<string>
 }

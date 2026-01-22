@@ -1,12 +1,13 @@
 import type { Request, Response } from 'express'
 import { prisma } from '../../db/client.js'
+import type { Prisma } from '@prisma/client'
 
 export class ProjectController {
   async listProjects(req: Request, res: Response): Promise<void> {
     const { page = 1, limit = 20, workspaceId, includeInactive } = req.query
     const skip = (Number(page) - 1) * Number(limit)
 
-    const where: any = {}
+    const where: Prisma.ProjectWhereInput = {}
     if (workspaceId) {
       where.workspaceId = String(workspaceId)
     }

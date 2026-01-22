@@ -2,6 +2,11 @@ import { describe, it, expect } from 'vitest'
 
 const API_BASE = 'http://localhost:3000/api/validators'
 
+interface ValidatorConfig {
+  key: string
+  value: string
+}
+
 describe('Validator Toggle System - Ativar e Desativar Validators do Gatekeeper', () => {
   describe('Happy Paths - Sistema de ativação e desativação deve funcionar', () => {
     it('should successfully GET list of all validators with their isActive status', async () => {
@@ -78,9 +83,9 @@ describe('Validator Toggle System - Ativar e Desativar Validators do Gatekeeper'
       ]
 
       const response = await fetch(API_BASE)
-      const data = await response.json()
-      
-      const validatorKeys = data.map((v: any) => v.key)
+      const data = await response.json() as ValidatorConfig[]
+
+      const validatorKeys = data.map((v) => v.key)
       
       for (const validator of expectedValidators) {
         expect(validatorKeys).toContain(validator)

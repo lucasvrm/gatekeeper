@@ -30,6 +30,20 @@ export class GitService implements IGitService {
     await this.git.checkout(ref)
   }
 
+  async stash(): Promise<void> {
+    // Stash both tracked and untracked files to protect them during checkout
+    await this.git.stash(['push', '--include-untracked', '--message', 'Gatekeeper temporary stash'])
+  }
+
+  async stashPop(): Promise<void> {
+    try {
+      await this.git.stash(['pop'])
+    } catch (error) {
+      // If stash pop fails (e.g., no stash exists), log but don't throw
+      console.warn('[GitService] Stash pop failed, this may be expected:', error)
+    }
+  }
+
   async getDiffFiles(baseRef: string, targetRef: string): Promise<string[]> {
     const result = await this.git.diff([
       `${baseRef}...${targetRef}`,

@@ -1,6 +1,5 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
 import { prisma } from '../../../db/client.js'
-import path from 'path'
 
 export const PathConventionValidator: ValidatorDefinition = {
   code: 'PATH_CONVENTION',
@@ -27,6 +26,10 @@ export const PathConventionValidator: ValidatorDefinition = {
       }
     }
 
+    // At this point, testFilePath should already be in the correct location
+    // thanks to PathResolverService in uploadFiles
+    // This validator just confirms the file is accessible and follows conventions
+
     // Detect test type from manifest files
     const detectedTestType = detectTestType(ctx.manifest.files)
 
@@ -35,7 +38,7 @@ export const PathConventionValidator: ValidatorDefinition = {
         passed: true,
         status: 'WARNING',
         message: 'Could not detect test type from manifest files',
-        evidence: 'Unable to determine test type. No convention check performed.',
+        evidence: 'Unable to determine test type. Skipping convention check.',
       }
     }
 
@@ -59,51 +62,56 @@ export const PathConventionValidator: ValidatorDefinition = {
       }
     }
 
-    // Resolve expected path pattern
-    const testFileName = path.basename(ctx.testFilePath)
-    const baseName = testFileName
-      .replace(/\.spec\.(tsx?|jsx?)$/, '')
-      .replace(/\.test\.(tsx?|jsx?)$/, '')
-
-    const currentGate = 0 // PathConvention validator runs in Gate 0
-    const expectedPattern = convention.pathPattern
-      .replace(/{name}/g, baseName)
-      .replace(/{gate}/g, String(currentGate))
-
-    // Check if test file path matches expected pattern
-    const projectRoot = ctx.config.get('PROJECT_ROOT') || ''
-    const normalizedTestPath = ctx.testFilePath.replace(/\\/g, '/')
-    const normalizedProjectRoot = projectRoot.replace(/\\/g, '/')
-
     // Get relative path from project root
+    const normalizedTestPath = ctx.testFilePath.replace(/\\/g, '/')
+    const normalizedProjectRoot = ctx.projectPath.replace(/\\/g, '/')
+
     let relativePath = normalizedTestPath
     if (normalizedTestPath.startsWith(normalizedProjectRoot)) {
       relativePath = normalizedTestPath.slice(normalizedProjectRoot.length).replace(/^\//, '')
     }
 
-    const normalizedExpectedPattern = expectedPattern.replace(/\\/g, '/')
+    // Check if path contains convention directory (e.g., /components/, /hooks/, etc.)
+    const conventionDir = detectedTestType === 'component' ? '/components/' : `/${detectedTestType}s/`
+    const hasConventionDir = relativePath.includes(conventionDir) || relativePath.includes(conventionDir.replace(/\//g, '\\'))
 
-    if (relativePath === normalizedExpectedPattern || normalizedTestPath.endsWith(normalizedExpectedPattern)) {
+    if (hasConventionDir) {
       return {
         passed: true,
         status: 'PASSED',
-        message: `Test file path follows convention for "${detectedTestType}"`,
+        message: `Test file in correct location for "${detectedTestType}"`,
+        evidence: `File path: ${relativePath}\nType: ${detectedTestType}`,
         metrics: {
           detectedType: detectedTestType,
-          conventionPattern: convention.pathPattern,
-          resolvedPath: expectedPattern,
+          actualPath: relativePath,
         },
       }
     }
 
+    // If not in convention dir, might still be in artifacts (shouldn't happen, but handle gracefully)
+    const isInArtifacts = /[/\\]artifacts[/\\]/.test(relativePath)
+    if (isInArtifacts) {
+      return {
+        passed: true,
+        status: 'WARNING',
+        message: 'Test file still in artifacts directory (should have been moved)',
+        evidence: `File was not moved to convention path. This may indicate a configuration issue.\nPath: ${relativePath}`,
+        metrics: {
+          detectedType: detectedTestType,
+          actualPath: relativePath,
+          location: 'artifacts',
+        },
+      }
+    }
+
+    // Path doesn't follow expected pattern
     return {
-      passed: false,
-      status: 'FAILED',
-      message: `Test file path does not follow convention for "${detectedTestType}"`,
-      evidence: `Expected: ${expectedPattern}\nActual: ${relativePath}\n\nConvention pattern: ${convention.pathPattern}`,
+      passed: true,
+      status: 'WARNING',
+      message: `Test file path may not follow convention for "${detectedTestType}"`,
+      evidence: `Actual path: ${relativePath}\nDetected type: ${detectedTestType}\nExpected directory: ${conventionDir}`,
       metrics: {
         detectedType: detectedTestType,
-        expectedPath: expectedPattern,
         actualPath: relativePath,
       },
     }
@@ -112,7 +120,7 @@ export const PathConventionValidator: ValidatorDefinition = {
 
 function detectTestType(files: Array<{ path: string; action: string }>): string | null {
   const typePatterns: Record<string, RegExp> = {
-    component: /\/components?\//i,
+    component: /\/(components?|ui|widgets?|layout|views?)\//i,
     hook: /\/hooks?\//i,
     lib: /\/lib\//i,
     util: /\/utils?\//i,

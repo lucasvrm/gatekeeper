@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { api } from "@/lib/api"
-import type { Workspace } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,7 +18,6 @@ export function WorkspaceFormPage() {
 
   const [loading, setLoading] = useState(isEdit)
   const [submitting, setSubmitting] = useState(false)
-  const [workspace, setWorkspace] = useState<Workspace | null>(null)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -36,7 +34,6 @@ export function WorkspaceFormPage() {
       setLoading(true)
       try {
         const data = await api.workspaces.get(id)
-        setWorkspace(data)
         setFormData({
           name: data.name,
           description: data.description || "",

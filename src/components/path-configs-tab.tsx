@@ -37,12 +37,6 @@ const testPathEditFields: ConfigModalField[] = [
   { name: "isActive", label: "Active", type: "boolean" },
 ]
 
-const systemPathCreateFields: ConfigModalField[] = [
-  { name: "key", label: "Key", type: "text", required: true },
-  { name: "value", label: "Value", type: "text", required: true },
-  { name: "description", label: "Description", type: "textarea" },
-]
-
 const systemPathEditFields: ConfigModalField[] = [
   { name: "value", label: "Value", type: "text", required: true },
   { name: "description", label: "Description", type: "textarea" },

@@ -3,11 +3,7 @@ import { prisma } from '../../db/client.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { RunEventService } from '../../services/RunEventService.js'
-
-const PATH_CONFIG_KEYS = {
-  projectRoot: 'PROJECT_ROOT',
-  artifactsDir: 'ARTIFACTS_DIR',
-} as const
+import { PathResolverService } from '../../services/PathResolverService.js'
 
 export class RunsController {
   async getRun(req: Request, res: Response): Promise<void> {
@@ -171,7 +167,7 @@ export class RunsController {
       where: { runId: id },
     })
 
-    // Reset run to initial state
+    // Reset run to initial state (including clearing bypassed validators)
     const firstGate = run.runType === 'EXECUTION' ? 2 : 0
     await prisma.validationRun.update({
       where: { id },
@@ -183,8 +179,32 @@ export class RunsController {
         failedValidatorCode: null,
         startedAt: null,
         completedAt: null,
+        bypassedValidators: null,
       },
     })
+
+    // Verify that spec file is in correct path, restore from artifacts if needed
+    console.log('[rerunGate] Verifying spec file path...')
+    if (run.testFilePath && run.manifestJson) {
+      try {
+        const pathResolver = new PathResolverService()
+        const artifactsPath = path.join(run.projectPath, 'artifacts', run.outputId, path.basename(run.testFilePath))
+        const correctPath = await pathResolver.recheckAndCopy(run.testFilePath, artifactsPath)
+
+        // Update if path changed
+        if (correctPath !== run.testFilePath) {
+          await prisma.validationRun.update({
+            where: { id },
+            data: { testFilePath: correctPath },
+          })
+          console.log('[rerunGate] ✅ Spec file path updated:', correctPath)
+        } else {
+          console.log('[rerunGate] ✅ Spec file already in correct path')
+        }
+      } catch (error) {
+        console.error('[rerunGate] ⚠️ Failed to verify/restore spec file, continuing anyway:', error)
+      }
+    }
 
     // Import and queue the run for execution
     const { ValidationOrchestrator } = await import('../../services/ValidationOrchestrator.js')
@@ -331,30 +351,34 @@ export class RunsController {
     }
 
     try {
-      // Ler configs - source of truth
-      const pathConfigs = await prisma.validationConfig.findMany({
-        where: { key: { in: Object.values(PATH_CONFIG_KEYS) } },
-      })
-      const configMap = new Map(pathConfigs.map((config) => [config.key, config.value]))
-
-      const projectRoot = configMap.get(PATH_CONFIG_KEYS.projectRoot)?.trim() || ''
-      const artifactsDir = configMap.get(PATH_CONFIG_KEYS.artifactsDir)?.trim() || 'artifacts'
+      // Use the projectPath from the run (already set during run creation)
+      const projectRoot = run.projectPath
+      console.log('[uploadFiles] Using projectRoot from run:', projectRoot)
 
       if (!projectRoot) {
-        res.status(500).json({ error: 'PROJECT_ROOT config is required. Please configure it in /config.' })
+        res.status(500).json({ error: 'Run does not have a valid projectPath' })
         return
       }
 
-      // Detect test type from manifest files
-      let detectedTestType: string | null = null
-      if (run.manifestJson) {
-        try {
-          const manifest = JSON.parse(run.manifestJson)
-          detectedTestType = this.detectTestType(manifest.files)
-        } catch (error) {
-          console.error('Failed to parse manifest or detect test type:', error)
+      // Get artifacts directory - try to extract from run's testFilePath or use default
+      let artifactsDir = 'artifacts'
+      if (run.testFilePath.includes('/artifacts/') || run.testFilePath.includes('\\artifacts\\')) {
+        // Extract artifacts dir from test file path if it contains one
+        const match = run.testFilePath.match(/[/\\]artifacts[/\\]/)
+        if (match) {
+          artifactsDir = 'artifacts'
+        }
+      } else if (run.projectId) {
+        // Get from project's workspace
+        const project = await prisma.project.findUnique({
+          where: { id: run.projectId },
+          include: { workspace: true },
+        })
+        if (project) {
+          artifactsDir = project.workspace.artifactsDir
         }
       }
+      console.log('[uploadFiles] Using artifactsDir:', artifactsDir)
 
       // Resolver paths
       const artifactsBasePath = path.join(projectRoot, artifactsDir)
@@ -426,46 +450,35 @@ export class RunsController {
           return
         }
 
-        // Resolve test path using convention if test type detected
+        // Step 1: Save to artifacts/ first
+        const artifactsSpecPath = path.join(artifactDir, specFileName)
+        await fs.writeFile(artifactsSpecPath, specFile.buffer)
+        console.log('[uploadFiles] Saved spec to artifacts:', artifactsSpecPath)
+
+        // Step 2: Use PathResolverService to copy to correct path
+        const pathResolver = new PathResolverService()
         let targetSpecPath: string
-        if (detectedTestType) {
-          const convention = await prisma.testPathConvention.findFirst({
-            where: { testType: detectedTestType, isActive: true },
-          })
 
-          if (convention) {
-            // Extract base name from spec file (remove .spec.tsx or .spec.ts)
-            const baseName = specFileName
-              .replace(/\.spec\.(tsx|ts)$/, '')
-              .replace(/\.test\.(tsx|ts)$/, '')
-
-            // Resolve pattern: replace {name} with base name and {gate} with gate number
-            const currentGate = run.currentGate || 0
-            const resolvedPattern = convention.pathPattern
-              .replace(/{name}/g, baseName)
-              .replace(/{gate}/g, String(currentGate))
-
-            targetSpecPath = path.join(projectRoot, resolvedPattern)
-
-            // Ensure directory exists
-            const targetDir = path.dirname(targetSpecPath)
-            await fs.mkdir(targetDir, { recursive: true })
+        try {
+          if (run.manifestJson) {
+            const manifest = JSON.parse(run.manifestJson)
+            targetSpecPath = await pathResolver.ensureCorrectPath(
+              artifactsSpecPath,
+              manifest,
+              projectRoot,
+              run.outputId
+            )
+            console.log('[uploadFiles] ✅ Spec copied to correct path:', targetSpecPath)
           } else {
-            // Fallback to artifacts if convention not found
-            targetSpecPath =
-              resolvedSpecPath && path.basename(resolvedSpecPath) === specFileName
-                ? resolvedSpecPath
-                : path.join(artifactDir, specFileName)
+            // No manifest - keep in artifacts
+            console.warn('[uploadFiles] No manifest found, keeping spec in artifacts')
+            targetSpecPath = artifactsSpecPath
           }
-        } else {
-          // Fallback to artifacts if test type not detected
-          targetSpecPath =
-            resolvedSpecPath && path.basename(resolvedSpecPath) === specFileName
-              ? resolvedSpecPath
-              : path.join(artifactDir, specFileName)
+        } catch (error) {
+          console.error('[uploadFiles] Failed to copy spec to correct path, keeping in artifacts:', error)
+          targetSpecPath = artifactsSpecPath
         }
 
-        await fs.writeFile(targetSpecPath, specFile.buffer)
         uploadedFiles.push({ type: 'spec', path: targetSpecPath, size: specFile.size })
 
         // Update run.testFilePath with resolved path

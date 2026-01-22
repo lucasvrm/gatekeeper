@@ -70,21 +70,25 @@ export function NewValidationPage() {
   const [uploadedTestContent, setUploadedTestContent] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [runType, setRunType] = useState<'CONTRACT' | 'EXECUTION'>('CONTRACT')
   const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("__NONE__")
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
 
   useEffect(() => {
     const loadProjects = async () => {
       try {
         const response = await api.projects.list(1, 100)
         setProjects(response.data)
+        // Auto-select first active project
+        const activeProjects = response.data.filter(p => p.isActive)
+        if (activeProjects.length > 0 && !selectedProjectId) {
+          setSelectedProjectId(activeProjects[0].id)
+        }
       } catch (error) {
         console.error("Failed to load projects:", error)
       }
     }
     loadProjects()
-  }, [])
+  }, [selectedProjectId])
 
   const canSubmit = useMemo(() => {
     if (!planData) return false
@@ -129,6 +133,12 @@ export function NewValidationPage() {
 
     setIsSubmitting(true)
     try {
+      if (!selectedProjectId) {
+        setError("Selecione um projeto antes de enviar")
+        setIsSubmitting(false)
+        return
+      }
+
       const requestData = {
         outputId: planData.outputId,
         baseRef: planData.baseRef,
@@ -137,8 +147,8 @@ export function NewValidationPage() {
         dangerMode: planData.dangerMode,
         manifest: planData.manifest,
         contract: planData.contract,
-        runType,
-        ...(selectedProjectId !== "__NONE__" && { projectId: selectedProjectId }),
+        runType: 'CONTRACT',
+        projectId: selectedProjectId,
       }
 
       // Step 1: Create run (stays in PENDING, not added to queue yet)
@@ -208,29 +218,34 @@ export function NewValidationPage() {
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium uppercase tracking-wider">
-                Projeto (Opcional)
+                Projeto (Obrigatório)
               </Label>
               <p className="text-xs text-muted-foreground mt-1">
-                Selecione um projeto para usar suas configurações de workspace. Se não selecionado, usará as configurações globais.
+                Selecione o projeto para validação. O projeto define o workspace e o caminho raiz.
               </p>
             </div>
-            <Select
-              value={selectedProjectId}
-              onValueChange={setSelectedProjectId}
-              disabled={isSubmitting}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Usar configurações globais" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__NONE__">Usar configurações globais</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.workspace?.name} / {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {projects.length === 0 ? (
+              <div className="text-sm text-muted-foreground p-3 border border-amber-500/50 bg-amber-500/10 rounded">
+                ⚠️ Nenhum projeto configurado. Crie um projeto em /config primeiro.
+              </div>
+            ) : (
+              <Select
+                value={selectedProjectId || undefined}
+                onValueChange={setSelectedProjectId}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.workspace?.name} / {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </Card>
 

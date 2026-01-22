@@ -141,6 +141,7 @@ describe('Contract Schema Validation', () => {
 
     // @clause CLAUSE_003
     it('should reject contract when title is missing', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { title, ...contractWithoutTitle } = validContract
       const result = ContractSchema.safeParse(contractWithoutTitle)
       expect(result.success).toBe(false)

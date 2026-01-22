@@ -1,4 +1,5 @@
 import { execa } from 'execa'
+import { stripAnsi } from '../utils/stripAnsi.js'
 import type { CompilerService as ICompilerService, CompileResult } from '../types/index.js'
 
 export class CompilerService implements ICompilerService {
@@ -33,16 +34,18 @@ export class CompilerService implements ICompilerService {
         }
       }
 
+      const rawOutput = result.stdout + result.stderr
+
       return {
         success: errors.length === 0,
         errors,
-        output: result.stdout + result.stderr,
+        output: stripAnsi(rawOutput),
       }
     } catch (error) {
       return {
         success: false,
         errors: [error instanceof Error ? error.message : String(error)],
-        output: '',
+        output: stripAnsi(''),
       }
     }
   }

@@ -36,6 +36,9 @@ export class ValidationOrchestrator {
       throw new Error(`Run ${runId} not found`)
     }
 
+    console.log(`[executeRun] Run projectPath: ${run.projectPath}`)
+    console.log(`[executeRun] Run testFilePath: ${run.testFilePath}`)
+
     await this.runRepository.update(runId, {
       status: 'RUNNING',
       startedAt: new Date(),
