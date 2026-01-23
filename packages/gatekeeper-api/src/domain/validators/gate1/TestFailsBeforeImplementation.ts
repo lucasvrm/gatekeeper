@@ -7,7 +7,7 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
   gate: 1,
   order: 4,
   isHardBlock: true,
-  
+
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
     if (!ctx.testFilePath) {
       return {
@@ -97,7 +97,7 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
               'Test error (base_ref): ' + (testError instanceof Error ? testError.message : String(testError)) + '\n' +
               'OriginalRef: ' + originalRef + '\n' +
               'BaseRef: ' + ctx.baseRef,
-          },
+          }
         }
       }
     } catch (checkoutError) {
@@ -108,7 +108,7 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
       } catch (restoreError) {
         console.error('[TEST_FAILS_BEFORE_IMPLEMENTATION] Failed to restore original state:', restoreError)
       }
-      
+
       return {
         passed: false,
         status: 'FAILED',
