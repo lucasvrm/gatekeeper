@@ -40,6 +40,9 @@ export class PathResolverService {
     if (filesStr.includes('/utils/') || filesStr.includes('\\utils\\')) {
       return 'util'
     }
+    if (filesStr.includes('/services/') || filesStr.includes('\\services\\')) {
+      return 'service'
+    }
     if (filesStr.includes('/pages/') || filesStr.includes('\\pages\\')) {
       return 'page'
     }
@@ -47,9 +50,11 @@ export class PathResolverService {
     // Fallback: tentar detectar pelo nome do arquivo
     const firstFile = files[0]
     if (firstFile) {
-      if (firstFile.path.includes('hook')) return 'hook'
-      if (firstFile.path.includes('util')) return 'util'
-      if (firstFile.path.includes('page')) return 'page'
+      const firstFilePath = firstFile.path.toLowerCase()
+      if (firstFilePath.includes('service')) return 'service'
+      if (firstFilePath.includes('hook')) return 'hook'
+      if (firstFilePath.includes('util')) return 'util'
+      if (firstFilePath.includes('page')) return 'page'
     }
 
     // Default para component se não detectar nada
@@ -138,6 +143,23 @@ export class PathResolverService {
     console.log('[PathResolver]   artifactsSpecPath:', artifactsSpecPath)
     console.log('[PathResolver]   projectRoot:', projectRoot)
     console.log('[PathResolver]   outputId:', outputId)
+
+    if (manifest.testFile && /[\\/]/.test(manifest.testFile)) {
+      const directPath = join(projectRoot, manifest.testFile)
+      console.log('[PathResolver] Using manifest.testFile directly:', directPath)
+
+      const targetDir = dirname(directPath)
+      await mkdir(targetDir, { recursive: true })
+
+      if (existsSync(artifactsSpecPath)) {
+        await copyFile(artifactsSpecPath, directPath)
+        console.log('[PathResolver] ✅ File copied to manifest.testFile path:', directPath)
+      } else {
+        console.warn('[PathResolver] ❌ Source file does not exist:', artifactsSpecPath)
+      }
+
+      return directPath.replace(/\\/g, '/')
+    }
 
     // 1. Detectar tipo de teste
     const testType = this.detectTestType(manifest)

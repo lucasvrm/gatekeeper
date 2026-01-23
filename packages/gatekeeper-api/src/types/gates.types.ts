@@ -143,6 +143,19 @@ export interface LogService {
   error(message: string, metadata?: Record<string, unknown>): void
 }
 
+export interface SandboxResult {
+  success: boolean
+  sandboxPath: string
+  junctionCreated: boolean
+  error?: string
+}
+
+export interface SandboxService {
+  create(originalProjectPath: string, sandboxBasePath: string, targetRef: string): Promise<SandboxResult>
+  createNodeModulesJunction(originalProjectPath: string, sandboxPath: string): Promise<{ success: boolean; error?: string }>
+  cleanup(sandboxPath: string): Promise<void>
+}
+
 export interface ValidationContext {
   runId: string
   projectPath: string
