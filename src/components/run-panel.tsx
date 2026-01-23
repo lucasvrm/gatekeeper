@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { FileUploadDialog } from "@/components/file-upload-dialog"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import {
   CaretDown,
@@ -144,26 +145,38 @@ export function RunPanel({
             <Upload className="w-4 h-4" />
           </Button>
           {canAbort && onAbort && (
-            <Button
-              variant="outline"
-              size={compact ? "sm" : "default"}
-              onClick={onAbort}
-              disabled={actionLoading}
-              className="hover:bg-white hover:text-white hover:border-white"
-            >
-              <Stop className="w-4 h-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size={compact ? "sm" : "default"}
+                  onClick={onAbort}
+                  disabled={actionLoading}
+                  data-testid="btn-abort-run"
+                  className="hover:bg-destructive hover:text-white hover:border-destructive"
+                >
+                  <Stop className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Abortar execução</TooltipContent>
+            </Tooltip>
           )}
           {onDelete && (
-            <Button
-              variant="outline"
-              size={compact ? "sm" : "default"}
-              onClick={onDelete}
-              disabled={actionLoading}
-              className="hover:bg-white hover:text-white hover:border-white"
-            >
-              <Trash className="w-4 h-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size={compact ? "sm" : "default"}
+                  onClick={onDelete}
+                  disabled={actionLoading}
+                  data-testid="btn-delete-run"
+                  className="hover:bg-destructive hover:text-white hover:border-destructive"
+                >
+                  <Trash className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Excluir run</TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -294,16 +307,21 @@ export function RunPanel({
                     </div>
                     <div className="flex items-center gap-2">
                       {onRerunGate && gate.status !== 'PENDING' && gate.status !== 'RUNNING' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onRerunGate(gate.gateNumber)}
-                          disabled={actionLoading}
-                          aria-label={`Rerun gate ${gate.gateNumber}`}
-                          className="h-7 hover:bg-white hover:text-white hover:border-white"
-                        >
-                          <ArrowClockwise className="w-3 h-3" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onRerunGate(gate.gateNumber)}
+                              disabled={actionLoading}
+                              aria-label={`Rerun gate ${gate.gateNumber}`}
+                              className="h-7 hover:bg-status-running hover:text-white hover:border-status-running"
+                            >
+                              <ArrowClockwise className="w-3 h-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Reexecutar gate {gate.gateNumber}</TooltipContent>
+                        </Tooltip>
                       )}
                       <StatusBadge
                         status={normalizeStatus(gate.status, gate.passed) as RunWithResults["status"]}
