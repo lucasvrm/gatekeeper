@@ -37,10 +37,24 @@ export class GitService implements IGitService {
 
   async stashPop(): Promise<void> {
     try {
-      await this.git.stash(['pop'])
+      // Apply then drop so we don't lose the stash entry if apply fails
+      await this.git.stash(['apply'])
+      await this.git.stash(['drop'])
     } catch (error) {
-      // If stash pop fails (e.g., no stash exists), log but don't throw
-      console.warn('[GitService] Stash pop failed, this may be expected:', error)
+      const msg = error instanceof Error ? error.message : String(error)
+
+      // No stash is fine
+      if (
+        msg.includes('No stash entries found') ||
+        msg.includes('No stash entries') ||
+        msg.includes('No stash found')
+      ) {
+        console.warn('[GitService] No stash entries to apply/drop.')
+        return
+      }
+
+      // Anything else is a real problem (conflicts, index lock, etc.)
+      throw new Error(`[GitService] Stash apply/drop failed: ${msg}`)
     }
   }
 
@@ -57,3 +71,4 @@ export class GitService implements IGitService {
     return result.trim()
   }
 }
+

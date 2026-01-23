@@ -31,10 +31,24 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
         console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Running test at:', ctx.testFilePath)
         const result = await ctx.services.testRunner.runSingleTest(ctx.testFilePath)
 
-        // Restore original ref first, then pop stash
-        await ctx.services.git.checkout(originalRef)
-        console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Restoring stashed files...')
-        await ctx.services.git.stashPop()
+        // Restore original ref first, then apply stash (must be strict)
+        try {
+          await ctx.services.git.checkout(originalRef)
+          console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Restoring stashed files...')
+          await ctx.services.git.stashPop()
+        } catch (restoreError) {
+          return {
+            passed: false,
+            status: 'FAILED',
+            message: 'Failed to restore repo state after running base_ref test',
+            evidence:
+              'Restore error: ' + (restoreError instanceof Error ? restoreError.message : String(restoreError)) + '\n' +
+              'OriginalRef: ' + originalRef + '\n' +
+              'BaseRef: ' + ctx.baseRef + '\n' +
+              'If your repo is now in a merge-conflict state, run:\n' +
+              '  git reset --hard\n  git clean -fd\n  git stash list',
+          }
+        }
 
         console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Test result on baseRef:', {
           passed: result.passed,
@@ -69,19 +83,20 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
         }
       } catch (testError) {
         // Restore original ref and stash even on test error
-        await ctx.services.git.checkout(originalRef)
-        console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Restoring stashed files after test error...')
-        await ctx.services.git.stashPop()
-
-        console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Test threw error on baseRef (this is acceptable)')
-
-        return {
-          passed: true,
-          status: 'PASSED',
-          message: 'Test fails on base_ref with error (acceptable - file may not exist yet)',
-          evidence: `Error on ${ctx.baseRef}: ${testError instanceof Error ? testError.message : String(testError)}`,
-          details: {
-            error: testError instanceof Error ? testError.message : String(testError),
+        try {
+          await ctx.services.git.checkout(originalRef)
+          console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Restoring stashed files after test error...')
+          await ctx.services.git.stashPop()
+        } catch (restoreError) {
+          return {
+            passed: false,
+            status: 'FAILED',
+            message: 'Failed to restore repo state after test error on base_ref',
+            evidence:
+              'Restore error: ' + (restoreError instanceof Error ? restoreError.message : String(restoreError)) + '\n' +
+              'Test error (base_ref): ' + (testError instanceof Error ? testError.message : String(testError)) + '\n' +
+              'OriginalRef: ' + originalRef + '\n' +
+              'BaseRef: ' + ctx.baseRef,
           },
         }
       }

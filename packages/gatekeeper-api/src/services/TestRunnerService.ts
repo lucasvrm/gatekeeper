@@ -42,6 +42,10 @@ export class TestRunnerService implements ITestRunnerService {
       const result = await execa('npm', ['test', '--', relativePath], {
         cwd: this.projectPath,
         reject: false,
+        env: { ...process.env, CI: '1' },
+        timeout: 10 * 60 * 1000,
+        killSignal: 'SIGKILL',
+        windowsHide: true,
       })
 
       const duration = Date.now() - startTime
@@ -73,6 +77,10 @@ export class TestRunnerService implements ITestRunnerService {
       const result = await execa('npm', ['test'], {
         cwd: this.projectPath,
         reject: false,
+        env: { ...process.env, CI: '1' },
+        timeout: 10 * 60 * 1000,
+        killSignal: 'SIGKILL',
+        windowsHide: true,
       })
 
       const duration = Date.now() - startTime
