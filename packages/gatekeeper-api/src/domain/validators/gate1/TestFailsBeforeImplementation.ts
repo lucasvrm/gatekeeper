@@ -1,4 +1,8 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
+import { mkdir, rm } from 'fs/promises'
+import { dirname, isAbsolute, join, relative as pathRelative } from 'path'
+import { tmpdir } from 'os'
+import { TestRunnerService } from '../../../services/TestRunnerService.js'
 
 export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
   code: 'TEST_FAILS_BEFORE_IMPLEMENTATION',
@@ -17,104 +21,106 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
       }
     }
 
-    const originalRef = await ctx.services.git.getCurrentRef()
+    // Sandbox path: %TEMP%\gatekeeper\<runId>\baseRef
+    const worktreePath = join(tmpdir(), 'gatekeeper', ctx.runId, 'baseRef')
+    const worktreeParent = dirname(worktreePath)
+
+    // If testFilePath is absolute in the real repo, re-resolve inside the worktree.
+    const rel = isAbsolute(ctx.testFilePath)
+      ? pathRelative(ctx.projectPath, ctx.testFilePath)
+      : ctx.testFilePath
+    const testInWorktree = join(worktreePath, rel)
 
     try {
-      // Stash all uncommitted changes (including untracked files in artifacts/) before checkout
-      console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Stashing uncommitted changes...')
-      await ctx.services.git.stash()
+      // Ensure clean sandbox directory
+      await rm(worktreePath, { recursive: true, force: true })
+      await mkdir(worktreeParent, { recursive: true })
 
-      console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Checking out baseRef:', ctx.baseRef)
-      await ctx.services.git.checkout(ctx.baseRef)
+      console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Creating baseRef worktree:', {
+        baseRef: ctx.baseRef,
+        worktreePath,
+      })
 
-      try {
-        console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Running test at:', ctx.testFilePath)
-        const result = await ctx.services.testRunner.runSingleTest(ctx.testFilePath)
+      await ctx.services.git.createWorktree(ctx.baseRef, worktreePath)
 
-        // Restore original ref first, then apply stash (must be strict)
-        try {
-          await ctx.services.git.checkout(originalRef)
-          console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Restoring stashed files...')
-          await ctx.services.git.stashPop()
-        } catch (restoreError) {
-          return {
-            passed: false,
-            status: 'FAILED',
-            message: 'Failed to restore repo state after running base_ref test',
-            evidence:
-              'Restore error: ' + (restoreError instanceof Error ? restoreError.message : String(restoreError)) + '\n' +
-              'OriginalRef: ' + originalRef + '\n' +
-              'BaseRef: ' + ctx.baseRef + '\n' +
-              'If your repo is now in a merge-conflict state, run:\n' +
-              '  git reset --hard\n  git clean -fd\n  git stash list',
-          }
+      const runner = new TestRunnerService(worktreePath)
+
+      console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Running test in worktree:', {
+        testFilePath: ctx.testFilePath,
+        testInWorktree,
+      })
+
+      const result = await runner.runSingleTest(testInWorktree)
+
+      if (result.passed) {
+        return {
+          passed: false,
+          status: 'FAILED',
+          message: 'CLÁUSULA PÉTREA VIOLATION: Test passed on base_ref but should fail (TDD red phase required)',
+          evidence:
+            `Test output on ${ctx.baseRef} (worktree):\n${result.output}\n\n` +
+            `This violates TDD principles - the test must fail before implementation.`,
+          details: {
+            baseRef: ctx.baseRef,
+            testPassed: true,
+            exitCode: result.exitCode,
+            worktreePath,
+          },
         }
+      }
 
-        console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Test result on baseRef:', {
-          passed: result.passed,
-          exitCode: result.exitCode,
-        })
-
-        if (result.passed) {
-          return {
-            passed: false,
-            status: 'FAILED',
-            message: 'CLÁUSULA PÉTREA VIOLATION: Test passed on base_ref but should fail (TDD red phase required)',
-            evidence: `Test output on ${ctx.baseRef}:\n${result.output}\n\nThis violates TDD principles - the test must fail before implementation.`,
-            details: {
-              baseRef: ctx.baseRef,
-              testPassed: true,
-              exitCode: result.exitCode,
-            },
-          }
-        }
-
-        // Test failed - this is correct for TDD red phase
+      // If the test file doesn't exist yet on baseRef, it's acceptable (still a "red" condition).
+      const missingFile = result.output.includes('Test file not found')
+      if (missingFile) {
         return {
           passed: true,
           status: 'PASSED',
-          message: 'Test correctly fails on base_ref (TDD red phase confirmed)',
-          evidence: `Test failed as expected on ${ctx.baseRef}:\n${result.output}`,
+          message: 'Test file does not exist on base_ref (acceptable - file may not exist yet)',
+          evidence: `BaseRef ${ctx.baseRef} (worktree) missing test file:\n${result.output}`,
           metrics: {
             baseRef: ctx.baseRef,
             exitCode: result.exitCode,
             duration: result.duration,
           },
         }
-      } catch (testError) {
-        // Restore original ref and stash even on test error
-        try {
-          await ctx.services.git.checkout(originalRef)
-          console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Restoring stashed files after test error...')
-          await ctx.services.git.stashPop()
-        } catch (restoreError) {
-          return {
-            passed: false,
-            status: 'FAILED',
-            message: 'Failed to restore repo state after test error on base_ref',
-            evidence:
-              'Restore error: ' + (restoreError instanceof Error ? restoreError.message : String(restoreError)) + '\n' +
-              'Test error (base_ref): ' + (testError instanceof Error ? testError.message : String(testError)) + '\n' +
-              'OriginalRef: ' + originalRef + '\n' +
-              'BaseRef: ' + ctx.baseRef,
-          }
-        }
-      }
-    } catch (checkoutError) {
-      // Try to restore original state even if checkout failed
-      try {
-        await ctx.services.git.checkout(originalRef)
-        await ctx.services.git.stashPop()
-      } catch (restoreError) {
-        console.error('[TEST_FAILS_BEFORE_IMPLEMENTATION] Failed to restore original state:', restoreError)
       }
 
+      // Test failed - correct for TDD red phase
+      return {
+        passed: true,
+        status: 'PASSED',
+        message: 'Test correctly fails on base_ref (TDD red phase confirmed)',
+        evidence: `Test failed as expected on ${ctx.baseRef} (worktree):\n${result.output}`,
+        metrics: {
+          baseRef: ctx.baseRef,
+          exitCode: result.exitCode,
+          duration: result.duration,
+        },
+      }
+    } catch (error) {
       return {
         passed: false,
         status: 'FAILED',
-        message: 'Failed to checkout base_ref for test execution',
-        evidence: `Checkout error: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}`,
+        message: 'Failed to run base_ref test in worktree',
+        evidence:
+          `BaseRef: ${ctx.baseRef}\n` +
+          `Worktree: ${worktreePath}\n` +
+          `Error: ${error instanceof Error ? error.message : String(error)}`,
       }
+    } finally {
+      try {
+        await ctx.services.git.removeWorktree(worktreePath)
+      } catch (cleanupError) {
+        console.warn(
+          '[TEST_FAILS_BEFORE_IMPLEMENTATION] Failed to remove worktree:',
+          cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+        )
+      }
+
+      // Best-effort filesystem cleanup
+      try {
+        await rm(worktreePath, { recursive: true, force: true })
+      } catch {}
     }
   },
 }

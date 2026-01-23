@@ -99,6 +99,8 @@ export interface GitService {
   checkout(ref: string): Promise<void>
   stash(): Promise<void>
   stashPop(): Promise<void>
+  createWorktree(ref: string, path: string): Promise<void>
+  removeWorktree(path: string): Promise<void>
   getDiffFiles(baseRef: string, targetRef: string): Promise<string[]>
   getCurrentRef(): Promise<string>
 }

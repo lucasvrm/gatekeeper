@@ -58,6 +58,33 @@ export class GitService implements IGitService {
     }
   }
 
+  async createWorktree(ref: string, worktreePath: string): Promise<void> {
+    // Runs against the repo at projectPath; worktreePath can be absolute.
+    // --detach avoids messing with branches.
+    await this.git.raw(['worktree', 'add', '--detach', worktreePath, ref])
+  }
+
+  async removeWorktree(worktreePath: string): Promise<void> {
+    try {
+      await this.git.raw(['worktree', 'remove', '--force', worktreePath])
+      await this.git.raw(['worktree', 'prune'])
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+
+      // If the directory isn't a worktree (or already removed), don't fail the run.
+      if (
+        msg.includes('is not a working tree') ||
+        msg.includes('is not a worktree') ||
+        msg.includes('No such file or directory') ||
+        msg.includes('did not match any worktree')
+      ) {
+        console.warn('[GitService] Worktree already removed or not found:', msg)
+        return
+      }
+
+      throw new Error([GitService] Worktree remove failed: )
+    }
+  }
   async getDiffFiles(baseRef: string, targetRef: string): Promise<string[]> {
     const result = await this.git.diff([
       `${baseRef}...${targetRef}`,
