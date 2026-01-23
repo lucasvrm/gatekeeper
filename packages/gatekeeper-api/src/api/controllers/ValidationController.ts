@@ -174,8 +174,7 @@ export class ValidationController {
 
           // Copiar spec file do contract run
           const contractManifest = JSON.parse(contractRun.manifestJson)
-          const specFileName = contractManifest.testFile
-          if (specFileName) {
+          const specFileName = sanitizeTestFileName(contractManifest.testFile)if (specFileName) {
             const contractSpecPath = contractRun.testFilePath
             const executionArtifactsSpecPath = join(executionArtifactDir, specFileName)
 
