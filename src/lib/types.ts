@@ -39,6 +39,22 @@ export interface Project {
   }
 }
 
+export interface ArtifactFolder {
+  outputId: string
+  hasSpec: boolean
+  hasPlan: boolean
+  specFileName: string | null
+  createdAt: string
+}
+
+export interface ArtifactContents {
+  planJson: Record<string, unknown> | null
+  specContent: string | null
+  specFileName: string | null
+}
+
+export type ArtifactInputMode = "dropdown" | "autocomplete" | "upload"
+
 export interface WorkspaceConfig {
   id: string
   workspaceId: string

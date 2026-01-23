@@ -1,3 +1,6 @@
+import { tmpdir } from 'os'
+import { copyFile, mkdir, rm } from 'fs/promises'
+import { dirname, isAbsolute, join, relative as pathRelative } from 'path'
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
 import { GATES_CONFIG, CONTRACT_GATE_NUMBERS, EXECUTION_GATE_NUMBERS } from '../config/gates.config.js'
@@ -15,6 +18,7 @@ import { GateResultRepository } from '../repositories/GateResultRepository.js'
 import { ValidatorResultRepository } from '../repositories/ValidatorResultRepository.js'
 import { RunEventService } from './RunEventService.js'
 import type { ValidationRun } from '@prisma/client'
+import { GitService } from './GitService.js'
 
 export class ValidationOrchestrator {
   private queue: PQueue
@@ -30,27 +34,64 @@ export class ValidationOrchestrator {
   }
 
   async executeRun(runId: string): Promise<void> {
-    console.log('>>> executeRun CALLED with runId:', runId)
-    const run = await this.runRepository.findById(runId)
-    if (!run) {
-      throw new Error(`Run ${runId} not found`)
+  console.log('>>> executeRun CALLED with runId:', runId)
+  const run = await this.runRepository.findById(runId)
+  if (!run) {
+    throw new Error(`Run ${runId} not found`)
+  }
+
+  console.log(`[executeRun] Run projectPath: ${run.projectPath}`)
+  console.log(`[executeRun] Run testFilePath: ${run.testFilePath}`)
+
+  await this.runRepository.update(runId, {
+    status: 'RUNNING',
+    startedAt: new Date(),
+  })
+  RunEventService.emitRunStatus(runId, 'RUNNING')
+
+  // GLOBAL SANDBOX (targetRef): run everything in an isolated git worktree
+  const originalProjectPath = run.projectPath
+  const sandboxPath = join(tmpdir(), 'gatekeeper', runId, 'targetRef')
+  const sandboxParent = dirname(sandboxPath)
+
+  const rootGit = new GitService(originalProjectPath)
+
+  // Map absolute testFilePath (if any) into the sandbox
+  const sandboxTestFilePath =
+    run.testFilePath && isAbsolute(run.testFilePath)
+      ? join(sandboxPath, pathRelative(originalProjectPath, run.testFilePath))
+      : run.testFilePath
+
+  try {
+    await rm(sandboxPath, { recursive: true, force: true })
+    await mkdir(sandboxParent, { recursive: true })
+
+    console.log('[executeRun] Creating targetRef worktree sandbox:', {
+      targetRef: run.targetRef,
+      sandboxPath,
+    })
+
+    await rootGit.createWorktree(run.targetRef, sandboxPath)
+
+    if (run.testFilePath && sandboxTestFilePath && isAbsolute(run.testFilePath)) {
+      await mkdir(dirname(sandboxTestFilePath), { recursive: true })
+      await copyFile(run.testFilePath, sandboxTestFilePath)
     }
 
-    console.log(`[executeRun] Run projectPath: ${run.projectPath}`)
-    console.log(`[executeRun] Run testFilePath: ${run.testFilePath}`)
+    // Build context from sandbox run (services will use sandboxPath)
+    const sandboxRun = {
+      ...run,
+      projectPath: sandboxPath,
+      testFilePath: sandboxTestFilePath,
+    }
 
-    await this.runRepository.update(runId, {
-      status: 'RUNNING',
-      startedAt: new Date(),
-    })
-    RunEventService.emitRunStatus(runId, 'RUNNING')
+    const ctx = await this.buildContext(sandboxRun as any)
+    ctx.originalProjectPath = originalProjectPath
 
-    const ctx = await this.buildContext(run)
+    const allowedGates =
+      run.runType === 'EXECUTION' ? EXECUTION_GATE_NUMBERS : CONTRACT_GATE_NUMBERS
 
-    const allowedGates = run.runType === 'EXECUTION'
-      ? EXECUTION_GATE_NUMBERS
-      : CONTRACT_GATE_NUMBERS
-    const gatesToRun = GATES_CONFIG.filter(g => allowedGates.includes(g.number))
+    const gatesToRun = GATES_CONFIG.filter((g) => allowedGates.includes(g.number))
 
     for (const gate of gatesToRun) {
       await this.runRepository.update(runId, {
@@ -81,9 +122,23 @@ export class ValidationOrchestrator {
       completedAt: new Date(),
     })
     RunEventService.emitRunStatus(runId, 'PASSED')
-  }
+  } finally {
+    // Cleanup sandbox worktree (best-effort)
+    try {
+      await rootGit.removeWorktree(sandboxPath)
+    } catch (cleanupError) {
+      console.warn(
+        '[executeRun] Failed to remove sandbox worktree:',
+        cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+      )
+    }
 
-  private async executeGate(
+    try {
+      await rm(sandboxPath, { recursive: true, force: true })
+    } catch {}
+  }
+}
+private async executeGate(
     runId: string,
     gate: GateDefinition,
     ctx: ValidationContext

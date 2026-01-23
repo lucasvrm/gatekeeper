@@ -97,7 +97,17 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
               'Test error (base_ref): ' + (testError instanceof Error ? testError.message : String(testError)) + '\n' +
               'OriginalRef: ' + originalRef + '\n' +
               'BaseRef: ' + ctx.baseRef,
-          },
+          }
+        }
+
+        return {
+          passed: false,
+          status: 'FAILED',
+          message: 'Failed to execute test on base_ref',
+          evidence:
+            'Test error (base_ref): ' + (testError instanceof Error ? testError.message : String(testError)) + '\n' +
+            'OriginalRef: ' + originalRef + '\n' +
+            'BaseRef: ' + ctx.baseRef,
         }
       }
     } catch (checkoutError) {

@@ -101,6 +101,8 @@ export interface GitService {
   stashPop(): Promise<void>
   getDiffFiles(baseRef: string, targetRef: string): Promise<string[]>
   getCurrentRef(): Promise<string>
+  createWorktree(ref: string, worktreePath: string): Promise<void>
+  removeWorktree(worktreePath: string): Promise<void>
 }
 
 export interface TestBlock {
@@ -146,6 +148,7 @@ export interface LogService {
 export interface ValidationContext {
   runId: string
   projectPath: string
+  originalProjectPath?: string
   baseRef: string
   targetRef: string
   taskPrompt: string

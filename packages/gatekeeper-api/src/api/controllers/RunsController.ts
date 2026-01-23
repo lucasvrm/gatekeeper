@@ -4,8 +4,73 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { RunEventService } from '../../services/RunEventService.js'
 import { PathResolverService } from '../../services/PathResolverService.js'
+import { ArtifactsService } from '../../services/ArtifactsService.js'
 
 export class RunsController {
+  async listArtifacts(req: Request, res: Response): Promise<void> {
+    const { projectId } = req.query
+
+    if (!projectId) {
+      res.status(400).json({ error: 'projectId is required' })
+      return
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: String(projectId) },
+      include: { workspace: true },
+    })
+
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' })
+      return
+    }
+
+    const artifactsBasePath = path.join(project.workspace.rootPath, project.workspace.artifactsDir)
+    const artifactsService = new ArtifactsService()
+
+    try {
+      const folders = await artifactsService.listFolders(artifactsBasePath)
+      const sorted = folders.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      res.status(200).json(sorted)
+    } catch (error) {
+      console.error('[listArtifacts] Failed to list artifact folders:', error)
+      res.status(200).json([])
+    }
+  }
+
+  async getArtifactContents(req: Request, res: Response): Promise<void> {
+    const { outputId } = req.params
+    const { projectId } = req.query
+
+    if (!projectId) {
+      res.status(400).json({ error: 'projectId is required' })
+      return
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: String(projectId) },
+      include: { workspace: true },
+    })
+
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' })
+      return
+    }
+
+    const artifactsBasePath = path.join(project.workspace.rootPath, project.workspace.artifactsDir)
+    const artifactsService = new ArtifactsService()
+    const status = await artifactsService.validateFolder(artifactsBasePath, outputId)
+
+    if (!status.exists) {
+      res.status(404).json({ error: 'Artifact folder not found' })
+      return
+    }
+
+    const contents = await artifactsService.readContents(artifactsBasePath, outputId)
+    res.status(200).json(contents)
+  }
   async getRun(req: Request, res: Response): Promise<void> {
     const { id } = req.params
 
@@ -336,11 +401,6 @@ export class RunsController {
     const { id } = req.params
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined
 
-    if (!files || Object.keys(files).length === 0) {
-      res.status(400).json({ error: 'No files provided' })
-      return
-    }
-
     const run = await prisma.validationRun.findUnique({
       where: { id },
     })
@@ -396,8 +456,78 @@ export class RunsController {
       await fs.mkdir(artifactDir, { recursive: true })
       const uploadedFiles: { type: string; path: string; size: number }[] = []
 
+      const hasUploadedFiles = files && Object.keys(files).length > 0
+
+      if (!hasUploadedFiles) {
+        const filesystemArtifactDir = path.join(artifactsBasePath, run.outputId)
+        const contents = await fs.readdir(filesystemArtifactDir).catch(() => [])
+        const specFileName = contents.find((file) => file.endsWith('.spec.tsx') || file.endsWith('.spec.ts')) || null
+
+        if (!specFileName) {
+          res.status(400).json({ error: 'Spec file not found in artifacts folder' })
+          return
+        }
+
+        const planPath = path.join(filesystemArtifactDir, 'plan.json')
+        const planExists = contents.includes('plan.json')
+
+        if (planExists) {
+          try {
+            const planRaw = await fs.readFile(planPath, 'utf-8')
+            const planData = JSON.parse(planRaw)
+            uploadedFiles.push({ type: 'plan.json', path: planPath, size: Buffer.byteLength(planRaw) })
+            if (planData.contract) {
+              await prisma.validationRun.update({
+                where: { id },
+                data: { contractJson: JSON.stringify(planData.contract) },
+              })
+            }
+          } catch (error) {
+            console.error('[uploadFiles] Failed to parse plan.json from artifacts:', error)
+          }
+        }
+
+        const artifactsSpecPath = path.join(filesystemArtifactDir, specFileName)
+        const pathResolver = new PathResolverService()
+        let targetSpecPath: string
+
+        if (run.manifestJson) {
+          try {
+            const manifest = JSON.parse(run.manifestJson)
+            targetSpecPath = await pathResolver.ensureCorrectPath(
+              artifactsSpecPath,
+              manifest,
+              projectRoot,
+              run.outputId,
+            )
+          } catch (error) {
+            console.error('[uploadFiles] Failed to resolve spec path from artifacts, using fallback:', error)
+            targetSpecPath = path.join(projectRoot, 'src', specFileName)
+          }
+        } else {
+          targetSpecPath = path.join(projectRoot, 'src', specFileName)
+        }
+
+        if (!targetSpecPath.includes(`${path.sep}src${path.sep}`)) {
+          const enforcedPath = path.join(projectRoot, 'src', specFileName)
+          try {
+            await fs.copyFile(artifactsSpecPath, enforcedPath)
+          } catch (error) {
+            console.error('[uploadFiles] Failed to copy spec to enforced /src path:', error)
+          }
+          targetSpecPath = enforcedPath
+        }
+
+        uploadedFiles.push({ type: 'spec', path: targetSpecPath, size: (await fs.stat(artifactsSpecPath)).size })
+
+        await prisma.validationRun.update({
+          where: { id },
+          data: { testFilePath: targetSpecPath },
+        })
+      }
+
       // Process plan.json
-      if (files['planJson'] && files['planJson'][0]) {
+      if (hasUploadedFiles && files && files['planJson'] && files['planJson'][0]) {
         const planFile = files['planJson'][0]
 
         // Validate file size (max 5MB)
@@ -434,7 +564,7 @@ export class RunsController {
       }
 
       // Process spec file
-      if (files['specFile'] && files['specFile'][0]) {
+      if (hasUploadedFiles && files && files['specFile'] && files['specFile'][0]) {
         const specFile = files['specFile'][0]
 
         // Validate file size (max 5MB)
@@ -470,13 +600,21 @@ export class RunsController {
             )
             console.log('[uploadFiles] ✅ Spec copied to correct path:', targetSpecPath)
           } else {
-            // No manifest - keep in artifacts
-            console.warn('[uploadFiles] No manifest found, keeping spec in artifacts')
-            targetSpecPath = artifactsSpecPath
+            targetSpecPath = path.join(projectRoot, 'src', specFileName)
           }
         } catch (error) {
-          console.error('[uploadFiles] Failed to copy spec to correct path, keeping in artifacts:', error)
-          targetSpecPath = artifactsSpecPath
+          console.error('[uploadFiles] Failed to copy spec to correct path, using fallback:', error)
+          targetSpecPath = path.join(projectRoot, 'src', specFileName)
+        }
+
+        if (!targetSpecPath.includes(`${path.sep}src${path.sep}`)) {
+          const enforcedPath = path.join(projectRoot, 'src', specFileName)
+          try {
+            await fs.copyFile(artifactsSpecPath, enforcedPath)
+          } catch (error) {
+            console.error('[uploadFiles] Failed to copy spec to enforced /src path:', error)
+          }
+          targetSpecPath = enforcedPath
         }
 
         uploadedFiles.push({ type: 'spec', path: targetSpecPath, size: specFile.size })

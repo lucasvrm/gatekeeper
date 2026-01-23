@@ -70,5 +70,13 @@ export class GitService implements IGitService {
     const result = await this.git.revparse(['--abbrev-ref', 'HEAD'])
     return result.trim()
   }
+
+  async createWorktree(ref: string, worktreePath: string): Promise<void> {
+    await this.git.raw(['worktree', 'add', '--force', '--detach', worktreePath, ref])
+  }
+
+  async removeWorktree(worktreePath: string): Promise<void> {
+    await this.git.raw(['worktree', 'remove', '--force', worktreePath])
+  }
 }
 
