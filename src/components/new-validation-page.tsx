@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "@/lib/api"
-import type { ArtifactInputMode, LLMPlanOutput, Project } from "@/lib/types"
+import type { ArtifactInputMode, CreateRunRequest, LLMPlanOutput, Project } from "@/lib/types"
 import { ArtifactsInput, type ArtifactsLoadedData } from "@/components/artifacts-input"
 import { JsonPreview } from "@/components/json-preview"
 import { Button } from "@/components/ui/button"
@@ -87,7 +87,7 @@ export function NewValidationPage() {
         contract: planData.contract,
         runType: 'CONTRACT',
         projectId: selectedProjectId,
-      }
+      } satisfies CreateRunRequest
 
       // Step 1: Create run (stays in PENDING, not added to queue yet)
       const response = await api.runs.create(requestData)

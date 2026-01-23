@@ -48,7 +48,7 @@ export interface ArtifactFolder {
 }
 
 export interface ArtifactContents {
-  planJson: Record<string, unknown> | null
+  planJson: LLMPlanOutput | null
   specContent: string | null
   specFileName: string | null
 }
