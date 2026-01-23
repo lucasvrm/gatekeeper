@@ -250,10 +250,16 @@ export class RunsController {
 
     // Verify that spec file is in correct path, restore from artifacts if needed
     console.log('[rerunGate] Verifying spec file path...')
-    if (run.testFilePath && run.manifestJson) {
+    if (run.testFilePath && run.manifestJson && run.projectPath) {
       try {
         const pathResolver = new PathResolverService()
-        const artifactsPath = path.join(run.projectPath, 'artifacts', run.outputId, path.basename(run.testFilePath))
+        const artifactsDir = await this.resolveArtifactsDir(run)
+        const artifactsPath = path.join(
+          run.projectPath,
+          artifactsDir,
+          run.outputId,
+          path.basename(run.testFilePath),
+        )
         const correctPath = await pathResolver.recheckAndCopy(run.testFilePath, artifactsPath)
 
         // Update if path changed
@@ -420,35 +426,16 @@ export class RunsController {
         return
       }
 
-      // Get artifacts directory - try to extract from run's testFilePath or use default
-      let artifactsDir = 'artifacts'
-      if (run.testFilePath.includes('/artifacts/') || run.testFilePath.includes('\\artifacts\\')) {
-        // Extract artifacts dir from test file path if it contains one
-        const match = run.testFilePath.match(/[/\\]artifacts[/\\]/)
-        if (match) {
-          artifactsDir = 'artifacts'
-        }
-      } else if (run.projectId) {
-        // Get from project's workspace
-        const project = await prisma.project.findUnique({
-          where: { id: run.projectId },
-          include: { workspace: true },
-        })
-        if (project) {
-          artifactsDir = project.workspace.artifactsDir
-        }
-      }
+      const artifactsDir = await this.resolveArtifactsDir(run)
       console.log('[uploadFiles] Using artifactsDir:', artifactsDir)
 
       // Resolver paths
       const artifactsBasePath = path.join(projectRoot, artifactsDir)
       const runTestFilePath = run.testFilePath
       let artifactDir: string
-      let resolvedSpecPath: string | null = null
 
       if (runTestFilePath && path.isAbsolute(runTestFilePath)) {
-        resolvedSpecPath = runTestFilePath
-        artifactDir = path.dirname(resolvedSpecPath)
+        artifactDir = path.dirname(runTestFilePath)
       } else {
         artifactDir = path.join(artifactsBasePath, run.outputId)
       }
@@ -488,41 +475,17 @@ export class RunsController {
         }
 
         const artifactsSpecPath = path.join(filesystemArtifactDir, specFileName)
-        const pathResolver = new PathResolverService()
-        let targetSpecPath: string
+        const targetSpecPath = await this.resolveAndPersistSpecPath(
+          run,
+          projectRoot,
+          artifactsSpecPath,
+          specFileName,
+        )
 
-        if (run.manifestJson) {
-          try {
-            const manifest = JSON.parse(run.manifestJson)
-            targetSpecPath = await pathResolver.ensureCorrectPath(
-              artifactsSpecPath,
-              manifest,
-              projectRoot,
-              run.outputId,
-            )
-          } catch (error) {
-            console.error('[uploadFiles] Failed to resolve spec path from artifacts, using fallback:', error)
-            targetSpecPath = path.join(projectRoot, 'src', specFileName)
-          }
-        } else {
-          targetSpecPath = path.join(projectRoot, 'src', specFileName)
-        }
-
-        if (!targetSpecPath.includes(`${path.sep}src${path.sep}`)) {
-          const enforcedPath = path.join(projectRoot, 'src', specFileName)
-          try {
-            await fs.copyFile(artifactsSpecPath, enforcedPath)
-          } catch (error) {
-            console.error('[uploadFiles] Failed to copy spec to enforced /src path:', error)
-          }
-          targetSpecPath = enforcedPath
-        }
-
-        uploadedFiles.push({ type: 'spec', path: targetSpecPath, size: (await fs.stat(artifactsSpecPath)).size })
-
-        await prisma.validationRun.update({
-          where: { id },
-          data: { testFilePath: targetSpecPath },
+        uploadedFiles.push({
+          type: 'spec',
+          path: targetSpecPath,
+          size: (await fs.stat(artifactsSpecPath)).size,
         })
       }
 
@@ -586,44 +549,14 @@ export class RunsController {
         console.log('[uploadFiles] Saved spec to artifacts:', artifactsSpecPath)
 
         // Step 2: Use PathResolverService to copy to correct path
-        const pathResolver = new PathResolverService()
-        let targetSpecPath: string
-
-        try {
-          if (run.manifestJson) {
-            const manifest = JSON.parse(run.manifestJson)
-            targetSpecPath = await pathResolver.ensureCorrectPath(
-              artifactsSpecPath,
-              manifest,
-              projectRoot,
-              run.outputId
-            )
-            console.log('[uploadFiles] ✅ Spec copied to correct path:', targetSpecPath)
-          } else {
-            targetSpecPath = path.join(projectRoot, 'src', specFileName)
-          }
-        } catch (error) {
-          console.error('[uploadFiles] Failed to copy spec to correct path, using fallback:', error)
-          targetSpecPath = path.join(projectRoot, 'src', specFileName)
-        }
-
-        if (!targetSpecPath.includes(`${path.sep}src${path.sep}`)) {
-          const enforcedPath = path.join(projectRoot, 'src', specFileName)
-          try {
-            await fs.copyFile(artifactsSpecPath, enforcedPath)
-          } catch (error) {
-            console.error('[uploadFiles] Failed to copy spec to enforced /src path:', error)
-          }
-          targetSpecPath = enforcedPath
-        }
+        const targetSpecPath = await this.resolveAndPersistSpecPath(
+          run,
+          projectRoot,
+          artifactsSpecPath,
+          specFileName,
+        )
 
         uploadedFiles.push({ type: 'spec', path: targetSpecPath, size: specFile.size })
-
-        // Update run.testFilePath with resolved path
-        await prisma.validationRun.update({
-          where: { id },
-          data: { testFilePath: targetSpecPath },
-        })
       }
 
       // Reset and queue the run based on its current status
@@ -680,43 +613,78 @@ export class RunsController {
     }
   }
 
-  private detectTestType(files: Array<{ path: string; action: string }>): string | null {
-    const typePatterns: Record<string, RegExp> = {
-      component: /\/components?\//i,
-      hook: /\/hooks?\//i,
-      lib: /\/lib\//i,
-      util: /\/utils?\//i,
-      service: /\/services?\//i,
-      context: /\/contexts?\//i,
-      page: /\/pages?\//i,
-      store: /\/stores?\//i,
-      api: /\/api\//i,
-      validator: /\/validators?\//i,
+  private async resolveArtifactsDir(
+    run: { testFilePath: string; projectId: string | null },
+  ): Promise<string> {
+    const testFilePath = run.testFilePath || ''
+    if (testFilePath.includes('/artifacts/') || testFilePath.includes('\\artifacts\\')) {
+      return 'artifacts'
     }
 
-    const typeCounts: Record<string, number> = {}
+    if (run.projectId) {
+      const project = await prisma.project.findUnique({
+        where: { id: run.projectId },
+        include: { workspace: true },
+      })
+      if (project) {
+        return project.workspace.artifactsDir
+      }
+    }
 
-    for (const file of files) {
-      if (file.action === 'DELETE') continue
+    return 'artifacts'
+  }
 
-      for (const [type, pattern] of Object.entries(typePatterns)) {
-        if (pattern.test(file.path)) {
-          typeCounts[type] = (typeCounts[type] || 0) + 1
+  private async resolveAndPersistSpecPath(
+    run: { id: string; manifestJson: string | null; outputId: string },
+    projectRoot: string,
+    artifactsSpecPath: string,
+    specFileName: string
+  ): Promise<string> {
+    const pathResolver = new PathResolverService()
+    let targetSpecPath: string
+    let shouldCopyFallback = false
+
+    if (run.manifestJson) {
+      try {
+        const manifest = JSON.parse(run.manifestJson)
+        targetSpecPath = await pathResolver.ensureCorrectPath(
+          artifactsSpecPath,
+          manifest,
+          projectRoot,
+          run.outputId
+        )
+        console.log('[uploadFiles] ✅ Spec copied to correct path:', targetSpecPath)
+      } catch (error) {
+        console.error('[uploadFiles] Failed to resolve spec path, using fallback:', error)
+        targetSpecPath = path.join(projectRoot, 'src', specFileName)
+        shouldCopyFallback = true
+      }
+    } else {
+      targetSpecPath = path.join(projectRoot, 'src', specFileName)
+      shouldCopyFallback = true
+    }
+
+    const normalizedTarget = targetSpecPath.replace(/\\/g, '/')
+    if (shouldCopyFallback || !normalizedTarget.includes('/src/')) {
+      const fallbackPath = path.join(projectRoot, 'src', specFileName)
+      try {
+        await fs.mkdir(path.dirname(fallbackPath), { recursive: true })
+        if (await fs.stat(artifactsSpecPath).then(() => true).catch(() => false)) {
+          await fs.copyFile(artifactsSpecPath, fallbackPath)
         }
+      } catch (error) {
+        console.error('[uploadFiles] Failed to copy spec to fallback /src path:', error)
       }
+      targetSpecPath = fallbackPath
     }
 
-    // Return the type with the most matches
-    let maxCount = 0
-    let detectedType: string | null = null
+    const normalizedPath = targetSpecPath.replace(/\\/g, '/')
 
-    for (const [type, count] of Object.entries(typeCounts)) {
-      if (count > maxCount) {
-        maxCount = count
-        detectedType = type
-      }
-    }
+    await prisma.validationRun.update({
+      where: { id: run.id },
+      data: { testFilePath: normalizedPath },
+    })
 
-    return detectedType
+    return normalizedPath
   }
 }

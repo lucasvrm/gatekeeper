@@ -283,46 +283,6 @@ export class ValidationController {
 
     res.json(updated)
   }
-
-  private detectTestType(files: Array<{ path: string; action: string }>): string | null {
-    const typePatterns: Record<string, RegExp> = {
-      component: /\/components?\//i,
-      hook: /\/hooks?\//i,
-      lib: /\/lib\//i,
-      util: /\/utils?\//i,
-      service: /\/services?\//i,
-      context: /\/contexts?\//i,
-      page: /\/pages?\//i,
-      store: /\/stores?\//i,
-      api: /\/api\//i,
-      validator: /\/validators?\//i,
-    }
-
-    const typeCounts: Record<string, number> = {}
-
-    for (const file of files) {
-      if (file.action === 'DELETE') continue
-
-      for (const [type, pattern] of Object.entries(typePatterns)) {
-        if (pattern.test(file.path)) {
-          typeCounts[type] = (typeCounts[type] || 0) + 1
-        }
-      }
-    }
-
-    // Return the type with the most matches
-    let maxCount = 0
-    let detectedType: string | null = null
-
-    for (const [type, count] of Object.entries(typeCounts)) {
-      if (count > maxCount) {
-        maxCount = count
-        detectedType = type
-      }
-    }
-
-    return detectedType
-  }
 }
 
 

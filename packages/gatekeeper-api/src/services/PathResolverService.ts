@@ -5,6 +5,19 @@ import { prisma } from '../db/client.js'
 import type { ManifestInput } from '../types/index.js'
 
 export class PathResolverService {
+  private normalizePath(pathValue: string): string {
+    return pathValue.replace(/\\/g, '/')
+  }
+
+  private ensureSrcPath(pathValue: string, projectRoot: string, specFileName: string): string {
+    const normalized = this.normalizePath(pathValue)
+    if (normalized.includes('/src/')) {
+      return pathValue
+    }
+
+    return join(projectRoot, 'src', specFileName)
+  }
+
   /**
    * Detecta o tipo de teste baseado nos arquivos do manifest
    * Procura por patterns em manifest.files para determinar o tipo
@@ -144,21 +157,27 @@ export class PathResolverService {
     console.log('[PathResolver]   projectRoot:', projectRoot)
     console.log('[PathResolver]   outputId:', outputId)
 
+    const specFileName = basename(artifactsSpecPath)
+
     if (manifest.testFile && /[\\/]/.test(manifest.testFile)) {
       const directPath = join(projectRoot, manifest.testFile)
-      console.log('[PathResolver] Using manifest.testFile directly:', directPath)
+      const enforcedPath = this.ensureSrcPath(directPath, projectRoot, specFileName)
+      if (enforcedPath !== directPath) {
+        console.warn('[PathResolver] Resolved path missing /src/, enforcing fallback:', enforcedPath)
+      }
+      console.log('[PathResolver] Using manifest.testFile directly:', enforcedPath)
 
-      const targetDir = dirname(directPath)
+      const targetDir = dirname(enforcedPath)
       await mkdir(targetDir, { recursive: true })
 
       if (existsSync(artifactsSpecPath)) {
-        await copyFile(artifactsSpecPath, directPath)
-        console.log('[PathResolver] ✅ File copied to manifest.testFile path:', directPath)
+        await copyFile(artifactsSpecPath, enforcedPath)
+        console.log('[PathResolver] ✅ File copied to manifest.testFile path:', enforcedPath)
       } else {
         console.warn('[PathResolver] ❌ Source file does not exist:', artifactsSpecPath)
       }
 
-      return directPath.replace(/\\/g, '/')
+      return this.normalizePath(enforcedPath)
     }
 
     // 1. Detectar tipo de teste
@@ -168,13 +187,24 @@ export class PathResolverService {
     // 2. Buscar convenção
     const convention = await this.getPathConvention(testType)
     if (!convention) {
-      console.warn('[PathResolver] No convention found, keeping file in artifacts')
-      return artifactsSpecPath
+      const fallbackPath = join(projectRoot, 'src', specFileName)
+      console.warn('[PathResolver] No convention found, using fallback path:', fallbackPath)
+
+      const targetDir = dirname(fallbackPath)
+      await mkdir(targetDir, { recursive: true })
+
+      if (existsSync(artifactsSpecPath)) {
+        await copyFile(artifactsSpecPath, fallbackPath)
+        console.log('[PathResolver] ✅ File copied to fallback path:', fallbackPath)
+      } else {
+        console.warn('[PathResolver] ❌ Source file does not exist:', artifactsSpecPath)
+      }
+
+      return this.normalizePath(fallbackPath)
     }
     console.log('[PathResolver] Found convention pattern:', convention.pathPattern)
 
     // 3. Extrair nome do arquivo spec
-    const specFileName = basename(artifactsSpecPath)
     console.log('[PathResolver] Spec file name:', specFileName)
 
     // 4. Aplicar pattern para obter path correto
@@ -184,31 +214,35 @@ export class PathResolverService {
       projectRoot,
       specFileName
     )
-    console.log('[PathResolver] Calculated correct path:', correctPath)
+    const enforcedPath = this.ensureSrcPath(correctPath, projectRoot, specFileName)
+    if (enforcedPath !== correctPath) {
+      console.warn('[PathResolver] Convention path missing /src/, enforcing fallback:', enforcedPath)
+    }
+    console.log('[PathResolver] Calculated correct path:', enforcedPath)
 
     // 5. Verificar se já existe no path correto
-    if (existsSync(correctPath)) {
+    if (existsSync(enforcedPath)) {
       console.log('[PathResolver] File already exists at correct path')
-      return correctPath
+      return this.normalizePath(enforcedPath)
     }
 
     // 6. Se não existe, copiar de artifacts/
     try {
       // Criar diretório de destino se não existir
-      const targetDir = dirname(correctPath)
+      const targetDir = dirname(enforcedPath)
       await mkdir(targetDir, { recursive: true })
       console.log('[PathResolver] Created target directory:', targetDir)
 
       // Copiar arquivo
       if (existsSync(artifactsSpecPath)) {
-        await copyFile(artifactsSpecPath, correctPath)
-        console.log('[PathResolver] ✅ File copied successfully to:', correctPath)
+        await copyFile(artifactsSpecPath, enforcedPath)
+        console.log('[PathResolver] ✅ File copied successfully to:', enforcedPath)
       } else {
         console.error('[PathResolver] ❌ Source file does not exist:', artifactsSpecPath)
         throw new Error(`Source spec file not found: ${artifactsSpecPath}`)
       }
 
-      return correctPath
+      return this.normalizePath(enforcedPath)
     } catch (error) {
       console.error('[PathResolver] ❌ Failed to copy file:', error)
       throw new Error(`Failed to copy spec to correct path: ${error instanceof Error ? error.message : String(error)}`)

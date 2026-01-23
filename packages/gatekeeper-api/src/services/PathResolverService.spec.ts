@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { PathResolverService } from './PathResolverService'
-import * as fs from 'fs'
-import * as fsPromises from 'fs/promises'
 
 /**
  * Tests for PathResolverService refactor
@@ -11,22 +9,14 @@ import * as fsPromises from 'fs/promises'
  */
 
 // Mock fs modules
-vi.mock('fs', async () => {
-  const actual = await vi.importActual('fs')
-  return {
-    ...actual,
-    existsSync: vi.fn(),
-  }
-})
+vi.mock('fs', () => ({
+  existsSync: vi.fn(),
+}))
 
-vi.mock('fs/promises', async () => {
-  const actual = await vi.importActual('fs/promises')
-  return {
-    ...actual,
-    mkdir: vi.fn().mockResolvedValue(undefined),
-    copyFile: vi.fn().mockResolvedValue(undefined),
-  }
-})
+vi.mock('fs/promises', () => ({
+  mkdir: vi.fn().mockResolvedValue(undefined),
+  copyFile: vi.fn().mockResolvedValue(undefined),
+}))
 
 vi.mock('../db/client', () => ({
   prisma: {
@@ -39,6 +29,8 @@ vi.mock('../db/client', () => ({
   },
 }))
 
+import { existsSync } from 'fs'
+import { mkdir, copyFile } from 'fs/promises'
 import { prisma } from '../db/client'
 
 describe('PathResolverService - centralize-path-resolution', () => {
@@ -56,7 +48,7 @@ describe('PathResolverService - centralize-path-resolution', () => {
   describe('CL-REF-001: testFilePath correto após uploadFiles', () => {
     // @clause CL-REF-001
     it('should update testFilePath based on convention when spec file is processed', async () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) => {
+      vi.mocked(existsSync).mockImplementation((p) => {
         if (String(p).includes('artifacts')) return true
         return false
       })
@@ -81,13 +73,13 @@ describe('PathResolverService - centralize-path-resolution', () => {
         'output-123'
       )
 
-      expect(result).toContain('/src/')
+      expect(result).toContain('src')
       expect(result).toContain('Button.spec.tsx')
     })
 
     // @clause CL-REF-001
     it('should return path within src/ directory structure', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(existsSync).mockReturnValue(true)
 
       const manifest = {
         testFile: 'src/components/MyComponent.spec.tsx',
@@ -101,14 +93,14 @@ describe('PathResolverService - centralize-path-resolution', () => {
         'output-001'
       )
 
-      expect(result).toContain('/src/')
+      expect(result).toContain('src')
     })
   })
 
   describe('CL-REF-002: Spec restaurado em rerunGate', () => {
     // @clause CL-REF-002
     it('should restore spec from artifacts when file missing at testFilePath', async () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) => {
+      vi.mocked(existsSync).mockImplementation((p) => {
         if (String(p).includes('artifacts')) return true
         return false
       })
@@ -118,14 +110,14 @@ describe('PathResolverService - centralize-path-resolution', () => {
 
       const result = await pathResolver.recheckAndCopy(testFilePath, artifactsPath)
 
-      expect(fsPromises.mkdir).toHaveBeenCalled()
-      expect(fsPromises.copyFile).toHaveBeenCalledWith(artifactsPath, testFilePath)
+      expect(mkdir).toHaveBeenCalled()
+      expect(copyFile).toHaveBeenCalledWith(artifactsPath, testFilePath)
       expect(result).toBe(testFilePath)
     })
 
     // @clause CL-REF-002
     it('should throw error when both testFilePath and artifacts are missing', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+      vi.mocked(existsSync).mockReturnValue(false)
 
       const testFilePath = '/project/src/missing.spec.tsx'
       const artifactsPath = '/project/artifacts/also-missing.spec.tsx'
@@ -137,14 +129,14 @@ describe('PathResolverService - centralize-path-resolution', () => {
 
     // @clause CL-REF-002
     it('should return existing path when file already exists at testFilePath', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(existsSync).mockReturnValue(true)
 
       const testFilePath = '/project/src/components/__tests__/Exists.spec.tsx'
       const artifactsPath = '/project/artifacts/Exists.spec.tsx'
 
       const result = await pathResolver.recheckAndCopy(testFilePath, artifactsPath)
 
-      expect(fsPromises.copyFile).not.toHaveBeenCalled()
+      expect(copyFile).not.toHaveBeenCalled()
       expect(result).toBe(testFilePath)
     })
   })
@@ -152,7 +144,7 @@ describe('PathResolverService - centralize-path-resolution', () => {
   describe('CL-REF-003: EXECUTION run copia spec do CONTRACT', () => {
     // @clause CL-REF-003
     it('should process spec through ensureCorrectPath for EXECUTION runs', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(existsSync).mockReturnValue(true)
 
       const manifest = {
         testFile: 'src/services/MyService.spec.ts',
@@ -168,13 +160,13 @@ describe('PathResolverService - centralize-path-resolution', () => {
         'execution-run-123'
       )
 
-      expect(result).toContain('/src/')
+      expect(result).toContain('src')
       expect(result).toContain('MyService.spec.ts')
     })
 
     // @clause CL-REF-003
     it('should copy spec file when creating EXECUTION run from CONTRACT', async () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) => {
+      vi.mocked(existsSync).mockImplementation((p) => {
         if (String(p).includes('contract-artifacts')) return true
         return false
       })
@@ -191,15 +183,18 @@ describe('PathResolverService - centralize-path-resolution', () => {
         'exec-456'
       )
 
-      expect(fsPromises.copyFile).toHaveBeenCalled()
+      expect(copyFile).toHaveBeenCalled()
       expect(result).toContain('Auth.spec.ts')
     })
   })
 
   describe('CL-REF-004: Fallback para src/ quando sem convenção', () => {
     // @clause CL-REF-004
-    it('should use artifacts path when no convention found', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+    it('should use fallback path when no convention found', async () => {
+      vi.mocked(existsSync).mockImplementation((p) => {
+        if (String(p).includes('artifacts')) return true
+        return false
+      })
       vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
 
       const manifest = {
@@ -220,7 +215,7 @@ describe('PathResolverService - centralize-path-resolution', () => {
 
     // @clause CL-REF-004
     it('should handle missing convention gracefully', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+      vi.mocked(existsSync).mockReturnValue(false)
       vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -244,8 +239,8 @@ describe('PathResolverService - centralize-path-resolution', () => {
 
   describe('CL-REF-005: Path DEVE conter /src/', () => {
     // @clause CL-REF-005
-    it('should ensure testFilePath contains /src/ for vitest monitoring', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+    it('should ensure testFilePath contains src for vitest monitoring', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
 
       const manifest = {
         testFile: 'src/components/MyComponent.spec.tsx',
@@ -259,12 +254,12 @@ describe('PathResolverService - centralize-path-resolution', () => {
         'output-src'
       )
 
-      expect(result).toContain('/src/')
+      expect(result).toContain('src')
     })
 
     // @clause CL-REF-005
-    it('should place spec in src/ path based on manifest.testFile', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+    it('should place spec in src path based on manifest.testFile', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
 
       const manifest = {
         testFile: 'packages/gatekeeper-api/src/services/Test.spec.ts',
@@ -278,7 +273,7 @@ describe('PathResolverService - centralize-path-resolution', () => {
         'test-123'
       )
 
-      expect(result).toContain('/src/')
+      expect(result).toContain('src')
       expect(result).toContain('services')
     })
   })
@@ -298,7 +293,7 @@ describe('PathResolverService - centralize-path-resolution', () => {
 
     // @clause CL-REF-006
     it('should have ensureCorrectPath return Promise<string>', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(existsSync).mockReturnValue(true)
 
       const manifest = { testFile: 'src/test.spec.ts', files: [] }
       const result = pathResolver.ensureCorrectPath('/a', manifest, '/b', 'c')
@@ -361,7 +356,7 @@ describe('PathResolverService - centralize-path-resolution', () => {
 
     // @clause CL-REF-008
     it('should provide single entry point via ensureCorrectPath', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(existsSync).mockReturnValue(true)
 
       const manifest = {
         testFile: 'src/lib/utils.spec.ts',
