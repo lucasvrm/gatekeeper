@@ -1,9 +1,8 @@
 import { useMemo, useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "@/lib/api"
-import type { LLMPlanOutput, ManifestFile, Project } from "@/lib/types"
-import { FileDropZone } from "@/components/file-drop-zone"
-import { TestFileInput } from "@/components/test-file-input"
+import type { ArtifactInputMode, LLMPlanOutput, Project } from "@/lib/types"
+import { ArtifactsInput, type ArtifactsLoadedData } from "@/components/artifacts-input"
 import { JsonPreview } from "@/components/json-preview"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -18,56 +17,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-
-const isManifestFile = (value: unknown): value is ManifestFile => {
-  if (!isRecord(value)) return false
-  const action = value.action
-  const hasAction =
-    action === "CREATE" || action === "MODIFY" || action === "DELETE"
-  const hasReason = value.reason === undefined || typeof value.reason === "string"
-  return (
-    typeof value.path === "string" &&
-    value.path.length > 0 &&
-    hasAction &&
-    hasReason
-  )
-}
-
-const isLLMPlanOutput = (value: unknown): value is LLMPlanOutput => {
-  if (!isRecord(value)) return false
-  const manifest = value.manifest
-  if (!isRecord(manifest)) return false
-
-  const files = manifest.files
-  const hasFilesArray = Array.isArray(files) && files.every(isManifestFile)
-  const hasManifestTestFile =
-    typeof manifest.testFile === "string" && manifest.testFile.length > 0
-
-  return (
-    typeof value.outputId === "string" &&
-    value.outputId.length > 0 &&
-    typeof value.baseRef === "string" &&
-    value.baseRef.length > 0 &&
-    typeof value.targetRef === "string" &&
-    value.targetRef.length > 0 &&
-    typeof value.taskPrompt === "string" &&
-    value.taskPrompt.length > 0 &&
-    typeof value.dangerMode === "boolean" &&
-    hasFilesArray &&
-    hasManifestTestFile
-  )
-}
-
 export function NewValidationPage() {
   const navigate = useNavigate()
   const [planData, setPlanData] = useState<LLMPlanOutput | null>(null)
   const [planJsonContent, setPlanJsonContent] = useState<string | null>(null)
-  const [testFileMode, setTestFileMode] = useState<"upload" | "manual">("upload")
-  const [manualTestPath, setManualTestPath] = useState("")
-  const [uploadedTestPath, setUploadedTestPath] = useState("")
-  const [uploadedTestContent, setUploadedTestContent] = useState<string | null>(null)
+  const [specFileName, setSpecFileName] = useState<string | null>(null)
+  const [specContent, setSpecContent] = useState<string | null>(null)
+  const [inputMode, setInputMode] = useState<ArtifactInputMode | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
@@ -92,30 +48,12 @@ export function NewValidationPage() {
 
   const canSubmit = useMemo(() => {
     if (!planData) return false
-    if (testFileMode === "upload") {
-      return Boolean(uploadedTestPath)
+    if (!inputMode) return false
+    if (inputMode === "upload") {
+      return Boolean(specFileName && specContent && planJsonContent)
     }
-    return Boolean(manualTestPath)
-  }, [manualTestPath, planData, testFileMode, uploadedTestPath])
-
-  const handleJsonContent = (content: string) => {
-    setError(null)
-    try {
-      const parsed = JSON.parse(content)
-      if (!isLLMPlanOutput(parsed)) {
-        setPlanData(null)
-        setPlanJsonContent(null)
-        setError("JSON invalido: estrutura inesperada")
-        return
-      }
-      setPlanData(parsed)
-      setPlanJsonContent(content)
-    } catch {
-      setPlanData(null)
-      setPlanJsonContent(null)
-      setError("JSON invalido: falha ao interpretar")
-    }
-  }
+    return true
+  }, [inputMode, planData, planJsonContent, specContent, specFileName])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -127,7 +65,7 @@ export function NewValidationPage() {
     }
 
     if (!canSubmit) {
-      setError("Informe o arquivo de teste ou o caminho manual")
+      setError("Carregue os artifacts antes de enviar")
       return
     }
 
@@ -154,20 +92,20 @@ export function NewValidationPage() {
       // Step 1: Create run (stays in PENDING, not added to queue yet)
       const response = await api.runs.create(requestData)
 
-      // Step 2: Upload files if available
-      if (testFileMode === "upload" && planJsonContent && uploadedTestContent && uploadedTestPath) {
+      // Step 2: Upload files or trigger filesystem mode
+      if (inputMode === "upload" && planJsonContent && specContent && specFileName) {
         const formData = new FormData()
 
-        // Add plan.json
         const planBlob = new Blob([planJsonContent], { type: 'application/json' })
         formData.append('planJson', planBlob, 'plan.json')
 
-        // Add spec file
-        const specBlob = new Blob([uploadedTestContent], { type: 'text/plain' })
-        formData.append('specFile', specBlob, uploadedTestPath)
+        const specBlob = new Blob([specContent], { type: 'text/plain' })
+        formData.append('specFile', specBlob, specFileName)
 
-        // Upload files (this will queue the run for execution)
         await api.runs.uploadFiles(response.runId, formData)
+      } else {
+        const emptyFormData = new FormData()
+        await api.runs.uploadFiles(response.runId, emptyFormData)
       }
 
       toast.success("Validacao iniciada com sucesso")
@@ -181,22 +119,17 @@ export function NewValidationPage() {
     }
   }
 
-  const handleTestFilePath = (filename: string, content?: string) => {
-    setTestFileMode("upload")
-    setUploadedTestPath(filename)
-    setUploadedTestContent(content || null)
-    setManualTestPath("")
+  const handleArtifactsLoaded = (data: ArtifactsLoadedData) => {
+    setPlanData(data.planData)
+    try {
+      setPlanJsonContent(JSON.stringify(data.planData))
+    } catch {
+      setPlanJsonContent(null)
+    }
+    setSpecContent(data.specContent)
+    setSpecFileName(data.specFileName)
+    setInputMode(data.inputMode)
     setError(null)
-  }
-
-  const handleManualPath = (path: string) => {
-      if (path) {
-        setTestFileMode("manual")
-        setManualTestPath(path)
-        setUploadedTestPath("")
-      } else {
-        setManualTestPath("")
-      }
   }
 
   return (
@@ -259,30 +192,15 @@ export function NewValidationPage() {
               <div className="space-y-4">
                 <div>
                   <Label className="text-sm font-medium uppercase tracking-wider">
-                    JSON Input
+                    Artifacts Input
                   </Label>
                 </div>
-                <FileDropZone
-                  accept=".json"
-                  label="Upload do JSON"
-                  placeholder="Arraste ou clique para selecionar o JSON"
-                  onFileContent={(content) => handleJsonContent(content)}
+                <ArtifactsInput
+                  projectId={selectedProjectId}
+                  onArtifactsLoaded={handleArtifactsLoaded}
                   onError={(message) => setError(message)}
                 />
               </div>
-            </Card>
-
-            <Card className="p-6 bg-card border-border space-y-4">
-              <div>
-                <Label className="text-sm font-medium uppercase tracking-wider">
-                  Teste
-                </Label>
-              </div>
-              <TestFileInput
-                onFilePath={handleTestFilePath}
-                onPathManual={handleManualPath}
-                onError={(message) => setError(message)}
-              />
             </Card>
           </div>
 

@@ -14,6 +14,14 @@ const upload = multer({
   },
 })
 
+router.get('/artifacts', (req, res, next) => {
+  controller.listArtifacts(req, res).catch(next)
+})
+
+router.get('/artifacts/:outputId', (req, res, next) => {
+  controller.getArtifactContents(req, res).catch(next)
+})
+
 router.get('/runs/:id/events', (req, res) => {
   const { id } = req.params
   console.log('[SSE] Client connected for run:', id)

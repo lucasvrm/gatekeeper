@@ -12,6 +12,8 @@ import type {
   Workspace,
   Project,
   WorkspaceConfig,
+  ArtifactFolder,
+  ArtifactContents,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -75,7 +77,10 @@ export const api = {
       return response.json()
     },
 
-    uploadFiles: async (id: string, formData: FormData): Promise<{ message: string; files: Array<{ type: string; path: string; size: number }>; runReset: boolean }> => {
+    uploadFiles: async (
+      id: string,
+      formData: FormData
+    ): Promise<{ message: string; files: Array<{ type: string; path: string; size: number }>; runReset: boolean; runQueued: boolean }> => {
       const response = await fetch(`${API_BASE}/runs/${id}/files`, {
         method: "PUT",
         body: formData,
@@ -302,6 +307,27 @@ export const api = {
         })
         if (!response.ok) throw new Error("Failed to delete test path convention")
       },
+    },
+  },
+
+  artifacts: {
+    list: async (projectId: string): Promise<ArtifactFolder[]> => {
+      const response = await fetch(`${API_BASE}/artifacts?projectId=${encodeURIComponent(projectId)}`)
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || "Failed to fetch artifacts")
+      }
+      return response.json()
+    },
+    getContents: async (projectId: string, outputId: string): Promise<ArtifactContents> => {
+      const response = await fetch(
+        `${API_BASE}/artifacts/${encodeURIComponent(outputId)}?projectId=${encodeURIComponent(projectId)}`
+      )
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || "Failed to fetch artifact contents")
+      }
+      return response.json()
     },
   },
 
