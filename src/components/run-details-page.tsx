@@ -237,20 +237,32 @@ export function RunDetailsPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4" data-testid="run-header">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate("/runs")}
+          data-testid="btn-back"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Voltar
         </Button>
-        <div>
+        <div className="flex-1">
           <p className="text-sm text-muted-foreground">
-            {primaryRun.projectPath} <span className="text-primary">/ {primaryRun.outputId}</span>
+            <span className="text-primary" data-testid="run-header-outputId">
+              {primaryRun.outputId}
+            </span>
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate("/runs/new")}
+          data-testid="btn-new-run"
+          className="bg-white border-gray-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+        >
+          New Run
+        </Button>
       </div>
 
       <div className={hasSplitView ? "grid grid-cols-2 gap-6" : ""}>
