@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { PathResolverService } from './PathResolverService'
 
 /**
  * Tests for PathResolverService refactor
@@ -8,27 +7,38 @@ import { PathResolverService } from './PathResolverService'
  * Mode: STRICT (all clauses must have @clause tags)
  */
 
-// Mock fs modules
-vi.mock('fs', () => ({
-  existsSync: vi.fn(),
-}))
+// Mock fs modules using Vitest recommended syntax
+vi.mock(import('fs'), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    existsSync: vi.fn(),
+  }
+})
 
-vi.mock('fs/promises', () => ({
-  mkdir: vi.fn().mockResolvedValue(undefined),
-  copyFile: vi.fn().mockResolvedValue(undefined),
-}))
+vi.mock(import('fs/promises'), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    copyFile: vi.fn().mockResolvedValue(undefined),
+  }
+})
 
-vi.mock('../db/client', () => ({
-  prisma: {
-    testPathConvention: {
-      findFirst: vi.fn(),
+vi.mock(import('../db/client'), async () => {
+  return {
+    prisma: {
+      testPathConvention: {
+        findFirst: vi.fn(),
+      },
+      validationRun: {
+        update: vi.fn(),
+      },
     },
-    validationRun: {
-      update: vi.fn(),
-    },
-  },
-}))
+  }
+})
 
+import { PathResolverService } from './PathResolverService'
 import { existsSync } from 'fs'
 import { mkdir, copyFile } from 'fs/promises'
 import { prisma } from '../db/client'
