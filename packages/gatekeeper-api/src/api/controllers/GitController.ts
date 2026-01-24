@@ -181,14 +181,41 @@ export class GitController {
       const result = await gitService.commit(message)
 
       if (runId !== undefined) {
-        await prisma.validationRun.update({
-          where: { id: runId },
-          data: {
-            commitHash: result.commitHash,
-            commitMessage: message,
-            committedAt: new Date(),
-          },
-        })
+        const committedAt = new Date()
+        try {
+          await prisma.$executeRaw`
+            UPDATE ValidationRun
+            SET commitHash = ${result.commitHash},
+                commitMessage = ${message},
+                committedAt = ${committedAt.toISOString()}
+            WHERE id = ${runId}
+          `
+        } catch (error: any) {
+          const messageText = error?.message || ''
+          const needsColumns =
+            messageText.includes('no such column') ||
+            messageText.includes('Unknown column') ||
+            messageText.includes('unknown column')
+
+          if (needsColumns) {
+            try {
+              await prisma.$executeRaw`ALTER TABLE ValidationRun ADD COLUMN commitHash TEXT`
+              await prisma.$executeRaw`ALTER TABLE ValidationRun ADD COLUMN commitMessage TEXT`
+              await prisma.$executeRaw`ALTER TABLE ValidationRun ADD COLUMN committedAt DATETIME`
+              await prisma.$executeRaw`
+                UPDATE ValidationRun
+                SET commitHash = ${result.commitHash},
+                    commitMessage = ${message},
+                    committedAt = ${committedAt.toISOString()}
+                WHERE id = ${runId}
+              `
+            } catch (columnError: any) {
+              console.error('Failed to update commit fields after adding columns:', columnError)
+            }
+          } else {
+            console.error('Failed to update run commit fields:', error)
+          }
+        }
       }
       res.json(result)
     } catch (error: any) {
