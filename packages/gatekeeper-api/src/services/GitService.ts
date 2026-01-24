@@ -82,7 +82,7 @@ export class GitService implements IGitService {
         return
       }
 
-      throw new Error([GitService] Worktree remove failed: )
+      throw new Error(`[GitService] Worktree remove failed: ${msg}`)
     }
   }
   async getDiffFiles(baseRef: string, targetRef: string): Promise<string[]> {
