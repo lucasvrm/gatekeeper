@@ -192,11 +192,13 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
           <TooltipTrigger asChild>
             <Button
               type="button"
+              variant="default"
+              size="sm"
               data-testid="btn-git-commit"
               onClick={handleButtonClick}
               aria-label="Commit validated changes to Git"
               disabled={loadingState !== 'idle'}
-              className="bg-orange-500 text-green-900 hover:bg-green-600 hover:text-orange-500 inline-flex items-center gap-2"
+              className="font-sans"
             >
               <GitCommit className="w-4 h-4" />
               {getLoadingText()}

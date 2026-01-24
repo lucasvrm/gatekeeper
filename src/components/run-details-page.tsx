@@ -256,22 +256,24 @@ export function RunDetailsPage() {
           </p>
         </div>
         {/* CL-GC-004: Git Commit button appears before New Run */}
-        {contractRun && executionRun && (
-          <GitCommitButton
-            contractRun={contractRun}
-            executionRun={executionRun}
-            outputId={primaryRun.outputId}
-          />
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate("/runs/new")}
-          data-testid="btn-new-run"
-          className="bg-white border-gray-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600"
-        >
-          New Run
-        </Button>
+        <div className="flex items-center gap-2">
+          {contractRun && executionRun && (
+            <GitCommitButton
+              contractRun={contractRun}
+              executionRun={executionRun}
+              outputId={primaryRun.outputId}
+            />
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/runs/new")}
+            data-testid="btn-new-run"
+            className="bg-white border-gray-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+          >
+            New Run
+          </Button>
+        </div>
       </div>
 
       <div className={hasSplitView ? "grid grid-cols-2 gap-6" : ""}>
