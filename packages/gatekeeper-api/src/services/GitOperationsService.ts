@@ -37,7 +37,10 @@ export class GitOperationsService {
         stdio: ['pipe', 'pipe', 'pipe'],
       }).trim()
     } catch (error: any) {
-      throw new Error(error.stderr?.toString() || error.message || 'Git command failed')
+      const stderr = error?.stderr?.toString?.().trim()
+      const stdout = error?.stdout?.toString?.().trim()
+      const detail = [stderr, stdout].filter(Boolean).join('\n')
+      throw new Error(detail || error.message || 'Git command failed')
     }
   }
 
@@ -144,6 +147,17 @@ export class GitOperationsService {
       // Check for common error scenarios
       if (errorMessage.includes('nothing to commit')) {
         throw { code: 'NO_CHANGES', message: 'No changes to commit' }
+      }
+      if (
+        errorMessage.includes('Author identity unknown') ||
+        errorMessage.includes('Please tell me who you are') ||
+        errorMessage.includes('user.name') ||
+        errorMessage.includes('user.email')
+      ) {
+        throw {
+          code: 'GIT_IDENTITY_MISSING',
+          message: 'Git user.name/email not configured. Set them in this repo or globally.',
+        }
       }
       if (errorMessage.includes('pre-commit')) {
         throw { code: 'COMMIT_FAILED', message: 'Pre-commit hook failed' }
