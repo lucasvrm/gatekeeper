@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import type { RunWithResults } from "@/lib/types"
 import { api } from "@/lib/api"
 import { StatusBadge } from "@/components/status-badge"
@@ -24,6 +24,7 @@ import {
   Upload,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { DiffViewerModal, DiffFile } from "@/components/diff-viewer-modal"
 
 interface RunPanelProps {
   run: RunWithResults
@@ -51,6 +52,9 @@ export function RunPanel({
   const [taskPromptOpen, setTaskPromptOpen] = useState(true)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [bypassLoading, setBypassLoading] = useState<string | null>(null)
+  const [showDiffModal, setShowDiffModal] = useState(false)
+  const [diffFiles, setDiffFiles] = useState<DiffFile[]>([])
+  const [diffInitialIndex, setDiffInitialIndex] = useState(0)
   const defaultTab = run.runType === 'CONTRACT' ? 'sanitization' : 'execution'
   const [activeTab, setActiveTab] = useState(defaultTab)
 
@@ -111,6 +115,59 @@ export function RunPanel({
     : run.gateResults.map((gate) => gate.gateNumber)
 
   const progressPercentage = calculateProgress()
+
+  const diffViolationsByValidator = useMemo(() => {
+    const map = new Map<string, string[]>()
+    run.validatorResults?.forEach((validator) => {
+      if (validator.validatorCode !== 'DIFF_SCOPE_ENFORCEMENT') return
+      if (!validator.details) return
+
+      let violations: string[] = []
+      if (typeof validator.details === 'string') {
+        try {
+          const parsed = JSON.parse(validator.details)
+          if (Array.isArray(parsed?.violations)) {
+            violations = parsed.violations.filter((item: unknown) => typeof item === 'string')
+          }
+        } catch {
+          const matches = validator.details.match(/-\\s+(.+)/g) ?? []
+          violations = matches.map((line) => line.replace(/^-\\s+/, '').trim()).filter(Boolean)
+        }
+      }
+
+      if (violations.length > 0) {
+        map.set(validator.validatorCode, violations)
+      }
+    })
+    return map
+  }, [run.validatorResults])
+
+  const handleOpenDiffModal = async (files: string[], initialIndex: number) => {
+    if (!run.projectId) {
+      toast.error('ProjectId missing for diff viewer')
+      return
+    }
+
+    try {
+      const results = await Promise.all(
+        files.map((filePath) =>
+          api.git.diff(run.projectId as string | undefined, filePath, run.baseRef, run.targetRef, run.projectPath)
+        )
+      )
+      const normalized: DiffFile[] = results.map((result) => ({
+        filePath: result.filePath,
+        status: result.status,
+        diff: result.diff,
+      }))
+      setDiffFiles(normalized)
+      setDiffInitialIndex(initialIndex)
+      setShowDiffModal(true)
+    } catch (error) {
+      console.error('Failed to load diff:', error)
+      toast.error('Failed to load diff')
+    } finally {
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -377,6 +434,38 @@ export function RunPanel({
                                   {validator.message}
                                 </p>
                               )}
+                              {validator.validatorCode === 'DIFF_SCOPE_ENFORCEMENT' &&
+                                validator.status === 'FAILED' &&
+                                diffViolationsByValidator.get(validator.validatorCode)?.length ? (
+                                  <ul data-testid="validator-failed-files" className="space-y-1 mt-2">
+                                    {diffViolationsByValidator.get(validator.validatorCode)?.map((file, index) => (
+                                      <li
+                                        key={file}
+                                        role="button"
+                                        tabIndex={0}
+                                        className="text-xs font-mono text-primary cursor-pointer"
+                                        onClick={(event) => {
+                                          event.stopPropagation()
+                                          handleOpenDiffModal(
+                                            diffViolationsByValidator.get(validator.validatorCode) ?? [],
+                                            index
+                                          )
+                                        }}
+                                        onKeyDown={(event) => {
+                                          if (event.key === 'Enter') {
+                                            event.stopPropagation()
+                                            handleOpenDiffModal(
+                                              diffViolationsByValidator.get(validator.validatorCode) ?? [],
+                                              index
+                                            )
+                                          }
+                                        }}
+                                      >
+                                        {file}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : null}
                               {validator.evidence && (
                                 <pre className="text-[10px] bg-muted p-2 rounded font-mono whitespace-pre-wrap overflow-x-auto mt-2 max-h-24 overflow-y-auto">
                                   {validator.evidence}
@@ -402,6 +491,13 @@ export function RunPanel({
           setShowUploadDialog(false)
           onUploadSuccess?.()
         }}
+      />
+
+      <DiffViewerModal
+        open={showDiffModal}
+        onOpenChange={setShowDiffModal}
+        files={diffFiles}
+        initialFileIndex={diffInitialIndex}
       />
     </div>
   )

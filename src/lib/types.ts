@@ -88,6 +88,9 @@ export interface Run {
   runType: 'CONTRACT' | 'EXECUTION'
   contractRunId?: string
   status: RunStatus
+  commitHash?: string | null
+  commitMessage?: string | null
+  committedAt?: string | null
   currentGate: number
   passed?: boolean
   failedAt?: number
@@ -290,6 +293,17 @@ export interface GitCommitResponse {
 export interface GitPushResponse {
   branch: string
   commitHash: string
+}
+
+export interface GitFetchStatusResponse {
+  fetchOutput: string
+  statusText: string
+}
+
+export interface GitDiffResponse {
+  filePath: string
+  status: "modified" | "added" | "deleted"
+  diff: string
 }
 
 export interface GitErrorResponse {

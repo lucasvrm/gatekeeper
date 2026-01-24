@@ -8,8 +8,10 @@ const gitController = new GitController()
 router.post('/git/status', (req, res) => gitController.getStatus(req, res))
 router.post('/git/add', (req, res) => gitController.add(req, res))
 router.post('/git/commit', (req, res) => gitController.commit(req, res))
+router.get('/git/diff', (req, res) => gitController.getDiff(req, res))
 router.post('/git/push', (req, res) => gitController.push(req, res))
 router.post('/git/pull', (req, res) => gitController.pull(req, res))
+router.post('/git/fetch-status', (req, res) => gitController.fetchStatus(req, res))
 router.get('/git/branch', (req, res) => gitController.getBranch(req, res))
 
 export { router as gitRoutes }

@@ -17,6 +17,8 @@ import type {
   GitStatusResponse,
   GitCommitResponse,
   GitPushResponse,
+  GitFetchStatusResponse,
+  GitDiffResponse,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -500,10 +502,11 @@ export const api = {
   },
 
   git: {
-    status: async (): Promise<GitStatusResponse> => {
+    status: async (projectId?: string, projectPath?: string): Promise<GitStatusResponse> => {
       const response = await fetch(`${API_BASE}/git/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, projectPath }),
       })
       if (!response.ok) {
         const error = await response.json().catch(() => null)
@@ -512,10 +515,11 @@ export const api = {
       return response.json()
     },
 
-    add: async (): Promise<{ success: boolean }> => {
+    add: async (projectId?: string, projectPath?: string): Promise<{ success: boolean }> => {
       const response = await fetch(`${API_BASE}/git/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, projectPath }),
       })
       if (!response.ok) {
         const error = await response.json().catch(() => null)
@@ -524,11 +528,16 @@ export const api = {
       return response.json()
     },
 
-    commit: async (message: string): Promise<GitCommitResponse> => {
+    commit: async (
+      projectId: string | undefined,
+      message: string,
+      runId?: string,
+      projectPath?: string
+    ): Promise<GitCommitResponse> => {
       const response = await fetch(`${API_BASE}/git/commit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ projectId, projectPath, message, runId }),
       })
       if (!response.ok) {
         const error = await response.json().catch(() => null)
@@ -538,10 +547,29 @@ export const api = {
       return response.json()
     },
 
-    push: async (): Promise<GitPushResponse> => {
+    diff: async (
+      projectId: string | undefined,
+      filePath: string,
+      baseRef: string,
+      targetRef: string,
+      projectPath?: string
+    ): Promise<GitDiffResponse> => {
+      const params = new URLSearchParams({ file: filePath, baseRef, targetRef })
+      if (projectId) params.append("projectId", projectId)
+      if (projectPath) params.append("projectPath", projectPath)
+      const response = await fetch(`${API_BASE}/git/diff?${params}`)
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to fetch diff")
+      }
+      return response.json()
+    },
+
+    push: async (projectId?: string, projectPath?: string): Promise<GitPushResponse> => {
       const response = await fetch(`${API_BASE}/git/push`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, projectPath }),
       })
       if (!response.ok) {
         const error = await response.json().catch(() => null)
@@ -551,14 +579,28 @@ export const api = {
       return response.json()
     },
 
-    pull: async (): Promise<{ success: boolean }> => {
+    pull: async (projectId?: string, projectPath?: string): Promise<{ success: boolean }> => {
       const response = await fetch(`${API_BASE}/git/pull`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, projectPath }),
       })
       if (!response.ok) {
         const error = await response.json().catch(() => null)
         throw new Error(error?.error?.message || "Failed to pull")
+      }
+      return response.json()
+    },
+
+    fetchStatus: async (projectId?: string, projectPath?: string): Promise<GitFetchStatusResponse> => {
+      const response = await fetch(`${API_BASE}/git/fetch-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, projectPath }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to fetch and check status")
       }
       return response.json()
     },

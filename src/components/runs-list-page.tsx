@@ -25,6 +25,12 @@ import { CaretLeft, CaretRight, Plus, FunnelSimple, Stop, Trash } from "@phospho
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -141,6 +147,12 @@ export function RunsListPage() {
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleString()
+  }
+
+  const truncateCommitMessage = (message: string | null | undefined, maxLength = 40) => {
+    if (!message) return "-"
+    if (message.length <= maxLength) return message
+    return `${message.slice(0, maxLength)}...`
   }
 
   const toggleSelection = (runId: string, checked: boolean) => {
@@ -330,6 +342,12 @@ export function RunsListPage() {
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
                     Projeto / Path
                   </TableHead>
+                  <TableHead
+                    data-testid="runs-table-commit-column"
+                    className="font-semibold text-xs uppercase tracking-wider"
+                  >
+                    Commit
+                  </TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
                     Criado Em
                   </TableHead>
@@ -383,6 +401,22 @@ export function RunsListPage() {
                         <span className="font-mono text-sm text-muted-foreground">
                           {run.projectPath}
                         </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {run.commitMessage && run.commitMessage.length > 40 ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>{truncateCommitMessage(run.commitMessage)}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{run.commitMessage}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <span>{truncateCommitMessage(run.commitMessage)}</span>
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-sm">

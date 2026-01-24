@@ -75,6 +75,9 @@ model ValidationRun {
   contractRunId   String?
   contractRun     ValidationRun?  @relation("ExecutionToContract", fields: [contractRunId], references: [id])
   contractJson    String?
+  commitHash      String?
+  commitMessage   String?
+  committedAt     DateTime?
   bypassedValidators String?
   executionRuns   ValidationRun[] @relation("ExecutionToContract")
   status          String   @default("PENDING")

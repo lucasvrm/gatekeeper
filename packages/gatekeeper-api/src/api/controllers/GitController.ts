@@ -1,12 +1,86 @@
 import { Request, Response } from 'express'
+import { existsSync } from 'node:fs'
+import { join } from 'path'
+import { prisma } from '../../db/client.js'
 import { GitOperationsService } from '../../services/GitOperationsService.js'
 
 export class GitController {
-  private gitService: GitOperationsService
+  private async resolveGitService(req: Request, res: Response): Promise<GitOperationsService | null> {
+    const projectId = req.body?.projectId ?? req.query?.projectId
+    const projectPath = req.body?.projectPath ?? req.query?.projectPath
+    if ((!projectId || typeof projectId !== 'string') && (!projectPath || typeof projectPath !== 'string')) {
+      res.status(400).json({
+        error: {
+          code: 'PROJECT_ID_REQUIRED',
+          message: 'projectId or projectPath is required for git operations',
+        },
+      })
+      return null
+    }
 
-  constructor() {
-    // Initialize with current working directory
-    this.gitService = new GitOperationsService(process.cwd())
+    if (!projectId || typeof projectId !== 'string') {
+      const gitPath = join(projectPath, '.git')
+      if (!existsSync(gitPath)) {
+        res.status(400).json({
+          error: {
+            code: 'GIT_REPO_NOT_FOUND',
+            message: 'No git repository found at project path',
+          },
+        })
+        return null
+      }
+
+      return new GitOperationsService(projectPath)
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { workspace: true },
+    })
+
+    if (!project) {
+      res.status(404).json({
+        error: {
+          code: 'PROJECT_NOT_FOUND',
+          message: 'Project not found',
+        },
+      })
+      return null
+    }
+
+    if (!project.isActive) {
+      res.status(400).json({
+        error: {
+          code: 'PROJECT_INACTIVE',
+          message: 'Project is not active',
+        },
+      })
+      return null
+    }
+
+    const projectRoot = project.workspace?.rootPath
+    if (!projectRoot) {
+      res.status(400).json({
+        error: {
+          code: 'PROJECT_ROOT_MISSING',
+          message: 'Project root path is not configured',
+        },
+      })
+      return null
+    }
+
+    const gitPath = join(projectRoot, '.git')
+    if (!existsSync(gitPath)) {
+      res.status(400).json({
+        error: {
+          code: 'GIT_REPO_NOT_FOUND',
+          message: 'No git repository found at project root',
+        },
+      })
+      return null
+    }
+
+    return new GitOperationsService(projectRoot)
   }
 
   /**
@@ -15,7 +89,9 @@ export class GitController {
    */
   async getStatus(req: Request, res: Response): Promise<void> {
     try {
-      const status = await this.gitService.getStatus()
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      const status = await gitService.getStatus()
       res.json(status)
     } catch (error: any) {
       console.error('Git status error:', error)
@@ -34,7 +110,9 @@ export class GitController {
    */
   async add(req: Request, res: Response): Promise<void> {
     try {
-      await this.gitService.add()
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      await gitService.add()
       res.json({ success: true })
     } catch (error: any) {
       console.error('Git add error:', error)
@@ -53,7 +131,7 @@ export class GitController {
    */
   async commit(req: Request, res: Response): Promise<void> {
     try {
-      const { message } = req.body
+      const { message, runId } = req.body
 
       if (!message || typeof message !== 'string') {
         res.status(400).json({
@@ -75,7 +153,43 @@ export class GitController {
         return
       }
 
-      const result = await this.gitService.commit(message)
+      if (runId !== undefined) {
+        if (typeof runId !== 'string' || !runId.trim()) {
+          res.status(404).json({
+            error: {
+              code: 'RUN_NOT_FOUND',
+              message: 'Run not found',
+            },
+          })
+          return
+        }
+
+        const run = await prisma.validationRun.findUnique({ where: { id: runId } })
+        if (!run) {
+          res.status(404).json({
+            error: {
+              code: 'RUN_NOT_FOUND',
+              message: 'Run not found',
+            },
+          })
+          return
+        }
+      }
+
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      const result = await gitService.commit(message)
+
+      if (runId !== undefined) {
+        await prisma.validationRun.update({
+          where: { id: runId },
+          data: {
+            commitHash: result.commitHash,
+            commitMessage: message,
+            committedAt: new Date(),
+          },
+        })
+      }
       res.json(result)
     } catch (error: any) {
       console.error('Git commit error:', error)
@@ -99,7 +213,9 @@ export class GitController {
    */
   async push(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.gitService.push()
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      const result = await gitService.push()
       res.json(result)
     } catch (error: any) {
       console.error('Git push error:', error)
@@ -124,7 +240,9 @@ export class GitController {
    */
   async pull(req: Request, res: Response): Promise<void> {
     try {
-      await this.gitService.pull()
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      await gitService.pull()
       res.json({ success: true })
     } catch (error: any) {
       console.error('Git pull error:', error)
@@ -143,7 +261,9 @@ export class GitController {
    */
   async getBranch(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.gitService.getBranchInfo()
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      const result = await gitService.getBranchInfo()
       res.json(result)
     } catch (error: any) {
       console.error('Git branch error:', error)
@@ -151,6 +271,80 @@ export class GitController {
         error: {
           code: 'BRANCH_CHECK_FAILED',
           message: error.message || 'Failed to get branch info',
+        },
+      })
+    }
+  }
+
+  /**
+   * GET /api/git/diff
+   * Get diff for a file between base and target refs
+   */
+  async getDiff(req: Request, res: Response): Promise<void> {
+    try {
+      const { file, baseRef, targetRef } = req.query
+
+      if (!file || typeof file !== 'string') {
+        res.status(400).json({
+          error: {
+            code: 'FILE_REQUIRED',
+            message: 'file is required',
+          },
+        })
+        return
+      }
+
+      if (!baseRef || typeof baseRef !== 'string') {
+        res.status(400).json({
+          error: {
+            code: 'BASE_REF_REQUIRED',
+            message: 'baseRef is required',
+          },
+        })
+        return
+      }
+
+      if (!targetRef || typeof targetRef !== 'string') {
+        res.status(400).json({
+          error: {
+            code: 'TARGET_REF_REQUIRED',
+            message: 'targetRef is required',
+          },
+        })
+        return
+      }
+
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      const result = await gitService.getFileDiff(file, baseRef, targetRef)
+      res.json(result)
+    } catch (error: any) {
+      console.error('Git diff error:', error)
+      res.status(500).json({
+        error: {
+          code: 'DIFF_FAILED',
+          message: error.message || 'Failed to get diff',
+        },
+      })
+    }
+  }
+
+  /**
+   * POST /api/git/fetch-status
+   * Run git fetch and return git status output
+   */
+  async fetchStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      const result = await gitService.fetchStatus()
+      res.json(result)
+    } catch (error: any) {
+      console.error('Git fetch/status error:', error)
+      res.status(500).json({
+        error: {
+          code: 'FETCH_STATUS_FAILED',
+          message: error.message || 'Failed to fetch and check status',
         },
       })
     }

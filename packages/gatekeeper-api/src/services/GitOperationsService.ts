@@ -14,6 +14,12 @@ export interface GitCommitResult {
   message: string
 }
 
+export interface GitDiffResult {
+  filePath: string
+  status: 'modified' | 'added' | 'deleted'
+  diff: string
+}
+
 export interface GitPushResult {
   branch: string
   commitHash: string
@@ -42,6 +48,10 @@ export class GitOperationsService {
       const detail = [stderr, stdout].filter(Boolean).join('\n')
       throw new Error(detail || error.message || 'Git command failed')
     }
+  }
+
+  private escapePath(filePath: string): string {
+    return filePath.replace(/"/g, '\\"')
   }
 
   /**
@@ -88,6 +98,32 @@ export class GitOperationsService {
       return this.execGit('diff --stat')
     } catch {
       return 'No changes'
+    }
+  }
+
+  /**
+   * Fetch latest refs from remote
+   */
+  fetch(): string {
+    return this.execGit('fetch')
+  }
+
+  /**
+   * Get human-readable git status
+   */
+  getStatusText(): string {
+    return this.execGit('status')
+  }
+
+  /**
+   * Fetch then return status text
+   */
+  fetchStatus(): { fetchOutput: string; statusText: string } {
+    const fetchOutput = this.fetch()
+    const statusText = this.getStatusText()
+    return {
+      fetchOutput,
+      statusText,
     }
   }
 
@@ -217,6 +253,27 @@ export class GitOperationsService {
     return {
       branch,
       isProtected,
+    }
+  }
+
+  async getFileDiff(filePath: string, baseRef: string, targetRef: string): Promise<GitDiffResult> {
+    const safePath = this.escapePath(filePath)
+    const statusOutput = this.execGit(`diff --name-status ${baseRef}...${targetRef} -- "${safePath}"`)
+    const statusToken = statusOutput.split('\t')[0]?.trim()
+
+    let status: GitDiffResult['status'] = 'modified'
+    if (statusToken.startsWith('A')) {
+      status = 'added'
+    } else if (statusToken.startsWith('D')) {
+      status = 'deleted'
+    }
+
+    const diff = this.execGit(`diff ${baseRef}...${targetRef} -- "${safePath}"`)
+
+    return {
+      filePath,
+      status,
+      diff,
     }
   }
 }
