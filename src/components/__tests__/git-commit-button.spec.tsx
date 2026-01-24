@@ -210,13 +210,16 @@ function GitCommitButton({
   }
 
   const handleCommit = async () => {
+    let currentStep: 'staging' | 'committing' = 'staging'
     try {
       // CL-GC-021: Staging state
       setLoadingState("staging")
+      currentStep = 'staging'
       await onGitAdd()
 
       // CL-GC-022: Committing state
       setLoadingState("committing")
+      currentStep = 'committing'
       const result = await onGitCommit(commitMessage)
       setCommitHash(result.commitHash)
 
@@ -231,7 +234,7 @@ function GitCommitButton({
       }
     } catch (error) {
       const err = error as { code?: string; message?: string }
-      if (loadingState === "staging") {
+      if (currentStep === "staging") {
         // CL-GC-029: Add failure
         toast.error(`Failed to stage changes: ${err.message}`)
       } else {

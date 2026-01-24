@@ -273,3 +273,28 @@ export interface CreateRunResponse {
   status: RunStatus
   createdAt: string
 }
+
+export interface GitStatusResponse {
+  hasChanges: boolean
+  hasConflicts: boolean
+  branch: string
+  isProtected: boolean
+  diffStat: string
+}
+
+export interface GitCommitResponse {
+  commitHash: string
+  message: string
+}
+
+export interface GitPushResponse {
+  branch: string
+  commitHash: string
+}
+
+export interface GitErrorResponse {
+  error: {
+    code: 'NO_CHANGES' | 'HAS_CONFLICTS' | 'REMOTE_AHEAD' | 'PERMISSION_DENIED' | 'COMMIT_FAILED' | 'PUSH_FAILED'
+    message: string
+  }
+}

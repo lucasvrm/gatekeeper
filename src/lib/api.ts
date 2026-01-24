@@ -14,6 +14,9 @@ import type {
   WorkspaceConfig,
   ArtifactFolder,
   ArtifactContents,
+  GitStatusResponse,
+  GitCommitResponse,
+  GitPushResponse,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -493,6 +496,80 @@ export const api = {
     delete: async (id: string): Promise<void> => {
       const response = await fetch(`${API_BASE}/projects/${id}`, { method: "DELETE" })
       if (!response.ok) throw new Error("Failed to delete project")
+    },
+  },
+
+  git: {
+    status: async (): Promise<GitStatusResponse> => {
+      const response = await fetch(`${API_BASE}/git/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to check git status")
+      }
+      return response.json()
+    },
+
+    add: async (): Promise<{ success: boolean }> => {
+      const response = await fetch(`${API_BASE}/git/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to stage changes")
+      }
+      return response.json()
+    },
+
+    commit: async (message: string): Promise<GitCommitResponse> => {
+      const response = await fetch(`${API_BASE}/git/commit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        const errorData = { message: error?.error?.message || "Failed to commit", code: error?.error?.code }
+        throw errorData
+      }
+      return response.json()
+    },
+
+    push: async (): Promise<GitPushResponse> => {
+      const response = await fetch(`${API_BASE}/git/push`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        const errorData = { message: error?.error?.message || "Failed to push", code: error?.error?.code }
+        throw errorData
+      }
+      return response.json()
+    },
+
+    pull: async (): Promise<{ success: boolean }> => {
+      const response = await fetch(`${API_BASE}/git/pull`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to pull")
+      }
+      return response.json()
+    },
+
+    branch: async (): Promise<{ branch: string; isProtected: boolean }> => {
+      const response = await fetch(`${API_BASE}/git/branch`)
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to get branch info")
+      }
+      return response.json()
     },
   },
 

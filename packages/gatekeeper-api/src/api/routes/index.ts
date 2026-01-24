@@ -5,6 +5,7 @@ import { validationRoutes } from './validation.routes.js'
 import { validatorsRoutes } from './validators.routes.js'
 import { workspaceRoutes } from './workspace.routes.js'
 import { projectRoutes } from './project.routes.js'
+import { gitRoutes } from './git.routes.js'
 
 const router = Router()
 
@@ -14,5 +15,6 @@ router.use('/', validationRoutes)
 router.use('/', validatorsRoutes)
 router.use('/', workspaceRoutes)
 router.use('/', projectRoutes)
+router.use('/', gitRoutes)
 
 export default router

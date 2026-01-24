@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { toast } from "sonner"
+import { GitCommitButton } from "@/components/git-commit-button"
 
 export function RunDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -254,6 +255,14 @@ export function RunDetailsPage() {
             </span>
           </p>
         </div>
+        {/* CL-GC-004: Git Commit button appears before New Run */}
+        {contractRun && executionRun && (
+          <GitCommitButton
+            contractRun={contractRun}
+            executionRun={executionRun}
+            outputId={primaryRun.outputId}
+          />
+        )}
         <Button
           variant="outline"
           size="sm"
