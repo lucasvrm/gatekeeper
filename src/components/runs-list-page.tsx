@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type MouseEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "@/lib/api"
 import type { Run, RunStatus, Workspace, Project } from "@/lib/types"
@@ -40,6 +40,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export function RunsListPage() {
   const navigate = useNavigate()
@@ -55,6 +62,8 @@ export function RunsListPage() {
   const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set())
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+  const [commitModalOpen, setCommitModalOpen] = useState(false)
+  const [selectedCommit, setSelectedCommit] = useState<Run | null>(null)
   const limit = 20
 
   const loadRuns = async () => {
@@ -211,6 +220,20 @@ export function RunsListPage() {
       toast.error("Failed to delete selected runs")
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  const handleCommitClick = (run: Run, event: MouseEvent<HTMLTableCellElement>) => {
+    event.stopPropagation()
+    if (!run.commitMessage) return
+    setSelectedCommit(run)
+    setCommitModalOpen(true)
+  }
+
+  const handleCommitModalChange = (open: boolean) => {
+    setCommitModalOpen(open)
+    if (!open) {
+      setSelectedCommit(null)
     }
   }
 
@@ -403,12 +426,20 @@ export function RunsListPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
+                    <TableCell
+                      data-testid={`commit-cell-${run.id}`}
+                      onClick={(event) => handleCommitClick(run, event)}
+                      className={`font-mono text-xs text-muted-foreground ${
+                        run.commitMessage ? "cursor-pointer" : ""
+                      }`}
+                    >
                       {run.commitMessage && run.commitMessage.length > 40 ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span>{truncateCommitMessage(run.commitMessage)}</span>
+                              <span className="hover:underline">
+                                {truncateCommitMessage(run.commitMessage)}
+                              </span>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>{run.commitMessage}</p>
@@ -416,7 +447,9 @@ export function RunsListPage() {
                           </Tooltip>
                         </TooltipProvider>
                       ) : (
-                        <span>{truncateCommitMessage(run.commitMessage)}</span>
+                        <span className={run.commitMessage ? "hover:underline" : ""}>
+                          {truncateCommitMessage(run.commitMessage)}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-sm">
@@ -479,6 +512,51 @@ export function RunsListPage() {
           </>
         )}
       </Card>
+
+      <Dialog open={commitModalOpen} onOpenChange={handleCommitModalChange}>
+        <DialogContent
+          data-testid="commit-info-modal"
+          className="sm:max-w-lg"
+        >
+          <DialogHeader>
+            <DialogTitle>Informações do Commit</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2 text-sm">
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Hash</div>
+              <div data-testid="commit-info-hash" className="font-mono">
+                {selectedCommit?.commitHash ?? "-"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Mensagem</div>
+              <div data-testid="commit-info-message">
+                {selectedCommit?.commitMessage ?? "-"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Data</div>
+              <div data-testid="commit-info-date" className="font-mono">
+                {selectedCommit?.committedAt
+                  ? new Date(selectedCommit.committedAt).toLocaleString()
+                  : "-"}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleCommitModalChange(false)}
+              data-testid="btn-close-modal"
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
         <AlertDialogContent>

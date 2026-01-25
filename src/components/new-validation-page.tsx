@@ -202,6 +202,14 @@ export function NewValidationPage() {
                 />
               </div>
             </Card>
+            <Button
+              type="submit"
+              disabled={!canSubmit || isSubmitting}
+              data-testid="btn-run-gates-top"
+              className="w-full"
+            >
+              {isSubmitting ? "Iniciando..." : "Run Gates 0 e 1"}
+            </Button>
           </div>
 
           <div className="space-y-6">
