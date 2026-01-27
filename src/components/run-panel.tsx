@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import type { RunWithResults } from "@/lib/types"
+import type { RunWithResults, ValidatorContext } from "@/lib/types"
 import { api } from "@/lib/api"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,7 @@ import {
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { DiffViewerModal, DiffFile } from "@/components/diff-viewer-modal"
+import { ValidatorContextPanel } from "@/components/validator-context-panel"
 
 interface RunPanelProps {
   run: RunWithResults
@@ -393,6 +394,16 @@ export function RunPanel({
                         validator.isHardBlock &&
                         !validator.bypassed
                       const isBypassInProgress = bypassLoading === validator.validatorCode
+                      let parsedContext: ValidatorContext | null = null
+
+                      if (validator.details && typeof validator.details === "string") {
+                        try {
+                          const parsed = JSON.parse(validator.details)
+                          if (parsed && typeof parsed === "object" && "context" in parsed) {
+                            parsedContext = (parsed as { context?: ValidatorContext }).context ?? null
+                          }
+                        } catch {}
+                      }
 
                       return (
                         <div
@@ -433,6 +444,9 @@ export function RunPanel({
                                 <p className="text-xs text-muted-foreground mt-1">
                                   {validator.message}
                                 </p>
+                              )}
+                              {parsedContext && (
+                                <ValidatorContextPanel context={parsedContext} />
                               )}
                               {validator.validatorCode === 'DIFF_SCOPE_ENFORCEMENT' &&
                                 validator.status === 'FAILED' &&

@@ -34,6 +34,16 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Existing test files were modified: ${modifiedTests.length} file(s)`,
+        context: {
+          inputs: [{ label: 'TestFile', value: allowedTestAbsolute ?? ctx.testFilePath ?? 'none' }],
+          analyzed: [{ label: 'Diff Files', items: diffFiles }],
+          findings: modifiedTests.map((file) => ({
+            type: 'fail' as const,
+            message: `Modified test file: ${file}`,
+            location: file,
+          })),
+          reasoning: 'Existing test files should remain read-only during execution.',
+        },
         details: {
           modifiedTests,
           allowedTest: allowedTestAbsolute ?? ctx.testFilePath,
@@ -46,6 +56,12 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
       passed: true,
       status: 'PASSED',
       message: 'No existing test files were modified',
+      context: {
+        inputs: [{ label: 'TestFile', value: allowedTestAbsolute ?? ctx.testFilePath ?? 'none' }],
+        analyzed: [{ label: 'Diff Files', items: diffFiles }],
+        findings: [{ type: 'pass', message: 'No modified test files detected' }],
+        reasoning: 'Diff does not include modifications to existing test files.',
+      },
       metrics: {
         totalDiffFiles: diffFiles.length,
         modifiedTestFiles: 0,

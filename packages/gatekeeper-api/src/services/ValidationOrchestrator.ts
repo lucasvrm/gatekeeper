@@ -156,6 +156,11 @@ export class ValidationOrchestrator {
 
         const result = await validator.execute(ctx)
         const duration = Date.now() - startTime
+        const mergedDetails = result.details ? { ...result.details } : {}
+        if (result.context) {
+          mergedDetails.context = result.context
+        }
+        const detailsJson = Object.keys(mergedDetails).length > 0 ? JSON.stringify(mergedDetails) : null
 
         await this.validatorRepository.create({
           run: { connect: { id: runId } },
@@ -167,7 +172,7 @@ export class ValidationOrchestrator {
           passed: result.passed,
           isHardBlock: validator.isHardBlock,
           message: result.message,
-          details: result.details ? JSON.stringify(result.details) : null,
+          details: detailsJson,
           evidence: result.evidence || null,
           metrics: result.metrics ? JSON.stringify(result.metrics) : null,
           startedAt: new Date(startTime),

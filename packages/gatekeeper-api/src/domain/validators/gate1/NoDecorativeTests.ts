@@ -14,6 +14,12 @@ export const NoDecorativeTestsValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'No test file path provided',
+        context: {
+          inputs: [],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Test file path not provided' }],
+          reasoning: 'Cannot analyze decorative tests without a test file path.',
+        },
       }
     }
 
@@ -21,6 +27,7 @@ export const NoDecorativeTestsValidator: ValidatorDefinition = {
       const content = await ctx.services.git.readFile(ctx.testFilePath)
       
       const issues: string[] = []
+      const testNames = Array.from(content.matchAll(/it\s*\(\s*['"]([^'"]+)['"]/g)).map((match) => match[1])
       
       const emptyTestRegex = /it\s*\(\s*['"][^'"]*['"]\s*,\s*(?:async\s*)?\(\s*\)\s*=>\s*\{\s*\}\s*\)/g
       const emptyTests = content.match(emptyTestRegex)
@@ -62,6 +69,12 @@ export const NoDecorativeTestsValidator: ValidatorDefinition = {
           passed: false,
           status: 'FAILED',
           message: `Found ${issues.length} decorative test issue(s)`,
+          context: {
+            inputs: [],
+            analyzed: [{ label: 'Test Blocks', items: testNames }],
+            findings: issues.map((issue) => ({ type: 'fail' as const, message: issue })),
+            reasoning: 'Detected tests without meaningful assertions or setup.',
+          },
           evidence: `Decorative test problems:\n${issues.map(i => `  - ${i}`).join('\n')}`,
           details: {
             issues,
@@ -74,6 +87,12 @@ export const NoDecorativeTestsValidator: ValidatorDefinition = {
         passed: true,
         status: 'PASSED',
         message: 'All tests have substantial assertions',
+        context: {
+          inputs: [],
+          analyzed: [{ label: 'Test Blocks', items: testNames }],
+          findings: [{ type: 'pass', message: 'All tests contain substantive assertions' }],
+          reasoning: 'All test blocks include meaningful assertions or setup.',
+        },
         metrics: {
           totalTestBlocks: testBlocks.length,
         },
@@ -83,6 +102,12 @@ export const NoDecorativeTestsValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Failed to analyze test file: ${error instanceof Error ? error.message : String(error)}`,
+        context: {
+          inputs: [],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Failed to read test file for decorative analysis' }],
+          reasoning: 'An error occurred while reading the test file.',
+        },
       }
     }
   },

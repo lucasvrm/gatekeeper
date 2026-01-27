@@ -37,6 +37,12 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'No test file path provided',
+        context: {
+          inputs: [{ label: 'TestFile', value: 'none' }],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Test file path not provided' }],
+          reasoning: 'Cannot validate imports without a test file path.',
+        },
       }
     }
 
@@ -144,6 +150,15 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
           passed: false,
           status: 'FAILED',
           message: `Found ${invalidImports.length} invalid import(s)`,
+          context: {
+            inputs: [{ label: 'TestFile', value: ctx.testFilePath }],
+            analyzed: [{ label: 'Import Statements', items: imports }],
+            findings: invalidImports.map((entry) => ({
+              type: 'fail' as const,
+              message: `${entry.path}: ${entry.reason}`,
+            })),
+            reasoning: 'One or more import statements could not be resolved.',
+          },
           evidence: `Invalid imports:\n${invalidImports.map(i => `  - ${i.path}: ${i.reason}`).join('\n')}`,
           details: {
             invalidImports,
@@ -156,6 +171,15 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
         passed: true,
         status: 'PASSED',
         message: 'All imports are valid and exist',
+        context: {
+          inputs: [{ label: 'TestFile', value: ctx.testFilePath }],
+          analyzed: [{ label: 'Import Statements', items: imports }],
+          findings: imports.map((path) => ({
+            type: 'pass' as const,
+            message: `Import "${path}" resolves`,
+          })),
+          reasoning: 'All import statements resolve to existing modules or dependencies.',
+        },
         metrics: {
           totalImports: imports.length,
           validImports: imports.length,
@@ -166,6 +190,12 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Failed to check imports: ${error instanceof Error ? error.message : String(error)}`,
+        context: {
+          inputs: [{ label: 'TestFile', value: ctx.testFilePath }],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Import analysis failed' }],
+          reasoning: 'An error occurred while resolving imports.',
+        },
       }
     }
   },

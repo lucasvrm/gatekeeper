@@ -14,6 +14,12 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'No test file path provided',
+        context: {
+          inputs: [],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Test file path not provided' }],
+          reasoning: 'Cannot evaluate happy/sad path coverage without a test file path.',
+        },
       }
     }
 
@@ -22,6 +28,7 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
       
       const happyPathRegex = /it\s*\(\s*['"].*?(success|should|when.*valid|passes)/i
       const sadPathRegex = /it\s*\(\s*['"].*?(error|fail|throws|invalid|when.*not)/i
+      const testNames = Array.from(content.matchAll(/it\s*\(\s*['"]([^'"]+)['"]/g)).map((match) => match[1])
       
       const hasHappyPath = happyPathRegex.test(content)
       const hasSadPath = sadPathRegex.test(content)
@@ -35,6 +42,12 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
           passed: false,
           status: 'FAILED',
           message: `Test missing coverage: ${missing.join(', ')}`,
+          context: {
+            inputs: [],
+            analyzed: [{ label: 'Test Names', items: testNames }],
+            findings: missing.map((item) => ({ type: 'fail' as const, message: `Missing ${item}` })),
+            reasoning: 'Test suite does not include both happy and sad path scenarios.',
+          },
           evidence: `Missing test scenarios:\n${missing.map(m => `  - ${m}`).join('\n')}`,
           details: {
             hasHappyPath,
@@ -48,6 +61,15 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
         passed: true,
         status: 'PASSED',
         message: 'Test covers both happy and sad paths',
+        context: {
+          inputs: [],
+          analyzed: [{ label: 'Test Names', items: testNames }],
+          findings: [
+            { type: 'pass', message: 'Happy path coverage detected' },
+            { type: 'pass', message: 'Sad path coverage detected' },
+          ],
+          reasoning: 'Test file includes both success and error scenarios.',
+        },
         metrics: {
           happyPathTests: (content.match(happyPathRegex) || []).length,
           sadPathTests: (content.match(sadPathRegex) || []).length,
@@ -58,6 +80,12 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Failed to read test file: ${error instanceof Error ? error.message : String(error)}`,
+        context: {
+          inputs: [],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Unable to read test file for coverage analysis' }],
+          reasoning: 'An error occurred while loading the test file for analysis.',
+        },
       }
     }
   },

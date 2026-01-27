@@ -15,10 +15,17 @@ export const ManifestFileLockValidator: ValidatorDefinition = {
         status: 'FAILED',
         message: 'No manifest provided',
         evidence: 'Manifest is required for validation',
+        context: {
+          inputs: [{ label: 'Manifest', value: 'none' }],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Manifest not provided' }],
+          reasoning: 'Manifest is required to validate scope and file integrity.',
+        },
       }
     }
 
     const issues: string[] = []
+    const manifestFiles = ctx.manifest.files?.map((file) => file.path) ?? []
 
     if (!ctx.manifest.files || !Array.isArray(ctx.manifest.files)) {
       issues.push('Manifest.files must be an array')
@@ -67,6 +74,12 @@ export const ManifestFileLockValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Manifest has ${issues.length} integrity issue(s)`,
+        context: {
+          inputs: [{ label: 'Manifest', value: ctx.manifest }],
+          analyzed: [{ label: 'Files', items: [...manifestFiles, ctx.manifest.testFile] }],
+          findings: issues.map((issue) => ({ type: 'fail' as const, message: issue })),
+          reasoning: 'Manifest contains structural or value issues that must be fixed.',
+        },
         evidence: `Manifest problems:\n${issues.map(i => `  - ${i}`).join('\n')}`,
         details: {
           issues,
@@ -79,6 +92,12 @@ export const ManifestFileLockValidator: ValidatorDefinition = {
       passed: true,
       status: 'PASSED',
       message: 'Manifest structure is valid',
+      context: {
+        inputs: [{ label: 'Manifest', value: ctx.manifest }],
+        analyzed: [{ label: 'Files', items: [...manifestFiles, ctx.manifest.testFile] }],
+        findings: [{ type: 'pass', message: 'Manifest structure is valid' }],
+        reasoning: 'Manifest files and testFile paths are valid and explicit.',
+      },
       metrics: {
         fileCount: ctx.manifest.files.length,
         createCount: ctx.manifest.files.filter(f => f.action === 'CREATE').length,

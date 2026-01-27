@@ -14,6 +14,16 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'No manifest provided',
+        context: {
+          inputs: [
+            { label: 'Manifest', value: 'none' },
+            { label: 'BaseRef', value: ctx.baseRef },
+            { label: 'TargetRef', value: ctx.targetRef },
+          ],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Manifest not provided' }],
+          reasoning: 'Diff scope cannot be validated without a manifest.',
+        },
       }
     }
 
@@ -33,6 +43,20 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Diff contains files not in manifest: ${violations.length} file(s)`,
+        context: {
+          inputs: [
+            { label: 'Manifest', value: ctx.manifest },
+            { label: 'BaseRef', value: ctx.baseRef },
+            { label: 'TargetRef', value: ctx.targetRef },
+          ],
+          analyzed: [{ label: 'Diff Files', items: diffFiles }],
+          findings: violations.map((file) => ({
+            type: 'fail' as const,
+            message: `${file} not declared in manifest`,
+            location: file,
+          })),
+          reasoning: 'Diff contains files outside the manifest scope.',
+        },
         details: {
           violations,
           violationCount: violations.length,
@@ -47,6 +71,16 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
       passed: true,
       status: 'PASSED',
       message: 'All diff files are declared in manifest',
+      context: {
+        inputs: [
+          { label: 'Manifest', value: ctx.manifest },
+          { label: 'BaseRef', value: ctx.baseRef },
+          { label: 'TargetRef', value: ctx.targetRef },
+        ],
+        analyzed: [{ label: 'Diff Files', items: diffFiles }],
+        findings: [{ type: 'pass', message: 'All diff files declared in manifest' }],
+        reasoning: 'Every file in the diff is listed in the manifest.',
+      },
       metrics: {
         diffFileCount: diffFiles.length,
         manifestFileCount: ctx.manifest.files.length,

@@ -15,6 +15,15 @@ export const PathConventionValidator: ValidatorDefinition = {
         passed: true,
         status: 'SKIPPED',
         message: 'No manifest provided',
+        context: {
+          inputs: [
+            { label: 'TestFilePath', value: ctx.testFilePath ?? 'none' },
+            { label: 'Conventions', value: [] },
+          ],
+          analyzed: [],
+          findings: [{ type: 'info', message: 'Skipped: manifest not provided' }],
+          reasoning: 'Path conventions require a manifest to infer test type.',
+        },
       }
     }
 
@@ -23,6 +32,15 @@ export const PathConventionValidator: ValidatorDefinition = {
         passed: true,
         status: 'SKIPPED',
         message: 'No test file path provided',
+        context: {
+          inputs: [
+            { label: 'TestFilePath', value: 'none' },
+            { label: 'Conventions', value: [] },
+          ],
+          analyzed: [],
+          findings: [{ type: 'info', message: 'Skipped: test file path not provided' }],
+          reasoning: 'Path conventions cannot be checked without a test file path.',
+        },
       }
     }
 
@@ -39,6 +57,15 @@ export const PathConventionValidator: ValidatorDefinition = {
         status: 'WARNING',
         message: 'Could not detect test type from manifest files',
         evidence: 'Unable to determine test type. Skipping convention check.',
+        context: {
+          inputs: [
+            { label: 'TestFilePath', value: ctx.testFilePath },
+            { label: 'Conventions', value: [] },
+          ],
+          analyzed: [{ label: 'Path vs Patterns', items: ['No test type detected'] }],
+          findings: [{ type: 'warning', message: 'Test type could not be detected from manifest' }],
+          reasoning: 'Unable to infer test type from manifest files, so convention check was skipped.',
+        },
       }
     }
 
@@ -58,6 +85,15 @@ export const PathConventionValidator: ValidatorDefinition = {
         evidence: `Test type "${detectedTestType}" detected but no convention configured.`,
         metrics: {
           detectedType: detectedTestType,
+        },
+        context: {
+          inputs: [
+            { label: 'TestFilePath', value: ctx.testFilePath },
+            { label: 'Conventions', value: [] },
+          ],
+          analyzed: [{ label: 'Path vs Patterns', items: [`No convention for ${detectedTestType}`] }],
+          findings: [{ type: 'warning', message: `No active convention for test type "${detectedTestType}"` }],
+          reasoning: 'Convention configuration is missing for the detected test type.',
         },
       }
     }
@@ -85,6 +121,15 @@ export const PathConventionValidator: ValidatorDefinition = {
           detectedType: detectedTestType,
           actualPath: relativePath,
         },
+        context: {
+          inputs: [
+            { label: 'TestFilePath', value: ctx.testFilePath },
+            { label: 'Conventions', value: [convention.pathPattern] },
+          ],
+          analyzed: [{ label: 'Path vs Patterns', items: [`${relativePath} matches ${conventionDir}`] }],
+          findings: [{ type: 'pass', message: 'Test file path follows convention' }],
+          reasoning: `Test file path contains expected directory for "${detectedTestType}".`,
+        },
       }
     }
 
@@ -101,6 +146,15 @@ export const PathConventionValidator: ValidatorDefinition = {
           actualPath: relativePath,
           location: 'artifacts',
         },
+        context: {
+          inputs: [
+            { label: 'TestFilePath', value: ctx.testFilePath },
+            { label: 'Conventions', value: [convention.pathPattern] },
+          ],
+          analyzed: [{ label: 'Path vs Patterns', items: [`${relativePath} is in artifacts`] }],
+          findings: [{ type: 'warning', message: 'Test file is still in artifacts directory' }],
+          reasoning: 'Test file path indicates the file was not moved to the convention directory.',
+        },
       }
     }
 
@@ -113,6 +167,15 @@ export const PathConventionValidator: ValidatorDefinition = {
       metrics: {
         detectedType: detectedTestType,
         actualPath: relativePath,
+      },
+      context: {
+        inputs: [
+          { label: 'TestFilePath', value: ctx.testFilePath },
+          { label: 'Conventions', value: [convention.pathPattern] },
+        ],
+        analyzed: [{ label: 'Path vs Patterns', items: [`${relativePath} does not include ${conventionDir}`] }],
+        findings: [{ type: 'warning', message: 'Test file path may not follow convention' }],
+        reasoning: 'Test file path does not include the expected convention directory.',
       },
     }
   },

@@ -184,11 +184,35 @@ export interface ValidationContext {
   bypassedValidators: Set<string>
 }
 
+export interface ValidatorContextInput {
+  label: string
+  value: string | number | boolean | string[] | Record<string, unknown>
+}
+
+export interface ValidatorContextAnalyzedGroup {
+  label: string
+  items: string[]
+}
+
+export interface ValidatorContextFinding {
+  type: 'pass' | 'fail' | 'warning' | 'info'
+  message: string
+  location?: string
+}
+
+export interface ValidatorContext {
+  inputs: ValidatorContextInput[]
+  analyzed: ValidatorContextAnalyzedGroup[]
+  findings: ValidatorContextFinding[]
+  reasoning: string
+}
+
 export interface ValidatorOutput {
   passed: boolean
   status: ValidatorStatus
   message: string
   details?: Record<string, unknown>
+  context?: ValidatorContext
   evidence?: string
   metrics?: Record<string, number | string>
 }

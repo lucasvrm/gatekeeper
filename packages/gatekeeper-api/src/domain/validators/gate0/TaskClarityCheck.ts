@@ -23,6 +23,18 @@ export const TaskClarityCheckValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Ambiguous terms found in prompt: ${foundTerms.join(', ')}`,
+        context: {
+          inputs: [
+            { label: 'TaskPrompt', value: ctx.taskPrompt },
+            { label: 'AmbiguousTerms', value: ctx.ambiguousTerms },
+          ],
+          analyzed: [{ label: 'Terms Found', items: foundTerms }],
+          findings: foundTerms.map((term) => ({
+            type: 'warning',
+            message: `Ambiguous term found: "${term}"`,
+          })),
+          reasoning: `Prompt contains ${foundTerms.length} ambiguous term(s) that require clarification.`,
+        },
         details: {
           foundTerms,
           totalFound: foundTerms.length,
@@ -35,6 +47,15 @@ export const TaskClarityCheckValidator: ValidatorDefinition = {
       passed: true,
       status: 'PASSED',
       message: 'Prompt is clear - no ambiguous terms found',
+      context: {
+        inputs: [
+          { label: 'TaskPrompt', value: ctx.taskPrompt },
+          { label: 'AmbiguousTerms', value: ctx.ambiguousTerms },
+        ],
+        analyzed: [{ label: 'Terms Found', items: [] }],
+        findings: [{ type: 'pass', message: 'No ambiguous terms found in prompt' }],
+        reasoning: 'Prompt does not contain any ambiguous terms from the configured list.',
+      },
     }
   },
 }

@@ -18,6 +18,12 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'No test file path provided',
+        context: {
+          inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Test file path not provided' }],
+          reasoning: 'Cannot validate base_ref behavior without a test file path.',
+        },
       }
     }
 
@@ -57,6 +63,12 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
           passed: false,
           status: 'FAILED',
           message: 'CLÁUSULA PÉTREA VIOLATION: Test passed on base_ref but should fail (TDD red phase required)',
+          context: {
+            inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
+            analyzed: [{ label: 'Test Run Result', items: [`passed: ${result.passed}`, `exitCode: ${result.exitCode}`] }],
+            findings: [{ type: 'fail', message: 'Test passed on base_ref; should fail in red phase' }],
+            reasoning: 'Test execution on base_ref unexpectedly passed.',
+          },
           evidence:
             `Test output on ${ctx.baseRef} (worktree):\n${result.output}\n\n` +
             `This violates TDD principles - the test must fail before implementation.`,
@@ -76,6 +88,12 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
           passed: true,
           status: 'PASSED',
           message: 'Test file does not exist on base_ref (acceptable - file may not exist yet)',
+          context: {
+            inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
+            analyzed: [{ label: 'Test Run Result', items: ['test file not found'] }],
+            findings: [{ type: 'pass', message: 'Test file missing on base_ref (acceptable)' }],
+            reasoning: 'Missing test file on base_ref is treated as a failing baseline, which is acceptable.',
+          },
           evidence: `BaseRef ${ctx.baseRef} (worktree) missing test file:\n${result.output}`,
           metrics: {
             baseRef: ctx.baseRef,
@@ -90,6 +108,12 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
         passed: true,
         status: 'PASSED',
         message: 'Test correctly fails on base_ref (TDD red phase confirmed)',
+        context: {
+          inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
+          analyzed: [{ label: 'Test Run Result', items: [`passed: ${result.passed}`, `exitCode: ${result.exitCode}`] }],
+          findings: [{ type: 'pass', message: 'Test failed on base_ref as expected' }],
+          reasoning: 'Test failure on base_ref confirms the TDD red phase.',
+        },
         evidence: `Test failed as expected on ${ctx.baseRef} (worktree):\n${result.output}`,
         metrics: {
           baseRef: ctx.baseRef,
@@ -102,6 +126,12 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'Failed to run base_ref test in worktree',
+        context: {
+          inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
+          analyzed: [{ label: 'Test Run Result', items: ['error running test in worktree'] }],
+          findings: [{ type: 'fail', message: 'Worktree test execution failed' }],
+          reasoning: 'An error occurred while running the test in the base_ref worktree.',
+        },
         evidence:
           `BaseRef: ${ctx.baseRef}\n` +
           `Worktree: ${worktreePath}\n` +

@@ -14,6 +14,15 @@ export const TestIntentAlignmentValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'No test file path provided',
+        context: {
+          inputs: [
+            { label: 'TaskPrompt', value: ctx.taskPrompt },
+            { label: 'TestFile', value: 'none' },
+          ],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Test file path not provided' }],
+          reasoning: 'Cannot check test intent alignment without a test file path.',
+        },
       }
     }
 
@@ -38,6 +47,7 @@ export const TestIntentAlignmentValidator: ValidatorDefinition = {
       const testKeywords = extractKeywords(testText)
       
       const commonKeywords = Array.from(promptKeywords).filter(word => testKeywords.has(word))
+      const analyzedItems = commonKeywords.slice(0, 10).map((word) => `shared keyword: ${word}`)
       
       const alignmentRatio = promptKeywords.size > 0 
         ? commonKeywords.length / promptKeywords.size 
@@ -50,6 +60,15 @@ export const TestIntentAlignmentValidator: ValidatorDefinition = {
           passed: true,
           status: 'WARNING',
           message: `Low alignment between prompt and test (${Math.round(alignmentRatio * 100)}%)`,
+          context: {
+            inputs: [
+              { label: 'TaskPrompt', value: ctx.taskPrompt },
+              { label: 'TestFile', value: ctx.testFilePath },
+            ],
+            analyzed: [{ label: 'Test Names vs Prompt', items: analyzedItems }],
+            findings: [{ type: 'warning', message: `Alignment ratio ${Math.round(alignmentRatio * 100)}% below threshold ${Math.round(threshold * 100)}%` }],
+            reasoning: 'Few shared keywords between task prompt and test descriptions.',
+          },
           evidence: `Prompt keywords: ${Array.from(promptKeywords).slice(0, 10).join(', ')}\n` +
                    `Test keywords: ${Array.from(testKeywords).slice(0, 10).join(', ')}\n` +
                    `Common keywords: ${commonKeywords.length > 0 ? commonKeywords.slice(0, 10).join(', ') : 'none'}`,
@@ -67,6 +86,15 @@ export const TestIntentAlignmentValidator: ValidatorDefinition = {
         passed: true,
         status: 'PASSED',
         message: `Good alignment between prompt and test (${Math.round(alignmentRatio * 100)}%)`,
+        context: {
+          inputs: [
+            { label: 'TaskPrompt', value: ctx.taskPrompt },
+            { label: 'TestFile', value: ctx.testFilePath },
+          ],
+          analyzed: [{ label: 'Test Names vs Prompt', items: analyzedItems }],
+          findings: [{ type: 'pass', message: `Alignment ratio ${Math.round(alignmentRatio * 100)}% meets threshold` }],
+          reasoning: 'Test descriptions share keywords with the task prompt.',
+        },
         metrics: {
           alignmentRatio: Math.round(alignmentRatio * 100) / 100,
           promptKeywordCount: promptKeywords.size,
@@ -79,6 +107,15 @@ export const TestIntentAlignmentValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Failed to check alignment: ${error instanceof Error ? error.message : String(error)}`,
+        context: {
+          inputs: [
+            { label: 'TaskPrompt', value: ctx.taskPrompt },
+            { label: 'TestFile', value: ctx.testFilePath },
+          ],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Alignment check failed' }],
+          reasoning: 'An error occurred while analyzing prompt/test alignment.',
+        },
       }
     }
   },

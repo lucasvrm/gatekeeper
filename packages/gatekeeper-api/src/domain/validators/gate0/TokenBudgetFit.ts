@@ -20,12 +20,22 @@ export const TokenBudgetFitValidator: ValidatorDefinition = {
     ].join('\n')
 
     const tokenCount = ctx.services.tokenCounter.count(contextText)
+    const contextItems = ['taskPrompt', ctx.manifest ? 'manifest' : 'manifest (none)', 'refs']
 
     if (tokenCount > effectiveMax) {
       return {
         passed: false,
         status: 'FAILED',
         message: `Context exceeds token budget: ${tokenCount} > ${effectiveMax}`,
+        context: {
+          inputs: [
+            { label: 'MAX_TOKEN_BUDGET', value: maxTokenBudget },
+            { label: 'TOKEN_SAFETY_MARGIN', value: safetyMargin },
+          ],
+          analyzed: [{ label: 'Context Items', items: contextItems }],
+          findings: [{ type: 'fail', message: `Token count ${tokenCount} exceeds limit ${effectiveMax}` }],
+          reasoning: `Token count ${tokenCount} exceeds effective limit ${effectiveMax} (max ${maxTokenBudget} * margin ${safetyMargin}).`,
+        },
         metrics: {
           tokenCount,
           maxTokens: maxTokenBudget,
@@ -41,6 +51,15 @@ export const TokenBudgetFitValidator: ValidatorDefinition = {
       passed: true,
       status: 'PASSED',
       message: `Token budget OK: ${tokenCount} / ${effectiveMax}`,
+      context: {
+        inputs: [
+          { label: 'MAX_TOKEN_BUDGET', value: maxTokenBudget },
+          { label: 'TOKEN_SAFETY_MARGIN', value: safetyMargin },
+        ],
+        analyzed: [{ label: 'Context Items', items: contextItems }],
+        findings: [{ type: 'pass', message: `Token count ${tokenCount} within limit ${effectiveMax}` }],
+        reasoning: `Token count ${tokenCount} is within effective limit ${effectiveMax} (max ${maxTokenBudget} * margin ${safetyMargin}).`,
+      },
       metrics: {
         tokenCount,
         maxTokens: maxTokenBudget,

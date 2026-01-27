@@ -14,16 +14,29 @@ export const TaskTestPassesValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'No test file path provided',
+        context: {
+          inputs: [{ label: 'TestFilePath', value: 'none' }],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Test file path not provided' }],
+          reasoning: 'Task test cannot run without a test file path.',
+        },
       }
     }
 
     const result = await ctx.services.testRunner.runSingleTest(ctx.testFilePath)
+    const testOutputSummary = [`exitCode: ${result.exitCode}`, `passed: ${result.passed}`]
 
     if (!result.passed) {
       return {
         passed: false,
         status: 'FAILED',
         message: 'Task test failed',
+        context: {
+          inputs: [{ label: 'TestFilePath', value: ctx.testFilePath }],
+          analyzed: [{ label: 'Test Run Output', items: testOutputSummary }],
+          findings: [{ type: 'fail', message: 'Task test failed' }],
+          reasoning: 'Task test execution returned a failing result.',
+        },
         details: {
           exitCode: result.exitCode,
           duration: result.duration,
@@ -37,6 +50,12 @@ export const TaskTestPassesValidator: ValidatorDefinition = {
       passed: true,
       status: 'PASSED',
       message: 'Task test passed',
+      context: {
+        inputs: [{ label: 'TestFilePath', value: ctx.testFilePath }],
+        analyzed: [{ label: 'Test Run Output', items: testOutputSummary }],
+        findings: [{ type: 'pass', message: 'Task test passed' }],
+        reasoning: 'Task test execution completed successfully.',
+      },
       metrics: {
         duration: result.duration,
         exitCode: result.exitCode,

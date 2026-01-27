@@ -15,6 +15,15 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
         passed: true,
         status: 'SKIPPED',
         message: 'No contract provided, skipping clause mapping validation',
+        context: {
+          inputs: [
+            { label: 'Contract Clauses', value: [] },
+            { label: 'TagPattern', value: ctx.contract?.testMapping?.tagPattern ?? '// @clause' },
+          ],
+          analyzed: [],
+          findings: [{ type: 'info', message: 'Skipped: contract not provided' }],
+          reasoning: 'Clause mapping validation requires a contract.',
+        },
       }
     }
 
@@ -24,6 +33,15 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
         passed: true,
         status: 'SKIPPED',
         message: 'No test file path provided, skipping clause mapping validation',
+        context: {
+          inputs: [
+            { label: 'Contract Clauses', value: ctx.contract.clauses.map((clause) => clause.id) },
+            { label: 'TagPattern', value: ctx.contract.testMapping?.tagPattern || '// @clause' },
+          ],
+          analyzed: [],
+          findings: [{ type: 'info', message: 'Skipped: test file path not provided' }],
+          reasoning: 'Clause mapping validation requires a test file.',
+        },
       }
     }
 
@@ -121,6 +139,15 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
           passed: false,
           status: 'FAILED',
           message: errors.join('\n'),
+          context: {
+            inputs: [
+              { label: 'Contract Clauses', value: ctx.contract.clauses.map((clause) => clause.id) },
+              { label: 'TagPattern', value: tagPattern },
+            ],
+            analyzed: [{ label: 'Test Blocks', items: testBlocks.map((block) => block.name) }],
+            findings: errors.map((error) => ({ type: 'fail' as const, message: error })),
+            reasoning: 'One or more test blocks have invalid or missing clause mappings.',
+          },
           details: {
             errorCount: errors.length,
             errors,
@@ -134,6 +161,15 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
           passed: true,
           status: 'WARNING',
           message: warnings.join('\n'),
+          context: {
+            inputs: [
+              { label: 'Contract Clauses', value: ctx.contract.clauses.map((clause) => clause.id) },
+              { label: 'TagPattern', value: tagPattern },
+            ],
+            analyzed: [{ label: 'Test Blocks', items: testBlocks.map((block) => block.name) }],
+            findings: warnings.map((warning) => ({ type: 'warning' as const, message: warning })),
+            reasoning: 'Some test blocks are missing clause tags, but warnings are allowed by configuration.',
+          },
           details: {
             warningCount: warnings.length,
             warnings,
@@ -149,6 +185,15 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
         passed: true,
         status: 'PASSED',
         message: `All ${testBlocks.length} test${testBlocks.length === 1 ? '' : 's'} have valid clause mappings`,
+        context: {
+          inputs: [
+            { label: 'Contract Clauses', value: ctx.contract.clauses.map((clause) => clause.id) },
+            { label: 'TagPattern', value: tagPattern },
+          ],
+          analyzed: [{ label: 'Test Blocks', items: testBlocks.map((block) => block.name) }],
+          findings: [{ type: 'pass', message: 'All test blocks have valid clause mappings' }],
+          reasoning: 'Every test block has a valid @clause tag that matches the contract.',
+        },
         metrics: {
           validatedTests: testBlocks.length,
         },
@@ -158,6 +203,15 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Failed to validate clause mappings: ${error instanceof Error ? error.message : String(error)}`,
+        context: {
+          inputs: [
+            { label: 'Contract Clauses', value: ctx.contract?.clauses.map((clause) => clause.id) ?? [] },
+            { label: 'TagPattern', value: ctx.contract?.testMapping?.tagPattern ?? '// @clause' },
+          ],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Clause mapping validation failed' }],
+          reasoning: 'An error occurred while analyzing clause mappings.',
+        },
       }
     }
   },

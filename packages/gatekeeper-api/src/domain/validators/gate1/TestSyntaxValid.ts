@@ -14,6 +14,12 @@ export const TestSyntaxValidValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: 'No test file path provided',
+        context: {
+          inputs: [{ label: 'TestFilePath', value: 'none' }],
+          analyzed: [],
+          findings: [{ type: 'fail', message: 'Test file path not provided' }],
+          reasoning: 'Parser cannot validate syntax without a test file path.',
+        },
       }
     }
 
@@ -24,6 +30,15 @@ export const TestSyntaxValidValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Test file has compilation errors: ${result.errors.length} error(s)`,
+        context: {
+          inputs: [{ label: 'TestFilePath', value: ctx.testFilePath }],
+          analyzed: [],
+          findings: result.errors.slice(0, 10).map((error) => ({
+            type: 'fail' as const,
+            message: error,
+          })),
+          reasoning: 'TypeScript parser detected compilation errors in the test file.',
+        },
         details: {
           errors: result.errors,
           errorCount: result.errors.length,
@@ -36,6 +51,12 @@ export const TestSyntaxValidValidator: ValidatorDefinition = {
       passed: true,
       status: 'PASSED',
       message: 'Test file compiles successfully',
+      context: {
+        inputs: [{ label: 'TestFilePath', value: ctx.testFilePath }],
+        analyzed: [],
+        findings: [{ type: 'pass', message: 'No syntax errors found' }],
+        reasoning: 'TypeScript parser successfully parsed the test file without errors.',
+      },
     }
   },
 }

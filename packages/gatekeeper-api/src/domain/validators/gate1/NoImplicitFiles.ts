@@ -36,6 +36,15 @@ export const NoImplicitFilesValidator: ValidatorDefinition = {
 
     const prompt = ctx.taskPrompt.toLowerCase()
     const foundTerms: string[] = []
+    let imports: string[] = []
+
+    if (ctx.testFilePath) {
+      try {
+        imports = await ctx.services.ast.getImports(ctx.testFilePath)
+      } catch {
+        imports = []
+      }
+    }
 
     for (const term of implicitTerms) {
       if (prompt.includes(term.toLowerCase())) {
@@ -48,6 +57,18 @@ export const NoImplicitFilesValidator: ValidatorDefinition = {
         passed: false,
         status: 'FAILED',
         message: `Task prompt contains ${foundTerms.length} implicit file reference(s)`,
+        context: {
+          inputs: [
+            { label: 'Manifest', value: ctx.manifest ?? 'none' },
+            { label: 'TestFile', value: ctx.testFilePath ?? 'none' },
+          ],
+          analyzed: [{ label: 'Imports Found', items: imports }],
+          findings: foundTerms.map((term) => ({
+            type: 'fail' as const,
+            message: `Implicit reference found: "${term}"`,
+          })),
+          reasoning: 'Prompt contains implicit references to files outside the manifest.',
+        },
         evidence: `Implicit references found:\n${foundTerms.map(t => `  - "${t}"`).join('\n')}\n\nAll files must be explicitly listed in the manifest.`,
         details: {
           foundTerms,
@@ -60,6 +81,15 @@ export const NoImplicitFilesValidator: ValidatorDefinition = {
       passed: true,
       status: 'PASSED',
       message: 'Task prompt has explicit file references only',
+      context: {
+        inputs: [
+          { label: 'Manifest', value: ctx.manifest ?? 'none' },
+          { label: 'TestFile', value: ctx.testFilePath ?? 'none' },
+        ],
+        analyzed: [{ label: 'Imports Found', items: imports }],
+        findings: [{ type: 'pass', message: 'No implicit file references found in prompt' }],
+        reasoning: 'Prompt references files explicitly, with no implicit scope expansion.',
+      },
       metrics: {
         promptLength: ctx.taskPrompt.length,
         checkedTerms: implicitTerms.length,
