@@ -58,6 +58,15 @@ export function RunDetailsPage() {
             console.error("Failed to load contract run:", error)
           }
         }
+        // If this is a CONTRACT run with executionRuns[0], load it as secondary
+        else if (data.runType === 'CONTRACT' && data.executionRuns?.[0]) {
+          try {
+            const executionData = await api.runs.getWithResults(data.executionRuns[0].id)
+            setSecondaryRun(executionData)
+          } catch (error) {
+            console.error("Failed to load execution run:", error)
+          }
+        }
       } catch (error) {
         console.error("Failed to load run:", error)
         toast.error("Failed to load run details")

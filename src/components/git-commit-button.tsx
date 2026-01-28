@@ -28,6 +28,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [showCommitAlreadyDone, setShowCommitAlreadyDone] = useState(false)
   const [localCommitHash, setLocalCommitHash] = useState<string | null>(null)
+  const [commitJustDone, setCommitJustDone] = useState(false)
   const [localGitStatus, setLocalGitStatus] = useState<GitStatusResponse | null>(null)
   const [loadingState, setLoadingState] = useState<'idle' | 'staging' | 'committing' | 'pushing'>('idle')
   const [errorTitle, setErrorTitle] = useState('Git error')
@@ -133,6 +134,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
       setLoadingState('committing')
       const commitResult = await api.git.commit(projectId, message, executionRun?.id, projectPath)
       setLocalCommitHash(commitResult.commitHash)
+      setCommitJustDone(true)
 
       // Close commit modal
       setShowCommitModal(false)
@@ -282,10 +284,10 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
               data-testid="btn-git-commit"
               onClick={handleButtonClick}
               aria-label="Commit validated changes to Git"
-              aria-disabled={hasExistingCommit || !hasGitContext || loadingState !== 'idle'}
+              aria-disabled={hasExistingCommit || commitJustDone || !hasGitContext || loadingState !== 'idle'}
               disabled={loadingState !== 'idle'}
               className={
-                hasExistingCommit || !hasGitContext
+                hasExistingCommit || commitJustDone || !hasGitContext
                   ? "font-sans opacity-50 cursor-not-allowed"
                   : "font-sans"
               }

@@ -181,6 +181,7 @@ export interface ValidatorContext {
 export interface RunWithResults extends Run {
   gateResults: GateResult[]
   validatorResults: ValidatorResult[]
+  executionRuns?: Run[]
 }
 
 export interface PaginatedResponse<T> {

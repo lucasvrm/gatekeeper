@@ -139,6 +139,10 @@ export class RunsController {
         validatorResults: {
           orderBy: [{ gateNumber: 'asc' }, { validatorOrder: 'asc' }],
         },
+        executionRuns: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     })
 
