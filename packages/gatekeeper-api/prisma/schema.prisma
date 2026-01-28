@@ -39,6 +39,7 @@ model Project {
 
   validationRuns ValidationRun[]
   uiContract     UIContract?
+  themes         Theme[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
