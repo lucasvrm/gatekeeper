@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ interface PushConfirmModalProps {
   onKeepLocal: () => void
   onPushNow: () => void
   isPushing: boolean
+  repoName?: string
 }
 
 export function PushConfirmModal({
@@ -24,6 +26,7 @@ export function PushConfirmModal({
   onKeepLocal,
   onPushNow,
   isPushing,
+  repoName,
 }: PushConfirmModalProps) {
   const shortHash = commitHash.slice(0, 7)
 
@@ -33,6 +36,17 @@ export function PushConfirmModal({
         <DialogHeader>
           <DialogTitle>Push to Remote?</DialogTitle>
           <DialogDescription>
+            {repoName && (
+              <>
+                <Badge
+                  variant="secondary"
+                  data-testid="repo-badge"
+                  className="font-mono text-xs mr-2"
+                >
+                  {repoName}
+                </Badge>
+              </>
+            )}
             Commit{' '}
             <code
               data-testid="commit-hash-display"

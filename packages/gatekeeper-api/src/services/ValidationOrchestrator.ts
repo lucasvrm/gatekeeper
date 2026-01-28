@@ -97,6 +97,24 @@ export class ValidationOrchestrator {
       totalValidators: gate.validators.length,
     })
 
+    // Load failMode configs for all validators
+    const validatorKeys = gate.validators.map(v => v.code)
+    const configs = await prisma.validationConfig.findMany({
+      where: { key: { in: validatorKeys }, category: 'VALIDATOR' },
+      select: { key: true, failMode: true }
+    })
+    const failModeMap = new Map<string, string | null>(
+      configs.map(c => [c.key, c.failMode])
+    )
+
+    // Helper to determine effective isHardBlock based on failMode config
+    const getEffectiveIsHardBlock = (validatorCode: string, defaultIsHardBlock: boolean): boolean => {
+      const failMode = failModeMap.get(validatorCode)
+      if (failMode === 'WARNING') return false
+      if (failMode === 'HARD') return true
+      return defaultIsHardBlock // fallback to validator definition
+    }
+
     let passedCount = 0
     let failedCount = 0
     let warningCount = 0
@@ -107,6 +125,7 @@ export class ValidationOrchestrator {
     for (const validator of gate.validators) {
       const startTime = Date.now()
       const isBypassed = ctx.bypassedValidators.has(validator.code)
+      const effectiveIsHardBlock = getEffectiveIsHardBlock(validator.code, validator.isHardBlock)
 
       if (isBypassed) {
         const duration = Date.now() - startTime
@@ -119,7 +138,7 @@ export class ValidationOrchestrator {
           validatorOrder: validator.order,
           status: 'SKIPPED',
           passed: true,
-          isHardBlock: validator.isHardBlock,
+          isHardBlock: effectiveIsHardBlock,
           message: 'Validator bypassed by user',
           startedAt: new Date(startTime),
           completedAt: new Date(),
@@ -143,7 +162,7 @@ export class ValidationOrchestrator {
             validatorOrder: validator.order,
             status: 'SKIPPED',
             passed: true,
-            isHardBlock: validator.isHardBlock,
+            isHardBlock: effectiveIsHardBlock,
             message: 'Validator disabled',
             startedAt: new Date(startTime),
             completedAt: new Date(),
@@ -170,7 +189,7 @@ export class ValidationOrchestrator {
           validatorOrder: validator.order,
           status: result.status,
           passed: result.passed,
-          isHardBlock: validator.isHardBlock,
+          isHardBlock: effectiveIsHardBlock,
           message: result.message,
           details: detailsJson,
           evidence: result.evidence || null,
@@ -187,7 +206,7 @@ export class ValidationOrchestrator {
             break
           case 'FAILED':
             failedCount++
-            if (validator.isHardBlock) {
+            if (effectiveIsHardBlock) {
               gatePassed = false
               if (!failedValidatorCode) {
                 failedValidatorCode = validator.code
@@ -202,12 +221,12 @@ export class ValidationOrchestrator {
             break
         }
 
-        if (!gatePassed && validator.isHardBlock) {
+        if (!gatePassed && effectiveIsHardBlock) {
           break
         }
       } catch (error) {
         const duration = Date.now() - startTime
-        
+
         await this.validatorRepository.create({
           run: { connect: { id: runId } },
           gateNumber: gate.number,
@@ -216,14 +235,14 @@ export class ValidationOrchestrator {
           validatorOrder: validator.order,
           status: 'FAILED',
           passed: false,
-          isHardBlock: validator.isHardBlock,
+          isHardBlock: effectiveIsHardBlock,
           message: `Validator execution error: ${error instanceof Error ? error.message : String(error)}`,
           durationMs: duration,
         })
         RunEventService.emitValidatorComplete(runId, gate.number, validator.code, 'FAILED', false)
 
         failedCount++
-        if (validator.isHardBlock) {
+        if (effectiveIsHardBlock) {
           gatePassed = false
           if (!failedValidatorCode) {
             failedValidatorCode = validator.code

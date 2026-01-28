@@ -166,7 +166,6 @@ export function RunPanel({
     } catch (error) {
       console.error('Failed to load diff:', error)
       toast.error('Failed to load diff')
-    } finally {
     }
   }
 
@@ -286,6 +285,18 @@ export function RunPanel({
               run.status === 'RUNNING' && "bg-status-running"
             )}
           />
+          {/* Validator Summary */}
+          <div data-testid="validator-summary" className="flex flex-wrap gap-3 text-xs mt-3">
+            <span className="text-status-passed">
+              {run.validatorResults?.filter(v => v.status === 'PASSED').length || 0} Passed
+            </span>
+            <span className="text-status-failed">
+              {run.validatorResults?.filter(v => v.status === 'FAILED').length || 0} Failed
+            </span>
+            <span className="text-muted-foreground">
+              {run.validatorResults?.filter(v => v.status === 'SKIPPED').length || 0} Skipped
+            </span>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -402,7 +413,9 @@ export function RunPanel({
                           if (parsed && typeof parsed === "object" && "context" in parsed) {
                             parsedContext = (parsed as { context?: ValidatorContext }).context ?? null
                           }
-                        } catch {}
+                        } catch {
+                          // Ignore JSON parse errors - context is optional
+                        }
                       }
 
                       return (
@@ -416,9 +429,19 @@ export function RunPanel({
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <h5 className="text-sm font-medium">{validator.validatorName}</h5>
-                                  {validator.isHardBlock && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium">
+                                  {validator.isHardBlock ? (
+                                    <span
+                                      data-testid="hard-badge"
+                                      className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium"
+                                    >
                                       Hard
+                                    </span>
+                                  ) : (
+                                    <span
+                                      data-testid="warning-badge"
+                                      className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-medium"
+                                    >
+                                      Warning
                                     </span>
                                   )}
                                 </div>

@@ -22,6 +22,7 @@ interface GitCommitModalProps {
   onCommit: (message: string, pushToRemote: boolean) => Promise<void>
   isCommitting: boolean
   loadingText?: string
+  repoName?: string
 }
 
 export function GitCommitModal({
@@ -32,6 +33,7 @@ export function GitCommitModal({
   onCommit,
   isCommitting,
   loadingText = 'Commit & Push',
+  repoName,
 }: GitCommitModalProps) {
   const [commitMessage, setCommitMessage] = useState(defaultMessage)
   const [pushToRemote, setPushToRemote] = useState(true)
@@ -52,8 +54,17 @@ export function GitCommitModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Branch Badge */}
+          {/* Repo and Branch Badges */}
           <div className="flex items-center gap-2">
+            {repoName && (
+              <Badge
+                variant="secondary"
+                data-testid="repo-badge"
+                className="font-mono text-xs"
+              >
+                {repoName}
+              </Badge>
+            )}
             <Badge
               variant="outline"
               data-testid="branch-badge"

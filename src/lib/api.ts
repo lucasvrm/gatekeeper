@@ -19,8 +19,6 @@ import type {
   GitPushResponse,
   GitFetchStatusResponse,
   GitDiffResponse,
-  UIContract,
-  UIContractSchema,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -339,16 +337,16 @@ export const api = {
   },
 
   validators: {
-    list: async () => {
+    list: async (): Promise<ConfigItem[]> => {
       const response = await fetch(`${API_BASE}/validators`)
       if (!response.ok) throw new Error("Failed to fetch validators")
       return response.json()
     },
-    update: async (name: string, isActive: boolean) => {
+    update: async (name: string, data: { isActive?: boolean; failMode?: "HARD" | "WARNING" | null }) => {
       const response = await fetch(`${API_BASE}/validators/${name}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive }),
+        body: JSON.stringify(data),
       })
       if (!response.ok) throw new Error("Failed to update validator")
       return response.json()

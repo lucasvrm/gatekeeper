@@ -27,6 +27,7 @@ export class ValidatorController {
     })
     const response = validators.map((validator) => ({
       ...validator,
+      failMode: validator.failMode,
       gateCategory: validatorCategoryMap.get(validator.key) ?? 'Desconhecida',
     }))
     res.json(response)
@@ -54,15 +55,22 @@ export class ValidatorController {
 
   async updateValidator(req: Request, res: Response): Promise<void> {
     const { name } = req.params
-    const { isActive } = req.body
+    const { isActive, failMode } = req.body
 
     if (!validatorKeys.has(name)) {
       res.status(404).json({ message: 'Validator not found' })
       return
     }
 
-    if (typeof isActive !== 'boolean') {
+    // Validate isActive if provided
+    if (isActive !== undefined && typeof isActive !== 'boolean') {
       res.status(400).json({ message: 'Invalid isActive value' })
+      return
+    }
+
+    // Validate failMode if provided
+    if (failMode !== undefined && failMode !== null && failMode !== 'HARD' && failMode !== 'WARNING') {
+      res.status(400).json({ message: 'Invalid failMode' })
       return
     }
 
@@ -75,9 +83,17 @@ export class ValidatorController {
       return
     }
 
+    const data: { value?: string; failMode?: string | null } = {}
+    if (isActive !== undefined) {
+      data.value = isActive ? 'true' : 'false'
+    }
+    if (failMode !== undefined) {
+      data.failMode = failMode
+    }
+
     const updated = await prisma.validationConfig.update({
       where: { key: name },
-      data: { value: isActive ? 'true' : 'false' },
+      data,
     })
 
     res.json(updated)

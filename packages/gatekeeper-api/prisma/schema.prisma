@@ -214,6 +214,7 @@ model ValidationConfig {
   type        String   @default("NUMBER")
   category    String
   description String?
+  failMode    String?
   updatedAt   DateTime @updatedAt
 }
 

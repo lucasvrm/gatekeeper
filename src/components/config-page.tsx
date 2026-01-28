@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
+import type { FailMode } from "@/lib/types"
 
 type SensitiveFileRule = {
   id: string
@@ -106,12 +107,26 @@ export function ConfigPage() {
   const handleToggleValidator = async (name: string, isActive: boolean) => {
     setValidatorActionId(name)
     try {
-      const updated = await api.validators.update(name, isActive)
+      const updated = await api.validators.update(name, { isActive })
       setValidators((prev) => prev.map((item) => (item.key === name ? updated : item)))
       toast.success("Validator updated")
     } catch (error) {
       console.error("Failed to update validator:", error)
       toast.error("Failed to update validator")
+    } finally {
+      setValidatorActionId(null)
+    }
+  }
+
+  const handleFailModeChange = async (validatorKey: string, mode: FailMode) => {
+    setValidatorActionId(validatorKey)
+    try {
+      const updated = await api.validators.update(validatorKey, { failMode: mode })
+      setValidators((prev) => prev.map((item) => (item.key === validatorKey ? updated : item)))
+      toast.success("Fail mode updated")
+    } catch (error) {
+      console.error("Failed to update fail mode:", error)
+      toast.error("Failed to update fail mode")
     } finally {
       setValidatorActionId(null)
     }
@@ -337,6 +352,7 @@ export function ConfigPage() {
             activeCount={activeValidators}
             inactiveCount={inactiveValidators}
             onToggle={handleToggleValidator}
+            onFailModeChange={handleFailModeChange}
           />
         </TabsContent>
 

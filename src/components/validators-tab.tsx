@@ -17,10 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { FailModePopover } from "@/components/fail-mode-popover"
+import type { FailMode } from "@/lib/types"
 
 type ValidatorItem = {
   key: string
   value: string
+  failMode?: FailMode
   gateCategory?: string
 }
 
@@ -147,6 +150,7 @@ interface ValidatorsTabProps {
   activeCount: number
   inactiveCount: number
   onToggle: (name: string, isActive: boolean) => void | Promise<void>
+  onFailModeChange: (validatorKey: string, mode: FailMode) => void | Promise<void>
 }
 
 export function ValidatorsTab({
@@ -155,6 +159,7 @@ export function ValidatorsTab({
   activeCount,
   inactiveCount,
   onToggle,
+  onFailModeChange,
 }: ValidatorsTabProps) {
   const [categoryFilter, setCategoryFilter] = useState("ALL")
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL")
@@ -242,6 +247,7 @@ export function ValidatorsTab({
               <TableHead className="text-xs uppercase tracking-wide">Categoria</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Status</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Fail</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -250,7 +256,7 @@ export function ValidatorsTab({
               const isActive = validator.value === "true"
               const description = VALIDATOR_DESCRIPTIONS[validator.key] || 'Sem descrição disponível'
               return (
-                <TableRow key={validator.key}>
+                <TableRow key={validator.key} data-testid={`validator-row-${validator.key}`}>
                   <TableCell className="font-medium">{validator.key}</TableCell>
                   <TableCell className="text-sm text-muted-foreground" title={validator.categoryDescription}>
                     {validator.categoryLabel}
@@ -262,6 +268,13 @@ export function ValidatorsTab({
                     <Badge variant={isActive ? "default" : "secondary"}>
                       {isActive ? "Active" : "Inactive"}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <FailModePopover
+                      currentMode={validator.failMode ?? null}
+                      onModeChange={(mode) => onFailModeChange(validator.key, mode)}
+                      disabled={actionId === validator.key}
+                    />
                   </TableCell>
                   <TableCell>
                     <Button

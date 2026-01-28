@@ -20,6 +20,7 @@ import {
 import { ArrowLeft } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { GitCommitButton } from "@/components/git-commit-button"
+import { getRepoNameFromPath } from "@/lib/utils"
 
 export function RunDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -250,6 +251,10 @@ export function RunDetailsPage() {
         </Button>
         <div className="flex-1">
           <p className="text-sm text-muted-foreground">
+            <span className="text-primary" data-testid="run-header-repoName">
+              {getRepoNameFromPath(primaryRun.projectPath)}
+            </span>
+            <span className="mx-2">/</span>
             <span className="text-primary" data-testid="run-header-outputId">
               {primaryRun.outputId}
             </span>

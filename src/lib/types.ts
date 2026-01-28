@@ -202,6 +202,8 @@ export interface Validator {
   isHardBlock: boolean
 }
 
+export type FailMode = "HARD" | "WARNING" | null
+
 export interface ConfigItem {
   id: string
   key: string
@@ -209,6 +211,8 @@ export interface ConfigItem {
   type: "STRING" | "NUMBER" | "BOOLEAN"
   category: string
   description: string
+  failMode?: FailMode
+  gateCategory?: string
 }
 
 export interface CustomizationSettings {

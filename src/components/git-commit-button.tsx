@@ -14,6 +14,7 @@ import { CommitAlreadyDoneModal } from './commit-already-done-modal'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import type { GitStatusResponse, Run } from '@/lib/types'
+import { getRepoNameFromPath } from '@/lib/utils'
 
 interface GitCommitButtonProps {
   contractRun: Run
@@ -24,7 +25,6 @@ interface GitCommitButtonProps {
 export function GitCommitButton({ contractRun, executionRun, outputId }: GitCommitButtonProps) {
   const [showCommitModal, setShowCommitModal] = useState(false)
   const [showPushConfirmModal, setShowPushConfirmModal] = useState(false)
-  const [shouldPush, setShouldPush] = useState(false)
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [showCommitAlreadyDone, setShowCommitAlreadyDone] = useState(false)
   const [localCommitHash, setLocalCommitHash] = useState<string | null>(null)
@@ -85,7 +85,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
     try {
       status = await api.git.status(projectId, projectPath)
       setLocalGitStatus(status)
-    } catch (error: any) {
+    } catch {
       const debug = await api.git.fetchStatus(projectId, projectPath).catch(() => null)
       const details = buildGitDetails(debug)
       showGitError('Git status failed', 'Failed to check git status.', details)
@@ -120,7 +120,6 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
       }
     }
 
-    setShouldPush(pushToRemote)
     let currentStep: 'staging' | 'committing' = 'staging'
 
     try {
@@ -147,9 +146,9 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
           `Commit created successfully - ${commitResult.commitHash.slice(0, 7)} - Local only (not pushed)`
         )
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setShowCommitModal(false)
-      const message = error?.message || 'Unknown error'
+      const message = error instanceof Error ? error.message : 'Unknown error'
       const debug = await api.git.fetchStatus(projectId, projectPath).catch(() => null)
       const details = buildGitDetails(debug)
 
@@ -195,9 +194,9 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
         `Changes committed and pushed to ${pushResult.branch} - ${pushResult.commitHash.slice(0, 7)}`
       )
       setShowPushConfirmModal(false)
-    } catch (error: any) {
-      const code = error?.code
-      const message = error?.message || 'Unknown error'
+    } catch (error: unknown) {
+      const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
+      const message = error instanceof Error ? error.message : 'Unknown error'
       const debug = await api.git.fetchStatus(projectId, projectPath).catch(() => null)
       const details = buildGitDetails(debug)
 
@@ -213,12 +212,13 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
                   await api.git.pull(projectId, projectPath)
                   toast.success('Pulled latest changes')
                   await handlePushNow()
-                } catch (pullError: any) {
+                } catch (pullError: unknown) {
                   const pullDebug = await api.git.fetchStatus(projectId, projectPath).catch(() => null)
                   const pullDetails = buildGitDetails(pullDebug)
+                  const pullMessage = pullError instanceof Error ? pullError.message : 'Unknown error'
                   showGitError(
                     'Git pull failed',
-                    `Pull failed: ${pullError?.message || 'Unknown error'}`,
+                    `Pull failed: ${pullMessage}`,
                     pullDetails
                   )
                 }
@@ -310,6 +310,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
           onCommit={handleCommit}
           isCommitting={loadingState === 'staging' || loadingState === 'committing'}
           loadingText={getLoadingText()}
+          repoName={getRepoNameFromPath(projectPath)}
         />
       )}
 
@@ -322,6 +323,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
           onKeepLocal={handleKeepLocal}
           onPushNow={handlePushNow}
           isPushing={loadingState === 'pushing'}
+          repoName={getRepoNameFromPath(projectPath)}
         />
       )}
 
