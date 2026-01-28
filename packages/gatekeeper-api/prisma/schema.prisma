@@ -246,3 +246,19 @@ model UIContract {
   @@index([projectId])
 }
 
+model ValidatorMetadata {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  displayName String
+  description String
+  category    String
+  gate        Int
+  order       Int
+  isHardBlock Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([gate])
+}
+

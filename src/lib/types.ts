@@ -1,6 +1,13 @@
 export type RunStatus = "PENDING" | "RUNNING" | "PASSED" | "FAILED" | "ABORTED"
 export type ValidatorStatus = "PENDING" | "RUNNING" | "PASSED" | "FAILED" | "WARNING" | "SKIPPED"
 
+export type ValidatorCategory =
+  | "INPUT_SCOPE"
+  | "FILE_DISCIPLINE"
+  | "SECURITY"
+  | "TECHNICAL_QUALITY"
+  | "TESTS_CONTRACTS"
+
 export interface Workspace {
   id: string
   name: string
@@ -213,6 +220,10 @@ export interface ConfigItem {
   description: string
   failMode?: FailMode
   gateCategory?: string
+  displayName?: string
+  gate?: number
+  order?: number
+  isHardBlock?: boolean
 }
 
 export interface CustomizationSettings {

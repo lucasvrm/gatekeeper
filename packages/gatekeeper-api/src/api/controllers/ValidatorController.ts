@@ -25,11 +25,27 @@ export class ValidatorController {
       where: { key: { in: keys }, category: 'VALIDATOR' },
       orderBy: { key: 'asc' },
     })
-    const response = validators.map((validator) => ({
-      ...validator,
-      failMode: validator.failMode,
-      gateCategory: validatorCategoryMap.get(validator.key) ?? 'Desconhecida',
-    }))
+
+    // Fetch metadata from database
+    const metadataRecords = await prisma.validatorMetadata.findMany({
+      where: { code: { in: keys } },
+    })
+    const metadataMap = new Map(metadataRecords.map((m) => [m.code, m]))
+
+    const response = validators.map((validator) => {
+      const metadata = metadataMap.get(validator.key)
+      return {
+        ...validator,
+        failMode: validator.failMode,
+        displayName: metadata?.displayName ?? validator.key,
+        description: metadata?.description ?? '',
+        category: metadata?.category ?? '',
+        gate: metadata?.gate ?? null,
+        order: metadata?.order ?? null,
+        isHardBlock: metadata?.isHardBlock ?? true,
+        gateCategory: validatorCategoryMap.get(validator.key) ?? 'Desconhecida',
+      }
+    })
     res.json(response)
   }
 

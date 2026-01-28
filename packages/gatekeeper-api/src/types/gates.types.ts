@@ -2,7 +2,14 @@ import type { UIContractSchema } from './ui-contract.types.js'
 
 export type GateNumber = 0 | 1 | 2 | 3
 
-export type ValidatorStatus = 
+export type ValidatorCategory =
+  | 'INPUT_SCOPE'
+  | 'FILE_DISCIPLINE'
+  | 'SECURITY'
+  | 'TECHNICAL_QUALITY'
+  | 'TESTS_CONTRACTS'
+
+export type ValidatorStatus =
   | 'PENDING'
   | 'RUNNING'
   | 'PASSED'
