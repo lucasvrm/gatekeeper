@@ -11,6 +11,16 @@ export class ThemeController {
   async createTheme(req: Request, res: Response): Promise<void> {
     try {
       const preset = req.body as ThemePreset
+      const themeName = preset.metadata.name ?? preset.metadata.projectName
+      if (!themeName) {
+        res.status(400).json({
+          error: {
+            code: 'INVALID_PRESET',
+            message: 'Theme name is required. Provide metadata.name or metadata.projectName',
+          },
+        })
+        return
+      }
       const output = themeEngine.process(preset)
       if (!output.validation.valid) {
         res.status(400).json({
@@ -23,7 +33,7 @@ export class ThemeController {
         return
       }
       const theme = await themeRepo.create({
-        name: preset.metadata.name,
+        name: themeName,
         version: preset.version,
         presetRaw: JSON.stringify(preset),
         cssVariables: output.cssVariables,

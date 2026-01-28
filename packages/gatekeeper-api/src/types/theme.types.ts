@@ -1,7 +1,8 @@
 export interface ThemePreset {
   version: string
   metadata: {
-    name: string
+    name?: string
+    projectName?: string
     hash: string
     exportedAt: string
   }

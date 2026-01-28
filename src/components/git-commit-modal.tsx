@@ -87,7 +87,7 @@ export function GitCommitModal({
           {/* Diff Summary */}
           <div
             data-testid="diff-summary"
-            className="p-3 bg-gray-50 rounded-md border border-gray-200 font-mono text-xs text-gray-700"
+            className="p-3 bg-gray-50 rounded-md border border-gray-200 font-mono text-xs text-gray-700 overflow-x-auto"
           >
             {gitStatus.diffStat}
           </div>
