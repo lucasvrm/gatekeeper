@@ -19,6 +19,8 @@ import type {
   GitPushResponse,
   GitFetchStatusResponse,
   GitDiffResponse,
+  UIContract,
+  UIContractSchema,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -612,6 +614,43 @@ export const api = {
         throw new Error(error?.error?.message || "Failed to get branch info")
       }
       return response.json()
+    },
+  },
+
+  uiContract: {
+    get: async (projectId: string) => {
+      const response = await fetch(`${API_BASE}/projects/${projectId}/ui-contract`)
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null
+        }
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to fetch UI contract")
+      }
+      return response.json()
+    },
+
+    upload: async (projectId: string, contractData: unknown) => {
+      const response = await fetch(`${API_BASE}/projects/${projectId}/ui-contract`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contractData),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || error?.error?.code || "Failed to upload UI contract")
+      }
+      return response.json()
+    },
+
+    delete: async (projectId: string): Promise<void> => {
+      const response = await fetch(`${API_BASE}/projects/${projectId}/ui-contract`, {
+        method: "DELETE",
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to delete UI contract")
+      }
     },
   },
 

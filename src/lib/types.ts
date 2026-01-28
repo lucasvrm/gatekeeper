@@ -17,6 +17,27 @@ export interface Workspace {
   }
 }
 
+export interface UIContractSchema {
+  version: string
+  metadata: {
+    projectName: string
+    exportedFrom: string
+    exportedAt: string
+    hash: string
+  }
+  components: Record<string, unknown>
+  styles: Record<string, string>
+}
+
+export interface UIContract {
+  id: string
+  projectId: string
+  version: string
+  hash: string
+  uploadedAt: string
+  contract?: UIContractSchema
+}
+
 export interface Project {
   id: string
   workspaceId: string
@@ -34,6 +55,7 @@ export interface Project {
   isActive: boolean
   createdAt: string
   updatedAt: string
+  uiContract?: UIContract | null
   _count?: {
     validationRuns: number
   }

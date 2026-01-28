@@ -38,6 +38,7 @@ model Project {
   updatedAt        DateTime @updatedAt
 
   validationRuns ValidationRun[]
+  uiContract     UIContract?
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -229,5 +230,18 @@ model TestPathConvention {
 
   @@unique([workspaceId, testType])
   @@index([workspaceId])
+}
+
+model UIContract {
+  id           String   @id @default(cuid())
+  projectId    String   @unique
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contractJson String
+  version      String
+  hash         String
+  uploadedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([projectId])
 }
 

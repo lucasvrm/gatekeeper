@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { StatusBadge } from "@/components/status-badge"
+import { UIContractSection } from "@/components/ui-contract-section"
 
 export function ProjectDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -24,28 +25,28 @@ export function ProjectDetailsPage() {
   const [runs, setRuns] = useState<Run[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const loadData = async () => {
     if (!id) return
 
-    const loadData = async () => {
-      setLoading(true)
-      try {
-        const [projectData, runsData] = await Promise.all([
-          api.projects.get(id),
-          api.runs.list(1, 100),
-        ])
-        setProject(projectData)
+    setLoading(true)
+    try {
+      const [projectData, runsData] = await Promise.all([
+        api.projects.get(id),
+        api.runs.list(1, 100),
+      ])
+      setProject(projectData)
 
-        // Filter runs for this project
-        const projectRuns = runsData.data.filter((run) => run.projectId === id)
-        setRuns(projectRuns)
-      } catch (error) {
-        console.error("Failed to load project:", error)
-      } finally {
-        setLoading(false)
-      }
+      // Filter runs for this project
+      const projectRuns = runsData.data.filter((run) => run.projectId === id)
+      setRuns(projectRuns)
+    } catch (error) {
+      console.error("Failed to load project:", error)
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     loadData()
   }, [id])
 
@@ -127,6 +128,12 @@ export function ProjectDetailsPage() {
           </div>
         </dl>
       </Card>
+
+      <UIContractSection
+        projectId={project.id}
+        uiContract={project.uiContract || null}
+        onUpdate={loadData}
+      />
 
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Runs</h2>
