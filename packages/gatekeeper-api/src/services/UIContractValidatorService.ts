@@ -56,7 +56,7 @@ export class UIContractValidatorService {
       errors.push({ path: 'styles', message: 'Required' })
     } else {
       const styles = c.styles as Record<string, unknown>
-      const validKeyPattern = /^[A-Za-z]+\.[A-Za-z]+\.[A-Za-z]+\.[A-Za-z]+\.[A-Za-z]+$/
+      const validKeyPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/
 
       for (const key of Object.keys(styles)) {
         if (!validKeyPattern.test(key)) {

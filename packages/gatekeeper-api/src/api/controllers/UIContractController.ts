@@ -76,6 +76,18 @@ export class UIContractController {
       return
     }
 
+    // Gerar hash se não existir
+    if (!contractData.metadata?.hash) {
+      const crypto = await import('crypto')
+      const contractString = JSON.stringify(contractData)
+      const hash = crypto.createHash('sha256').update(contractString).digest('hex').substring(0, 12)
+
+      if (!contractData.metadata) {
+        contractData.metadata = {} as any
+      }
+      contractData.metadata.hash = hash
+    }
+
     // Validar schema
     const validation = this.validator.validate(contractData)
 

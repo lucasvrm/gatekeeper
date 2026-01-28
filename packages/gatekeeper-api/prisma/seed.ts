@@ -5,6 +5,24 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Starting seed...')
 
+  // Create global workspace for test path conventions
+  const globalWorkspace = await prisma.workspace.upsert({
+    where: { name: '__global__' },
+    create: {
+      id: '__global__',
+      name: '__global__',
+      description: 'Global workspace for test path conventions',
+      rootPath: '',
+      artifactsDir: 'artifacts',
+      isActive: false, // Hidden from UI
+    },
+    update: {
+      description: 'Global workspace for test path conventions',
+    },
+  })
+
+  console.log(`✓ Seeded global workspace: ${globalWorkspace.name}`)
+
   // Create default workspace
   const defaultWorkspace = await prisma.workspace.upsert({
     where: { name: 'Gatekeeper' },
@@ -210,6 +228,8 @@ async function main() {
     { key: 'IMPORT_REALITY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_INTENT_ALIGNMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_CLAUSE_MAPPING_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
+    { key: 'UI_PLAN_COVERAGE', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
+    { key: 'UI_TEST_COVERAGE', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'DIFF_SCOPE_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_READ_ONLY_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TASK_TEST_PASSES', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
