@@ -13,6 +13,7 @@ import { WorkspaceFormPage } from "@/components/workspace-form-page"
 import { ProjectsListPage } from "@/components/projects-list-page"
 import { ProjectDetailsPage } from "@/components/project-details-page"
 import { ProjectFormPage } from "@/components/project-form-page"
+import { ThemeSettingsPage } from "@/components/theme-settings-page"
 import { CustomizationProvider } from "@/hooks/use-customization"
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
             <Route path="/projects/new" element={<ProjectFormPage />} />
             <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
             <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+            <Route path="/settings/theme" element={<ThemeSettingsPage projectId="default" />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppLayout>

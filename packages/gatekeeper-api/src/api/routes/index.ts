@@ -7,6 +7,7 @@ import { workspaceRoutes } from './workspace.routes.js'
 import { projectRoutes } from './project.routes.js'
 import { gitRoutes } from './git.routes.js'
 import { uiContractRoutes } from './ui-contract.routes.js'
+import { themeRoutes } from './theme.routes.js'
 
 const router = Router()
 
@@ -18,5 +19,6 @@ router.use('/', workspaceRoutes)
 router.use('/', projectRoutes)
 router.use('/', gitRoutes)
 router.use('/', uiContractRoutes)
+router.use('/', themeRoutes)
 
 export default router

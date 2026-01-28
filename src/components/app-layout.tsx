@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom"
-import { List, ShieldCheck, Gear, SquaresFour, FolderOpen, Folders } from "@phosphor-icons/react"
+import { List, ShieldCheck, Gear, SquaresFour, FolderOpen, Folders, PaintBrush } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useCustomization } from "@/hooks/use-customization"
+import type { LayoutConfig } from "@/lib/types"
 
 const navigation = [
   { name: "Dashboard", path: "/", icon: SquaresFour },
@@ -10,15 +11,23 @@ const navigation = [
   { name: "Runs", path: "/runs", icon: List },
   { name: "Gates", path: "/gates", icon: ShieldCheck },
   { name: "Config", path: "/config", icon: Gear },
+  { name: "Theme", path: "/settings/theme", icon: PaintBrush },
 ]
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+interface AppLayoutProps {
+  children: React.ReactNode
+  layoutConfig?: LayoutConfig | null
+}
+
+export function AppLayout({ children, layoutConfig }: AppLayoutProps) {
   const location = useLocation()
   const { customization } = useCustomization()
 
+  const sidebarWidth = layoutConfig?.sidebar?.width || '256px'
+
   return (
     <div className="flex h-screen bg-background text-foreground">
-      <aside className="w-64 border-r border-border bg-card flex flex-col">
+      <aside className="border-r border-border bg-card flex flex-col" style={{ width: sidebarWidth }}>
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">

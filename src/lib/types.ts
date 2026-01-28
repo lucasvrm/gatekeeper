@@ -372,3 +372,51 @@ export interface GitErrorResponse {
     message: string
   }
 }
+
+export interface Theme {
+  id: string
+  projectId: string
+  name: string
+  version: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface ThemeDetailed extends Theme {
+  cssVariables: string
+  layoutConfig: LayoutConfig
+  componentStyles: Record<string, unknown>
+}
+
+export interface LayoutConfig {
+  sidebar: { width: string; collapsedWidth?: string }
+  header: { height: string }
+  content: { padding: string }
+}
+
+export interface ThemePreset {
+  version: string
+  metadata: {
+    name: string
+    hash: string
+    exportedAt: string
+  }
+  components: Record<string, unknown>
+  styles: Record<string, string>
+  layout?: {
+    sidebar?: { width?: string; collapsedWidth?: string }
+    header?: { height?: string }
+    content?: { padding?: string }
+  }
+}
+
+export interface ThemeValidationResult {
+  valid: boolean
+  errors: Array<{ path: string; message: string }>
+}
+
+export interface ThemePreviewResponse {
+  cssVariables: string
+  layoutConfig: LayoutConfig
+  validation: ThemeValidationResult
+}
