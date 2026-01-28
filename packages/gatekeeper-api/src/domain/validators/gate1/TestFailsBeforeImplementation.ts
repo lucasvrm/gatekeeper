@@ -150,7 +150,9 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
       // Best-effort filesystem cleanup
       try {
         await rm(worktreePath, { recursive: true, force: true })
-      } catch {}
+      } catch {
+        // Intentionally ignored - cleanup is best-effort only
+      }
     }
   },
 }

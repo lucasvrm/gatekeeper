@@ -199,7 +199,7 @@ export interface ValidationContext {
 
 export interface ValidatorContextInput {
   label: string
-  value: string | number | boolean | string[] | Record<string, unknown>
+  value: string | number | boolean | string[] | Record<string, unknown> | ManifestInput
 }
 
 export interface ValidatorContextAnalyzedGroup {

@@ -447,7 +447,7 @@ export class RunsController {
 
       if (!hasUploadedFiles) {
         const filesystemArtifactDir = path.join(artifactsBasePath, run.outputId)
-        const contents = await fs.readdir(filesystemArtifactDir).catch(() => [])
+        const contents = await fs.readdir(filesystemArtifactDir).catch((): string[] => [])
         const specFileName = contents.find((file) => file.endsWith('.spec.tsx') || file.endsWith('.spec.ts')) || null
 
         if (!specFileName) {
