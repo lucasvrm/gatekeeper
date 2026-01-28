@@ -375,7 +375,6 @@ export interface GitErrorResponse {
 
 export interface Theme {
   id: string
-  projectId: string
   name: string
   version: string
   isActive: boolean

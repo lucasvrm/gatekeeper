@@ -19,10 +19,6 @@ import type {
   GitPushResponse,
   GitFetchStatusResponse,
   GitDiffResponse,
-  Theme,
-  ThemeDetailed,
-  ThemePreset,
-  ThemePreviewResponse,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -657,60 +653,27 @@ export const api = {
   },
 
   theme: {
-    list: async (projectId: string) => {
-      const response = await fetch(`${API_BASE}/projects/${projectId}/themes`)
+    list: async () => {
+      const response = await fetch(`${API_BASE}/themes`)
       if (!response.ok) throw new Error("Failed to fetch themes")
       return response.json()
-    },
-
-    getActive: async (projectId: string) => {
-      const response = await fetch(`${API_BASE}/projects/${projectId}/themes/active`)
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null
-        }
-        throw new Error("Failed to fetch active theme")
-      }
+    }, getActive: async () => {
+      const response = await fetch(`${API_BASE}/themes/active`)
+      if (!response.ok) { if (response.status === 404) return null; throw new Error("Failed to fetch active theme") }
       return response.json()
-    },
-
-    create: async (projectId: string, preset: unknown) => {
-      const response = await fetch(`${API_BASE}/projects/${projectId}/themes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(preset),
-      })
-      if (!response.ok) {
-        const error = await response.json().catch(() => null)
-        throw error || new Error("Failed to create theme")
-      }
+    }, create: async (preset: unknown) => {
+      const response = await fetch(`${API_BASE}/themes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preset) })
+      if (!response.ok) { const error = await response.json().catch(() => null); throw error || new Error("Failed to create theme") }
       return response.json()
-    },
-
-    activate: async (projectId: string, themeId: string) => {
-      const response = await fetch(`${API_BASE}/projects/${projectId}/themes/${themeId}/activate`, {
-        method: "PUT",
-      })
+    }, activate: async (themeId: string) => {
+      const response = await fetch(`${API_BASE}/themes/${themeId}/activate`, { method: "PUT" })
       if (!response.ok) throw new Error("Failed to activate theme")
       return response.json()
-    },
-
-    delete: async (projectId: string, themeId: string): Promise<void> => {
-      const response = await fetch(`${API_BASE}/projects/${projectId}/themes/${themeId}`, {
-        method: "DELETE",
-      })
-      if (!response.ok) {
-        const error = await response.json().catch(() => null)
-        throw error || new Error("Failed to delete theme")
-      }
-    },
-
-    preview: async (preset: unknown) => {
-      const response = await fetch(`${API_BASE}/themes/preview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(preset),
-      })
+    }, delete: async (themeId: string): Promise<void> => {
+      const response = await fetch(`${API_BASE}/themes/${themeId}`, { method: "DELETE" })
+      if (!response.ok) { const error = await response.json().catch(() => null); throw error || new Error("Failed to delete theme") }
+    }, preview: async (preset: unknown) => {
+      const response = await fetch(`${API_BASE}/themes/preview`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preset) })
       if (!response.ok) throw new Error("Failed to preview theme")
       return response.json()
     },

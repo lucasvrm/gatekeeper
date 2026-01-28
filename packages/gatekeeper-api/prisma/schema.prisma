@@ -39,7 +39,6 @@ model Project {
 
   validationRuns ValidationRun[]
   uiContract     UIContract?
-  themes         Theme[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -265,8 +264,6 @@ model ValidatorMetadata {
 
 model Theme {
   id              String   @id @default(cuid())
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name            String
   version         String
   presetRaw       String
@@ -278,7 +275,7 @@ model Theme {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@index([projectId])
+  @@unique([name])
   @@index([isActive])
 }
 

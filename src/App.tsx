@@ -36,7 +36,7 @@ function App() {
             <Route path="/projects/new" element={<ProjectFormPage />} />
             <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
             <Route path="/projects/:id" element={<ProjectDetailsPage />} />
-            <Route path="/settings/theme" element={<ThemeSettingsPage projectId="default" />} />
+            <Route path="/settings/theme" element={<ThemeSettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppLayout>

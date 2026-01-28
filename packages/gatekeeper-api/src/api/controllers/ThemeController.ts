@@ -10,22 +10,8 @@ const themeEngine = new ThemeEngine()
 export class ThemeController {
   async createTheme(req: Request, res: Response): Promise<void> {
     try {
-      const { projectId } = req.params
       const preset = req.body as ThemePreset
-
-      const project = await prisma.project.findUnique({ where: { id: projectId } })
-      if (!project) {
-        res.status(404).json({
-          error: {
-            code: 'PROJECT_NOT_FOUND',
-            message: 'Project not found',
-          },
-        })
-        return
-      }
-
       const output = themeEngine.process(preset)
-
       if (!output.validation.valid) {
         res.status(400).json({
           error: {
@@ -36,9 +22,7 @@ export class ThemeController {
         })
         return
       }
-
       const theme = await themeRepo.create({
-        projectId,
         name: preset.metadata.name,
         version: preset.version,
         presetRaw: JSON.stringify(preset),
@@ -47,10 +31,8 @@ export class ThemeController {
         componentStyles: JSON.stringify(output.componentStyles),
         metadata: JSON.stringify(preset.metadata),
       })
-
       res.status(201).json({
         id: theme.id,
-        projectId: theme.projectId,
         name: theme.name,
         version: theme.version,
         isActive: theme.isActive,
@@ -64,10 +46,7 @@ export class ThemeController {
 
   async listThemes(req: Request, res: Response): Promise<void> {
     try {
-      const { projectId } = req.params
-
-      const themes = await themeRepo.findByProjectId(projectId)
-
+      const themes = await themeRepo.findAll()
       res.status(200).json({
         themes: themes.map((t) => ({
           id: t.id,
@@ -85,10 +64,7 @@ export class ThemeController {
 
   async getActiveTheme(req: Request, res: Response): Promise<void> {
     try {
-      const { projectId } = req.params
-
-      const theme = await themeRepo.findActive(projectId)
-
+      const theme = await themeRepo.findActive()
       if (!theme) {
         res.status(404).json({
           error: {
@@ -98,10 +74,8 @@ export class ThemeController {
         })
         return
       }
-
       res.status(200).json({
         id: theme.id,
-        projectId: theme.projectId,
         name: theme.name,
         version: theme.version,
         cssVariables: theme.cssVariables,
@@ -118,10 +92,8 @@ export class ThemeController {
 
   async activateTheme(req: Request, res: Response): Promise<void> {
     try {
-      const { projectId, themeId } = req.params
-
+      const { themeId } = req.params
       const theme = await themeRepo.findById(themeId)
-
       if (!theme) {
         res.status(404).json({
           error: {
@@ -131,19 +103,7 @@ export class ThemeController {
         })
         return
       }
-
-      if (theme.projectId !== projectId) {
-        res.status(403).json({
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Theme does not belong to this project',
-          },
-        })
-        return
-      }
-
-      const activatedTheme = await themeRepo.setActive(themeId)
-
+      const activatedTheme = await themeRepo.activate(themeId)
       res.status(200).json({
         id: activatedTheme.id,
         isActive: activatedTheme.isActive,
@@ -156,42 +116,11 @@ export class ThemeController {
 
   async deleteTheme(req: Request, res: Response): Promise<void> {
     try {
-      const { projectId, themeId } = req.params
-
+      const { themeId } = req.params
       const theme = await themeRepo.findById(themeId)
-
-      if (!theme) {
-        res.status(404).json({
-          error: {
-            code: 'THEME_NOT_FOUND',
-            message: 'Theme not found',
-          },
-        })
-        return
-      }
-
-      if (theme.projectId !== projectId) {
-        res.status(403).json({
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Theme does not belong to this project',
-          },
-        })
-        return
-      }
-
-      if (theme.isActive) {
-        res.status(400).json({
-          error: {
-            code: 'CANNOT_DELETE_ACTIVE_THEME',
-            message: 'Cannot delete an active theme. Deactivate it first.',
-          },
-        })
-        return
-      }
-
+      if (!theme) { res.status(404).json({ error: { code: 'THEME_NOT_FOUND', message: 'Theme not found' } }); return }
+      if (theme.isActive) { res.status(400).json({ error: { code: 'CANNOT_DELETE_ACTIVE_THEME', message: 'Cannot delete an active theme. Deactivate it first.' } }); return }
       await themeRepo.delete(themeId)
-
       res.status(204).send()
     } catch (error) {
       console.error('Error deleting theme:', error)
@@ -202,9 +131,7 @@ export class ThemeController {
   async previewTheme(req: Request, res: Response): Promise<void> {
     try {
       const preset = req.body as ThemePreset
-
       const output = themeEngine.process(preset)
-
       res.status(200).json({
         cssVariables: output.cssVariables,
         layoutConfig: output.layoutConfig,

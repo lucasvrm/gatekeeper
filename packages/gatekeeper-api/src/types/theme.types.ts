@@ -33,7 +33,6 @@ export interface ThemeEngineOutput {
 }
 
 export interface CreateThemeData {
-  projectId: string
   name: string
   version: string
   presetRaw: string
