@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
 import { ConfigSection } from "@/components/config-section"
 import { ValidatorsTab } from "@/components/validators-tab"
-import { CustomizationTab } from "@/components/customization-tab"
 import { PathConfigsTab } from "@/components/path-configs-tab"
 import { type ConfigModalField } from "@/components/config-modal"
 import { Badge } from "@/components/ui/badge"
@@ -342,7 +341,6 @@ export function ConfigPage() {
           <TabsTrigger value="sensitive-file-rules">Sensitive File Rules</TabsTrigger>
           <TabsTrigger value="ambiguous-terms">Ambiguous Terms</TabsTrigger>
           <TabsTrigger value="validation-configs">Validation Configs</TabsTrigger>
-          <TabsTrigger value="customization">Customização</TabsTrigger>
         </TabsList>
 
         <TabsContent value="validators">
@@ -477,10 +475,6 @@ export function ConfigPage() {
             onUpdate={handleUpdateValidation}
             onDelete={handleDeleteValidation}
           />
-        </TabsContent>
-
-        <TabsContent value="customization">
-          <CustomizationTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -227,26 +227,6 @@ export interface ConfigItem {
   isHardBlock?: boolean
 }
 
-export interface CustomizationSettings {
-  appName: string
-  appSubtitle: string
-  logoUrl: string | null
-  faviconUrl: string | null
-  fonts: {
-    sans: string
-    serif: string
-    mono: string
-  }
-  maxUploadMb: number
-  colors: {
-    accent: { background: string | null; text: string | null }
-    primary: { background: string | null; text: string | null }
-    secondary: { background: string | null; text: string | null }
-    base: { background: string | null; text: string | null }
-    background: { background: string | null; text: string | null }
-    text: { background: string | null; text: string | null }
-  }
-}
 
 
 

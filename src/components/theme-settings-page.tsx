@@ -5,8 +5,10 @@ import type { Theme, ThemePreset, ThemePreviewResponse } from '@/lib/types'
 import { ThemeUploadZone } from './theme-upload-zone'
 import { ThemePreviewPanel } from './theme-preview-panel'
 import { ThemeListItem } from './theme-list-item'
+import { useActiveTheme } from '@/hooks/use-active-theme'
 
 export function ThemeSettingsPage() {
+  const { refresh } = useActiveTheme()
   const [themes, setThemes] = useState<Theme[]>([])
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<ThemePreviewResponse | null>(null)
@@ -47,6 +49,7 @@ export function ThemeSettingsPage() {
       setPreview(null)
       setCurrentPreset(null)
       await loadThemes()
+      await refresh()
     } catch (err: unknown) {
       const error = err as { error?: { code?: string } }
       if (error?.error?.code === 'INVALID_PRESET') {
@@ -67,6 +70,7 @@ export function ThemeSettingsPage() {
       await api.theme.activate(themeId)
       toast.success('Theme activated')
       await loadThemes()
+      await refresh()
     } catch {
       toast.error('Failed to activate theme')
     }
@@ -77,6 +81,7 @@ export function ThemeSettingsPage() {
       await api.theme.delete(themeId)
       toast.success('Theme deleted')
       await loadThemes()
+      await refresh()
     } catch (err: unknown) {
       const error = err as { error?: { code?: string } }
       if (error?.error?.code === 'CANNOT_DELETE_ACTIVE_THEME') {

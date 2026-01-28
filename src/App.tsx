@@ -14,12 +14,12 @@ import { ProjectsListPage } from "@/components/projects-list-page"
 import { ProjectDetailsPage } from "@/components/project-details-page"
 import { ProjectFormPage } from "@/components/project-form-page"
 import { ThemeSettingsPage } from "@/components/theme-settings-page"
-import { CustomizationProvider } from "@/hooks/use-customization"
+import { ActiveThemeProvider } from "@/hooks/use-active-theme"
 
 function App() {
   return (
     <BrowserRouter>
-      <CustomizationProvider>
+      <ActiveThemeProvider>
         <AppLayout>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
@@ -40,7 +40,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppLayout>
-      </CustomizationProvider>
+      </ActiveThemeProvider>
       <Toaster />
     </BrowserRouter>
   )

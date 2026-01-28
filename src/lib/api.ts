@@ -8,7 +8,6 @@ import type {
   ConfigItem,
   CreateRunRequest,
   CreateRunResponse,
-  CustomizationSettings,
   Workspace,
   Project,
   WorkspaceConfig,
@@ -255,22 +254,6 @@ export const api = {
           method: "DELETE",
         })
         if (!response.ok) throw new Error("Failed to delete validation config")
-      },
-    },
-    customization: {
-      get: async (): Promise<CustomizationSettings> => {
-        const response = await fetch(`${CONFIG_BASE}/customization`)
-        if (!response.ok) throw new Error("Failed to fetch customization")
-        return response.json()
-      },
-      update: async (data: Partial<CustomizationSettings>): Promise<CustomizationSettings> => {
-        const response = await fetch(`${CONFIG_BASE}/customization`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        })
-        if (!response.ok) throw new Error("Failed to update customization")
-        return response.json()
       },
     },
     testPaths: {

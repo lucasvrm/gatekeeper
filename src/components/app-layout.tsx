@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom"
 import { List, ShieldCheck, Gear, SquaresFour, FolderOpen, Folders, PaintBrush } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
-import { useCustomization } from "@/hooks/use-customization"
 import type { LayoutConfig } from "@/lib/types"
 
 const navigation = [
@@ -21,7 +20,6 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, layoutConfig }: AppLayoutProps) {
   const location = useLocation()
-  const { customization } = useCustomization()
 
   const sidebarWidth = layoutConfig?.sidebar?.width || '256px'
 
@@ -31,19 +29,11 @@ export function AppLayout({ children, layoutConfig }: AppLayoutProps) {
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              {customization.logoUrl ? (
-                <img
-                  src={customization.logoUrl}
-                  alt={customization.appName}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <ShieldCheck className="w-6 h-6 text-primary-foreground" weight="fill" />
-              )}
+              <ShieldCheck className="w-6 h-6 text-primary-foreground" weight="fill" />
             </div>
             <div>
-              <h1 className="text-lg font-bold">{customization.appName}</h1>
-              <p className="text-xs text-muted-foreground">{customization.appSubtitle}</p>
+              <h1 className="text-lg font-bold">Gatekeeper</h1>
+              <p className="text-xs text-muted-foreground">Dashboard de Validações</p>
             </div>
           </div>
         </div>
