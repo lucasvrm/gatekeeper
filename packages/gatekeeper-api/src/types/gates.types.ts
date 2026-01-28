@@ -90,6 +90,7 @@ export interface AssertionSurface {
 
 export interface TestMapping {
   tagPattern?: string
+  uiTagPattern?: string
 }
 
 export interface ContractInput {
