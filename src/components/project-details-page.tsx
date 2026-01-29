@@ -16,7 +16,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { StatusBadge } from "@/components/status-badge"
-import { UIContractSection } from "@/components/ui-contract-section"
 
 export function ProjectDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -128,12 +127,6 @@ export function ProjectDetailsPage() {
           </div>
         </dl>
       </Card>
-
-      <UIContractSection
-        projectId={project.id}
-        uiContract={project.uiContract || null}
-        onUpdate={loadData}
-      />
 
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Runs</h2>

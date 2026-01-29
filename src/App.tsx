@@ -13,34 +13,29 @@ import { WorkspaceFormPage } from "@/components/workspace-form-page"
 import { ProjectsListPage } from "@/components/projects-list-page"
 import { ProjectDetailsPage } from "@/components/project-details-page"
 import { ProjectFormPage } from "@/components/project-form-page"
-import { ThemeSettingsPage } from "@/components/theme-settings-page"
-import { ActiveThemeProvider } from "@/hooks/use-active-theme"
 
 function App() {
   return (
     <BrowserRouter>
-      <ActiveThemeProvider>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/runs" element={<RunsListPage />} />
-            <Route path="/runs/new" element={<NewValidationPage />} />
-            <Route path="/runs/:id" element={<RunDetailsPage />} />
-            <Route path="/gates" element={<GatesPage />} />
-            <Route path="/config" element={<ConfigPage />} />
-            <Route path="/workspaces" element={<WorkspacesListPage />} />
-            <Route path="/workspaces/new" element={<WorkspaceFormPage />} />
-            <Route path="/workspaces/:id/edit" element={<WorkspaceFormPage />} />
-            <Route path="/workspaces/:id" element={<WorkspaceDetailsPage />} />
-            <Route path="/projects" element={<ProjectsListPage />} />
-            <Route path="/projects/new" element={<ProjectFormPage />} />
-            <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
-            <Route path="/projects/:id" element={<ProjectDetailsPage />} />
-            <Route path="/settings/theme" element={<ThemeSettingsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AppLayout>
-      </ActiveThemeProvider>
+      <AppLayout>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/runs" element={<RunsListPage />} />
+          <Route path="/runs/new" element={<NewValidationPage />} />
+          <Route path="/runs/:id" element={<RunDetailsPage />} />
+          <Route path="/gates" element={<GatesPage />} />
+          <Route path="/config" element={<ConfigPage />} />
+          <Route path="/workspaces" element={<WorkspacesListPage />} />
+          <Route path="/workspaces/new" element={<WorkspaceFormPage />} />
+          <Route path="/workspaces/:id/edit" element={<WorkspaceFormPage />} />
+          <Route path="/workspaces/:id" element={<WorkspaceDetailsPage />} />
+          <Route path="/projects" element={<ProjectsListPage />} />
+          <Route path="/projects/new" element={<ProjectFormPage />} />
+          <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AppLayout>
       <Toaster />
     </BrowserRouter>
   )

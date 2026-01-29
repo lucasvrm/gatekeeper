@@ -24,27 +24,6 @@ export interface Workspace {
   }
 }
 
-export interface UIContractSchema {
-  version: string
-  metadata: {
-    projectName: string
-    exportedFrom: string
-    exportedAt: string
-    hash: string
-  }
-  components: Record<string, unknown>
-  styles: Record<string, string>
-}
-
-export interface UIContract {
-  id: string
-  projectId: string
-  version: string
-  hash: string
-  uploadedAt: string
-  contract?: UIContractSchema
-}
-
 export interface Project {
   id: string
   workspaceId: string
@@ -62,7 +41,6 @@ export interface Project {
   isActive: boolean
   createdAt: string
   updatedAt: string
-  uiContract?: UIContract | null
   _count?: {
     validationRuns: number
   }
@@ -352,51 +330,4 @@ export interface GitErrorResponse {
     code: 'NO_CHANGES' | 'HAS_CONFLICTS' | 'REMOTE_AHEAD' | 'PERMISSION_DENIED' | 'COMMIT_FAILED' | 'PUSH_FAILED'
     message: string
   }
-}
-
-export interface Theme {
-  id: string
-  name: string
-  version: string
-  isActive: boolean
-  createdAt: string
-}
-
-export interface ThemeDetailed extends Theme {
-  cssVariables: string
-  layoutConfig: LayoutConfig
-  componentStyles: Record<string, unknown>
-}
-
-export interface LayoutConfig {
-  sidebar: { width: string; collapsedWidth?: string }
-  header: { height: string }
-  content: { padding: string }
-}
-
-export interface ThemePreset {
-  version: string
-  metadata: {
-    name: string
-    hash: string
-    exportedAt: string
-  }
-  components: Record<string, unknown>
-  styles: Record<string, string>
-  layout?: {
-    sidebar?: { width?: string; collapsedWidth?: string }
-    header?: { height?: string }
-    content?: { padding?: string }
-  }
-}
-
-export interface ThemeValidationResult {
-  valid: boolean
-  errors: Array<{ path: string; message: string }>
-}
-
-export interface ThemePreviewResponse {
-  cssVariables: string
-  layoutConfig: LayoutConfig
-  validation: ThemeValidationResult
 }
