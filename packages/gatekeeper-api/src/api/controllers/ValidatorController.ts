@@ -9,6 +9,21 @@ const gateCategoryLabels: Record<number, string> = {
   2: 'Execução',
   3: 'Integridade',
 }
+const validatorMetadataMap = new Map(
+  GATES_CONFIG.flatMap((gate) =>
+    gate.validators.map((validator) => [
+      validator.code,
+      {
+        displayName: validator.name,
+        description: validator.description ?? '',
+        gate: gate.number,
+        order: validator.order ?? 1,
+        isHardBlock: validator.isHardBlock ?? true,
+        category: gate.name,
+      },
+    ]),
+  ),
+)
 const validatorCategoryMap = new Map<string, string>(
   GATES_CONFIG.flatMap((gate) =>
     gate.validators.map((validator) => [
@@ -26,14 +41,8 @@ export class ValidatorController {
       orderBy: { key: 'asc' },
     })
 
-    // Fetch metadata from database
-    const metadataRecords = await prisma.validatorMetadata.findMany({
-      where: { code: { in: keys } },
-    })
-    const metadataMap = new Map(metadataRecords.map((m) => [m.code, m]))
-
     const response = validators.map((validator) => {
-      const metadata = metadataMap.get(validator.key)
+      const metadata = validatorMetadataMap.get(validator.key)
       return {
         ...validator,
         failMode: validator.failMode,
