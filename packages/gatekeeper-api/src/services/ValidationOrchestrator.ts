@@ -321,20 +321,6 @@ export class ValidationOrchestrator {
       }
     }
 
-    let uiContract = null
-    if (run.projectId) {
-      const uiContractRecord = await prisma.uIContract.findUnique({
-        where: { projectId: run.projectId },
-      })
-      if (uiContractRecord) {
-        try {
-          uiContract = JSON.parse(uiContractRecord.contractJson)
-        } catch (error) {
-          console.error('Failed to parse UI Contract JSON:', error)
-        }
-      }
-    }
-
     let bypassedValidators = new Set<string>()
     if (run.bypassedValidators) {
       try {
@@ -365,7 +351,6 @@ export class ValidationOrchestrator {
       manifest,
       contract,
       testFilePath: run.testFilePath,
-      uiContract,
       dangerMode: run.dangerMode,
       services: {
         git: gitService,

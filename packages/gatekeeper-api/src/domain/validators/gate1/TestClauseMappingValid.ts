@@ -11,7 +11,6 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
     // Get patterns from contract or use defaults
     const tagPattern = ctx.contract?.testMapping?.tagPattern || '// @clause'
-    const uiTagPattern = ctx.contract?.testMapping?.uiTagPattern || '// @ui-clause'
 
     // TCM_001: Contract presence check
     if (!ctx.contract) {
@@ -23,7 +22,6 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
           inputs: [
             { label: 'Contract Clauses', value: [] },
             { label: 'TagPattern', value: tagPattern },
-            { label: 'UITagPattern', value: uiTagPattern },
           ],
           analyzed: [],
           findings: [{ type: 'info', message: 'Skipped: contract not provided' }],
@@ -42,7 +40,6 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
           inputs: [
             { label: 'Contract Clauses', value: ctx.contract.clauses.map((clause) => clause.id) },
             { label: 'TagPattern', value: tagPattern },
-            { label: 'UITagPattern', value: uiTagPattern },
           ],
           analyzed: [],
           findings: [{ type: 'info', message: 'Skipped: test file path not provided' }],
@@ -69,16 +66,6 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
       const tagPatternRegex = new RegExp(escapedPattern) // Pattern detection
       const tagRegex = new RegExp(escapedPattern + '\\s+(\\S+)') // Pattern + ID extraction
 
-      // Create regex patterns for @ui-clause
-      const escapedUiPattern = uiTagPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const uiTagPatternRegex = new RegExp(escapedUiPattern) // UI Pattern detection
-      const uiTagRegex = new RegExp(escapedUiPattern + '\\s+(\\S+)') // UI Pattern + ID extraction
-
-      // Helper to check if a clause ID is a UI clause (CL-UI-*)
-      const isUIClause = (clauseId: string): boolean => {
-        return clauseId.startsWith('CL-UI-')
-      }
-
       for (const testBlock of testBlocks) {
         // Check if any preceding comment contains the tag
         let clauseId: string | null = null
@@ -86,53 +73,7 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
         let hasMalformedTag = false
 
         for (const comment of testBlock.precedingComments) {
-          // First, check for @ui-clause pattern
-          if (uiTagPatternRegex.test(comment)) {
-            // UI Pattern found, now try to extract the ID
-            const match = uiTagRegex.exec(comment)
-            if (match && match[1]) {
-              clauseId = match[1].trim()
-
-              // Check if ID is empty after trimming
-              if (clauseId === '') {
-                hasMalformedTag = true
-                errors.push(
-                  `Test "${testBlock.name}" has malformed @ui-clause tag at line ${testBlock.startLine}. Expected format: "// @ui-clause CLAUSE_ID"`
-                )
-                break
-              }
-
-              // Check if clause ID exists in contract
-              if (!validClauseIds.has(clauseId)) {
-                const validIds = Array.from(validClauseIds).join(', ')
-                errors.push(
-                  `Test "${testBlock.name}" references unknown clause "${clauseId}". Valid clause IDs: ${validIds}`
-                )
-                break
-              }
-
-              // CL-FIX-002: @ui-clause can only be used with CL-UI-* clauses
-              if (!isUIClause(clauseId)) {
-                errors.push(
-                  `Test "${testBlock.name}" uses @ui-clause with non-UI clause "${clauseId}". @ui-clause can only be used with CL-UI-* clauses.`
-                )
-                break
-              }
-
-              // Valid @ui-clause tag found
-              hasMatchingTag = true
-              break
-            } else {
-              // Pattern exists but no valid ID after it
-              hasMalformedTag = true
-              errors.push(
-                `Test "${testBlock.name}" has malformed @ui-clause tag at line ${testBlock.startLine}. Expected format: "// @ui-clause CLAUSE_ID"`
-              )
-              break
-            }
-          }
-
-          // Then, check for @clause pattern
+          // Check for @clause pattern
           if (tagPatternRegex.test(comment)) {
             // Pattern found, now try to extract the ID
             const match = tagRegex.exec(comment)
@@ -202,7 +143,6 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
             inputs: [
               { label: 'Contract Clauses', value: ctx.contract.clauses.map((clause) => clause.id) },
               { label: 'TagPattern', value: tagPattern },
-              { label: 'UITagPattern', value: uiTagPattern },
             ],
             analyzed: [{ label: 'Test Blocks', items: testBlocks.map((block) => block.name) }],
             findings: errors.map((error) => ({ type: 'fail' as const, message: error })),
@@ -225,7 +165,6 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
             inputs: [
               { label: 'Contract Clauses', value: ctx.contract.clauses.map((clause) => clause.id) },
               { label: 'TagPattern', value: tagPattern },
-              { label: 'UITagPattern', value: uiTagPattern },
             ],
             analyzed: [{ label: 'Test Blocks', items: testBlocks.map((block) => block.name) }],
             findings: warnings.map((warning) => ({ type: 'warning' as const, message: warning })),
@@ -250,7 +189,6 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
           inputs: [
             { label: 'Contract Clauses', value: ctx.contract.clauses.map((clause) => clause.id) },
             { label: 'TagPattern', value: tagPattern },
-            { label: 'UITagPattern', value: uiTagPattern },
           ],
           analyzed: [{ label: 'Test Blocks', items: testBlocks.map((block) => block.name) }],
           findings: [{ type: 'pass', message: 'All test blocks have valid clause mappings' }],
@@ -269,7 +207,6 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
           inputs: [
             { label: 'Contract Clauses', value: ctx.contract?.clauses.map((clause) => clause.id) ?? [] },
             { label: 'TagPattern', value: ctx.contract?.testMapping?.tagPattern ?? '// @clause' },
-            { label: 'UITagPattern', value: ctx.contract?.testMapping?.uiTagPattern ?? '// @ui-clause' },
           ],
           analyzed: [],
           findings: [{ type: 'fail', message: 'Clause mapping validation failed' }],

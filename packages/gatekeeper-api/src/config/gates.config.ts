@@ -18,8 +18,6 @@ import { NoImplicitFilesValidator } from '../domain/validators/gate1/NoImplicitF
 import { ImportRealityCheckValidator } from '../domain/validators/gate1/ImportRealityCheck.js'
 import { TestIntentAlignmentValidator } from '../domain/validators/gate1/TestIntentAlignment.js'
 import { TestClauseMappingValidValidator } from '../domain/validators/gate1/TestClauseMappingValid.js'
-import { UIPlanCoverageValidator } from '../domain/validators/gate1/UIPlanCoverage.js'
-import { UITestCoverageValidator } from '../domain/validators/gate1/UITestCoverage.js'
 
 import { DiffScopeEnforcementValidator } from '../domain/validators/gate2/DiffScopeEnforcement.js'
 import { TestReadOnlyEnforcementValidator } from '../domain/validators/gate2/TestReadOnlyEnforcement.js'
@@ -62,8 +60,6 @@ export const GATES_CONFIG: GateDefinition[] = [
       ImportRealityCheckValidator,
       TestIntentAlignmentValidator,
       TestClauseMappingValidValidator,
-      UIPlanCoverageValidator,
-      UITestCoverageValidator,
     ],
   },
   {

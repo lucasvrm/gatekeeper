@@ -1,5 +1,3 @@
-import type { UIContractSchema } from './ui-contract.types.js'
-
 export type GateNumber = 0 | 1 | 2 | 3
 
 export type ValidatorCategory =
@@ -49,8 +47,6 @@ export type ValidatorCode =
   | 'STYLE_CONSISTENCY_LINT'
   | 'FULL_REGRESSION_PASS'
   | 'PRODUCTION_BUILD_PASS'
-  | 'UI_PLAN_COVERAGE'
-  | 'UI_TEST_COVERAGE'
 
 export type ManifestAction = 'CREATE' | 'MODIFY' | 'DELETE'
 
@@ -67,7 +63,7 @@ export interface ManifestInput {
 
 export interface ContractClause {
   id: string
-  kind: 'behavior' | 'error' | 'invariant' | 'ui' | 'constraint'
+  kind: 'behavior' | 'error' | 'invariant' | 'constraint'
   normativity: 'MUST' | 'SHOULD' | 'MAY'
   when: string
   then: string
@@ -80,18 +76,11 @@ export interface AssertionSurface {
     errorStatuses?: number[]
     payloadPaths?: string[]
   }
-  ui?: {
-    routes?: string[]
-    testIds?: string[]
-    roles?: string[]
-    ariaLabels?: string[]
-  }
   effects?: string[]
 }
 
 export interface TestMapping {
   tagPattern?: string
-  uiTagPattern?: string
 }
 
 export interface ContractInput {
@@ -180,7 +169,6 @@ export interface ValidationContext {
   manifest: ManifestInput | null
   contract: ContractInput | null
   testFilePath: string | null
-  uiContract: UIContractSchema | null
   dangerMode: boolean
   services: {
     git: GitService

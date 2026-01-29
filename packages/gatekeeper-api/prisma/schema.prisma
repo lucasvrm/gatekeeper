@@ -38,7 +38,6 @@ model Project {
   updatedAt        DateTime @updatedAt
 
   validationRuns ValidationRun[]
-  uiContract     UIContract?
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -233,19 +232,6 @@ model TestPathConvention {
   @@index([workspaceId])
 }
 
-model UIContract {
-  id           String   @id @default(cuid())
-  projectId    String   @unique
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  contractJson String
-  version      String
-  hash         String
-  uploadedAt   DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([projectId])
-}
-
 model ValidatorMetadata {
   id          String   @id @default(cuid())
   code        String   @unique
@@ -262,20 +248,4 @@ model ValidatorMetadata {
   @@index([gate])
 }
 
-model Theme {
-  id              String   @id @default(cuid())
-  name            String
-  version         String
-  presetRaw       String
-  cssVariables    String
-  layoutConfig    String
-  componentStyles String
-  metadata        String
-  isActive        Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([name])
-  @@index([isActive])
-}
 

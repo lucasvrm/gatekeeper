@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { prisma } from '../../db/client.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'
+import type { ValidatorCode } from '../../types/index.js'
 
 const validatorKeys = new Set<string>(GATES_CONFIG.flatMap((gate) => gate.validators.map((validator) => validator.code)))
 const gateCategoryLabels: Record<number, string> = {
@@ -42,7 +43,7 @@ export class ValidatorController {
     })
 
     const response = validators.map((validator) => {
-      const metadata = validatorMetadataMap.get(validator.key)
+      const metadata = validatorMetadataMap.get(validator.key as ValidatorCode)
       return {
         ...validator,
         failMode: validator.failMode,

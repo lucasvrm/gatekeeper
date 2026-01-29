@@ -132,63 +132,63 @@ async function main() {
 
   const validationConfigs = [
     {
-      key: 'MAX_TOKEN_BUDGET',
+      ['key']: 'MAX_TOKEN_BUDGET',
       value: '100000',
       type: 'NUMBER',
       category: 'GATE0',
       description: 'Maximum token budget for context',
     },
     {
-      key: 'TOKEN_SAFETY_MARGIN',
+      ['key']: 'TOKEN_SAFETY_MARGIN',
       value: '0.8',
       type: 'NUMBER',
       category: 'GATE0',
       description: 'Safety margin multiplier for token budget',
     },
     {
-      key: 'MAX_FILES_PER_TASK',
+      ['key']: 'MAX_FILES_PER_TASK',
       value: '10',
       type: 'NUMBER',
       category: 'GATE0',
       description: 'Maximum files allowed per task',
     },
     {
-      key: 'ALLOW_SOFT_GATES',
+      ['key']: 'ALLOW_SOFT_GATES',
       value: 'true',
       type: 'BOOLEAN',
       category: 'GLOBAL',
       description: 'Allow soft gate failures to not block execution',
     },
     {
-      key: 'PROJECT_ROOT',
+      ['key']: 'PROJECT_ROOT',
       value: '',
       type: 'STRING',
       category: 'PATHS',
       description: 'Absolute path to project repository root (where package.json and .git are located)',
     },
     {
-      key: 'BACKEND_WORKSPACE',
+      ['key']: 'BACKEND_WORKSPACE',
       value: 'packages/gatekeeper-api',
       type: 'STRING',
       category: 'PATHS',
       description: 'Relative path from PROJECT_ROOT to backend workspace (for manifest resolution)',
     },
     {
-      key: 'ARTIFACTS_DIR',
+      ['key']: 'ARTIFACTS_DIR',
       value: 'artifacts',
       type: 'STRING',
       category: 'PATHS',
       description: 'Relative path from PROJECT_ROOT to artifacts directory',
     },
     {
-      key: 'TEST_FILE_PATH',
+      ['key']: 'TEST_FILE_PATH',
       value: '',
       type: 'STRING',
       category: 'PATHS',
       description: 'Full path to the test file for the current run (set by Gatekeeper)',
     },
     {
-      key: 'SANDBOX_DIR',
+      ['key']: 'SANDBOX_DIR',
       value: '',
       type: 'STRING',
       category: 'PATHS',
@@ -198,7 +198,7 @@ async function main() {
 
   for (const config of validationConfigs) {
     await prisma.validationConfig.upsert({
-      where: { key: config.key },
+      where: { ['key']: config.key },
       create: config,
       update: {
         // Only update metadata, preserve user's value setting
@@ -229,8 +229,6 @@ async function main() {
     { key: 'IMPORT_REALITY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_INTENT_ALIGNMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_CLAUSE_MAPPING_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'UI_PLAN_COVERAGE', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'UI_TEST_COVERAGE', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'DIFF_SCOPE_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_READ_ONLY_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TASK_TEST_PASSES', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
@@ -242,7 +240,7 @@ async function main() {
 
   for (const config of validatorConfigs) {
     await prisma.validationConfig.upsert({
-      where: { key: config.key },
+      where: { ['key']: config.key },
       create: config,
       update: {
         // Only update metadata, preserve user's value setting
@@ -275,8 +273,6 @@ async function main() {
     { code: 'IMPORT_REALITY_CHECK', displayName: 'Imports Must Exist', description: 'Verifica se imports do teste existem', category: 'SECURITY', gate: 1, order: 8, isHardBlock: true },
     { code: 'TEST_INTENT_ALIGNMENT', displayName: 'Test Intent Alignment', description: 'Verifica alinhamento entre prompt e teste', category: 'TESTS_CONTRACTS', gate: 1, order: 9, isHardBlock: false },
     { code: 'TEST_CLAUSE_MAPPING_VALID', displayName: 'Test Contract Mapping Valid', description: 'Valida mapeamento entre testes e cláusulas do contrato', category: 'TESTS_CONTRACTS', gate: 1, order: 10, isHardBlock: true },
-    { code: 'UI_PLAN_COVERAGE', displayName: 'UI Plan Coverage', description: 'Valida cobertura de cláusulas UI no manifest/plan', category: 'TESTS_CONTRACTS', gate: 1, order: 11, isHardBlock: true },
-    { code: 'UI_TEST_COVERAGE', displayName: 'UI Test Coverage', description: 'Valida cobertura de testes para cláusulas UI', category: 'TESTS_CONTRACTS', gate: 1, order: 12, isHardBlock: false },
 
     // Gate 2 - EXECUTION
     { code: 'DIFF_SCOPE_ENFORCEMENT', displayName: 'Diff Scope Enforcement', description: 'Verifica se diff está contido no manifesto', category: 'TECHNICAL_QUALITY', gate: 2, order: 1, isHardBlock: true },

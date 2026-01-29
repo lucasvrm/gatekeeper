@@ -68,7 +68,6 @@ export class ProjectController {
             validationRuns: true,
           },
         },
-        uiContract: true,
       },
     })
 
