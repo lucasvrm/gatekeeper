@@ -248,4 +248,61 @@ model ValidatorMetadata {
   @@index([gate])
 }
 
+// =============================================================================
+// MCP SESSION MODELS
+// =============================================================================
 
+model Snippet {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  category  String   @default("OTHER")
+  content   String
+  tags      String   @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([name])
+}
+
+model ContextPack {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  files       String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}
+
+model SessionPreset {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  config    String   @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model SessionHistory {
+  id          String   @id @default(cuid())
+  taskType    String
+  gitStrategy String
+  branch      String?
+  projectId   String?
+  status      String   @default("COMPLETED")
+  runIds      String   @default("[]")
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MCPSessionConfig {
+  id        String   @id @default("singleton")
+  config    String   @default("{}")
+  updatedAt DateTime @updatedAt
+}

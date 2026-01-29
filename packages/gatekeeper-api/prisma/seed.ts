@@ -371,6 +371,106 @@ async function main() {
 
   console.log(`✓ Seeded ${testPathConventions.length} global test path conventions`)
 
+  // =============================================================================
+  // MCP SESSION SEED DATA
+  // =============================================================================
+
+  // Default Snippets
+  const defaultSnippets = [
+    {
+      name: 'Claude CLAUDE.md Instructions',
+      category: 'INSTRUCTIONS',
+      content: '# CLAUDE.md\n\nThis file provides guidance to Claude Code when working with code in this repository.\n\n## Project Overview\n\n[Add project description here]\n\n## Build Commands\n\n```bash\nnpm install\nnpm run dev\nnpm test\n```',
+      tags: '["claude", "instructions", "template"]',
+    },
+    {
+      name: 'Task Prompt Template',
+      category: 'TEMPLATES',
+      content: '## Task\n\n[Describe what needs to be done]\n\n## Context\n\n[Provide relevant background]\n\n## Expected Behavior\n\n[Describe the expected outcome]\n\n## Files to Modify\n\n- `path/to/file.ts` - [reason]',
+      tags: '["task", "prompt", "template"]',
+    },
+    {
+      name: 'Bug Report Template',
+      category: 'TEMPLATES',
+      content: '## Bug Description\n\n[Clear description of the bug]\n\n## Steps to Reproduce\n\n1. [Step 1]\n2. [Step 2]\n\n## Expected Behavior\n\n[What should happen]\n\n## Actual Behavior\n\n[What actually happens]',
+      tags: '["bug", "template"]',
+    },
+  ]
+
+  for (const snippet of defaultSnippets) {
+    await prisma.snippet.upsert({
+      where: { name: snippet.name },
+      create: snippet,
+      update: {
+        category: snippet.category,
+        content: snippet.content,
+        tags: snippet.tags,
+      },
+    })
+  }
+
+  console.log(`✓ Seeded ${defaultSnippets.length} default snippets`)
+
+  // Default Session Presets
+  const defaultPresets = [
+    {
+      name: 'Quick Bugfix',
+      config: JSON.stringify({
+        gitStrategy: 'main',
+        taskType: 'bugfix',
+        snippetIds: [],
+        contextPackIds: [],
+      }),
+    },
+    {
+      name: 'Feature Development',
+      config: JSON.stringify({
+        gitStrategy: 'new_branch',
+        taskType: 'feature',
+        snippetIds: [],
+        contextPackIds: [],
+      }),
+    },
+    {
+      name: 'Refactoring',
+      config: JSON.stringify({
+        gitStrategy: 'new_branch',
+        taskType: 'refactor',
+        snippetIds: [],
+        contextPackIds: [],
+      }),
+    },
+  ]
+
+  for (const preset of defaultPresets) {
+    await prisma.sessionPreset.upsert({
+      where: { name: preset.name },
+      create: preset,
+      update: {
+        config: preset.config,
+      },
+    })
+  }
+
+  console.log(`✓ Seeded ${defaultPresets.length} default session presets`)
+
+  // Initialize MCPSessionConfig singleton
+  await prisma.mCPSessionConfig.upsert({
+    where: { id: 'singleton' },
+    create: {
+      id: 'singleton',
+      config: JSON.stringify({
+        gitStrategy: 'main',
+        taskType: 'feature',
+        snippetIds: [],
+        contextPackIds: [],
+      }),
+    },
+    update: {},
+  })
+
+  console.log('✓ Initialized MCP session config singleton')
+
   console.log('✓ Seed completed successfully')
 }
 
