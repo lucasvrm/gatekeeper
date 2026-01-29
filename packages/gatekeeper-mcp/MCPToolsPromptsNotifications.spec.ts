@@ -944,7 +944,7 @@ describe('Phase 3: Tools for Artifacts', () => {
 
     const parsed = JSON.parse(result.content[0].text)
     expect(parsed).toHaveProperty('path')
-
+    
     const savedPath = path.join(TEST_ARTIFACTS_DIR, '2026_01_29_001', 'plan.json')
     expect(fs.existsSync(savedPath)).toBe(true)
     expect(fs.readFileSync(savedPath, 'utf-8')).toBe('{"test": true}')
@@ -1051,7 +1051,7 @@ describe('Phase 3: Tools for Artifacts', () => {
 
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('path')
-
+    
     // Verify file was NOT saved outside artifacts dir
     expect(fs.existsSync('/etc/passwd.bak')).toBe(false)
   })
@@ -1148,7 +1148,7 @@ describe('Phase 5: Notifications', () => {
   // @clause CL-NOTIFY-001
   it('succeeds when run changes to PASSED and notifications enabled, toast and sound triggered', () => {
     const notificationManager = createMockNotificationManager(config)
-
+    
     notificationManager.handleRunStatusChange('run_123', 'PASSED')
 
     expect(notificationManager.desktopNotifier.notify).toHaveBeenCalledWith(
@@ -1160,7 +1160,7 @@ describe('Phase 5: Notifications', () => {
   // @clause CL-NOTIFY-002
   it('succeeds when run changes to FAILED and notifications enabled, toast and sound triggered', () => {
     const notificationManager = createMockNotificationManager(config)
-
+    
     notificationManager.handleRunStatusChange('run_123', 'FAILED')
 
     expect(notificationManager.desktopNotifier.notify).toHaveBeenCalledWith(
@@ -1174,7 +1174,7 @@ describe('Phase 5: Notifications', () => {
     config.NOTIFICATIONS_DESKTOP = false
     config.NOTIFICATIONS_SOUND = false
     const notificationManager = createMockNotificationManager(config)
-
+    
     notificationManager.handleRunStatusChange('run_123', 'PASSED')
 
     expect(notificationManager.desktopNotifier.notify).not.toHaveBeenCalled()
@@ -1275,7 +1275,7 @@ describe('Phase 7: Prompts', () => {
   it('succeeds when DOCS_DIR does not exist and prompt returns fallback message without throwing', async () => {
     // Use nonexistent docs dir
     config.DOCS_DIR = '/nonexistent/docs/dir'
-
+    
     const client = new MockGatekeeperClient({ baseUrl: 'http://localhost:3000' }, createMockFetch({}))
     const server = createMockServer(config, client)
 
@@ -1353,7 +1353,7 @@ describe('Server Registration', () => {
 
     expect(Array.isArray(result.tools)).toBe(true)
     expect(result.tools.length).toBeGreaterThan(0)
-
+    
     const tool = result.tools[0]
     expect(tool).toHaveProperty('name')
     expect(tool).toHaveProperty('description')
@@ -1369,7 +1369,7 @@ describe('Server Registration', () => {
 
     expect(Array.isArray(result.prompts)).toBe(true)
     expect(result.prompts.length).toBeGreaterThan(0)
-
+    
     const prompt = result.prompts[0]
     expect(prompt).toHaveProperty('name')
     expect(prompt).toHaveProperty('description')

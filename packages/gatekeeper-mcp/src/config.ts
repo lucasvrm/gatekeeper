@@ -7,6 +7,8 @@ export interface Config {
   GATEKEEPER_API_URL: string
   DOCS_DIR: string
   ARTIFACTS_DIR: string
+  NOTIFICATIONS_DESKTOP: boolean
+  NOTIFICATIONS_SOUND: boolean
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
@@ -14,6 +16,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     GATEKEEPER_API_URL: env.GATEKEEPER_API_URL || 'http://localhost:3000',
     DOCS_DIR: env.DOCS_DIR || './docs',
     ARTIFACTS_DIR: env.ARTIFACTS_DIR || './artifacts',
+    NOTIFICATIONS_DESKTOP: env.NOTIFICATIONS_DESKTOP !== 'false',
+    NOTIFICATIONS_SOUND: env.NOTIFICATIONS_SOUND !== 'false',
   }
 }
 

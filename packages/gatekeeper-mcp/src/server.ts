@@ -9,11 +9,18 @@ import {
   ReadResourceRequestSchema,
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
   ReadResourceResult,
+  CallToolResult,
+  GetPromptResult,
 } from '@modelcontextprotocol/sdk/types.js'
 import { GatekeeperClient } from './client/GatekeeperClient.js'
 import { Config } from './config.js'
 import { registerResources, handleReadResource } from './resources/index.js'
+import { getAllTools, handleToolCall } from './tools/index.js'
+import { getAllPrompts, handlePromptRequest } from './prompts/index.js'
+import { initNotificationConfig } from './tools/notifications.tools.js'
 
 export interface ServerContext {
   server: Server
@@ -31,11 +38,18 @@ export function createServer(config: Config): ServerContext {
       capabilities: {
         resources: {},
         tools: {},
+        prompts: {},
       },
     }
   )
 
   const client = new GatekeeperClient({ baseUrl: config.GATEKEEPER_API_URL })
+
+  // Initialize notification config from environment
+  initNotificationConfig({
+    desktop: config.NOTIFICATIONS_DESKTOP,
+    sound: config.NOTIFICATIONS_SOUND,
+  })
 
   // Register resource handlers
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
@@ -48,13 +62,26 @@ export function createServer(config: Config): ServerContext {
     return handleReadResource(request.params.uri, client, config)
   })
 
-  // Placeholder for tools (Phase 2)
+  // Register tool handlers
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return { tools: [] }
+    return { tools: getAllTools() }
   })
 
-  server.setRequestHandler(CallToolRequestSchema, async () => {
-    throw new Error('No tools available')
+  server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
+    const { name, arguments: args } = request.params
+    const result = await handleToolCall(name, args ?? {}, { client, config })
+    return result as CallToolResult
+  })
+
+  // Register prompt handlers
+  server.setRequestHandler(ListPromptsRequestSchema, async () => {
+    return { prompts: getAllPrompts() }
+  })
+
+  server.setRequestHandler(GetPromptRequestSchema, async (request): Promise<GetPromptResult> => {
+    const { name, arguments: args } = request.params
+    const result = handlePromptRequest(name, args ?? {}, config.DOCS_DIR)
+    return result as GetPromptResult
   })
 
   return { server, client, config }

@@ -127,3 +127,16 @@ export interface GatekeeperError extends Error {
   status?: number
   code?: string
 }
+
+export interface UploadFilesInput {
+  files: Array<{ filename: string; content: string }>
+}
+
+export interface UploadFilesResponse {
+  message: string
+  files: string[]
+}
+
+export interface ContinueRunResponse {
+  message: string
+}

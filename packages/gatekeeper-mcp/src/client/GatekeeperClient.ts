@@ -17,6 +17,9 @@ import type {
   CreateRunInput,
   CreateRunResponse,
   RunEvent,
+  UploadFilesInput,
+  UploadFilesResponse,
+  ContinueRunResponse,
 } from './types.js'
 
 export class GatekeeperClient {
@@ -113,6 +116,21 @@ export class GatekeeperClient {
 
   async getArtifactContents(outputId: string): Promise<ArtifactContents> {
     return this.request<ArtifactContents>(`/artifacts/${outputId}`)
+  }
+
+  // Upload files to a run
+  async uploadRunFiles(id: string, files: UploadFilesInput['files']): Promise<UploadFilesResponse> {
+    return this.request<UploadFilesResponse>(`/runs/${id}/files`, {
+      method: 'PUT',
+      body: JSON.stringify({ files }),
+    })
+  }
+
+  // Continue/rerun a failed gate
+  async continueRun(id: string, gate: number = 0): Promise<ContinueRunResponse> {
+    return this.request<ContinueRunResponse>(`/runs/${id}/rerun/${gate}`, {
+      method: 'POST',
+    })
   }
 
   // SSE Subscription
