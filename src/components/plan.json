@@ -1,0 +1,323 @@
+{
+  "outputId": "2026_01_29_001_mcp-server-foundation",
+  "taskPrompt": "Criar o pacote gatekeeper-mcp com setup do projeto (Fase 0), cliente HTTP tipado para comunicação com gatekeeper-api (Fase 1), e Resources MCP básicos expondo dados do Gatekeeper (Fase 6). O servidor MCP permitirá que LLMs interajam com o sistema Gatekeeper via protocolo MCP.",
+  "manifest": {
+    "testFile": "packages/gatekeeper-mcp/GatekeeperMCP.spec.ts",
+    "files": [
+      {
+        "path": "packages/gatekeeper-mcp/package.json",
+        "action": "CREATE",
+        "reason": "Package.json do novo pacote MCP"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/tsconfig.json",
+        "action": "CREATE",
+        "reason": "Configuração TypeScript do pacote"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/vitest.config.ts",
+        "action": "CREATE",
+        "reason": "Configuração de testes Vitest"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/index.ts",
+        "action": "CREATE",
+        "reason": "Entry point do pacote MCP"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/server.ts",
+        "action": "CREATE",
+        "reason": "Setup do MCP Server"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/config.ts",
+        "action": "CREATE",
+        "reason": "Configuração com env vars (GATEKEEPER_API_URL, DOCS_DIR)"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/client/types.ts",
+        "action": "CREATE",
+        "reason": "Tipos TypeScript espelhados da API"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/client/GatekeeperClient.ts",
+        "action": "CREATE",
+        "reason": "Cliente HTTP tipado para gatekeeper-api"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/client/SSEListener.ts",
+        "action": "CREATE",
+        "reason": "Listener SSE para eventos de run"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/resources/index.ts",
+        "action": "CREATE",
+        "reason": "Registry de MCP Resources"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/resources/projects.resource.ts",
+        "action": "CREATE",
+        "reason": "Resource gatekeeper://projects"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/resources/validators.resource.ts",
+        "action": "CREATE",
+        "reason": "Resource gatekeeper://validators"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/resources/runs.resource.ts",
+        "action": "CREATE",
+        "reason": "Resource gatekeeper://runs/recent"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/resources/session.resource.ts",
+        "action": "CREATE",
+        "reason": "Resource gatekeeper://session"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/src/resources/artifacts.resource.ts",
+        "action": "CREATE",
+        "reason": "Resource gatekeeper://artifacts/{outputId}/{filename}"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/tests/client/GatekeeperClient.spec.ts",
+        "action": "CREATE",
+        "reason": "Testes unitários do cliente HTTP"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/tests/resources/resources.spec.ts",
+        "action": "CREATE",
+        "reason": "Testes dos MCP Resources"
+      },
+      {
+        "path": "packages/gatekeeper-mcp/GatekeeperMCP.spec.ts",
+        "action": "CREATE",
+        "reason": "Spec principal para validação do contrato"
+      }
+    ]
+  },
+  "contract": {
+    "schemaVersion": "1.0",
+    "slug": "mcp-server-foundation",
+    "title": "MCP Server Foundation + HTTP Client",
+    "mode": "STRICT",
+    "changeType": "new",
+    "criticality": "high",
+    "clauses": [
+      {
+        "id": "CL-SETUP-001",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "O pacote é criado",
+        "then": "packages/gatekeeper-mcp/package.json existe com name='gatekeeper-mcp', type='module', e dependência @modelcontextprotocol/sdk"
+      },
+      {
+        "id": "CL-SETUP-002",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "O pacote é criado",
+        "then": "packages/gatekeeper-mcp/tsconfig.json existe com target ES2022, module NodeNext"
+      },
+      {
+        "id": "CL-SETUP-003",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "src/index.ts é importado",
+        "then": "Exporta função startServer ou equivalente"
+      },
+      {
+        "id": "CL-SETUP-004",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "src/config.ts é importado",
+        "then": "Expõe GATEKEEPER_API_URL (default: http://localhost:3000) e DOCS_DIR"
+      },
+      {
+        "id": "CL-CLIENT-001",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.listProjects() é chamado e API retorna sucesso",
+        "then": "Retorna objeto com data: Project[] e pagination"
+      },
+      {
+        "id": "CL-CLIENT-002",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.getProject(id) é chamado e projeto existe",
+        "then": "Retorna objeto Project com id, name, workspace"
+      },
+      {
+        "id": "CL-CLIENT-003",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.listRuns() é chamado e API retorna sucesso",
+        "then": "Retorna objeto com data: Run[] e pagination"
+      },
+      {
+        "id": "CL-CLIENT-004",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.getRun(id) é chamado e run existe",
+        "then": "Retorna objeto Run com id, status, outputId"
+      },
+      {
+        "id": "CL-CLIENT-005",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.getRunResults(id) é chamado e run existe",
+        "then": "Retorna run com gateResults[] e validatorResults[]"
+      },
+      {
+        "id": "CL-CLIENT-006",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.abortRun(id) é chamado em run PENDING/RUNNING",
+        "then": "Retorna run com status='ABORTED'"
+      },
+      {
+        "id": "CL-CLIENT-007",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.createRun(input) é chamado com input válido",
+        "then": "Retorna { runId, outputId, status, createdAt }"
+      },
+      {
+        "id": "CL-CLIENT-008",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.listValidators() é chamado",
+        "then": "Retorna array de validators com code, displayName, gate"
+      },
+      {
+        "id": "CL-CLIENT-009",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "client.listArtifacts(projectId) é chamado",
+        "then": "Retorna array de artifact folders"
+      },
+      {
+        "id": "CL-CLIENT-010",
+        "kind": "error",
+        "normativity": "MUST",
+        "when": "API está offline e qualquer método é chamado",
+        "then": "Lança erro com code='ECONNREFUSED' ou similar"
+      },
+      {
+        "id": "CL-CLIENT-011",
+        "kind": "error",
+        "normativity": "MUST",
+        "when": "Recurso não existe (404)",
+        "then": "Lança erro com informação do status 404 ou 'not found'"
+      },
+      {
+        "id": "CL-SSE-001",
+        "kind": "behavior",
+        "normativity": "SHOULD",
+        "when": "client.subscribeToRun(id, callback) é chamado e run emite eventos",
+        "then": "Callback é invocado com evento contendo type e runId"
+      },
+      {
+        "id": "CL-SSE-002",
+        "kind": "behavior",
+        "normativity": "SHOULD",
+        "when": "unsubscribe() é chamado",
+        "then": "Conexão SSE é fechada e novos eventos não invocam callback"
+      },
+      {
+        "id": "CL-RES-001",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "MCP Client lê gatekeeper://projects",
+        "then": "Retorna JSON com projetos em contents[0].text parseável com data[]"
+      },
+      {
+        "id": "CL-RES-002",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "MCP Client lê gatekeeper://validators",
+        "then": "Retorna JSON com validators em contents[0].text parseável (array)"
+      },
+      {
+        "id": "CL-RES-003",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "MCP Client lê gatekeeper://runs/recent",
+        "then": "Retorna JSON com runs recentes em contents[0].text parseável"
+      },
+      {
+        "id": "CL-RES-004",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "MCP Client lê gatekeeper://session",
+        "then": "Retorna JSON com config em contents[0].text parseável"
+      },
+      {
+        "id": "CL-RES-005",
+        "kind": "behavior",
+        "normativity": "MUST",
+        "when": "MCP Client lê gatekeeper://artifacts/{outputId}/{filename} e artifact existe",
+        "then": "Retorna conteúdo em contents[0].text ou contents[0].blob"
+      },
+      {
+        "id": "CL-RES-006",
+        "kind": "error",
+        "normativity": "MUST",
+        "when": "MCP Client lê URI inválida",
+        "then": "Retorna erro MCP com code=-32602"
+      },
+      {
+        "id": "CL-RES-007",
+        "kind": "error",
+        "normativity": "MUST",
+        "when": "API está offline e qualquer resource é lido",
+        "then": "Retorna erro MCP com code=-32603"
+      }
+    ],
+    "assertionSurface": {
+      "http": {
+        "methods": ["GET", "POST", "PUT"],
+        "successStatuses": [200, 201, 204],
+        "errorStatuses": [400, 404, 500],
+        "payloadPaths": [
+          "data",
+          "pagination",
+          "pagination.page",
+          "pagination.limit",
+          "pagination.total",
+          "pagination.pages",
+          "id",
+          "name",
+          "status",
+          "outputId",
+          "workspace",
+          "gateResults",
+          "validatorResults",
+          "runId",
+          "createdAt",
+          "code",
+          "displayName",
+          "gate",
+          "contents",
+          "contents[0].uri",
+          "contents[0].mimeType",
+          "contents[0].text",
+          "error.code",
+          "error.message"
+        ]
+      },
+      "ui": {
+        "routes": [],
+        "testIds": [],
+        "roles": [],
+        "ariaLabels": []
+      }
+    },
+    "testMapping": {
+      "tagPattern": "// @clause"
+    }
+  },
+  "baseRef": "origin/main",
+  "targetRef": "HEAD",
+  "dangerMode": false,
+  "runType": "CONTRACT"
+}
