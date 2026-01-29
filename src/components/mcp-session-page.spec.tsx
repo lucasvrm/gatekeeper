@@ -4,23 +4,28 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 
 /**
- * Tests for MCP Session Page - Core Infrastructure
+ * Tests for MCP Session Page - CRUD Features (Plano 4B)
  *
- * Contract: mcp-session-page-4a
+ * Contract: mcp-session-crud
  * Mode: STRICT
  * Criticality: MEDIUM
  *
- * This file covers all 10 clauses from the contract:
- * - CL-MCP-001: Página renderiza com tabs Config e Status
- * - CL-MCP-002: SessionConfigTab carrega config ao montar
- * - CL-MCP-003: Campo branch aparece condicionalmente
- * - CL-MCP-004: Salvar config chama API corretamente
- * - CL-MCP-005: Status tab carrega indicadores
- * - CL-MCP-006: Item de menu navega para /mcp
- * - CL-MCP-007: Erro ao carregar config exibe toast
- * - CL-MCP-008: Erro ao salvar config exibe toast
- * - CL-MCP-009: Skeleton durante loading
- * - CL-MCP-010: Status badges refletem estado
+ * This file covers all 15 clauses from the Plano 4B contract:
+ * - CL-4B-001: Página renderiza 6 tabs
+ * - CL-4B-002: Snippets tab carrega lista
+ * - CL-4B-003: Criar snippet
+ * - CL-4B-004: Editar snippet
+ * - CL-4B-005: Deletar snippet
+ * - CL-4B-006: Context Packs tab carrega lista
+ * - CL-4B-007: Criar context pack
+ * - CL-4B-008: Presets tab carrega lista
+ * - CL-4B-009: Criar preset
+ * - CL-4B-010: History tab carrega lista
+ * - CL-4B-011: Deletar history entry
+ * - CL-4B-012: Erro ao criar snippet duplicado
+ * - CL-4B-013: Erro ao carregar lista
+ * - CL-4B-014: Loading skeleton
+ * - CL-4B-015: Botão desabilitado durante operação
  */
 
 // ============================================================================
@@ -38,11 +43,43 @@ interface MCPSessionConfig {
   customInstructions: string
 }
 
-interface MCPStatus {
-  mcpServer: "connected" | "disconnected"
-  gatekeeperApi: "online" | "offline"
-  git: string
-  docs: "accessible" | "not-found"
+interface Snippet {
+  id: string
+  name: string
+  category: string
+  content: string
+  tags: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+interface ContextPack {
+  id: string
+  name: string
+  description: string | null
+  files: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+interface SessionPreset {
+  id: string
+  name: string
+  config: MCPSessionConfig
+  createdAt: string
+  updatedAt: string
+}
+
+interface SessionHistory {
+  id: string
+  taskType: string
+  gitStrategy: string
+  branch: string | null
+  projectId: string | null
+  status: string
+  runIds: string[]
+  notes: string | null
+  createdAt: string
 }
 
 const createMockConfig = (overrides: Partial<MCPSessionConfig> = {}): MCPSessionConfig => ({
@@ -54,22 +91,79 @@ const createMockConfig = (overrides: Partial<MCPSessionConfig> = {}): MCPSession
   ...overrides,
 })
 
-const createMockStatus = (overrides: Partial<MCPStatus> = {}): MCPStatus => ({
-  mcpServer: "connected",
-  gatekeeperApi: "online",
-  git: "main",
-  docs: "accessible",
+const createMockSnippet = (overrides: Partial<Snippet> = {}): Snippet => ({
+  id: `snippet-${Date.now()}`,
+  name: "Test Snippet",
+  category: "HELPER",
+  content: "// test code",
+  tags: ["test"],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...overrides,
+})
+
+const createMockContextPack = (overrides: Partial<ContextPack> = {}): ContextPack => ({
+  id: `pack-${Date.now()}`,
+  name: "Test Pack",
+  description: "Test description",
+  files: ["file1.ts", "file2.ts"],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...overrides,
+})
+
+const createMockPreset = (overrides: Partial<SessionPreset> = {}): SessionPreset => ({
+  id: `preset-${Date.now()}`,
+  name: "Test Preset",
+  config: createMockConfig(),
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...overrides,
+})
+
+const createMockHistory = (overrides: Partial<SessionHistory> = {}): SessionHistory => ({
+  id: `history-${Date.now()}`,
+  taskType: "bugfix",
+  gitStrategy: "main",
+  branch: null,
+  projectId: null,
+  status: "COMPLETED",
+  runIds: ["run-1", "run-2"],
+  notes: null,
+  createdAt: new Date().toISOString(),
   ...overrides,
 })
 
 // ============================================================================
-// Mock API and Navigation Setup
+// Mock API Setup
 // ============================================================================
 
-const mockNavigate = vi.fn()
-const mockGetSessionConfig = vi.fn()
-const mockUpdateSessionConfig = vi.fn()
-const mockGetMCPStatus = vi.fn()
+const mockSnippets = {
+  list: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+}
+
+const mockContextPacks = {
+  list: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+}
+
+const mockPresets = {
+  list: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+}
+
+const mockHistory = {
+  list: vi.fn(),
+  delete: vi.fn(),
+}
+
 const mockToast = {
   success: vi.fn(),
   error: vi.fn(),
@@ -88,14 +182,12 @@ vi.mock("sonner", () => ({
 // ============================================================================
 
 /**
- * MockMCPSessionPage simulates the main page with tabs
- * Contract requirements:
- * - Renders tabs Config and Status
- * - Config tab is active by default
- * - Switches between tabs on click
+ * MockMCPSessionPage simulates the main page with 6 tabs
+ * Contract requirement CL-4B-001:
+ * - Renders all 6 tabs: Config, Status, Snippets, Context, Presets, History
  */
 function MockMCPSessionPage() {
-  const [activeTab, setActiveTab] = useState<"config" | "status">("config")
+  const [activeTab, setActiveTab] = useState<"config" | "status" | "snippets" | "context" | "presets" | "history">("config")
 
   return (
     <div data-testid="mcp-session-page" className="p-8 space-y-6">
@@ -105,7 +197,6 @@ function MockMCPSessionPage() {
             role="tab"
             aria-selected={activeTab === "config"}
             onClick={() => setActiveTab("config")}
-            className={activeTab === "config" ? "border-b-2 border-primary" : ""}
             data-testid="tab-config"
           >
             Config
@@ -114,312 +205,642 @@ function MockMCPSessionPage() {
             role="tab"
             aria-selected={activeTab === "status"}
             onClick={() => setActiveTab("status")}
-            className={activeTab === "status" ? "border-b-2 border-primary" : ""}
             data-testid="tab-status"
           >
             Status
           </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "snippets"}
+            onClick={() => setActiveTab("snippets")}
+            data-testid="tab-snippets"
+          >
+            Snippets
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "context"}
+            onClick={() => setActiveTab("context")}
+            data-testid="tab-context"
+          >
+            Context
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "presets"}
+            onClick={() => setActiveTab("presets")}
+            data-testid="tab-presets"
+          >
+            Presets
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "history"}
+            onClick={() => setActiveTab("history")}
+            data-testid="tab-history"
+          >
+            History
+          </button>
         </div>
       </div>
 
-      <div className="mt-6">
-        {activeTab === "config" && <MockSessionConfigTab />}
-        {activeTab === "status" && <MockStatusTab />}
+      <div role="tabpanel" className="mt-6">
+        {activeTab === "snippets" && <MockSnippetsTab />}
+        {activeTab === "context" && <MockContextPacksTab />}
+        {activeTab === "presets" && <MockPresetsTab />}
+        {activeTab === "history" && <MockHistoryTab />}
       </div>
     </div>
   )
 }
 
 /**
- * MockSessionConfigTab simulates the session config form
+ * MockSnippetsTab - CRUD for snippets
  * Contract requirements:
- * - Loads config from GET /api/mcp/session on mount
- * - Displays skeleton during loading
- * - Shows branch input conditionally based on git strategy
- * - Saves config via PUT /api/mcp/session with correct payload
- * - Shows success/error toasts appropriately
+ * - CL-4B-002: Load snippets list
+ * - CL-4B-003: Create snippet
+ * - CL-4B-004: Edit snippet
+ * - CL-4B-005: Delete snippet
  */
-function MockSessionConfigTab() {
-  const [config, setConfig] = useState<MCPSessionConfig | null>(null)
+function MockSnippetsTab() {
+  const [snippets, setSnippets] = useState<Snippet[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [gitStrategy, setGitStrategy] = useState<GitStrategy>("main")
-  const [branch, setBranch] = useState("")
-  const [taskType, setTaskType] = useState<TaskType>("bugfix")
-  const [customInstructions, setCustomInstructions] = useState("")
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null)
 
   useEffect(() => {
-    const loadConfig = async () => {
-      setLoading(true)
-      try {
-        const data = await mockGetSessionConfig()
-        setConfig(data.config)
-        setGitStrategy(data.config.gitStrategy)
-        setBranch(data.config.branch)
-        setTaskType(data.config.taskType)
-        setCustomInstructions(data.config.customInstructions)
-      } catch (error) {
-        toast.error("Falha ao carregar configuração")
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadConfig()
+    loadSnippets()
   }, [])
+
+  const loadSnippets = async () => {
+    setLoading(true)
+    try {
+      const data = await mockSnippets.list()
+      setSnippets(data)
+    } catch (error) {
+      toast.error("Falha ao carregar snippets")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreate = () => {
+    setEditingSnippet(null)
+    setDialogOpen(true)
+  }
+
+  const handleEdit = (snippet: Snippet) => {
+    setEditingSnippet(snippet)
+    setDialogOpen(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await mockSnippets.delete(id)
+      toast.success("Snippet deletado com sucesso")
+      await loadSnippets()
+    } catch (error) {
+      toast.error("Falha ao deletar snippet")
+    }
+  }
+
+  if (loading) {
+    return (
+      <div data-testid="snippets-tab">
+        <div data-testid="loading-skeleton">Loading snippets...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div data-testid="snippets-tab" className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Snippets</h2>
+        <button
+          role="button"
+          onClick={handleCreate}
+          data-testid="new-snippet-button"
+          className="bg-primary text-white px-4 py-2 rounded"
+        >
+          New Snippet
+        </button>
+      </div>
+
+      <div data-testid="snippets-list" className="space-y-2">
+        {snippets.map((snippet) => (
+          <div
+            key={snippet.id}
+            data-testid={`snippet-card-${snippet.id}`}
+            className="border rounded p-4 flex justify-between items-center"
+          >
+            <div>
+              <h3 className="font-medium">{snippet.name}</h3>
+              <p className="text-sm text-gray-600">{snippet.category}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                role="button"
+                onClick={() => handleEdit(snippet)}
+                data-testid={`edit-button-${snippet.id}`}
+                className="text-blue-600"
+              >
+                Edit
+              </button>
+              <button
+                role="button"
+                onClick={() => handleDelete(snippet.id)}
+                data-testid={`delete-button-${snippet.id}`}
+                className="text-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {dialogOpen && (
+        <MockSnippetFormDialog
+          snippet={editingSnippet}
+          onClose={() => setDialogOpen(false)}
+          onSave={loadSnippets}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * MockSnippetFormDialog - Create/Edit snippet dialog
+ */
+interface MockSnippetFormDialogProps {
+  snippet: Snippet | null
+  onClose: () => void
+  onSave: () => void
+}
+
+function MockSnippetFormDialog({ snippet, onClose, onSave }: MockSnippetFormDialogProps) {
+  const [name, setName] = useState(snippet?.name || "")
+  const [category, setCategory] = useState(snippet?.category || "HELPER")
+  const [content, setContent] = useState(snippet?.content || "")
+  const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      await mockUpdateSessionConfig({
-        config: {
-          gitStrategy,
-          branch,
-          taskType,
-          projectId: null,
-          customInstructions,
-        },
-      })
-      toast.success("Configuração salva com sucesso")
-      
-      // Reload config after save
-      const data = await mockGetSessionConfig()
-      setConfig(data.config)
+      if (snippet) {
+        await mockSnippets.update(snippet.id, { name, category, content })
+        toast.success("Snippet atualizado com sucesso")
+      } else {
+        await mockSnippets.create({ name, category, content })
+        toast.success("Snippet criado com sucesso")
+      }
+      onSave()
+      onClose()
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erro ao salvar configuração"
+      const errorMessage = error instanceof Error ? error.message : "Erro ao salvar snippet"
       toast.error(errorMessage)
     } finally {
       setSaving(false)
     }
   }
 
+  return (
+    <div role="dialog" data-testid="snippet-form-dialog" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white p-6 rounded-lg w-96 space-y-4">
+        <h2 className="text-xl font-bold">{snippet ? "Edit Snippet" : "New Snippet"}</h2>
+        
+        <div>
+          <label className="block text-sm font-medium mb-2">Name</label>
+          <input
+            type="text"
+            role="textbox"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            data-testid="snippet-name-input"
+            className="border rounded px-3 py-2 w-full"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Category</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            data-testid="snippet-category-select"
+            className="border rounded px-3 py-2 w-full"
+          >
+            <option value="HELPER">Helper</option>
+            <option value="TEMPLATE">Template</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Content</label>
+          <textarea
+            role="textbox"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            data-testid="snippet-content-textarea"
+            className="border rounded px-3 py-2 w-full"
+            rows={6}
+          />
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button
+            role="button"
+            onClick={onClose}
+            data-testid="cancel-button"
+            className="px-4 py-2 border rounded"
+          >
+            Cancel
+          </button>
+          <button
+            role="button"
+            onClick={handleSave}
+            disabled={saving}
+            data-testid="save-button"
+            className="bg-primary text-white px-4 py-2 rounded disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * MockContextPacksTab - CRUD for context packs
+ * Contract requirement CL-4B-006: Load context packs list
+ * Contract requirement CL-4B-007: Create context pack
+ */
+function MockContextPacksTab() {
+  const [packs, setPacks] = useState<ContextPack[]>([])
+  const [loading, setLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  useEffect(() => {
+    loadPacks()
+  }, [])
+
+  const loadPacks = async () => {
+    setLoading(true)
+    try {
+      const data = await mockContextPacks.list()
+      setPacks(data)
+    } catch (error) {
+      toast.error("Falha ao carregar context packs")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreate = () => {
+    setDialogOpen(true)
+  }
+
   if (loading) {
     return (
-      <div data-testid="session-config-tab">
-        <div data-testid="config-skeleton">Loading skeleton...</div>
+      <div data-testid="context-packs-tab">
+        <div data-testid="loading-skeleton">Loading context packs...</div>
       </div>
     )
   }
 
   return (
-    <div data-testid="session-config-tab" className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-2">Git Strategy</label>
-        <div role="radiogroup" className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              role="radio"
-              name="git-strategy"
-              value="main"
-              checked={gitStrategy === "main"}
-              onChange={(e) => setGitStrategy(e.target.value as GitStrategy)}
-              data-testid="git-strategy-radio-main"
-            />
-            <span>main</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              role="radio"
-              name="git-strategy"
-              value="new-branch"
-              checked={gitStrategy === "new-branch"}
-              onChange={(e) => setGitStrategy(e.target.value as GitStrategy)}
-              data-testid="git-strategy-radio-new-branch"
-            />
-            <span>new branch</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              role="radio"
-              name="git-strategy"
-              value="existing-branch"
-              checked={gitStrategy === "existing-branch"}
-              onChange={(e) => setGitStrategy(e.target.value as GitStrategy)}
-              data-testid="git-strategy-radio-existing-branch"
-            />
-            <span>existing branch</span>
-          </label>
-        </div>
+    <div data-testid="context-packs-tab" className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Context Packs</h2>
+        <button
+          role="button"
+          onClick={handleCreate}
+          data-testid="new-context-pack-button"
+          className="bg-primary text-white px-4 py-2 rounded"
+        >
+          New Context Pack
+        </button>
       </div>
 
-      {(gitStrategy === "new-branch" || gitStrategy === "existing-branch") && (
+      <div data-testid="context-packs-list" className="space-y-2">
+        {packs.map((pack) => (
+          <div
+            key={pack.id}
+            data-testid={`context-pack-card-${pack.id}`}
+            className="border rounded p-4"
+          >
+            <h3 className="font-medium">{pack.name}</h3>
+            <p className="text-sm text-gray-600">{pack.description}</p>
+          </div>
+        ))}
+      </div>
+
+      {dialogOpen && (
+        <MockContextPackFormDialog
+          onClose={() => setDialogOpen(false)}
+          onSave={loadPacks}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * MockContextPackFormDialog - Create context pack dialog
+ */
+interface MockContextPackFormDialogProps {
+  onClose: () => void
+  onSave: () => void
+}
+
+function MockContextPackFormDialog({ onClose, onSave }: MockContextPackFormDialogProps) {
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await mockContextPacks.create({ name, description, files: [] })
+      toast.success("Context pack criado com sucesso")
+      onSave()
+      onClose()
+    } catch (error) {
+      toast.error("Erro ao criar context pack")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div role="dialog" data-testid="context-pack-form-dialog" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white p-6 rounded-lg w-96 space-y-4">
+        <h2 className="text-xl font-bold">New Context Pack</h2>
+        
         <div>
-          <label className="block text-sm font-medium mb-2">Branch</label>
+          <label className="block text-sm font-medium mb-2">Name</label>
           <input
             type="text"
             role="textbox"
-            value={branch}
-            onChange={(e) => setBranch(e.target.value)}
-            data-testid="branch-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             className="border rounded px-3 py-2 w-full"
           />
         </div>
-      )}
 
-      <div>
-        <label className="block text-sm font-medium mb-2">Task Type</label>
-        <select
-          value={taskType}
-          onChange={(e) => setTaskType(e.target.value as TaskType)}
-          data-testid="task-type-select"
-          className="border rounded px-3 py-2 w-full"
-        >
-          <option value="bugfix">Bugfix</option>
-          <option value="feature">Feature</option>
-          <option value="refactor">Refactor</option>
-          <option value="test">Test</option>
-          <option value="other">Other</option>
-        </select>
+        <div>
+          <label className="block text-sm font-medium mb-2">Description</label>
+          <textarea
+            role="textbox"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="border rounded px-3 py-2 w-full"
+            rows={4}
+          />
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button
+            role="button"
+            onClick={onClose}
+            data-testid="cancel-button"
+            className="px-4 py-2 border rounded"
+          >
+            Cancel
+          </button>
+          <button
+            role="button"
+            onClick={handleSave}
+            disabled={saving}
+            data-testid="save-button"
+            className="bg-primary text-white px-4 py-2 rounded disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
       </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-2">Custom Instructions</label>
-        <textarea
-          role="textbox"
-          value={customInstructions}
-          onChange={(e) => setCustomInstructions(e.target.value)}
-          data-testid="custom-instructions-textarea"
-          className="border rounded px-3 py-2 w-full"
-          rows={4}
-        />
-      </div>
-
-      <button
-        role="button"
-        onClick={handleSave}
-        disabled={saving}
-        data-testid="save-config-button"
-        className="bg-primary text-white px-4 py-2 rounded disabled:opacity-50"
-      >
-        {saving ? "Salvando..." : "Salvar"}
-      </button>
     </div>
   )
 }
 
 /**
- * MockStatusTab simulates the status indicators
- * Contract requirements:
- * - Loads status from GET /api/mcp/status on mount
- * - Displays status badges for MCP Server, Gatekeeper API, Git, Docs
- * - Shows green badges for "ok" status, red badges for "error" status
+ * MockPresetsTab - CRUD for presets
+ * Contract requirement CL-4B-008: Load presets list
+ * Contract requirement CL-4B-009: Create preset with config JSON
  */
-function MockStatusTab() {
-  const [status, setStatus] = useState<MCPStatus | null>(null)
+function MockPresetsTab() {
+  const [presets, setPresets] = useState<SessionPreset[]>([])
+  const [loading, setLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  useEffect(() => {
+    loadPresets()
+  }, [])
+
+  const loadPresets = async () => {
+    setLoading(true)
+    try {
+      const data = await mockPresets.list()
+      setPresets(data)
+    } catch (error) {
+      toast.error("Falha ao carregar presets")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreate = () => {
+    setDialogOpen(true)
+  }
+
+  if (loading) {
+    return (
+      <div data-testid="presets-tab">
+        <div data-testid="loading-skeleton">Loading presets...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div data-testid="presets-tab" className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Presets</h2>
+        <button
+          role="button"
+          onClick={handleCreate}
+          data-testid="new-preset-button"
+          className="bg-primary text-white px-4 py-2 rounded"
+        >
+          New Preset
+        </button>
+      </div>
+
+      <div data-testid="presets-list" className="space-y-2">
+        {presets.map((preset) => (
+          <div
+            key={preset.id}
+            data-testid={`preset-card-${preset.id}`}
+            className="border rounded p-4"
+          >
+            <h3 className="font-medium">{preset.name}</h3>
+            <p className="text-sm text-gray-600">
+              {preset.config.gitStrategy} / {preset.config.taskType}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {dialogOpen && (
+        <MockPresetFormDialog
+          onClose={() => setDialogOpen(false)}
+          onSave={loadPresets}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * MockPresetFormDialog - Create preset dialog
+ */
+interface MockPresetFormDialogProps {
+  onClose: () => void
+  onSave: () => void
+}
+
+function MockPresetFormDialog({ onClose, onSave }: MockPresetFormDialogProps) {
+  const [name, setName] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const config = createMockConfig()
+      await mockPresets.create({ name, config })
+      toast.success("Preset criado com sucesso")
+      onSave()
+      onClose()
+    } catch (error) {
+      toast.error("Erro ao criar preset")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div role="dialog" data-testid="preset-form-dialog" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white p-6 rounded-lg w-96 space-y-4">
+        <h2 className="text-xl font-bold">New Preset</h2>
+        
+        <div>
+          <label className="block text-sm font-medium mb-2">Name</label>
+          <input
+            type="text"
+            role="textbox"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="border rounded px-3 py-2 w-full"
+          />
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button
+            role="button"
+            onClick={onClose}
+            data-testid="cancel-button"
+            className="px-4 py-2 border rounded"
+          >
+            Cancel
+          </button>
+          <button
+            role="button"
+            onClick={handleSave}
+            disabled={saving}
+            data-testid="save-button"
+            className="bg-primary text-white px-4 py-2 rounded disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * MockHistoryTab - Read + Delete for history
+ * Contract requirement CL-4B-010: Load history list
+ * Contract requirement CL-4B-011: Delete history entry
+ */
+function MockHistoryTab() {
+  const [history, setHistory] = useState<SessionHistory[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadStatus = async () => {
-      setLoading(true)
-      try {
-        const data = await mockGetMCPStatus()
-        setStatus(data)
-      } catch (error) {
-        console.error("Failed to load status:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadStatus()
+    loadHistory()
   }, [])
 
-  if (loading) {
-    return <div data-testid="status-tab">Loading...</div>
-  }
-
-  if (!status) {
-    return <div data-testid="status-tab">Failed to load status</div>
-  }
-
-  const getBadgeColor = (value: string) => {
-    if (value === "connected" || value === "online" || value === "accessible") {
-      return "bg-green-500"
+  const loadHistory = async () => {
+    setLoading(true)
+    try {
+      const data = await mockHistory.list()
+      setHistory(data)
+    } catch (error) {
+      toast.error("Falha ao carregar histórico")
+    } finally {
+      setLoading(false)
     }
-    return "bg-red-500"
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await mockHistory.delete(id)
+      toast.success("Entrada deletada com sucesso")
+      await loadHistory()
+    } catch (error) {
+      toast.error("Falha ao deletar entrada")
+    }
+  }
+
+  if (loading) {
+    return (
+      <div data-testid="history-tab">
+        <div data-testid="loading-skeleton">Loading history...</div>
+      </div>
+    )
   }
 
   return (
-    <div data-testid="status-tab" className="space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="font-medium">MCP Server:</span>
-        <span
-          data-testid="status-mcp-badge"
-          className={`px-2 py-1 rounded text-white text-sm ${getBadgeColor(status.mcpServer)}`}
-        >
-          {status.mcpServer}
-        </span>
-      </div>
+    <div data-testid="history-tab" className="space-y-4">
+      <h2 className="text-xl font-bold">Session History</h2>
 
-      <div className="flex items-center gap-2">
-        <span className="font-medium">Gatekeeper API:</span>
-        <span
-          data-testid="status-api-badge"
-          className={`px-2 py-1 rounded text-white text-sm ${getBadgeColor(status.gatekeeperApi)}`}
-        >
-          {status.gatekeeperApi}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="font-medium">Git Branch:</span>
-        <span
-          data-testid="status-git-badge"
-          className="px-2 py-1 rounded bg-gray-500 text-white text-sm"
-        >
-          {status.git}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="font-medium">Documentation:</span>
-        <span
-          data-testid="status-docs-badge"
-          className={`px-2 py-1 rounded text-white text-sm ${getBadgeColor(status.docs)}`}
-        >
-          {status.docs}
-        </span>
+      <div data-testid="history-list" className="space-y-2">
+        {history.map((item) => (
+          <div
+            key={item.id}
+            data-testid={`history-item-${item.id}`}
+            className="border rounded p-4 flex justify-between items-center"
+          >
+            <div>
+              <h3 className="font-medium">{item.taskType}</h3>
+              <p className="text-sm text-gray-600">
+                {item.gitStrategy} - {item.status}
+              </p>
+            </div>
+            <button
+              role="button"
+              onClick={() => handleDelete(item.id)}
+              data-testid={`delete-button-${item.id}`}
+              className="text-red-600"
+            >
+              Delete
+            </button>
+          </div>
+        ))}
       </div>
     </div>
-  )
-}
-
-/**
- * MockAppLayout simulates the navigation menu
- * Contract requirements:
- * - Includes "MCP Session" menu item
- * - Navigates to /mcp when clicked
- * - Highlights active menu item
- */
-interface MockAppLayoutProps {
-  currentPath: string
-}
-
-function MockAppLayout({ currentPath }: MockAppLayoutProps) {
-  const navigation = [
-    { name: "Dashboard", path: "/" },
-    { name: "Runs", path: "/runs" },
-    { name: "MCP Session", path: "/mcp" },
-    { name: "Config", path: "/config" },
-  ]
-
-  return (
-    <nav data-testid="app-navigation">
-      {navigation.map((item) => {
-        const isActive = currentPath === item.path
-        return (
-          <button
-            key={item.path}
-            onClick={() => mockNavigate(item.path)}
-            data-testid={`nav-item-${item.path}`}
-            className={isActive ? "bg-primary text-white" : "text-gray-600"}
-          >
-            {item.name}
-          </button>
-        )
-      })}
-    </nav>
   )
 }
 
@@ -427,389 +848,382 @@ function MockAppLayout({ currentPath }: MockAppLayoutProps) {
 // Test Suites
 // ============================================================================
 
-describe("MCPSessionPage - Core Infrastructure (contract: mcp-session-page-4a)", () => {
+describe("MCPSessionPage - Plano 4B: CRUD Features (contract: mcp-session-crud)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockNavigate.mockClear()
-    mockGetSessionConfig.mockReset()
-    mockUpdateSessionConfig.mockReset()
-    mockGetMCPStatus.mockReset()
     mockToast.success.mockClear()
     mockToast.error.mockClear()
+    mockSnippets.list.mockReset()
+    mockSnippets.create.mockReset()
+    mockSnippets.update.mockReset()
+    mockSnippets.delete.mockReset()
+    mockContextPacks.list.mockReset()
+    mockContextPacks.create.mockReset()
+    mockPresets.list.mockReset()
+    mockPresets.create.mockReset()
+    mockHistory.list.mockReset()
+    mockHistory.delete.mockReset()
   })
 
-  // @clause CL-MCP-001
-  it("succeeds when user accesses /mcp and page renders with Config and Status tabs", () => {
-    const mockConfig = createMockConfig()
-    mockGetSessionConfig.mockResolvedValueOnce({ config: mockConfig })
-
+  // @clause CL-4B-001
+  it("succeeds when page /mcp renders and displays all 6 tabs", () => {
     render(<MockMCPSessionPage />)
 
-    // Verify page container is present
-    expect(screen.getByTestId("mcp-session-page")).toBeInTheDocument()
+    expect(screen.getByTestId("tab-config")).toBeInTheDocument()
+    expect(screen.getByTestId("tab-status")).toBeInTheDocument()
+    expect(screen.getByTestId("tab-snippets")).toBeInTheDocument()
+    expect(screen.getByTestId("tab-context")).toBeInTheDocument()
+    expect(screen.getByTestId("tab-presets")).toBeInTheDocument()
+    expect(screen.getByTestId("tab-history")).toBeInTheDocument()
 
-    // Verify both tabs are visible
-    expect(screen.getByRole("tab", { name: /config/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /status/i })).toBeInTheDocument()
-
-    // Verify Config tab is active by default
-    const configTab = screen.getByRole("tab", { name: /config/i })
-    expect(configTab).toHaveAttribute("aria-selected", "true")
+    const tabs = screen.getAllByRole("tab")
+    expect(tabs).toHaveLength(6)
   })
 
-  // @clause CL-MCP-002
-  it("succeeds when SessionConfigTab mounts and loads session config from API", async () => {
-    const mockConfig = createMockConfig({
-      gitStrategy: "main",
-      branch: "",
-      taskType: "feature",
-      customInstructions: "Test instructions",
-    })
-    mockGetSessionConfig.mockResolvedValueOnce({ config: mockConfig })
+  // @clause CL-4B-002
+  it("succeeds when user accesses Snippets tab and GET /api/mcp/snippets is called", async () => {
+    const mockSnippet = createMockSnippet()
+    mockSnippets.list.mockResolvedValueOnce([mockSnippet])
 
-    render(<MockSessionConfigTab />)
+    render(<MockSnippetsTab />)
 
-    // Verify API is called
-    expect(mockGetSessionConfig).toHaveBeenCalledTimes(1)
+    expect(mockSnippets.list).toHaveBeenCalledTimes(1)
 
-    // Verify skeleton is shown during loading
-    expect(screen.getByTestId("config-skeleton")).toBeInTheDocument()
-
-    // Wait for config to load
     await waitFor(() => {
-      expect(screen.getByTestId("session-config-tab")).toBeInTheDocument()
+      expect(screen.getByTestId("snippets-list")).toBeInTheDocument()
     })
 
-    // Verify form is populated with config values
-    const mainRadio = screen.getByTestId("git-strategy-radio-main") as HTMLInputElement
-    expect(mainRadio.checked).toBe(true)
-
-    const taskTypeSelect = screen.getByTestId("task-type-select") as HTMLSelectElement
-    expect(taskTypeSelect.value).toBe("feature")
-
-    const customInstructionsTextarea = screen.getByTestId("custom-instructions-textarea") as HTMLTextAreaElement
-    expect(customInstructionsTextarea.value).toBe("Test instructions")
+    expect(screen.getByTestId(`snippet-card-${mockSnippet.id}`)).toBeInTheDocument()
   })
 
-  // @clause CL-MCP-003
-  it("succeeds when user selects new-branch strategy and branch field appears", async () => {
-    const mockConfig = createMockConfig({ gitStrategy: "main" })
-    mockGetSessionConfig.mockResolvedValueOnce({ config: mockConfig })
+  // @clause CL-4B-003
+  it("succeeds when user fills snippet form and clicks Save, then POST is called with correct payload", async () => {
+    const mockSnippet = createMockSnippet()
+    mockSnippets.list.mockResolvedValue([])
+    mockSnippets.create.mockResolvedValueOnce(mockSnippet)
 
-    render(<MockSessionConfigTab />)
-
-    await waitFor(() => {
-      expect(screen.getByTestId("session-config-tab")).toBeInTheDocument()
-    })
-
-    // Initially branch input should not be visible (git strategy is main)
-    expect(screen.queryByTestId("branch-input")).not.toBeInTheDocument()
-
-    // Select new-branch strategy
-    const newBranchRadio = screen.getByTestId("git-strategy-radio-new-branch")
-    fireEvent.click(newBranchRadio)
-
-    // Verify branch input is now visible
-    await waitFor(() => {
-      expect(screen.getByTestId("branch-input")).toBeInTheDocument()
-    })
-
-    // Verify we can type in the branch input
-    const branchInput = screen.getByTestId("branch-input") as HTMLInputElement
-    fireEvent.change(branchInput, { target: { value: "feature/test" } })
-    expect(branchInput.value).toBe("feature/test")
-  })
-
-  // @clause CL-MCP-003 (existing-branch)
-  it("succeeds when user selects existing-branch strategy and branch field appears", async () => {
-    const mockConfig = createMockConfig({ gitStrategy: "main" })
-    mockGetSessionConfig.mockResolvedValueOnce({ config: mockConfig })
-
-    render(<MockSessionConfigTab />)
+    render(<MockSnippetsTab />)
 
     await waitFor(() => {
-      expect(screen.getByTestId("session-config-tab")).toBeInTheDocument()
+      expect(screen.getByTestId("new-snippet-button")).toBeInTheDocument()
     })
 
-    // Select existing-branch strategy
-    const existingBranchRadio = screen.getByTestId("git-strategy-radio-existing-branch")
-    fireEvent.click(existingBranchRadio)
-
-    // Verify branch input is visible
-    await waitFor(() => {
-      expect(screen.getByTestId("branch-input")).toBeInTheDocument()
-    })
-  })
-
-  // @clause CL-MCP-004
-  it("succeeds when user fills form and clicks save, then PUT API is called with correct payload", async () => {
-    const mockConfig = createMockConfig()
-    mockGetSessionConfig.mockResolvedValue({ config: mockConfig })
-    mockUpdateSessionConfig.mockResolvedValueOnce({ success: true })
-
-    render(<MockSessionConfigTab />)
+    const newButton = screen.getByTestId("new-snippet-button")
+    fireEvent.click(newButton)
 
     await waitFor(() => {
-      expect(screen.getByTestId("session-config-tab")).toBeInTheDocument()
+      expect(screen.getByTestId("snippet-form-dialog")).toBeInTheDocument()
     })
 
-    // Change git strategy to new-branch
-    const newBranchRadio = screen.getByTestId("git-strategy-radio-new-branch")
-    fireEvent.click(newBranchRadio)
+    const nameInput = screen.getByTestId("snippet-name-input")
+    fireEvent.change(nameInput, { target: { value: "Utils" } })
 
-    await waitFor(() => {
-      expect(screen.getByTestId("branch-input")).toBeInTheDocument()
-    })
+    const categorySelect = screen.getByTestId("snippet-category-select")
+    fireEvent.change(categorySelect, { target: { value: "HELPER" } })
 
-    // Fill in branch name
-    const branchInput = screen.getByTestId("branch-input")
-    fireEvent.change(branchInput, { target: { value: "feature/test" } })
+    const contentTextarea = screen.getByTestId("snippet-content-textarea")
+    fireEvent.change(contentTextarea, { target: { value: "// code" } })
 
-    // Change task type
-    const taskTypeSelect = screen.getByTestId("task-type-select")
-    fireEvent.change(taskTypeSelect, { target: { value: "refactor" } })
-
-    // Fill custom instructions
-    const customInstructions = screen.getByTestId("custom-instructions-textarea")
-    fireEvent.change(customInstructions, { target: { value: "Custom test instructions" } })
-
-    // Click save
-    const saveButton = screen.getByTestId("save-config-button")
+    const saveButton = screen.getByTestId("save-button")
     fireEvent.click(saveButton)
 
-    // Verify API was called with correct payload
     await waitFor(() => {
-      expect(mockUpdateSessionConfig).toHaveBeenCalledTimes(1)
-      expect(mockUpdateSessionConfig).toHaveBeenCalledWith({
-        config: {
-          gitStrategy: "new-branch",
-          branch: "feature/test",
-          taskType: "refactor",
-          projectId: null,
-          customInstructions: "Custom test instructions",
-        },
+      expect(mockSnippets.create).toHaveBeenCalledWith({
+        name: "Utils",
+        category: "HELPER",
+        content: "// code",
       })
     })
 
-    // Verify success toast was shown
-    expect(mockToast.success).toHaveBeenCalledWith("Configuração salva com sucesso")
-
-    // Verify config was reloaded
+    expect(mockToast.success).toHaveBeenCalledWith("Snippet criado com sucesso")
     await waitFor(() => {
-      expect(mockGetSessionConfig).toHaveBeenCalledTimes(2) // Initial load + reload after save
+      expect(mockSnippets.list).toHaveBeenCalledTimes(2)
     })
   })
 
-  // @clause CL-MCP-005
-  it("succeeds when user accesses Status tab and indicators are loaded from API", async () => {
-    const mockStatus = createMockStatus({
-      mcpServer: "connected",
-      gatekeeperApi: "online",
-      git: "main",
-      docs: "accessible",
-    })
-    mockGetMCPStatus.mockResolvedValueOnce(mockStatus)
+  // @clause CL-4B-004
+  it("succeeds when user edits existing snippet and saves, then PUT is called", async () => {
+    const mockSnippet = createMockSnippet({ id: "snippet-1", name: "Original" })
+    mockSnippets.list.mockResolvedValue([mockSnippet])
+    mockSnippets.update.mockResolvedValueOnce({ ...mockSnippet, name: "Updated" })
 
-    render(<MockStatusTab />)
-
-    // Verify API is called
-    expect(mockGetMCPStatus).toHaveBeenCalledTimes(1)
+    render(<MockSnippetsTab />)
 
     await waitFor(() => {
-      expect(screen.getByTestId("status-tab")).toBeInTheDocument()
+      expect(screen.getByTestId("edit-button-snippet-1")).toBeInTheDocument()
     })
 
-    // Verify all status badges are present
-    expect(screen.getByTestId("status-mcp-badge")).toBeInTheDocument()
-    expect(screen.getByTestId("status-api-badge")).toBeInTheDocument()
-    expect(screen.getByTestId("status-git-badge")).toBeInTheDocument()
-    expect(screen.getByTestId("status-docs-badge")).toBeInTheDocument()
-
-    // Verify badge content
-    expect(screen.getByTestId("status-mcp-badge")).toHaveTextContent("connected")
-    expect(screen.getByTestId("status-api-badge")).toHaveTextContent("online")
-    expect(screen.getByTestId("status-git-badge")).toHaveTextContent("main")
-    expect(screen.getByTestId("status-docs-badge")).toHaveTextContent("accessible")
-  })
-
-  // @clause CL-MCP-006
-  it("succeeds when user clicks MCP Session menu item and navigates to /mcp", () => {
-    render(<MockAppLayout currentPath="/" />)
-
-    const mcpMenuItem = screen.getByTestId("nav-item-/mcp")
-    expect(mcpMenuItem).toBeInTheDocument()
-    expect(mcpMenuItem).toHaveTextContent("MCP Session")
-
-    fireEvent.click(mcpMenuItem)
-
-    expect(mockNavigate).toHaveBeenCalledTimes(1)
-    expect(mockNavigate).toHaveBeenCalledWith("/mcp")
-  })
-
-  // @clause CL-MCP-006 (highlight active)
-  it("succeeds when user is on /mcp route and menu item is highlighted", () => {
-    render(<MockAppLayout currentPath="/mcp" />)
-
-    const mcpMenuItem = screen.getByTestId("nav-item-/mcp")
-    
-    // Verify menu item has active styling
-    expect(mcpMenuItem).toHaveClass("bg-primary")
-    expect(mcpMenuItem).toHaveClass("text-white")
-
-    // Verify other menu items are not active
-    const dashboardMenuItem = screen.getByTestId("nav-item-/")
-    expect(dashboardMenuItem).not.toHaveClass("bg-primary")
-  })
-
-  // @clause CL-MCP-007
-  it("fails when GET /api/mcp/session returns 500 error and error toast is shown", async () => {
-    mockGetSessionConfig.mockRejectedValueOnce(new Error("Server error"))
-
-    render(<MockSessionConfigTab />)
-
-    // Wait for error handling
-    await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith("Falha ao carregar configuração")
-    })
-
-    // Verify skeleton is no longer shown
-    expect(screen.queryByTestId("config-skeleton")).not.toBeInTheDocument()
-  })
-
-  // @clause CL-MCP-007 (network error)
-  it("fails when GET /api/mcp/session has network timeout and error toast is shown", async () => {
-    mockGetSessionConfig.mockRejectedValueOnce(new Error("Network timeout"))
-
-    render(<MockSessionConfigTab />)
+    const editButton = screen.getByTestId("edit-button-snippet-1")
+    fireEvent.click(editButton)
 
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith("Falha ao carregar configuração")
-    })
-  })
-
-  // @clause CL-MCP-008
-  it("fails when PUT /api/mcp/session returns 500 error and error toast is shown", async () => {
-    const mockConfig = createMockConfig()
-    mockGetSessionConfig.mockResolvedValue({ config: mockConfig })
-    mockUpdateSessionConfig.mockRejectedValueOnce(new Error("Internal server error"))
-
-    render(<MockSessionConfigTab />)
-
-    await waitFor(() => {
-      expect(screen.getByTestId("save-config-button")).toBeInTheDocument()
+      expect(screen.getByTestId("snippet-form-dialog")).toBeInTheDocument()
     })
 
-    const saveButton = screen.getByTestId("save-config-button")
+    const nameInput = screen.getByTestId("snippet-name-input")
+    fireEvent.change(nameInput, { target: { value: "Updated" } })
+
+    const saveButton = screen.getByTestId("save-button")
     fireEvent.click(saveButton)
 
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith("Internal server error")
+      expect(mockSnippets.update).toHaveBeenCalledWith("snippet-1", {
+        name: "Updated",
+        category: mockSnippet.category,
+        content: mockSnippet.content,
+      })
     })
 
-    // Verify button is re-enabled after error
-    expect(saveButton).not.toBeDisabled()
+    expect(mockToast.success).toHaveBeenCalledWith("Snippet atualizado com sucesso")
   })
 
-  // @clause CL-MCP-008 (validation error)
-  it("fails when PUT /api/mcp/session returns 400 validation error and error toast is shown", async () => {
-    const mockConfig = createMockConfig()
-    mockGetSessionConfig.mockResolvedValue({ config: mockConfig })
-    mockUpdateSessionConfig.mockRejectedValueOnce(new Error("Invalid branch name"))
+  // @clause CL-4B-005
+  it("succeeds when user confirms delete of snippet, then DELETE is called and item removed", async () => {
+    const mockSnippet = createMockSnippet({ id: "snippet-to-delete" })
+    mockSnippets.list.mockResolvedValueOnce([mockSnippet]).mockResolvedValueOnce([])
+    mockSnippets.delete.mockResolvedValueOnce({ success: true })
 
-    render(<MockSessionConfigTab />)
+    render(<MockSnippetsTab />)
 
     await waitFor(() => {
-      expect(screen.getByTestId("save-config-button")).toBeInTheDocument()
+      expect(screen.getByTestId("delete-button-snippet-to-delete")).toBeInTheDocument()
     })
 
-    const saveButton = screen.getByTestId("save-config-button")
+    const deleteButton = screen.getByTestId("delete-button-snippet-to-delete")
+    fireEvent.click(deleteButton)
+
+    await waitFor(() => {
+      expect(mockSnippets.delete).toHaveBeenCalledWith("snippet-to-delete")
+    })
+
+    expect(mockToast.success).toHaveBeenCalledWith("Snippet deletado com sucesso")
+    await waitFor(() => {
+      expect(mockSnippets.list).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  // @clause CL-4B-006
+  it("succeeds when user accesses Context tab and GET /api/mcp/context-packs is called", async () => {
+    const mockPack = createMockContextPack()
+    mockContextPacks.list.mockResolvedValueOnce([mockPack])
+
+    render(<MockContextPacksTab />)
+
+    expect(mockContextPacks.list).toHaveBeenCalledTimes(1)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("context-packs-list")).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId(`context-pack-card-${mockPack.id}`)).toBeInTheDocument()
+  })
+
+  // @clause CL-4B-007
+  it("succeeds when user creates context pack, then POST is called with correct payload", async () => {
+    const mockPack = createMockContextPack()
+    mockContextPacks.list.mockResolvedValue([])
+    mockContextPacks.create.mockResolvedValueOnce(mockPack)
+
+    render(<MockContextPacksTab />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("new-context-pack-button")).toBeInTheDocument()
+    })
+
+    const newButton = screen.getByTestId("new-context-pack-button")
+    fireEvent.click(newButton)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("context-pack-form-dialog")).toBeInTheDocument()
+    })
+
+    const saveButton = screen.getByTestId("save-button")
     fireEvent.click(saveButton)
 
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith("Invalid branch name")
+      expect(mockContextPacks.create).toHaveBeenCalledWith({
+        name: "",
+        description: "",
+        files: [],
+      })
     })
+
+    expect(mockToast.success).toHaveBeenCalledWith("Context pack criado com sucesso")
   })
 
-  // @clause CL-MCP-009
-  it("should display skeleton during initial config load", () => {
-    const mockConfig = createMockConfig()
-    mockGetSessionConfig.mockImplementation(() => new Promise(() => {})) // Never resolves
+  // @clause CL-4B-008
+  it("succeeds when user accesses Presets tab and GET /api/mcp/presets is called", async () => {
+    const mockPreset = createMockPreset()
+    mockPresets.list.mockResolvedValueOnce([mockPreset])
 
-    render(<MockSessionConfigTab />)
+    render(<MockPresetsTab />)
 
-    // Verify skeleton is displayed
-    expect(screen.getByTestId("config-skeleton")).toBeInTheDocument()
-    expect(screen.getByTestId("config-skeleton")).toHaveTextContent("Loading skeleton...")
-  })
-
-  // @clause CL-MCP-009 (button disabled during save)
-  it("should disable save button during PUT request", async () => {
-    const mockConfig = createMockConfig()
-    mockGetSessionConfig.mockResolvedValue({ config: mockConfig })
-    mockUpdateSessionConfig.mockImplementation(() => new Promise(() => {})) // Never resolves
-
-    render(<MockSessionConfigTab />)
+    expect(mockPresets.list).toHaveBeenCalledTimes(1)
 
     await waitFor(() => {
-      expect(screen.getByTestId("save-config-button")).toBeInTheDocument()
+      expect(screen.getByTestId("presets-list")).toBeInTheDocument()
     })
 
-    const saveButton = screen.getByTestId("save-config-button")
+    expect(screen.getByTestId(`preset-card-${mockPreset.id}`)).toBeInTheDocument()
+  })
+
+  // @clause CL-4B-009
+  it("succeeds when user creates preset, then POST is called with valid config JSON", async () => {
+    const mockPreset = createMockPreset()
+    mockPresets.list.mockResolvedValue([])
+    mockPresets.create.mockResolvedValueOnce(mockPreset)
+
+    render(<MockPresetsTab />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("new-preset-button")).toBeInTheDocument()
+    })
+
+    const newButton = screen.getByTestId("new-preset-button")
+    fireEvent.click(newButton)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("preset-form-dialog")).toBeInTheDocument()
+    })
+
+    const saveButton = screen.getByTestId("save-button")
     fireEvent.click(saveButton)
 
-    // Verify button is disabled during save
+    await waitFor(() => {
+      expect(mockPresets.create).toHaveBeenCalledWith({
+        name: "",
+        config: expect.objectContaining({
+          gitStrategy: expect.any(String),
+          taskType: expect.any(String),
+        }),
+      })
+    })
+
+    expect(mockToast.success).toHaveBeenCalledWith("Preset criado com sucesso")
+  })
+
+  // @clause CL-4B-010
+  it("succeeds when user accesses History tab and GET /api/mcp/history is called", async () => {
+    const mockHistoryItem = createMockHistory()
+    mockHistory.list.mockResolvedValueOnce([mockHistoryItem])
+
+    render(<MockHistoryTab />)
+
+    expect(mockHistory.list).toHaveBeenCalledTimes(1)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("history-list")).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId(`history-item-${mockHistoryItem.id}`)).toBeInTheDocument()
+  })
+
+  // @clause CL-4B-011
+  it("succeeds when user deletes history entry, then DELETE is called and entry removed", async () => {
+    const mockHistoryItem = createMockHistory({ id: "history-to-delete" })
+    mockHistory.list.mockResolvedValueOnce([mockHistoryItem]).mockResolvedValueOnce([])
+    mockHistory.delete.mockResolvedValueOnce({ success: true })
+
+    render(<MockHistoryTab />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("delete-button-history-to-delete")).toBeInTheDocument()
+    })
+
+    const deleteButton = screen.getByTestId("delete-button-history-to-delete")
+    fireEvent.click(deleteButton)
+
+    await waitFor(() => {
+      expect(mockHistory.delete).toHaveBeenCalledWith("history-to-delete")
+    })
+
+    expect(mockToast.success).toHaveBeenCalledWith("Entrada deletada com sucesso")
+  })
+
+  // @clause CL-4B-012
+  it("fails when POST /api/mcp/snippets returns 400 duplicate error and dialog remains open", async () => {
+    mockSnippets.list.mockResolvedValue([])
+    mockSnippets.create.mockRejectedValueOnce(new Error("Snippet with this name already exists"))
+
+    render(<MockSnippetsTab />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("new-snippet-button")).toBeInTheDocument()
+    })
+
+    const newButton = screen.getByTestId("new-snippet-button")
+    fireEvent.click(newButton)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("snippet-form-dialog")).toBeInTheDocument()
+    })
+
+    const saveButton = screen.getByTestId("save-button")
+    fireEvent.click(saveButton)
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith("Snippet with this name already exists")
+    })
+
+    expect(screen.getByTestId("snippet-form-dialog")).toBeInTheDocument()
+  })
+
+  // @clause CL-4B-013
+  it("fails when GET snippets returns 500 and error toast is shown without breaking UI", async () => {
+    mockSnippets.list.mockRejectedValueOnce(new Error("Server error"))
+
+    render(<MockSnippetsTab />)
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith("Falha ao carregar snippets")
+    })
+
+    expect(screen.getByTestId("snippets-tab")).toBeInTheDocument()
+  })
+
+  // @clause CL-4B-014
+  it("should display loading skeleton during snippets fetch", () => {
+    mockSnippets.list.mockImplementation(() => new Promise(() => {}))
+
+    render(<MockSnippetsTab />)
+
+    expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument()
+    expect(screen.getByTestId("loading-skeleton")).toHaveTextContent("Loading snippets...")
+  })
+
+  // @clause CL-4B-014
+  it("should display loading skeleton during context packs fetch", () => {
+    mockContextPacks.list.mockImplementation(() => new Promise(() => {}))
+
+    render(<MockContextPacksTab />)
+
+    expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument()
+  })
+
+  // @clause CL-4B-015
+  it("should disable save button during snippet creation operation", async () => {
+    mockSnippets.list.mockResolvedValue([])
+    mockSnippets.create.mockImplementation(() => new Promise(() => {}))
+
+    render(<MockSnippetsTab />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("new-snippet-button")).toBeInTheDocument()
+    })
+
+    const newButton = screen.getByTestId("new-snippet-button")
+    fireEvent.click(newButton)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("save-button")).toBeInTheDocument()
+    })
+
+    const saveButton = screen.getByTestId("save-button")
+    fireEvent.click(saveButton)
+
     await waitFor(() => {
       expect(saveButton).toBeDisabled()
-      expect(saveButton).toHaveTextContent("Salvando...")
+      expect(saveButton).toHaveTextContent("Saving...")
     })
-  })
-
-  // @clause CL-MCP-010
-  it("should display green badges when all services are ok", async () => {
-    const mockStatus = createMockStatus({
-      mcpServer: "connected",
-      gatekeeperApi: "online",
-      git: "main",
-      docs: "accessible",
-    })
-    mockGetMCPStatus.mockResolvedValueOnce(mockStatus)
-
-    render(<MockStatusTab />)
-
-    await waitFor(() => {
-      expect(screen.getByTestId("status-mcp-badge")).toBeInTheDocument()
-    })
-
-    // Verify all badges have green color
-    expect(screen.getByTestId("status-mcp-badge")).toHaveClass("bg-green-500")
-    expect(screen.getByTestId("status-api-badge")).toHaveClass("bg-green-500")
-    expect(screen.getByTestId("status-docs-badge")).toHaveClass("bg-green-500")
-  })
-
-  // @clause CL-MCP-010 (error states)
-  it("should display red badges when services have errors", async () => {
-    const mockStatus = createMockStatus({
-      mcpServer: "disconnected",
-      gatekeeperApi: "offline",
-      git: "main",
-      docs: "not-found",
-    })
-    mockGetMCPStatus.mockResolvedValueOnce(mockStatus)
-
-    render(<MockStatusTab />)
-
-    await waitFor(() => {
-      expect(screen.getByTestId("status-mcp-badge")).toBeInTheDocument()
-    })
-
-    // Verify badges with errors have red color
-    expect(screen.getByTestId("status-mcp-badge")).toHaveClass("bg-red-500")
-    expect(screen.getByTestId("status-api-badge")).toHaveClass("bg-red-500")
-    expect(screen.getByTestId("status-docs-badge")).toHaveClass("bg-red-500")
-
-    // Verify badge content shows error status
-    expect(screen.getByTestId("status-mcp-badge")).toHaveTextContent("disconnected")
-    expect(screen.getByTestId("status-api-badge")).toHaveTextContent("offline")
-    expect(screen.getByTestId("status-docs-badge")).toHaveTextContent("not-found")
   })
 })

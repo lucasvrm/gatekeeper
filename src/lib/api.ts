@@ -20,6 +20,10 @@ import type {
   GitDiffResponse,
   MCPSessionConfig,
   MCPStatus,
+  Snippet,
+  ContextPack,
+  SessionPreset,
+  SessionHistory,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -633,6 +637,160 @@ export const api = {
           throw new Error(error?.error || "Failed to fetch MCP status")
         }
         return response.json()
+      },
+    },
+
+    snippets: {
+      list: async (): Promise<Snippet[]> => {
+        const response = await fetch(`${API_BASE}/mcp/snippets`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch snippets")
+        }
+        return response.json()
+      },
+
+      create: async (data: { name: string; category: string; content: string; tags?: string[] }): Promise<Snippet> => {
+        const response = await fetch(`${API_BASE}/mcp/snippets`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to create snippet")
+        }
+        return response.json()
+      },
+
+      update: async (id: string, data: { name?: string; category?: string; content?: string; tags?: string[] }): Promise<Snippet> => {
+        const response = await fetch(`${API_BASE}/mcp/snippets/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to update snippet")
+        }
+        return response.json()
+      },
+
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${API_BASE}/mcp/snippets/${id}`, { method: "DELETE" })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to delete snippet")
+        }
+      },
+    },
+
+    contextPacks: {
+      list: async (): Promise<ContextPack[]> => {
+        const response = await fetch(`${API_BASE}/mcp/context-packs`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch context packs")
+        }
+        return response.json()
+      },
+
+      create: async (data: { name: string; description?: string; files: string[] }): Promise<ContextPack> => {
+        const response = await fetch(`${API_BASE}/mcp/context-packs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to create context pack")
+        }
+        return response.json()
+      },
+
+      update: async (id: string, data: { name?: string; description?: string; files?: string[] }): Promise<ContextPack> => {
+        const response = await fetch(`${API_BASE}/mcp/context-packs/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to update context pack")
+        }
+        return response.json()
+      },
+
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${API_BASE}/mcp/context-packs/${id}`, { method: "DELETE" })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to delete context pack")
+        }
+      },
+    },
+
+    presets: {
+      list: async (): Promise<SessionPreset[]> => {
+        const response = await fetch(`${API_BASE}/mcp/presets`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch presets")
+        }
+        return response.json()
+      },
+
+      create: async (data: { name: string; config: MCPSessionConfig }): Promise<SessionPreset> => {
+        const response = await fetch(`${API_BASE}/mcp/presets`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to create preset")
+        }
+        return response.json()
+      },
+
+      update: async (id: string, data: { name?: string; config?: MCPSessionConfig }): Promise<SessionPreset> => {
+        const response = await fetch(`${API_BASE}/mcp/presets/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to update preset")
+        }
+        return response.json()
+      },
+
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${API_BASE}/mcp/presets/${id}`, { method: "DELETE" })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to delete preset")
+        }
+      },
+    },
+
+    history: {
+      list: async (): Promise<SessionHistory[]> => {
+        const response = await fetch(`${API_BASE}/mcp/history`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch history")
+        }
+        return response.json()
+      },
+
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${API_BASE}/mcp/history/${id}`, { method: "DELETE" })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to delete history entry")
+        }
       },
     },
   },

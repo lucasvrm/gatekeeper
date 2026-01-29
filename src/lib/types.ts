@@ -350,3 +350,43 @@ export interface MCPStatus {
   git: string
   docs: "accessible" | "not-found"
 }
+
+// MCP CRUD Types
+export interface Snippet {
+  id: string
+  name: string
+  category: string
+  content: string
+  tags: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ContextPack {
+  id: string
+  name: string
+  description: string | null
+  files: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SessionPreset {
+  id: string
+  name: string
+  config: MCPSessionConfig
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SessionHistory {
+  id: string
+  taskType: string
+  gitStrategy: string
+  branch: string | null
+  projectId: string | null
+  status: string
+  runIds: string[]
+  notes: string | null
+  createdAt: string
+}
