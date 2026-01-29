@@ -48,12 +48,16 @@ export function GitCommitModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="git-commit-modal" className="sm:max-w-lg">
-        <DialogHeader>
+      {/* CL-UI-MODAL-001: max-h-[85vh] flex flex-col */}
+      <DialogContent data-testid="git-commit-modal" className="sm:max-w-lg max-h-[85vh] flex flex-col">
+        {/* CL-UI-MODAL-005: Fixed header with flex-shrink-0 */}
+        <DialogHeader data-testid="dialog-header" className="flex-shrink-0">
           <DialogTitle>Commit Changes</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        {/* CL-UI-MODAL-002: Scrollable content wrapper */}
+        <div data-testid="content-wrapper" className="flex-1 overflow-y-auto min-h-0">
+          <div className="space-y-4 py-4">
           {/* Repo and Branch Badges */}
           <div className="flex items-center gap-2">
             {repoName && (
@@ -84,10 +88,10 @@ export function GitCommitModal({
             )}
           </div>
 
-          {/* Diff Summary */}
+          {/* CL-UI-MODAL-003: Diff summary with max-h-[200px] overflow-y-auto */}
           <div
             data-testid="diff-summary"
-            className="p-3 bg-gray-50 rounded-md border border-gray-200 font-mono text-xs text-gray-700 overflow-x-auto"
+            className="p-3 bg-gray-50 rounded-md border border-gray-200 font-mono text-xs text-gray-700 overflow-x-auto max-h-[200px] overflow-y-auto"
           >
             {gitStatus.diffStat}
           </div>
@@ -125,9 +129,11 @@ export function GitCommitModal({
               Push to remote after commit
             </label>
           </div>
+          </div>
         </div>
 
-        <DialogFooter>
+        {/* CL-UI-MODAL-004: Fixed footer with flex-shrink-0 */}
+        <DialogFooter data-testid="dialog-footer" className="flex-shrink-0">
           <Button
             type="button"
             variant="outline"

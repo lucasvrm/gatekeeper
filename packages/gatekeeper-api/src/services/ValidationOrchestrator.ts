@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
 import { GATES_CONFIG, CONTRACT_GATE_NUMBERS, EXECUTION_GATE_NUMBERS } from '../config/gates.config.js'
@@ -342,6 +344,18 @@ export class ValidationOrchestrator {
     const tokenCounterService = new TokenCounterService()
     const logService = new LogService(run.id)
 
+    // CL-CTX-001: Re-resolve testFilePath if it doesn't exist but manifest has testFile
+    let resolvedTestFilePath = run.testFilePath
+    if (run.testFilePath && !existsSync(run.testFilePath)) {
+      if (manifest?.testFile) {
+        const manifestPath = join(run.projectPath, manifest.testFile)
+        if (existsSync(manifestPath)) {
+          console.log(`[buildContext] Re-resolved testFilePath from ${run.testFilePath} to ${manifestPath}`)
+          resolvedTestFilePath = manifestPath
+        }
+      }
+    }
+
     return {
       runId: run.id,
       projectPath: run.projectPath,
@@ -350,7 +364,7 @@ export class ValidationOrchestrator {
       taskPrompt: run.taskPrompt,
       manifest,
       contract,
-      testFilePath: run.testFilePath,
+      testFilePath: resolvedTestFilePath,
       dangerMode: run.dangerMode,
       services: {
         git: gitService,
