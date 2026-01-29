@@ -83,13 +83,7 @@ Exemplos:
 - `TASK_TEST_PASSES` (Gate 2) - Executa o teste
 - `PRODUCTION_BUILD_PASS` (Gate 3) - Verifica build de produção
 
-#### 3. UI Contracts
-Contratos de design exportados de ferramentas como Figma:
-- Define componentes e estilos esperados
-- Usado por validadores para verificar se implementação corresponde ao design
-- Validadores: `UI_PLAN_COVERAGE`, `UI_TEST_COVERAGE`
-
-#### 4. Manifest
+#### 3. Manifest
 Define quais arquivos serão modificados e por quê:
 ```typescript
 {
@@ -101,10 +95,10 @@ Define quais arquivos serão modificados e por quê:
 }
 ```
 
-#### 5. ValidationContext
+#### 4. ValidationContext
 Objeto passado para cada validador contendo:
 - `runId`, `projectPath`, `baseRef`, `targetRef`
-- `manifest`, `contract`, `testFilePath`, `uiContract`
+- `manifest`, `contract`, `testFilePath`
 - `services`: git, ast, testRunner, compiler, lint, build, tokenCounter, log
 - `config`: configurações do workspace
 - `bypassedValidators`: validadores contornados
@@ -147,7 +141,6 @@ packages/gatekeeper-api/src/
 **Controllers principais:**
 - `ValidationController` - CRUD de validation runs
 - `ProjectController` - Gerenciamento de projetos
-- `UIContractController` - CRUD de UI contracts
 - `WorkspaceController` - Gerenciamento de workspaces
 
 **Services principais:**
@@ -157,7 +150,6 @@ packages/gatekeeper-api/src/
 - `CompilerService` - Compilação TypeScript
 - `LintService` - Linting
 - `BuildService` - Build de produção
-- `UIContractValidatorService` - Validação de UI contracts
 
 ### Frontend Architecture
 
@@ -199,7 +191,6 @@ src/
 **Tabelas principais:**
 - `Workspace` - Workspace com projetos
 - `Project` - Projeto de validação
-- `UIContract` - Contrato de design UI
 - `ValidationRun` - Execução de validação
 - `GateResult` - Resultado de um gate
 - `ValidatorResult` - Resultado de um validador

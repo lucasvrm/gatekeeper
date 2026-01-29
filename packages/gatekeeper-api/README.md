@@ -9,7 +9,6 @@ O Gatekeeper API fornece:
 - Validadores especializados para qualidade de código
 - Gerenciamento de contratos e testes
 - API REST para integração com frontend
-- Suporte a UI Contracts para validação de componentes de interface
 
 ## Arquitetura
 
@@ -32,55 +31,6 @@ Validators são unidades de validação que executam verificações específicas
 - Compilação e lint
 - Execução de testes
 - Validação de diff e manifest
-
-## UI Contract
-
-O Gatekeeper suporta **UI Contracts** - contratos de interface exportados de ferramentas de design (Figma, Sketch, etc.) que definem componentes, variantes, estados e estilos.
-
-### Recursos
-
-- **Upload e gerenciamento** de contratos de UI vinculados a projetos
-- **Validação automática** de cobertura de componentes UI no manifest
-- **Rastreabilidade** entre design e implementação
-- **Validators específicos** para garantir alinhamento com o design
-
-### Documentação
-
-- [**API Documentation**](./docs/UI_CONTRACT_API.md) - Endpoints REST para gerenciamento de UI Contracts (GET, POST, DELETE)
-- [**Schema Documentation**](./docs/UI_CONTRACT_SCHEMA.md) - Definição completa do schema TypeScript com exemplos
-
-### Validators de UI
-
-O UI Contract é utilizado por dois validators no Gate 1:
-
-- **UI_PLAN_COVERAGE** (order 11, hard block): Valida que o plan/manifest cobre todas as cláusulas UI necessárias baseadas no contrato
-- **UI_TEST_COVERAGE** (order 12, soft block): Valida que os testes incluem tags `@ui-clause` para rastreabilidade
-
-### Exemplo de Uso
-
-```typescript
-// Upload de UI Contract
-const contract = {
-  version: "1.0.0",
-  metadata: {
-    projectName: "MyApp",
-    exportedFrom: "Figma",
-    exportedAt: "2026-01-27T20:00:00.000Z",
-    hash: "abc123"
-  },
-  components: {
-    Button: {
-      variants: ["primary", "secondary"],
-      states: ["default", "hover", "pressed"]
-    }
-  },
-  styles: {
-    "Button.primary.root.default.backgroundColor": "#007bff"
-  }
-}
-
-await api.uiContract.upload(projectId, contract)
-```
 
 ## Tecnologias
 
@@ -125,11 +75,6 @@ npm test -- path/to/test.spec.ts
 - `PUT /api/projects/:id` - Atualizar projeto
 - `DELETE /api/projects/:id` - Deletar projeto
 
-### UI Contracts
-- `GET /api/projects/:projectId/ui-contract` - Obter UI Contract do projeto
-- `POST /api/projects/:projectId/ui-contract` - Criar/atualizar UI Contract
-- `DELETE /api/projects/:projectId/ui-contract` - Remover UI Contract
-
 ### Validation Runs
 - `GET /api/runs` - Listar runs
 - `GET /api/runs/:id` - Obter run
@@ -158,10 +103,6 @@ src/
 ├── services/            # Lógica de negócio
 ├── types/               # Definições TypeScript
 └── db/                  # Cliente Prisma
-
-docs/
-├── UI_CONTRACT_API.md      # Documentação da API de UI Contracts
-└── UI_CONTRACT_SCHEMA.md   # Documentação do schema de UI Contracts
 ```
 
 ## Licença
