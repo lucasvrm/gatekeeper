@@ -185,14 +185,14 @@ async function main() {
       value: '',
       type: 'STRING',
       category: 'PATHS',
-      description: 'Override path recorded on runs and plan.json testFilePath',
+      description: 'Full path to the test file for the current run (set by Gatekeeper)',
     },
     {
-      key: 'ALLOW_UNTAGGED_TESTS',
-      value: 'false',
-      type: 'BOOLEAN',
-      category: 'GATE1',
-      description: 'Allow tests without @clause tags (WARNING instead of FAILED)',
+      key: 'SANDBOX_DIR',
+      value: '',
+      type: 'STRING',
+      category: 'PATHS',
+      description: 'Relative path from PROJECT_ROOT to sandbox directory for isolated test execution',
     },
   ]
 
@@ -218,6 +218,7 @@ async function main() {
     { key: 'SENSITIVE_FILES_LOCK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'DANGER_MODE_EXPLICIT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'PATH_CONVENTION', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
+    { key: 'DELETE_DEPENDENCY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_SYNTAX_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_HAS_ASSERTIONS', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
     { key: 'TEST_COVERS_HAPPY_AND_SAD_PATH', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
@@ -261,6 +262,7 @@ async function main() {
     { code: 'SENSITIVE_FILES_LOCK', displayName: 'Sensitive Files Lock', description: 'Bloqueia modificação de arquivos sensíveis', category: 'SECURITY', gate: 0, order: 4, isHardBlock: true },
     { code: 'DANGER_MODE_EXPLICIT', displayName: 'Danger Mode Explicit', description: 'Exige arquivo sensível se dangerMode ativado', category: 'SECURITY', gate: 0, order: 5, isHardBlock: true },
     { code: 'PATH_CONVENTION', displayName: 'Path Naming Convention', description: 'Verifica se o teste está no caminho correto de acordo com as convenções configuradas', category: 'FILE_DISCIPLINE', gate: 0, order: 6, isHardBlock: true },
+    { code: 'DELETE_DEPENDENCY_CHECK', displayName: 'Delete Dependency Check', description: 'Verifica se arquivos que importam arquivos deletados estão incluídos no manifest', category: 'FILE_DISCIPLINE', gate: 0, order: 7, isHardBlock: true },
 
     // Gate 1 - CONTRACT
     { code: 'TEST_SYNTAX_VALID', displayName: 'Test Syntax Valid', description: 'Verifica se o arquivo de teste compila', category: 'TESTS_CONTRACTS', gate: 1, order: 1, isHardBlock: true },
