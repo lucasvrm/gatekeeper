@@ -18,6 +18,8 @@ import type {
   GitPushResponse,
   GitFetchStatusResponse,
   GitDiffResponse,
+  MCPSessionConfig,
+  MCPStatus,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -595,6 +597,43 @@ export const api = {
         throw new Error(error?.error?.message || "Failed to get branch info")
       }
       return response.json()
+    },
+  },
+
+  mcp: {
+    session: {
+      get: async (): Promise<{ config: MCPSessionConfig }> => {
+        const response = await fetch(`${API_BASE}/mcp/session`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch session config")
+        }
+        return response.json()
+      },
+
+      update: async (data: { config: MCPSessionConfig }): Promise<{ success: boolean }> => {
+        const response = await fetch(`${API_BASE}/mcp/session`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to update session config")
+        }
+        return response.json()
+      },
+    },
+
+    status: {
+      get: async (): Promise<MCPStatus> => {
+        const response = await fetch(`${API_BASE}/mcp/status`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch MCP status")
+        }
+        return response.json()
+      },
     },
   },
 

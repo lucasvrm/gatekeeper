@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { List, ShieldCheck, Gear, SquaresFour, FolderOpen, Folders } from "@phosphor-icons/react"
+import { List, ShieldCheck, Gear, SquaresFour, FolderOpen, Folders, Robot } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 
 const navigation = [
@@ -8,6 +8,7 @@ const navigation = [
   { name: "Projetos", path: "/projects", icon: FolderOpen },
   { name: "Runs", path: "/runs", icon: List },
   { name: "Gates", path: "/gates", icon: ShieldCheck },
+  { name: "MCP Session", path: "/mcp", icon: Robot },
   { name: "Config", path: "/config", icon: Gear },
 ]
 

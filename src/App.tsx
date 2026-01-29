@@ -13,6 +13,7 @@ import { WorkspaceFormPage } from "@/components/workspace-form-page"
 import { ProjectsListPage } from "@/components/projects-list-page"
 import { ProjectDetailsPage } from "@/components/project-details-page"
 import { ProjectFormPage } from "@/components/project-form-page"
+import { MCPSessionPage } from "@/components/mcp-session-page"
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/runs/new" element={<NewValidationPage />} />
           <Route path="/runs/:id" element={<RunDetailsPage />} />
           <Route path="/gates" element={<GatesPage />} />
+          <Route path="/mcp" element={<MCPSessionPage />} />
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/workspaces" element={<WorkspacesListPage />} />
           <Route path="/workspaces/new" element={<WorkspaceFormPage />} />

@@ -331,3 +331,22 @@ export interface GitErrorResponse {
     message: string
   }
 }
+
+// MCP Session Types
+export type GitStrategy = "main" | "new-branch" | "existing-branch"
+export type TaskType = "bugfix" | "feature" | "refactor" | "test" | "other"
+
+export interface MCPSessionConfig {
+  gitStrategy: GitStrategy
+  branch: string
+  taskType: TaskType
+  projectId: string | null
+  customInstructions: string
+}
+
+export interface MCPStatus {
+  mcpServer: "connected" | "disconnected"
+  gatekeeperApi: "online" | "offline"
+  git: string
+  docs: "accessible" | "not-found"
+}
