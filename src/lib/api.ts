@@ -647,7 +647,8 @@ export const api = {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch snippets")
         }
-        return response.json()
+        const result = await response.json()
+        return result.data
       },
 
       create: async (data: { name: string; category: string; content: string; tags?: string[] }): Promise<Snippet> => {
@@ -692,7 +693,8 @@ export const api = {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch context packs")
         }
-        return response.json()
+        const result = await response.json()
+        return result.data
       },
 
       create: async (data: { name: string; description?: string; files: string[] }): Promise<ContextPack> => {
@@ -737,7 +739,8 @@ export const api = {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch presets")
         }
-        return response.json()
+        const result = await response.json()
+        return result.data
       },
 
       create: async (data: { name: string; config: MCPSessionConfig }): Promise<SessionPreset> => {
@@ -782,7 +785,8 @@ export const api = {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch history")
         }
-        return response.json()
+        const result = await response.json()
+        return result.data
       },
 
       delete: async (id: string): Promise<void> => {
