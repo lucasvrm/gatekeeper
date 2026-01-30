@@ -2,11 +2,17 @@ import { execa } from 'execa'
 import { stripAnsi } from '../utils/stripAnsi.js'
 import type { BuildService as IBuildService, BuildResult } from '../types/index.js'
 
+type BuildOptions = {
+  timeout?: number
+}
+
 export class BuildService implements IBuildService {
   private projectPath: string
+  private timeoutMs: number
 
-  constructor(projectPath: string) {
+  constructor(projectPath: string, options: BuildOptions = {}) {
     this.projectPath = projectPath
+    this.timeoutMs = options.timeout ?? 120 * 1000
   }
 
   async build(): Promise<BuildResult> {
@@ -14,6 +20,7 @@ export class BuildService implements IBuildService {
       const result = await execa('npm', ['run', 'build'], {
         cwd: this.projectPath,
         reject: false,
+        timeout: this.timeoutMs,
       })
 
       const rawOutput = result.stdout + result.stderr

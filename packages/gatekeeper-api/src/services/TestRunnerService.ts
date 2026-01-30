@@ -4,11 +4,17 @@ import { existsSync } from 'fs'
 import { stripAnsi } from '../utils/stripAnsi.js'
 import type { TestRunnerService as ITestRunnerService, TestResult } from '../types/index.js'
 
+type TestRunnerOptions = {
+  timeout?: number
+}
+
 export class TestRunnerService implements ITestRunnerService {
   private projectPath: string
+  private timeoutMs: number
 
-  constructor(projectPath: string) {
+  constructor(projectPath: string, options: TestRunnerOptions = {}) {
     this.projectPath = projectPath
+    this.timeoutMs = options.timeout ?? 10 * 60 * 1000
   }
 
   async runSingleTest(testPath: string): Promise<TestResult> {
@@ -43,7 +49,7 @@ export class TestRunnerService implements ITestRunnerService {
         cwd: this.projectPath,
         reject: false,
         env: { ...process.env, CI: '1' },
-        timeout: 10 * 60 * 1000,
+        timeout: this.timeoutMs,
         killSignal: 'SIGKILL',
         windowsHide: true,
       })
@@ -78,7 +84,7 @@ export class TestRunnerService implements ITestRunnerService {
         cwd: this.projectPath,
         reject: false,
         env: { ...process.env, CI: '1' },
-        timeout: 10 * 60 * 1000,
+        timeout: this.timeoutMs,
         killSignal: 'SIGKILL',
         windowsHide: true,
       })

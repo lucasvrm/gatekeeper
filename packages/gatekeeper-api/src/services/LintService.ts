@@ -4,11 +4,17 @@ import { existsSync } from 'fs'
 import { stripAnsi } from '../utils/stripAnsi.js'
 import type { LintService as ILintService, LintResult } from '../types/index.js'
 
+type LintOptions = {
+  timeout?: number
+}
+
 export class LintService implements ILintService {
   private projectPath: string
+  private timeoutMs: number
 
-  constructor(projectPath: string) {
+  constructor(projectPath: string, options: LintOptions = {}) {
     this.projectPath = projectPath
+    this.timeoutMs = options.timeout ?? 30 * 1000
   }
 
   async lint(paths: string[]): Promise<LintResult> {
@@ -30,6 +36,7 @@ export class LintService implements ILintService {
       const result = await execa('eslint', absolutePaths, {
         cwd: this.projectPath,
         reject: false,
+        timeout: this.timeoutMs,
       })
 
       const rawOutput = result.stdout + result.stderr

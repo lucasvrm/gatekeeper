@@ -1,6 +1,6 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
 import { resolve, dirname, relative } from 'path'
-import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
+import { readFileSync, readdirSync } from 'fs'
 
 const toPosixPath = (value: string): string => value.replace(/\\/g, '/')
 
@@ -72,8 +72,7 @@ function matchesDeletedFile(resolvedImport: string, deletedFilePath: string, pro
  */
 function scanProjectFiles(dir: string, projectPath: string, ignorePatterns: string[] = []): string[] {
   const files: string[] = []
-  const defaultIgnore = ['node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.cache']
-  const ignore = [...defaultIgnore, ...ignorePatterns]
+  const ignore = [...ignorePatterns]
 
   try {
     const entries = readdirSync(dir, { withFileTypes: true })
@@ -150,8 +149,18 @@ export const DeleteDependencyCheckValidator: ValidatorDefinition = {
 
     baseContext.analyzed.push({ label: 'Files Marked for DELETE', items: deleteFiles.map(f => f.path) })
 
+    const defaultIgnore = ['node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.cache']
+    const ignoreConfigStr = ctx.config.get('DELETE_CHECK_IGNORE_DIRS') || ''
+    const configIgnore = ignoreConfigStr
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+    const ignoreDirs = Array.from(new Set([...defaultIgnore, ...configIgnore]))
+
+    baseContext.inputs.push({ label: 'Ignore Dirs', value: ignoreDirs })
+
     // Scan project files for importers
-    const projectFiles = scanProjectFiles(ctx.projectPath, ctx.projectPath)
+    const projectFiles = scanProjectFiles(ctx.projectPath, ctx.projectPath, ignoreDirs)
     const orphanedImports: Array<{ deletedFile: string; importers: string[] }> = []
     const suggestions: Array<{ path: string; action: 'MODIFY' }> = []
 

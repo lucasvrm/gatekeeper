@@ -1,5 +1,6 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
 import { resolve, isAbsolute } from 'path'
+import { minimatch } from 'minimatch'
 
 export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
   code: 'TEST_READ_ONLY_ENFORCEMENT',
@@ -11,6 +12,11 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
     const useWorkingTree = ctx.config.get('DIFF_SCOPE_INCLUDE_WORKING_TREE') === 'true'
+    const excludedPatternsStr = ctx.config.get('TEST_READ_ONLY_EXCLUDED_PATHS')
+    const excludedPatterns = excludedPatternsStr
+      ? excludedPatternsStr.split(',').map((pattern) => pattern.trim()).filter(Boolean)
+      : ['artifacts/**']
+
     const diffFiles = useWorkingTree
       ? await ctx.services.git.getDiffFilesWithWorkingTree(ctx.baseRef)
       : await ctx.services.git.getDiffFiles(ctx.baseRef, ctx.targetRef)
@@ -23,6 +29,11 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
     const testFilePattern = /\.(test|spec)\.(ts|tsx|js|jsx)$/
     const modifiedTests = diffFiles.filter((file) => {
       if (!testFilePattern.test(file)) return false
+
+      const normalizedFile = file.replace(/\\/g, '/')
+      if (excludedPatterns.some((pattern) => minimatch(normalizedFile, pattern, { dot: true }))) {
+        return false
+      }
       
       const diffAbsolute = resolve(ctx.projectPath, file)
       if (allowedTestAbsolute && diffAbsolute === allowedTestAbsolute) {
@@ -38,7 +49,10 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
         status: 'FAILED',
         message: `Existing test files were modified: ${modifiedTests.length} file(s)`,
         context: {
-          inputs: [{ label: 'TestFile', value: allowedTestAbsolute ?? ctx.testFilePath ?? 'none' }],
+          inputs: [
+            { label: 'TestFile', value: allowedTestAbsolute ?? ctx.testFilePath ?? 'none' },
+            { label: 'ExcludedPatterns', value: excludedPatterns },
+          ],
           analyzed: [{ label: 'Diff Files', items: diffFiles }],
           findings: modifiedTests.map((file) => ({
             type: 'fail' as const,
@@ -50,6 +64,7 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
         details: {
           modifiedTests,
           allowedTest: allowedTestAbsolute ?? ctx.testFilePath,
+          excludedPatterns,
         },
         evidence: `Modified test files:\n${modifiedTests.map((f) => `  - ${f}`).join('\n')}\n\nExisting tests should not be modified. Only the task's test file (${allowedTestAbsolute || ctx.testFilePath || 'N/A'}) is allowed.`,
       }
@@ -60,7 +75,10 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
       status: 'PASSED',
       message: 'No existing test files were modified',
       context: {
-        inputs: [{ label: 'TestFile', value: allowedTestAbsolute ?? ctx.testFilePath ?? 'none' }],
+        inputs: [
+          { label: 'TestFile', value: allowedTestAbsolute ?? ctx.testFilePath ?? 'none' },
+          { label: 'ExcludedPatterns', value: excludedPatterns },
+        ],
         analyzed: [{ label: 'Diff Files', items: diffFiles }],
         findings: [{ type: 'pass', message: 'No modified test files detected' }],
         reasoning: 'Diff does not include modifications to existing test files.',
@@ -68,6 +86,9 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
       metrics: {
         totalDiffFiles: diffFiles.length,
         modifiedTestFiles: 0,
+      },
+      details: {
+        excludedPatterns,
       },
     }
   },

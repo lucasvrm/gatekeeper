@@ -10,6 +10,9 @@ export const PathConventionValidator: ValidatorDefinition = {
   isHardBlock: true,
 
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
+    const typePatternsConfig = ctx.config.get('TYPE_DETECTION_PATTERNS')
+    const typePatterns = getTypeDetectionPatterns(typePatternsConfig)
+
     if (!ctx.manifest) {
       return {
         passed: true,
@@ -19,6 +22,7 @@ export const PathConventionValidator: ValidatorDefinition = {
           inputs: [
             { label: 'TestFilePath', value: ctx.testFilePath ?? 'none' },
             { label: 'Conventions', value: [] },
+            { label: 'Type Patterns', value: Object.keys(typePatterns) },
           ],
           analyzed: [],
           findings: [{ type: 'info', message: 'Skipped: manifest not provided' }],
@@ -36,6 +40,7 @@ export const PathConventionValidator: ValidatorDefinition = {
           inputs: [
             { label: 'TestFilePath', value: 'none' },
             { label: 'Conventions', value: [] },
+            { label: 'Type Patterns', value: Object.keys(typePatterns) },
           ],
           analyzed: [],
           findings: [{ type: 'info', message: 'Skipped: test file path not provided' }],
@@ -49,7 +54,7 @@ export const PathConventionValidator: ValidatorDefinition = {
     // This validator just confirms the file is accessible and follows conventions
 
     // Detect test type from manifest files
-    const detectedTestType = detectTestType(ctx.manifest.files)
+    const detectedTestType = detectTestType(ctx.manifest.files, typePatterns)
 
     if (!detectedTestType) {
       return {
@@ -61,6 +66,7 @@ export const PathConventionValidator: ValidatorDefinition = {
           inputs: [
             { label: 'TestFilePath', value: ctx.testFilePath },
             { label: 'Conventions', value: [] },
+            { label: 'Type Patterns', value: Object.keys(typePatterns) },
           ],
           analyzed: [{ label: 'Path vs Patterns', items: ['No test type detected'] }],
           findings: [{ type: 'warning', message: 'Test type could not be detected from manifest' }],
@@ -90,6 +96,7 @@ export const PathConventionValidator: ValidatorDefinition = {
           inputs: [
             { label: 'TestFilePath', value: ctx.testFilePath },
             { label: 'Conventions', value: [] },
+            { label: 'Type Patterns', value: Object.keys(typePatterns) },
           ],
           analyzed: [{ label: 'Path vs Patterns', items: [`No convention for ${detectedTestType}`] }],
           findings: [{ type: 'warning', message: `No active convention for test type "${detectedTestType}"` }],
@@ -125,6 +132,7 @@ export const PathConventionValidator: ValidatorDefinition = {
           inputs: [
             { label: 'TestFilePath', value: ctx.testFilePath },
             { label: 'Conventions', value: [convention.pathPattern] },
+            { label: 'Type Patterns', value: Object.keys(typePatterns) },
           ],
           analyzed: [{ label: 'Path vs Patterns', items: [`${relativePath} matches ${conventionDir}`] }],
           findings: [{ type: 'pass', message: 'Test file path follows convention' }],
@@ -150,6 +158,7 @@ export const PathConventionValidator: ValidatorDefinition = {
           inputs: [
             { label: 'TestFilePath', value: ctx.testFilePath },
             { label: 'Conventions', value: [convention.pathPattern] },
+            { label: 'Type Patterns', value: Object.keys(typePatterns) },
           ],
           analyzed: [{ label: 'Path vs Patterns', items: [`${relativePath} is in artifacts`] }],
           findings: [{ type: 'warning', message: 'Test file is still in artifacts directory' }],
@@ -172,6 +181,7 @@ export const PathConventionValidator: ValidatorDefinition = {
         inputs: [
           { label: 'TestFilePath', value: ctx.testFilePath },
           { label: 'Conventions', value: [convention.pathPattern] },
+          { label: 'Type Patterns', value: Object.keys(typePatterns) },
         ],
         analyzed: [{ label: 'Path vs Patterns', items: [`${relativePath} does not include ${conventionDir}`] }],
         findings: [{ type: 'warning', message: 'Test file path may not follow convention' }],
@@ -181,20 +191,7 @@ export const PathConventionValidator: ValidatorDefinition = {
   },
 }
 
-function detectTestType(files: Array<{ path: string; action: string }>): string | null {
-  const typePatterns: Record<string, RegExp> = {
-    component: /\/(components?|ui|widgets?|layout|views?)\//i,
-    hook: /\/hooks?\//i,
-    lib: /\/lib\//i,
-    util: /\/utils?\//i,
-    service: /\/services?\//i,
-    context: /\/contexts?\//i,
-    page: /\/pages?\//i,
-    store: /\/stores?\//i,
-    api: /\/api\//i,
-    validator: /\/validators?\//i,
-  }
-
+function detectTestType(files: Array<{ path: string; action: string }>, typePatterns: Record<string, RegExp>): string | null {
   const typeCounts: Record<string, number> = {}
 
   for (const file of files) {
@@ -219,4 +216,47 @@ function detectTestType(files: Array<{ path: string; action: string }>): string 
   }
 
   return detectedType
+}
+
+function getTypeDetectionPatterns(configValue: string | undefined): Record<string, RegExp> {
+  const defaults: Record<string, RegExp> = {
+    component: /\/(components?|ui|widgets?|layout|views?)\//i,
+    hook: /\/hooks?\//i,
+    lib: /\/lib\//i,
+    util: /\/utils?\//i,
+    service: /\/services?\//i,
+    context: /\/contexts?\//i,
+    page: /\/pages?\//i,
+    store: /\/stores?\//i,
+    api: /\/api\//i,
+    validator: /\/validators?\//i,
+  }
+
+  if (!configValue || configValue.trim() === '') {
+    return defaults
+  }
+
+  const patterns: Record<string, RegExp> = {}
+  const entries = configValue.split(',').map((entry) => entry.trim()).filter(Boolean)
+
+  for (const entry of entries) {
+    const separatorIndex = entry.indexOf(':')
+    if (separatorIndex <= 0) continue
+    const type = entry.slice(0, separatorIndex).trim()
+    const pattern = entry.slice(separatorIndex + 1).trim()
+    if (!type || !pattern) continue
+    try {
+      patterns[type] = new RegExp(pattern, 'i')
+    } catch {
+      // Ignore invalid regex
+    }
+  }
+
+  for (const [type, pattern] of Object.entries(defaults)) {
+    if (!patterns[type]) {
+      patterns[type] = pattern
+    }
+  }
+
+  return Object.keys(patterns).length > 0 ? patterns : defaults
 }

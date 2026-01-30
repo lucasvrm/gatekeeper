@@ -25,9 +25,19 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
 
     try {
       const content = await ctx.services.git.readFile(ctx.testFilePath)
-      
-      const happyPathRegex = /it\s*\(\s*['"].*?(success|should|when.*valid|passes)/i
-      const sadPathRegex = /it\s*\(\s*['"].*?(error|fail|throws|invalid|when.*not)/i
+
+      const happyKeywordsStr = ctx.config.get('HAPPY_PATH_KEYWORDS') || 'success,should,valid,passes,correctly,works,returns'
+      const sadKeywordsStr = ctx.config.get('SAD_PATH_KEYWORDS') || 'error,fail,throws,invalid,not,reject,deny,block'
+      const happyKeywords = happyKeywordsStr.split(',').map((k) => k.trim()).filter(Boolean)
+      const sadKeywords = sadKeywordsStr.split(',').map((k) => k.trim()).filter(Boolean)
+
+      const buildKeywordRegex = (keywords: string[]) => {
+        const escaped = keywords.map((keyword) => keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        return new RegExp(`it\\s*\\(\\s*['"].*?(${escaped.join('|')})`, 'i')
+      }
+
+      const happyPathRegex = buildKeywordRegex(happyKeywords)
+      const sadPathRegex = buildKeywordRegex(sadKeywords)
       const testNames = Array.from(content.matchAll(/it\s*\(\s*['"]([^'"]+)['"]/g)).map((match) => match[1])
       
       const hasHappyPath = happyPathRegex.test(content)
@@ -53,6 +63,8 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
             hasHappyPath,
             hasSadPath,
             testFile: ctx.testFilePath,
+            happyKeywords,
+            sadKeywords,
           },
         }
       }
@@ -73,6 +85,12 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
         metrics: {
           happyPathTests: (content.match(happyPathRegex) || []).length,
           sadPathTests: (content.match(sadPathRegex) || []).length,
+        },
+        details: {
+          happyKeywords,
+          sadKeywords,
+          hasHappyPath,
+          hasSadPath,
         },
       }
     } catch (error) {

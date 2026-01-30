@@ -2,11 +2,17 @@ import { execa } from 'execa'
 import { stripAnsi } from '../utils/stripAnsi.js'
 import type { CompilerService as ICompilerService, CompileResult } from '../types/index.js'
 
+type CompilerOptions = {
+  timeout?: number
+}
+
 export class CompilerService implements ICompilerService {
   private projectPath: string
+  private timeoutMs: number
 
-  constructor(projectPath: string) {
+  constructor(projectPath: string, options: CompilerOptions = {}) {
     this.projectPath = projectPath
+    this.timeoutMs = options.timeout ?? 60 * 1000
   }
 
   async compile(path?: string): Promise<CompileResult> {
@@ -16,6 +22,7 @@ export class CompilerService implements ICompilerService {
       const result = await execa('tsc', args, {
         cwd: this.projectPath,
         reject: false,
+        timeout: this.timeoutMs,
       })
 
       let errors: string[] = []

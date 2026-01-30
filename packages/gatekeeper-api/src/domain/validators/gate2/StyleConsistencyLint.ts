@@ -11,28 +11,34 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
   isHardBlock: true,
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
+    const eslintConfigFilesStr = ctx.config.get('ESLINT_CONFIG_FILES')
+      || 'eslint.config.js,eslint.config.mjs,eslint.config.cjs,.eslintrc.js,.eslintrc.json,.eslintrc'
+    const eslintConfigs = eslintConfigFilesStr
+      .split(',')
+      .map((config) => config.trim())
+      .filter(Boolean)
+    const skipIfNoConfig = ctx.config.get('SKIP_LINT_IF_NO_CONFIG') !== 'false'
+
     if (!ctx.manifest) {
       return {
         passed: true,
         status: 'SKIPPED',
         message: 'No manifest provided, skipping lint check',
         context: {
-          inputs: [],
+          inputs: [
+            { label: 'ESLint Config Files', value: eslintConfigs },
+            { label: 'Skip If No Config', value: skipIfNoConfig },
+          ],
           analyzed: [],
           findings: [{ type: 'info', message: 'Skipped: manifest not provided' }],
           reasoning: 'Linting requires a manifest to determine which files to check.',
         },
+        details: {
+          eslintConfigs,
+          skipIfNoConfig,
+        },
       }
     }
-
-    const eslintConfigs = [
-      'eslint.config.js',
-      'eslint.config.mjs',
-      'eslint.config.cjs',
-      '.eslintrc.js',
-      '.eslintrc.json',
-      '.eslintrc',
-    ]
 
     let hasEslintConfig = false
     for (const config of eslintConfigs) {
@@ -43,15 +49,42 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
     }
 
     if (!hasEslintConfig) {
+      if (skipIfNoConfig) {
+        return {
+          passed: true,
+          status: 'SKIPPED',
+          message: 'No ESLint configuration found, skipping lint check',
+          context: {
+            inputs: [
+              { label: 'ESLint Config Files', value: eslintConfigs },
+              { label: 'Skip If No Config', value: skipIfNoConfig },
+            ],
+            analyzed: [],
+            findings: [{ type: 'info', message: 'Skipped: ESLint config not found' }],
+            reasoning: 'Linting skipped because no ESLint configuration exists.',
+          },
+          details: {
+            eslintConfigs,
+            skipIfNoConfig,
+          },
+        }
+      }
       return {
-        passed: true,
-        status: 'SKIPPED',
-        message: 'No ESLint configuration found, skipping lint check',
+        passed: false,
+        status: 'FAILED',
+        message: 'No ESLint configuration found and SKIP_LINT_IF_NO_CONFIG=false',
         context: {
-          inputs: [],
+          inputs: [
+            { label: 'ESLint Config Files', value: eslintConfigs },
+            { label: 'Skip If No Config', value: skipIfNoConfig },
+          ],
           analyzed: [],
-          findings: [{ type: 'info', message: 'Skipped: ESLint config not found' }],
-          reasoning: 'Linting skipped because no ESLint configuration exists.',
+          findings: [{ type: 'fail', message: 'ESLint config not found' }],
+          reasoning: 'Linting cannot proceed without ESLint configuration.',
+        },
+        details: {
+          eslintConfigs,
+          skipIfNoConfig,
         },
       }
     }
@@ -68,10 +101,17 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
           status: 'SKIPPED',
           message: 'No lintable files in manifest',
           context: {
-            inputs: [],
+            inputs: [
+              { label: 'ESLint Config Files', value: eslintConfigs },
+              { label: 'Skip If No Config', value: skipIfNoConfig },
+            ],
             analyzed: [{ label: 'Files Linted', items: [] }],
             findings: [{ type: 'info', message: 'Skipped: no lintable files found' }],
             reasoning: 'Manifest contains no JS/TS files to lint.',
+          },
+          details: {
+            eslintConfigs,
+            skipIfNoConfig,
           },
         }
       }
@@ -84,7 +124,10 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
           status: 'FAILED',
           message: `ESLint found ${result.errorCount} error(s) and ${result.warningCount} warning(s)`,
           context: {
-            inputs: [],
+            inputs: [
+              { label: 'ESLint Config Files', value: eslintConfigs },
+              { label: 'Skip If No Config', value: skipIfNoConfig },
+            ],
             analyzed: [{ label: 'Files Linted', items: filePaths }],
             findings: [
               { type: 'fail', message: `ESLint errors: ${result.errorCount}` },
@@ -97,6 +140,8 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
             errorCount: result.errorCount,
             warningCount: result.warningCount,
             filesChecked: filePaths.length,
+            eslintConfigs,
+            skipIfNoConfig,
           },
         }
       }
@@ -106,7 +151,10 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
         status: 'PASSED',
         message: 'All files pass ESLint checks',
         context: {
-          inputs: [],
+          inputs: [
+            { label: 'ESLint Config Files', value: eslintConfigs },
+            { label: 'Skip If No Config', value: skipIfNoConfig },
+          ],
           analyzed: [{ label: 'Files Linted', items: filePaths }],
           findings: [{ type: 'pass', message: 'ESLint checks passed' }],
           reasoning: 'All linted files passed ESLint rules.',
@@ -116,6 +164,10 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
           errorCount: 0,
           warningCount: result.warningCount,
         },
+        details: {
+          eslintConfigs,
+          skipIfNoConfig,
+        },
       }
     } catch (error) {
       return {
@@ -123,10 +175,17 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
         status: 'FAILED',
         message: `Lint check failed: ${error instanceof Error ? error.message : String(error)}`,
         context: {
-          inputs: [],
+          inputs: [
+            { label: 'ESLint Config Files', value: eslintConfigs },
+            { label: 'Skip If No Config', value: skipIfNoConfig },
+          ],
           analyzed: [],
           findings: [{ type: 'fail', message: 'Lint execution failed' }],
           reasoning: 'An error occurred while running ESLint.',
+        },
+        details: {
+          eslintConfigs,
+          skipIfNoConfig,
         },
       }
     }

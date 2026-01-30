@@ -23,6 +23,41 @@ const stripLeadingDotSegments = (value: string): string => {
   return parts.slice(start).join('/')
 }
 
+const parseCsv = (value: string | undefined): string[] =>
+  (value || '').split(',').map((item) => item.trim()).filter(Boolean)
+
+const parsePathAliases = (value: string | undefined): Array<{ alias: string; target: string }> => {
+  const raw = value && value.trim() !== '' ? value : '@/:src/'
+  const pairs = raw.split(',').map((pair) => pair.trim()).filter(Boolean)
+  const aliases: Array<{ alias: string; target: string }> = []
+
+  for (const pair of pairs) {
+    const [aliasRaw, targetRaw] = pair.split(':')
+    if (!aliasRaw || !targetRaw) continue
+    const alias = aliasRaw.trim()
+    const target = targetRaw.trim()
+    aliases.push({ alias, target })
+  }
+
+  return aliases
+}
+
+const resolveAliasPath = (
+  importPath: string,
+  projectPath: string,
+  aliases: Array<{ alias: string; target: string }>
+): string | null => {
+  for (const { alias, target } of aliases) {
+    const aliasPrefix = alias.endsWith('/') ? alias : `${alias}/`
+    const targetPrefix = target.endsWith('/') ? target : `${target}/`
+    if (importPath === alias || importPath.startsWith(aliasPrefix)) {
+      const remainder = importPath === alias ? '' : importPath.slice(aliasPrefix.length)
+      return resolve(projectPath, targetPrefix, remainder)
+    }
+  }
+  return null
+}
+
 export const ImportRealityCheckValidator: ValidatorDefinition = {
   code: 'IMPORT_REALITY_CHECK',
   name: 'Import Reality Check',
@@ -51,6 +86,10 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
         ? ctx.testFilePath
         : resolve(ctx.projectPath, ctx.testFilePath)
       const imports = await ctx.services.ast.getImports(absoluteTestPath)
+      const extraBuiltins = parseCsv(ctx.config.get('EXTRA_BUILTIN_MODULES'))
+      const builtinModules = new Set([...NODE_BUILTIN_MODULES, ...extraBuiltins])
+      const pathAliases = parsePathAliases(ctx.config.get('PATH_ALIASES'))
+      const pathAliasesMap = Object.fromEntries(pathAliases.map((entry) => [entry.alias, entry.target]))
 
       const invalidImports: Array<{path: string, reason: string}> = []
       const testFileDir = dirname(absoluteTestPath)
@@ -71,7 +110,8 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
       )
       
       for (const importPath of imports) {
-        if (importPath.startsWith('.') || importPath.startsWith('/') || importPath.startsWith('@/')) {
+        const aliasResolved = resolveAliasPath(importPath, projectPath, pathAliases)
+        if (importPath.startsWith('.') || importPath.startsWith('/') || aliasResolved) {
           let resolvedPath = importPath
           if (importPath.startsWith('.')) {
             resolvedPath = resolve(baseDirForRelativeImports, importPath)
@@ -82,9 +122,8 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
                 resolvedPath = resolve(projectPath, strippedImport)
               }
             }
-          } else if (importPath.startsWith('@/')) {
-            // @/ é path alias para src/
-            resolvedPath = resolve(projectPath, 'src', importPath.slice(2))
+          } else if (aliasResolved) {
+            resolvedPath = aliasResolved
           } else {
             resolvedPath = resolve(projectPath, importPath.slice(1))
           }
@@ -126,7 +165,7 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
               // Verificar se é módulo built-in do Node.js
 
               
-              if (NODE_BUILTIN_MODULES.includes(packageName) || packageName.startsWith('node:')) {
+              if (builtinModules.has(packageName) || packageName.startsWith('node:')) {
 
               
                 // Módulo built-in, não precisa estar em package.json
@@ -151,7 +190,11 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
           status: 'FAILED',
           message: `Found ${invalidImports.length} invalid import(s)`,
           context: {
-            inputs: [{ label: 'TestFile', value: ctx.testFilePath }],
+            inputs: [
+              { label: 'TestFile', value: ctx.testFilePath },
+              { label: 'Extra Builtins', value: extraBuiltins },
+              { label: 'Path Aliases', value: pathAliasesMap },
+            ],
             analyzed: [{ label: 'Import Statements', items: imports }],
             findings: invalidImports.map((entry) => ({
               type: 'fail' as const,
@@ -163,6 +206,8 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
           details: {
             invalidImports,
             totalImports: imports.length,
+            extraBuiltins,
+            pathAliases: pathAliasesMap,
           },
         }
       }
@@ -172,7 +217,11 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
         status: 'PASSED',
         message: 'All imports are valid and exist',
         context: {
-          inputs: [{ label: 'TestFile', value: ctx.testFilePath }],
+          inputs: [
+            { label: 'TestFile', value: ctx.testFilePath },
+            { label: 'Extra Builtins', value: extraBuiltins },
+            { label: 'Path Aliases', value: pathAliasesMap },
+          ],
           analyzed: [{ label: 'Import Statements', items: imports }],
           findings: imports.map((path) => ({
             type: 'pass' as const,
@@ -183,6 +232,10 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
         metrics: {
           totalImports: imports.length,
           validImports: imports.length,
+        },
+        details: {
+          extraBuiltins,
+          pathAliases: pathAliasesMap,
         },
       }
     } catch (error) {
