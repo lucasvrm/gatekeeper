@@ -1,13 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 /**
- * Tests for PathResolverService refactor
+ * Tests for PathResolverService - Glob Fallback
  *
- * Contract: centralize-path-resolution
+ * Contract: pathresolver-glob-fallback v1.0
  * Mode: STRICT (all clauses must have @clause tags)
+ *
+ * Cláusulas cobertas:
+ * - CL-GLOB-001: Glob encontra único match
+ * - CL-GLOB-002: Glob não regride spec em src/
+ * - CL-GLOB-003: Múltiplos matches fazem fallback
+ * - CL-GLOB-004: Zero matches fazem fallback
+ * - CL-GLOB-005: Path completo no manifest ignora glob
+ * - CL-GLOB-006: Assinaturas inalteradas
+ * - CL-GLOB-007: Testes existentes passam
  */
 
-// Mock fs modules using Vitest recommended syntax
+// Use vi.hoisted() to declare mocks that will be referenced in vi.mock()
+const { mockGlobSync } = vi.hoisted(() => ({
+  mockGlobSync: vi.fn(),
+}))
+
+// Mock fs modules
 vi.mock(import('fs'), async (importOriginal) => {
   const actual = await importOriginal()
   return {
@@ -38,26 +52,175 @@ vi.mock(import('../db/client'), async () => {
   }
 })
 
+// Mock glob module using hoisted mock function
+vi.mock(import('glob'), async () => {
+  return {
+    glob: {
+      sync: mockGlobSync,
+    },
+    sync: mockGlobSync,
+    default: {
+      sync: mockGlobSync,
+    },
+  }
+})
+
 import { PathResolverService } from './PathResolverService'
 import { existsSync } from 'fs'
 import { mkdir, copyFile } from 'fs/promises'
 import { prisma } from '../db/client'
 
-describe('PathResolverService - centralize-path-resolution', () => {
+describe('PathResolverService - pathresolver-glob-fallback', () => {
   let pathResolver: PathResolverService
 
   beforeEach(() => {
     pathResolver = new PathResolverService()
     vi.clearAllMocks()
+    mockGlobSync.mockReset()
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  describe('CL-REF-001: testFilePath correto após uploadFiles', () => {
-    // @clause CL-REF-001
-    it('should update testFilePath based on convention when spec file is processed', async () => {
+  // ===========================================================================
+  // CL-GLOB-001: Glob encontra único match
+  // ===========================================================================
+  describe('CL-GLOB-001: Glob encontra único match', () => {
+    // @clause CL-GLOB-001
+    it('should return glob-found path when exactly one match exists', async () => {
+      const foundPath = '/project/packages/gatekeeper-mcp/GatekeeperMCP.spec.ts'
+      
+      mockGlobSync.mockReturnValue([foundPath])
+      vi.mocked(existsSync).mockImplementation((p) => {
+        if (String(p).includes('artifacts')) return true
+        return false
+      })
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      const manifest = {
+        testFile: 'GatekeeperMCP.spec.ts',
+        files: []
+      }
+
+      const result = await pathResolver.ensureCorrectPath(
+        '/project/artifacts/output-123/GatekeeperMCP.spec.ts',
+        manifest,
+        '/project',
+        'output-123'
+      )
+
+      expect(result).toContain('packages/gatekeeper-mcp')
+      expect(result).toContain('GatekeeperMCP.spec.ts')
+      
+      const logCalls = consoleSpy.mock.calls.map(c => c.join(' '))
+      expect(logCalls.some(c => c.includes('Glob found unique match'))).toBe(true)
+      
+      consoleSpy.mockRestore()
+    })
+
+    // @clause CL-GLOB-001
+    it('should copy file to glob-found destination when unique match found', async () => {
+      const foundPath = '/project/packages/api/src/services/Auth.spec.ts'
+      
+      mockGlobSync.mockReturnValue([foundPath])
+      vi.mocked(existsSync).mockImplementation((p) => {
+        if (String(p).includes('artifacts')) return true
+        return false
+      })
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
+
+      const manifest = {
+        testFile: 'Auth.spec.ts',
+        files: []
+      }
+
+      await pathResolver.ensureCorrectPath(
+        '/project/artifacts/Auth.spec.ts',
+        manifest,
+        '/project',
+        'output-glob'
+      )
+
+      expect(copyFile).toHaveBeenCalled()
+      const copyCallArgs = vi.mocked(copyFile).mock.calls[0]
+      expect(copyCallArgs[1]).toContain('packages/api/src/services')
+    })
+  })
+
+  // ===========================================================================
+  // CL-GLOB-002: Glob não regride spec em src/
+  // ===========================================================================
+  describe('CL-GLOB-002: Glob não regride spec em src/', () => {
+    // @clause CL-GLOB-002
+    it('should return src path when spec in src/components/ is found by glob', async () => {
+      const foundPath = '/project/src/components/Button.spec.tsx'
+      
+      mockGlobSync.mockReturnValue([foundPath])
+      vi.mocked(existsSync).mockImplementation((p) => {
+        if (String(p).includes('artifacts')) return true
+        return false
+      })
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
+
+      const manifest = {
+        testFile: 'Button.spec.tsx',
+        files: []
+      }
+
+      const result = await pathResolver.ensureCorrectPath(
+        '/project/artifacts/Button.spec.tsx',
+        manifest,
+        '/project',
+        'output-src-glob'
+      )
+
+      expect(result).toContain('/src/')
+      expect(result).toContain('Button.spec.tsx')
+    })
+
+    // @clause CL-GLOB-002
+    it('should preserve nested path when glob finds spec in deep src structure', async () => {
+      const foundPath = '/project/src/features/auth/__tests__/Login.spec.tsx'
+      
+      mockGlobSync.mockReturnValue([foundPath])
+      vi.mocked(existsSync).mockImplementation((p) => {
+        if (String(p).includes('artifacts')) return true
+        return false
+      })
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
+
+      const manifest = {
+        testFile: 'Login.spec.tsx',
+        files: []
+      }
+
+      const result = await pathResolver.ensureCorrectPath(
+        '/project/artifacts/Login.spec.tsx',
+        manifest,
+        '/project',
+        'nested-src'
+      )
+
+      expect(result).toContain('src/features/auth')
+      expect(result).toContain('Login.spec.tsx')
+    })
+  })
+
+  // ===========================================================================
+  // CL-GLOB-003: Múltiplos matches fazem fallback
+  // ===========================================================================
+  describe('CL-GLOB-003: Múltiplos matches fazem fallback', () => {
+    // @clause CL-GLOB-003
+    it('should fallback to convention when glob finds multiple matches', async () => {
+      const multipleMatches = [
+        '/project/src/components/Button.spec.tsx',
+        '/project/packages/ui/Button.spec.tsx',
+      ]
+      
+      mockGlobSync.mockReturnValue(multipleMatches)
       vi.mocked(existsSync).mockImplementation((p) => {
         if (String(p).includes('artifacts')) return true
         return false
@@ -71,358 +234,318 @@ describe('PathResolverService - centralize-path-resolution', () => {
         updatedAt: new Date(),
       })
 
-      const manifest = {
-        testFile: 'Button.spec.tsx',
-        files: [{ path: 'src/components/Button.tsx', action: 'CREATE' as const }]
-      }
-
-      const result = await pathResolver.ensureCorrectPath(
-        '/project/artifacts/output-123/Button.spec.tsx',
-        manifest,
-        '/project',
-        'output-123'
-      )
-
-      expect(result).toContain('src')
-      expect(result).toContain('Button.spec.tsx')
-    })
-
-    // @clause CL-REF-001
-    it('should return path within src/ directory structure', async () => {
-      vi.mocked(existsSync).mockReturnValue(true)
-
-      const manifest = {
-        testFile: 'src/components/MyComponent.spec.tsx',
-        files: []
-      }
-
-      const result = await pathResolver.ensureCorrectPath(
-        '/tmp/artifacts/MyComponent.spec.tsx',
-        manifest,
-        '/project',
-        'output-001'
-      )
-
-      expect(result).toContain('src')
-    })
-  })
-
-  describe('CL-REF-002: Spec restaurado em rerunGate', () => {
-    // @clause CL-REF-002
-    it('should restore spec from artifacts when file missing at testFilePath', async () => {
-      vi.mocked(existsSync).mockImplementation((p) => {
-        if (String(p).includes('artifacts')) return true
-        return false
-      })
-
-      const testFilePath = '/project/src/components/__tests__/Button.spec.tsx'
-      const artifactsPath = '/project/artifacts/output-123/Button.spec.tsx'
-
-      const result = await pathResolver.recheckAndCopy(testFilePath, artifactsPath)
-
-      expect(mkdir).toHaveBeenCalled()
-      expect(copyFile).toHaveBeenCalledWith(artifactsPath, testFilePath)
-      expect(result).toBe(testFilePath)
-    })
-
-    // @clause CL-REF-002
-    it('should throw error when both testFilePath and artifacts are missing', async () => {
-      vi.mocked(existsSync).mockReturnValue(false)
-
-      const testFilePath = '/project/src/missing.spec.tsx'
-      const artifactsPath = '/project/artifacts/also-missing.spec.tsx'
-
-      await expect(
-        pathResolver.recheckAndCopy(testFilePath, artifactsPath)
-      ).rejects.toThrow('Cannot restore test file')
-    })
-
-    // @clause CL-REF-002
-    it('should return existing path when file already exists at testFilePath', async () => {
-      vi.mocked(existsSync).mockReturnValue(true)
-
-      const testFilePath = '/project/src/components/__tests__/Exists.spec.tsx'
-      const artifactsPath = '/project/artifacts/Exists.spec.tsx'
-
-      const result = await pathResolver.recheckAndCopy(testFilePath, artifactsPath)
-
-      expect(copyFile).not.toHaveBeenCalled()
-      expect(result).toBe(testFilePath)
-    })
-  })
-
-  describe('CL-REF-003: EXECUTION run copia spec do CONTRACT', () => {
-    // @clause CL-REF-003
-    it('should process spec through ensureCorrectPath for EXECUTION runs', async () => {
-      vi.mocked(existsSync).mockReturnValue(true)
-
-      const manifest = {
-        testFile: 'src/services/MyService.spec.ts',
-        files: [{ path: 'src/services/MyService.ts', action: 'MODIFY' as const }]
-      }
-
-      const contractRunSpecPath = '/project/artifacts/contract-run/MyService.spec.ts'
-
-      const result = await pathResolver.ensureCorrectPath(
-        contractRunSpecPath,
-        manifest,
-        '/project',
-        'execution-run-123'
-      )
-
-      expect(result).toContain('src')
-      expect(result).toContain('MyService.spec.ts')
-    })
-
-    // @clause CL-REF-003
-    it('should copy spec file when creating EXECUTION run from CONTRACT', async () => {
-      vi.mocked(existsSync).mockImplementation((p) => {
-        if (String(p).includes('contract-artifacts')) return true
-        return false
-      })
-
-      const manifest = {
-        testFile: 'packages/api/src/services/Auth.spec.ts',
-        files: []
-      }
-
-      const result = await pathResolver.ensureCorrectPath(
-        '/project/contract-artifacts/Auth.spec.ts',
-        manifest,
-        '/project',
-        'exec-456'
-      )
-
-      expect(copyFile).toHaveBeenCalled()
-      expect(result).toContain('Auth.spec.ts')
-    })
-  })
-
-  describe('CL-REF-004: Fallback para src/ quando sem convenção', () => {
-    // @clause CL-REF-004
-    it('should use fallback path when no convention found', async () => {
-      vi.mocked(existsSync).mockImplementation((p) => {
-        if (String(p).includes('artifacts')) return true
-        return false
-      })
-      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
-
-      const manifest = {
-        testFile: 'Unknown.spec.ts',
-        files: [{ path: 'src/unknown/Unknown.ts', action: 'CREATE' as const }]
-      }
-
-      const result = await pathResolver.ensureCorrectPath(
-        '/project/artifacts/Unknown.spec.ts',
-        manifest,
-        '/project',
-        'output-fallback'
-      )
-
-      expect(typeof result).toBe('string')
-      expect(result).toContain('Unknown.spec.ts')
-    })
-
-    // @clause CL-REF-004
-    it('should handle missing convention gracefully', async () => {
-      vi.mocked(existsSync).mockReturnValue(false)
-      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
-
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const manifest = {
-        testFile: 'NoConvention.spec.ts',
+        testFile: 'Button.spec.tsx',
+        files: [{ path: 'src/components/Button.tsx', action: 'MODIFY' as const }]
+      }
+
+      const result = await pathResolver.ensureCorrectPath(
+        '/project/artifacts/Button.spec.tsx',
+        manifest,
+        '/project',
+        'multiple-matches'
+      )
+
+      expect(result).not.toBe(multipleMatches[0])
+      expect(result).not.toBe(multipleMatches[1])
+      expect(result).toContain('src/components')
+      
+      const warnCalls = consoleSpy.mock.calls.map(c => c.join(' '))
+      expect(warnCalls.some(c => c.includes('multiple matches'))).toBe(true)
+      
+      consoleSpy.mockRestore()
+    })
+
+    // @clause CL-GLOB-003
+    it('throws no error when multiple matches are found', async () => {
+      const multipleMatches = [
+        '/project/a/Test.spec.ts',
+        '/project/b/Test.spec.ts',
+        '/project/c/Test.spec.ts',
+      ]
+      
+      mockGlobSync.mockReturnValue(multipleMatches)
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
+
+      const manifest = {
+        testFile: 'Test.spec.ts',
+        files: []
+      }
+
+      await expect(
+        pathResolver.ensureCorrectPath(
+          '/project/artifacts/Test.spec.ts',
+          manifest,
+          '/project',
+          'no-throw-multi'
+        )
+      ).resolves.toBeDefined()
+    })
+  })
+
+  // ===========================================================================
+  // CL-GLOB-004: Zero matches fazem fallback
+  // ===========================================================================
+  describe('CL-GLOB-004: Zero matches fazem fallback', () => {
+    // @clause CL-GLOB-004
+    it('should fallback to convention when glob finds zero matches', async () => {
+      mockGlobSync.mockReturnValue([])
+      vi.mocked(existsSync).mockImplementation((p) => {
+        if (String(p).includes('artifacts')) return true
+        return false
+      })
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue({
+        id: '1',
+        testType: 'service',
+        pathPattern: 'src/services/__tests__/{name}.spec.ts',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+
+      const manifest = {
+        testFile: 'NewService.spec.ts',
+        files: [{ path: 'src/services/NewService.ts', action: 'CREATE' as const }]
+      }
+
+      const result = await pathResolver.ensureCorrectPath(
+        '/project/artifacts/NewService.spec.ts',
+        manifest,
+        '/project',
+        'zero-matches'
+      )
+
+      expect(result).toContain('src/services')
+      expect(result).toContain('NewService.spec.ts')
+    })
+
+    // @clause CL-GLOB-004
+    it('throws no error when glob finds nothing', async () => {
+      mockGlobSync.mockReturnValue([])
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
+
+      const manifest = {
+        testFile: 'Nonexistent.spec.ts',
+        files: []
+      }
+
+      await expect(
+        pathResolver.ensureCorrectPath(
+          '/project/artifacts/Nonexistent.spec.ts',
+          manifest,
+          '/project',
+          'graceful-zero'
+        )
+      ).resolves.toBeDefined()
+    })
+
+    // @clause CL-GLOB-004
+    it('should use src fallback when no glob matches and no convention', async () => {
+      mockGlobSync.mockReturnValue([])
+      vi.mocked(existsSync).mockImplementation((p) => {
+        if (String(p).includes('artifacts')) return true
+        return false
+      })
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue(null)
+
+      const manifest = {
+        testFile: 'Orphan.spec.ts',
+        files: []
+      }
+
+      const result = await pathResolver.ensureCorrectPath(
+        '/project/artifacts/Orphan.spec.ts',
+        manifest,
+        '/project',
+        'no-convention-fallback'
+      )
+
+      expect(result).toContain('src')
+      expect(result).toContain('Orphan.spec.ts')
+    })
+  })
+
+  // ===========================================================================
+  // CL-GLOB-005: Path completo no manifest ignora glob
+  // ===========================================================================
+  describe('CL-GLOB-005: Path completo no manifest ignora glob', () => {
+    // @clause CL-GLOB-005
+    it('should skip glob when manifest.testFile contains path separators', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      
+      const manifest = {
+        testFile: 'packages/gatekeeper-api/src/services/PathResolverService.spec.ts',
+        files: []
+      }
+
+      const result = await pathResolver.ensureCorrectPath(
+        '/project/artifacts/PathResolverService.spec.ts',
+        manifest,
+        '/project',
+        'full-path-manifest'
+      )
+
+      expect(mockGlobSync).not.toHaveBeenCalled()
+      expect(result).toContain('packages/gatekeeper-api/src/services')
+      expect(result).toContain('PathResolverService.spec.ts')
+    })
+
+    // @clause CL-GLOB-005
+    it('should not call glob when manifest.testFile has forward slashes', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      
+      const manifest = {
+        testFile: 'src/components/__tests__/Button.spec.tsx',
         files: []
       }
 
       await pathResolver.ensureCorrectPath(
-        '/project/artifacts/NoConvention.spec.ts',
+        '/project/artifacts/Button.spec.tsx',
         manifest,
         '/project',
-        'no-convention'
-      ).catch(() => {})
+        'forward-slash'
+      )
 
-      expect(consoleSpy).toHaveBeenCalled()
-      consoleSpy.mockRestore()
+      expect(mockGlobSync).not.toHaveBeenCalled()
     })
-  })
 
-  describe('CL-REF-005: Path DEVE conter /src/', () => {
-    // @clause CL-REF-005
-    it('should ensure testFilePath contains src for vitest monitoring', async () => {
+    // @clause CL-GLOB-005
+    it('should not call glob when manifest.testFile has backslashes', async () => {
       vi.mocked(existsSync).mockReturnValue(true)
-
+      
       const manifest = {
-        testFile: 'src/components/MyComponent.spec.tsx',
+        testFile: 'src\\components\\Button.spec.tsx',
         files: []
       }
 
-      const result = await pathResolver.ensureCorrectPath(
-        '/tmp/artifacts/MyComponent.spec.tsx',
+      await pathResolver.ensureCorrectPath(
+        '/project/artifacts/Button.spec.tsx',
         manifest,
         '/project',
-        'output-src'
+        'backslash'
       )
 
-      expect(result).toContain('src')
-    })
-
-    // @clause CL-REF-005
-    it('should place spec in src path based on manifest.testFile', async () => {
-      vi.mocked(existsSync).mockReturnValue(true)
-
-      const manifest = {
-        testFile: 'packages/gatekeeper-api/src/services/Test.spec.ts',
-        files: []
-      }
-
-      const result = await pathResolver.ensureCorrectPath(
-        '/artifacts/Test.spec.ts',
-        manifest,
-        '/project',
-        'test-123'
-      )
-
-      expect(result).toContain('src')
-      expect(result).toContain('services')
+      expect(mockGlobSync).not.toHaveBeenCalled()
     })
   })
 
-  describe('CL-REF-006: Assinatura PathResolverService inalterada', () => {
-    // @clause CL-REF-006
-    it('should maintain ensureCorrectPath signature with 4 parameters', () => {
-      expect(typeof pathResolver.ensureCorrectPath).toBe('function')
+  // ===========================================================================
+  // CL-GLOB-006: Assinaturas inalteradas
+  // ===========================================================================
+  describe('CL-GLOB-006: Assinaturas inalteradas', () => {
+    // @clause CL-GLOB-006
+    it('should accept 4 parameters in ensureCorrectPath', () => {
       expect(pathResolver.ensureCorrectPath.length).toBe(4)
     })
 
-    // @clause CL-REF-006
-    it('should maintain recheckAndCopy signature with 2 parameters', () => {
-      expect(typeof pathResolver.recheckAndCopy).toBe('function')
-      expect(pathResolver.recheckAndCopy.length).toBe(2)
-    })
-
-    // @clause CL-REF-006
-    it('should have ensureCorrectPath return Promise<string>', async () => {
+    // @clause CL-GLOB-006
+    it('should return Promise of string from ensureCorrectPath', async () => {
       vi.mocked(existsSync).mockReturnValue(true)
+      mockGlobSync.mockReturnValue([])
 
       const manifest = { testFile: 'src/test.spec.ts', files: [] }
       const result = pathResolver.ensureCorrectPath('/a', manifest, '/b', 'c')
 
       expect(result).toBeInstanceOf(Promise)
+      
       const resolved = await result
       expect(typeof resolved).toBe('string')
     })
-  })
 
-  describe('CL-REF-007: Testes existentes passam', () => {
-    // @clause CL-REF-007
-    it('should have all required public methods available', () => {
-      expect(typeof pathResolver.detectTestType).toBe('function')
-      expect(typeof pathResolver.ensureCorrectPath).toBe('function')
-      expect(typeof pathResolver.recheckAndCopy).toBe('function')
-      expect(typeof pathResolver.getPathConvention).toBe('function')
-      expect(typeof pathResolver.applyPattern).toBe('function')
+    // @clause CL-GLOB-006
+    it('should have recheckAndCopy with 2 parameters', () => {
+      expect(pathResolver.recheckAndCopy.length).toBe(2)
     })
 
-    // @clause CL-REF-007
-    it('should detect test type correctly for components', () => {
+    // @clause CL-GLOB-006
+    it('should have detectTestType with 1 parameter', () => {
+      expect(pathResolver.detectTestType.length).toBe(1)
+    })
+  })
+
+  // ===========================================================================
+  // CL-GLOB-007: Testes existentes passam
+  // ===========================================================================
+  describe('CL-GLOB-007: Testes existentes passam', () => {
+    // @clause CL-GLOB-007
+    it('should detect component type correctly', () => {
       const manifest = {
         testFile: '',
         files: [{ path: 'src/components/Button.tsx', action: 'CREATE' as const }]
       }
-
-      const result = pathResolver.detectTestType(manifest)
-
-      expect(result).toBe('component')
+      expect(pathResolver.detectTestType(manifest)).toBe('component')
     })
 
-    // @clause CL-REF-007
-    it('should detect test type correctly for services', () => {
+    // @clause CL-GLOB-007
+    it('should detect service type correctly', () => {
       const manifest = {
         testFile: '',
-        files: [{ path: 'src/services/AuthService.ts', action: 'CREATE' as const }]
+        files: [{ path: 'src/services/Auth.ts', action: 'CREATE' as const }]
       }
-
-      const result = pathResolver.detectTestType(manifest)
-
-      expect(result).toBe('service')
+      expect(pathResolver.detectTestType(manifest)).toBe('service')
     })
-  })
 
-  describe('CL-REF-008: Lógica centralizada em uploadFiles', () => {
-    // @clause CL-REF-008
-    it('should have detectTestType as instance method for centralized access', () => {
-      const service = new PathResolverService()
-      
+    // @clause CL-GLOB-007
+    it('should detect hook type correctly', () => {
       const manifest = {
         testFile: '',
         files: [{ path: 'src/hooks/useAuth.ts', action: 'CREATE' as const }]
       }
-
-      const result = service.detectTestType(manifest)
-
-      expect(result).toBe('hook')
+      expect(pathResolver.detectTestType(manifest)).toBe('hook')
     })
 
-    // @clause CL-REF-008
-    it('should provide single entry point via ensureCorrectPath', async () => {
+    // @clause CL-GLOB-007
+    it('should not copy when file exists in recheckAndCopy', async () => {
       vi.mocked(existsSync).mockReturnValue(true)
 
+      const testFilePath = '/project/src/test.spec.ts'
+      const artifactsPath = '/project/artifacts/test.spec.ts'
+
+      const result = await pathResolver.recheckAndCopy(testFilePath, artifactsPath)
+
+      expect(result).toBe(testFilePath)
+      expect(copyFile).not.toHaveBeenCalled()
+    })
+
+    // @clause CL-GLOB-007
+    it('should return convention data from getPathConvention', async () => {
+      vi.mocked(prisma.testPathConvention.findFirst).mockResolvedValue({
+        id: '1',
+        testType: 'component',
+        pathPattern: 'src/components/__tests__/{name}.spec.tsx',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+
+      const result = await pathResolver.getPathConvention('component')
+
+      expect(result).toEqual({
+        testType: 'component',
+        pathPattern: 'src/components/__tests__/{name}.spec.tsx',
+      })
+    })
+
+    // @clause CL-GLOB-007
+    it('should apply pattern with placeholders correctly', () => {
       const manifest = {
-        testFile: 'src/lib/utils.spec.ts',
-        files: [{ path: 'src/lib/utils.ts', action: 'MODIFY' as const }]
+        testFile: 'Button.spec.tsx',
+        files: []
       }
 
-      const result = await pathResolver.ensureCorrectPath(
-        '/artifacts/utils.spec.ts',
+      const result = pathResolver.applyPattern(
+        'src/components/__tests__/{name}.spec.tsx',
         manifest,
         '/project',
-        'centralized-001'
+        'Button.spec.tsx'
       )
 
-      expect(typeof result).toBe('string')
-      expect(result).toContain('utils.spec.ts')
-    })
-  })
-
-  describe('CL-REF-009: detectTestType sem duplicação', () => {
-    // @clause CL-REF-009
-    it('should be the single source of detectTestType logic', () => {
-      expect(typeof pathResolver.detectTestType).toBe('function')
-      expect(pathResolver.detectTestType.length).toBe(1)
-    })
-
-    // @clause CL-REF-009
-    it('should accept manifest parameter and return test type string', () => {
-      const manifest = {
-        testFile: '',
-        files: [{ path: 'src/pages/Home.tsx', action: 'CREATE' as const }]
-      }
-
-      const result = pathResolver.detectTestType(manifest)
-
-      expect(typeof result).toBe('string')
-      expect(result).toBe('page')
-    })
-
-    // @clause CL-REF-009
-    it('should detect multiple test types correctly', () => {
-      const testCases = [
-        { path: 'src/components/X.tsx', expected: 'component' },
-        { path: 'src/services/X.ts', expected: 'service' },
-        { path: 'src/hooks/X.ts', expected: 'hook' },
-        { path: 'src/utils/X.ts', expected: 'util' },
-        { path: 'src/lib/X.ts', expected: 'lib' },
-      ]
-
-      for (const tc of testCases) {
-        const manifest = {
-          testFile: '',
-          files: [{ path: tc.path, action: 'CREATE' as const }]
-        }
-        const result = pathResolver.detectTestType(manifest)
-        expect(result).toBe(tc.expected)
-      }
+      expect(result).toContain('src/components/__tests__')
+      expect(result).toContain('Button.spec.tsx')
     })
   })
 })

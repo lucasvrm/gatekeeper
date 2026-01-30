@@ -1,6 +1,7 @@
 import { join, dirname, basename } from 'path'
 import { existsSync } from 'fs'
 import { mkdir, copyFile } from 'fs/promises'
+import { glob } from 'glob'
 import { prisma } from '../db/client.js'
 import type { ManifestInput } from '../types/index.js'
 
@@ -127,7 +128,7 @@ export class PathResolverService {
     // Combinar com projectRoot
     const absolutePath = join(projectRoot, resolvedPath)
 
-    return absolutePath
+    return this.normalizePath(absolutePath)
   }
 
   /**
@@ -139,6 +140,37 @@ export class PathResolverService {
       .split(/[-_]/)
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('')
+  }
+
+  /**
+   * Busca spec file por glob no projectRoot
+   * Retorna o path encontrado se houver exatamente 1 match, null caso contrário
+   */
+  private findSpecByGlob(specFileName: string, projectRoot: string): string | null {
+    try {
+      const pattern = `**/${specFileName}`
+      const matches = glob.sync(pattern, {
+        cwd: projectRoot,
+        absolute: true,
+        ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/artifacts/**'],
+      })
+
+      if (matches.length === 1) {
+        console.log('[PathResolver] Glob found unique match:', matches[0])
+        return matches[0]
+      }
+
+      if (matches.length > 1) {
+        console.warn('[PathResolver] Glob found multiple matches, falling back to convention:', matches)
+        return null
+      }
+
+      // Zero matches - fall through to convention
+      return null
+    } catch (error) {
+      console.error('[PathResolver] Glob search failed:', error)
+      return null
+    }
   }
 
   /**
@@ -178,6 +210,22 @@ export class PathResolverService {
       }
 
       return this.normalizePath(enforcedPath)
+    }
+
+    // Tentar glob search para encontrar spec existente
+    const globFoundPath = this.findSpecByGlob(specFileName, projectRoot)
+    if (globFoundPath) {
+      const targetDir = dirname(globFoundPath)
+      await mkdir(targetDir, { recursive: true })
+
+      if (existsSync(artifactsSpecPath)) {
+        await copyFile(artifactsSpecPath, globFoundPath)
+        console.log('[PathResolver] ✅ File copied to glob-found path:', globFoundPath)
+      } else {
+        console.warn('[PathResolver] ❌ Source file does not exist:', artifactsSpecPath)
+      }
+
+      return this.normalizePath(globFoundPath)
     }
 
     // 1. Detectar tipo de teste
