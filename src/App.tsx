@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout"
 import { DashboardPage } from "@/components/dashboard-page"
 import { RunsListPage } from "@/components/runs-list-page"
 import { RunDetailsPage } from "@/components/run-details-page"
+import { RunDetailsPageV2 } from "@/components/run-details-page-v2"
 import { NewValidationPage } from "@/components/new-validation-page"
 import { GatesPage } from "@/components/gates-page"
 import { ConfigPage } from "@/components/config-page"
@@ -24,6 +25,7 @@ function App() {
           <Route path="/runs" element={<RunsListPage />} />
           <Route path="/runs/new" element={<NewValidationPage />} />
           <Route path="/runs/:id" element={<RunDetailsPage />} />
+          <Route path="/runs/:id/v2" element={<RunDetailsPageV2 />} />
           <Route path="/gates" element={<GatesPage />} />
           <Route path="/mcp" element={<MCPSessionPage />} />
           <Route path="/config" element={<ConfigPage />} />
