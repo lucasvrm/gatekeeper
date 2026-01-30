@@ -446,7 +446,28 @@ export function RunPanel({
                                   )}
                                 </div>
                                 <div className="flex flex-col items-end gap-1">
-                                  <StatusBadge status={validator.status} className="min-w-[72px]" />
+                                  <div className="flex items-center gap-2">
+                                    {validator.status === 'FAILED' && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            data-testid="validator-upload-btn"
+                                            onClick={(event) => {
+                                              event.stopPropagation()
+                                              setShowUploadDialog(true)
+                                            }}
+                                            className="px-2 py-1"
+                                          >
+                                            <Upload className="w-3 h-3" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Upload plan.json ou spec file</TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                    <StatusBadge status={validator.status} className="min-w-[72px]" />
+                                  </div>
                                   {shouldShowBypass && (
                                     <Button
                                       variant="outline"

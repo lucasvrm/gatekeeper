@@ -215,6 +215,13 @@ async function main() {
       category: 'GATE2',
       description: 'Allow diffs that only contain the test file (no implementation files)',
     },
+    {
+      ['key']: 'DIFF_SCOPE_INCLUDE_WORKING_TREE',
+      value: 'true',
+      type: 'BOOLEAN',
+      category: 'VALIDATOR',
+      description: 'Include working tree changes (staged, unstaged, untracked) in diff scope validation',
+    },
   ]
 
   for (const config of validationConfigs) {

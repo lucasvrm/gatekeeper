@@ -81,6 +81,7 @@ interface GitService {
   diff(baseRef: string, targetRef: string): Promise<string>
   readFile(filePath: string, ref?: string): Promise<string>
   getDiffFiles(baseRef: string, targetRef: string): Promise<string[]>
+  getDiffFilesWithWorkingTree(baseRef: string): Promise<string[]>
   checkout(ref: string): Promise<void>
   stash(): Promise<void>
   stashPop(): Promise<void>
@@ -141,6 +142,7 @@ const createMockGitService = (overrides: Partial<GitService> = {}): GitService =
   diff: vi.fn().mockResolvedValue(''),
   readFile: vi.fn().mockResolvedValue('file content'),
   getDiffFiles: vi.fn().mockResolvedValue(['src/Button.tsx']),
+  getDiffFilesWithWorkingTree: vi.fn().mockResolvedValue(['src/Button.tsx']),
   checkout: vi.fn().mockResolvedValue(undefined),
   stash: vi.fn().mockResolvedValue(undefined),
   stashPop: vi.fn().mockResolvedValue(undefined),

@@ -10,7 +10,10 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
   isHardBlock: true,
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
-    const diffFiles = await ctx.services.git.getDiffFiles(ctx.baseRef, ctx.targetRef)
+    const useWorkingTree = ctx.config.get('DIFF_SCOPE_INCLUDE_WORKING_TREE') === 'true'
+    const diffFiles = useWorkingTree
+      ? await ctx.services.git.getDiffFilesWithWorkingTree(ctx.baseRef)
+      : await ctx.services.git.getDiffFiles(ctx.baseRef, ctx.targetRef)
     const allowedTestAbsolute = ctx.testFilePath
       ? isAbsolute(ctx.testFilePath)
         ? ctx.testFilePath

@@ -93,6 +93,31 @@ export class GitService implements IGitService {
     return result.split('\n').filter(Boolean)
   }
 
+  async getDiffFilesWithWorkingTree(baseRef: string): Promise<string[]> {
+    const [committedOutput, stagedOutput, unstagedOutput, untrackedOutput] = await Promise.all([
+      this.git.diff([`${baseRef}...HEAD`, '--name-only']),
+      this.git.diff(['--cached', '--name-only']),
+      this.git.diff(['--name-only']),
+      this.git.raw(['ls-files', '--others', '--exclude-standard']),
+    ])
+
+    const allFiles = new Set<string>()
+    const addFromOutput = (output: string) => {
+      output
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .forEach((file) => allFiles.add(file))
+    }
+
+    addFromOutput(committedOutput)
+    addFromOutput(stagedOutput)
+    addFromOutput(unstagedOutput)
+    addFromOutput(untrackedOutput)
+
+    return Array.from(allFiles)
+  }
+
   async getCurrentRef(): Promise<string> {
     const result = await this.git.revparse(['--abbrev-ref', 'HEAD'])
     return result.trim()

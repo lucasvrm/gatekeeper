@@ -57,7 +57,10 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
       }
     }
 
-    const diffFiles = await ctx.services.git.getDiffFiles(ctx.baseRef, ctx.targetRef)
+    const useWorkingTree = ctx.config.get('DIFF_SCOPE_INCLUDE_WORKING_TREE') === 'true'
+    const diffFiles = useWorkingTree
+      ? await ctx.services.git.getDiffFilesWithWorkingTree(ctx.baseRef)
+      : await ctx.services.git.getDiffFiles(ctx.baseRef, ctx.targetRef)
     const manifestPaths = new Set(ctx.manifest.files.map((f) => f.path))
     const testFile = ctx.manifest.testFile
 
@@ -167,6 +170,15 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
         existsInTarget = false
       }
 
+      let existsInWorkingTree = true
+      if (useWorkingTree) {
+        try {
+          await ctx.services.git.readFile(path)
+        } catch {
+          existsInWorkingTree = false
+        }
+      }
+
       switch (action) {
         case 'CREATE':
           // CL-DSE-021: CREATE but file existed
@@ -216,7 +228,7 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
 
         case 'DELETE':
           // CL-DSE-024: DELETE not deleted
-          if (existsInTarget) {
+          if (useWorkingTree ? existsInWorkingTree : existsInTarget) {
             incompleteFiles.push({
               path,
               subtype: 'DELETE_NOT_DELETED',

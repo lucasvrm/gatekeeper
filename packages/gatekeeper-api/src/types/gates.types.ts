@@ -104,6 +104,7 @@ export interface GitService {
   createWorktree(ref: string, path: string): Promise<void>
   removeWorktree(path: string): Promise<void>
   getDiffFiles(baseRef: string, targetRef: string): Promise<string[]>
+  getDiffFilesWithWorkingTree(baseRef: string): Promise<string[]>
   getCurrentRef(): Promise<string>
 }
 
