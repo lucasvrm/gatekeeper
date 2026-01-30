@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import type { GateResult, RunWithResults, ValidatorResult, ValidatorStatus } from "@/lib/types"
+import type { GateResult, RunWithResults, ValidatorContext, ValidatorResult, ValidatorStatus } from "@/lib/types"
+import { ValidatorContextPanel } from "@/components/validator-context-panel"
 import { useRunEvents } from "@/hooks/useRunEvents"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
@@ -219,27 +220,8 @@ export function RunDetailsPageV2() {
     return Math.round((passedCount / unifiedValidators.length) * 100)
   }, [unifiedValidators])
 
-  useEffect(() => {
-    if (unifiedGates.length === 0) return
-
-    const hasFailedGate = unifiedGates.some((gate) => gate.status === "FAILED")
-    const allRunsPassed =
-      (contractRun?.status ? contractRun.status === "PASSED" : true) &&
-      (executionRun?.status ? executionRun.status === "PASSED" : true)
-
-    let defaultGate: UnifiedGate | null = null
-    if (hasFailedGate) {
-      defaultGate = unifiedGates.find((gate) => gate.status === "FAILED") ?? null
-    } else if (allRunsPassed) {
-      defaultGate = unifiedGates[0]
-    }
-
-    const nextExpanded: Record<number, boolean> = {}
-    unifiedGates.forEach((gate) => {
-      nextExpanded[gate.gateNumber] = defaultGate?.gateNumber === gate.gateNumber
-    })
-    setExpandedGates(nextExpanded)
-  }, [unifiedGates, contractRun?.status, executionRun?.status])
+  // Note: Gates start collapsed. User clicks to expand.
+  // This was changed from auto-expanding failed gates to match spec expectations.
 
   const handleToggleGate = (gateNumber: number) => {
     setExpandedGates((prev) => ({
@@ -342,8 +324,8 @@ export function RunDetailsPageV2() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4" data-testid="overview-cards">
-        <Card className="p-4 space-y-2" data-testid="overview-progress">
+      <div className="grid grid-cols-12 gap-4" data-testid="overview-cards">
+        <Card className="col-span-2 p-4 space-y-2" data-testid="overview-progress">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Progresso</h3>
             <span className="text-sm font-mono">{progressPercentage}%</span>
@@ -366,7 +348,7 @@ export function RunDetailsPageV2() {
           </p>
         </Card>
 
-        <Card className="p-4 space-y-2" data-testid="overview-contract">
+        <Card className="col-span-2 p-4 space-y-2" data-testid="overview-contract">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Contrato</h3>
             {contractRun && <StatusBadge status={contractRun.status} />}
@@ -376,7 +358,7 @@ export function RunDetailsPageV2() {
           </p>
         </Card>
 
-        <Card className="p-4 space-y-2" data-testid="overview-execution">
+        <Card className="col-span-2 p-4 space-y-2" data-testid="overview-execution">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Execução</h3>
             {executionRun && <StatusBadge status={executionRun.status} />}
@@ -388,7 +370,7 @@ export function RunDetailsPageV2() {
           )}
         </Card>
 
-        <Card className="p-4 space-y-2" data-testid="overview-commit">
+        <Card className="col-span-6 p-4 space-y-2" data-testid="overview-commit">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Commit</h3>
             {executionRun?.commitHash && (
@@ -397,7 +379,10 @@ export function RunDetailsPageV2() {
               </Badge>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p
+            className="text-xs text-muted-foreground truncate"
+            title={executionRun?.commitMessage || "—"}
+          >
             {executionRun?.commitMessage || "—"}
           </p>
         </Card>
@@ -414,7 +399,9 @@ export function RunDetailsPageV2() {
               data-testid={`filter-btn-${status}`}
               className={cn(
                 "px-3",
-                isActive ? "bg-blue-600 text-white hover:bg-blue-600" : "bg-muted text-muted-foreground"
+                isActive
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-white"
               )}
               onClick={() => setStatusFilter(status)}
             >
@@ -515,6 +502,20 @@ export function RunDetailsPageV2() {
                           validator.status === "FAILED" &&
                           validator.isHardBlock &&
                           !validator.bypassed
+
+                        // Parse context from details (igual V1)
+                        let parsedContext: ValidatorContext | null = null
+                        if (validator.details && typeof validator.details === "string") {
+                          try {
+                            const parsed = JSON.parse(validator.details)
+                            if (parsed && typeof parsed === "object" && "context" in parsed) {
+                              parsedContext = (parsed as { context?: ValidatorContext }).context ?? null
+                            }
+                          } catch {
+                            // Ignore JSON parse errors - context is optional
+                          }
+                        }
+
                         return (
                           <div
                             key={validator.validatorCode}
@@ -529,12 +530,21 @@ export function RunDetailsPageV2() {
                                     <h5 className="text-sm font-medium">
                                       {validator.validatorName}
                                     </h5>
-                                    <Badge
-                                      variant={validator.isHardBlock ? "destructive" : "secondary"}
-                                      className="text-[10px] px-2 py-0.5"
-                                    >
-                                      {validator.isHardBlock ? "Hard" : "Warning"}
-                                    </Badge>
+                                    {validator.isHardBlock ? (
+                                      <span
+                                        data-testid="hard-badge"
+                                        className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium"
+                                      >
+                                        Hard
+                                      </span>
+                                    ) : (
+                                      <span
+                                        data-testid="warning-badge"
+                                        className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-medium"
+                                      >
+                                        Warning
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="flex flex-col items-end gap-2">
                                     <div className="flex items-center gap-2">
@@ -569,6 +579,9 @@ export function RunDetailsPageV2() {
                                 </div>
                                 {validator.message && (
                                   <p className="text-xs text-muted-foreground">{validator.message}</p>
+                                )}
+                                {parsedContext && (
+                                  <ValidatorContextPanel context={parsedContext} />
                                 )}
                               </div>
                             </div>
