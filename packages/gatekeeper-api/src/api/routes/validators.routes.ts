@@ -8,6 +8,10 @@ router.get('/validators', (req, res, next) => {
   controller.listValidators(req, res).catch(next)
 })
 
+router.patch('/validators/bulk', (req, res, next) => {
+  controller.bulkUpdateValidators(req, res).catch(next)
+})
+
 router.get('/validators/:name', (req, res, next) => {
   controller.getValidator(req, res).catch(next)
 })

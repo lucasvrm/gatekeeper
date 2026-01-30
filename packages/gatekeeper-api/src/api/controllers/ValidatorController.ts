@@ -124,4 +124,68 @@ export class ValidatorController {
 
     res.json(updated)
   }
+
+  async bulkUpdateValidators(req: Request, res: Response): Promise<void> {
+    const { keys, updates } = req.body ?? {}
+
+    if (!Array.isArray(keys) || keys.length === 0 || !updates || typeof updates !== 'object') {
+      res.status(400).json({ error: { code: 'INVALID_PAYLOAD', message: 'Invalid payload' } })
+      return
+    }
+
+    const { isActive, failMode } = updates as { isActive?: unknown; failMode?: unknown }
+
+    if (isActive !== undefined && typeof isActive !== 'boolean') {
+      res.status(400).json({ error: { code: 'INVALID_PAYLOAD', message: 'Invalid isActive value' } })
+      return
+    }
+
+    if (failMode !== undefined && failMode !== null && failMode !== 'HARD' && failMode !== 'WARNING') {
+      res.status(400).json({ error: { code: 'INVALID_FAIL_MODE', message: 'Invalid failMode value' } })
+      return
+    }
+
+    const invalidKey = keys.find((key: unknown) => typeof key !== 'string' || !validatorKeys.has(key))
+    if (invalidKey) {
+      res.status(404).json({ error: { code: 'VALIDATOR_NOT_FOUND', message: `Validator ${String(invalidKey)} not found` } })
+      return
+    }
+
+    if (isActive === undefined && failMode === undefined) {
+      res.status(400).json({ error: { code: 'INVALID_PAYLOAD', message: 'No updates provided' } })
+      return
+    }
+
+    const existing = await prisma.validationConfig.findMany({
+      where: { key: { in: keys }, category: 'VALIDATOR' },
+    })
+
+    if (existing.length !== keys.length) {
+      const existingKeys = new Set(existing.map((item) => item.key))
+      const missing = keys.find((key: string) => !existingKeys.has(key))
+      res.status(404).json({ error: { code: 'VALIDATOR_NOT_FOUND', message: `Validator ${missing ?? 'unknown'} not found` } })
+      return
+    }
+
+    const data: { value?: string; failMode?: string | null } = {}
+    if (isActive !== undefined) {
+      data.value = isActive ? 'true' : 'false'
+    }
+    if (failMode !== undefined) {
+      data.failMode = failMode
+    }
+
+    await prisma.validationConfig.updateMany({
+      where: { key: { in: keys }, category: 'VALIDATOR' },
+      data,
+    })
+
+    const updated = await prisma.validationConfig.findMany({
+      where: { key: { in: keys }, category: 'VALIDATOR' },
+    })
+    const updatedMap = new Map(updated.map((item) => [item.key, item]))
+    const ordered = keys.map((key: string) => updatedMap.get(key)).filter((item): item is typeof updated[number] => Boolean(item))
+
+    res.json(ordered)
+  }
 }

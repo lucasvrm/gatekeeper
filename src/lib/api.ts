@@ -340,6 +340,18 @@ export const api = {
       if (!response.ok) throw new Error("Failed to update validator")
       return response.json()
     },
+    bulkUpdate: async (payload: { keys: string[]; updates: { isActive?: boolean; failMode?: "HARD" | "WARNING" | null } }) => {
+      const response = await fetch(`${API_BASE}/validators/bulk`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to bulk update validators")
+      }
+      return response.json()
+    },
   },
 
   workspaces: {

@@ -3,13 +3,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Table,
   TableBody,
   TableCell,
@@ -37,6 +30,7 @@ interface ValidatorsTabProps {
   inactiveCount: number
   onToggle: (name: string, isActive: boolean) => void | Promise<void>
   onFailModeChange: (validatorKey: string, mode: FailMode) => void | Promise<void>
+  onBulkUpdate?: (payload: { keys: string[]; updates: { isActive?: boolean; failMode?: FailMode } }) => Promise<unknown>
 }
 
 export function ValidatorsTab({
@@ -46,9 +40,12 @@ export function ValidatorsTab({
   inactiveCount,
   onToggle,
   onFailModeChange,
+  onBulkUpdate,
 }: ValidatorsTabProps) {
   const [categoryFilter, setCategoryFilter] = useState("ALL")
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL")
+  const [failModeFilter, setFailModeFilter] = useState<"ALL" | "HARD" | "WARNING" | "DEFAULT">("ALL")
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
 
   const enrichedValidators = useMemo(() => {
     return validators.map((validator) => {
@@ -81,9 +78,64 @@ export function ValidatorsTab({
       if (statusFilter === "INACTIVE" && validator.value === "true") {
         return false
       }
+      if (failModeFilter !== "ALL") {
+        if (failModeFilter === "DEFAULT") {
+          if (validator.failMode !== null && validator.failMode !== undefined) {
+            return false
+          }
+        } else if (validator.failMode !== failModeFilter) {
+          return false
+        }
+      }
       return true
     })
-  }, [categoryFilter, enrichedValidators, statusFilter])
+  }, [categoryFilter, enrichedValidators, failModeFilter, statusFilter])
+
+  const visibleKeys = useMemo(() => filteredValidators.map((validator) => validator.key), [filteredValidators])
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedKeys(new Set(visibleKeys))
+    } else {
+      setSelectedKeys(new Set())
+    }
+  }
+
+  const handleSelectOne = (key: string, checked: boolean) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev)
+      if (checked) {
+        next.add(key)
+      } else {
+        next.delete(key)
+      }
+      return next
+    })
+  }
+
+  const handleBulkActivate = async () => {
+    if (onBulkUpdate && selectedKeys.size > 0) {
+      await onBulkUpdate({ keys: Array.from(selectedKeys), updates: { isActive: true } })
+    }
+  }
+
+  const handleBulkDeactivate = async () => {
+    if (onBulkUpdate && selectedKeys.size > 0) {
+      await onBulkUpdate({ keys: Array.from(selectedKeys), updates: { isActive: false } })
+    }
+  }
+
+  const handleBulkFailMode = async (mode: FailMode) => {
+    if (onBulkUpdate && selectedKeys.size > 0) {
+      await onBulkUpdate({ keys: Array.from(selectedKeys), updates: { failMode: mode } })
+    }
+  }
+
+  const handleClearSelection = () => {
+    setSelectedKeys(new Set())
+  }
+
+  const isAllSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedKeys.has(key))
 
   return (
     <Card className="p-6 bg-card border-border space-y-4">
@@ -93,32 +145,48 @@ export function ValidatorsTab({
           <div className="flex flex-wrap items-center gap-3 justify-end">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Categoria</span>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-52">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todas categorias</SelectItem>
-                  {availableCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                data-testid="category-filter"
+                className="h-9 w-52 rounded-md border border-input bg-background px-3 text-sm"
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+              >
+                <option value="ALL">Todas categorias</option>
+                {availableCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Status</span>
-              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "ALL" | "ACTIVE" | "INACTIVE")}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todos status</SelectItem>
-                  <SelectItem value="ACTIVE">Ativo</SelectItem>
-                  <SelectItem value="INACTIVE">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                data-testid="status-filter"
+                className="h-9 w-40 rounded-md border border-input bg-background px-3 text-sm"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as "ALL" | "ACTIVE" | "INACTIVE")}
+              >
+                <option value="ALL">Todos status</option>
+                <option value="ACTIVE">Ativo</option>
+                <option value="INACTIVE">Inativo</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Fail Mode</span>
+              <select
+                data-testid="fail-mode-filter"
+                className="h-9 w-40 rounded-md border border-input bg-background px-3 text-sm"
+                value={failModeFilter}
+                onChange={(event) =>
+                  setFailModeFilter(event.target.value as "ALL" | "HARD" | "WARNING" | "DEFAULT")
+                }
+              >
+                <option value="ALL">Todos tipos</option>
+                <option value="HARD">Hard</option>
+                <option value="WARNING">Warning</option>
+                <option value="DEFAULT">Default</option>
+              </select>
             </div>
           </div>
         </div>
@@ -131,12 +199,49 @@ export function ValidatorsTab({
         </div>
       </div>
 
+      {selectedKeys.size > 0 && (
+        <div data-testid="bulk-actions-bar" className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+          <span data-testid="selected-count">{selectedKeys.size} validators selecionados</span>
+          <Button size="sm" variant="secondary" data-testid="bulk-activate-btn" onClick={handleBulkActivate}>
+            Ativar Selecionados
+          </Button>
+          <Button size="sm" variant="secondary" data-testid="bulk-deactivate-btn" onClick={handleBulkDeactivate}>
+            Desativar Selecionados
+          </Button>
+          <select
+            data-testid="bulk-fail-mode-dropdown"
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            defaultValue=""
+            onChange={(event) => {
+              const value = event.target.value
+              const mode = value === "HARD" ? "HARD" : value === "WARNING" ? "WARNING" : null
+              handleBulkFailMode(mode)
+            }}
+          >
+            <option value="" disabled>Definir Fail Mode</option>
+            <option value="HARD">Hard</option>
+            <option value="WARNING">Warning</option>
+          </select>
+          <Button size="sm" variant="ghost" data-testid="clear-selection-btn" onClick={handleClearSelection}>
+            Limpar Seleção
+          </Button>
+        </div>
+      )}
+
       {filteredValidators.length === 0 ? (
         <div className="text-sm text-muted-foreground">No validators found.</div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="text-xs uppercase tracking-wide">
+                <input
+                  type="checkbox"
+                  data-testid="select-all-checkbox"
+                  checked={isAllSelected}
+                  onChange={(event) => handleSelectAll(event.target.checked)}
+                />
+              </TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Validator</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Categoria</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
@@ -149,9 +254,17 @@ export function ValidatorsTab({
             {filteredValidators.map((validator) => {
               const isActive = validator.value === "true"
               const displayName = validator.displayName ?? validator.key
-              const description = validator.description || 'Sem descrição disponível'
+              const description = validator.description || "Sem descrição disponível"
               return (
                 <TableRow key={validator.key} data-testid={`validator-row-${validator.key}`}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      data-testid={`validator-checkbox-${validator.key}`}
+                      checked={selectedKeys.has(validator.key)}
+                      onChange={(event) => handleSelectOne(validator.key, event.target.checked)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{displayName}</TableCell>
                   <TableCell className="text-sm text-muted-foreground" title={validator.categoryDescription}>
                     {validator.categoryLabel}

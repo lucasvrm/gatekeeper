@@ -3,6 +3,7 @@ import { api } from "@/lib/api"
 import { ConfigSection } from "@/components/config-section"
 import { ValidatorsTab } from "@/components/validators-tab"
 import { PathConfigsTab } from "@/components/path-configs-tab"
+import { ValidationConfigsTab } from "@/components/validation-configs-tab"
 import { type ConfigModalField } from "@/components/config-modal"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -39,6 +40,11 @@ type ValidationConfigItem = {
 type ValidatorConfigItem = {
   key: string
   value: string
+  failMode?: FailMode
+  category?: string
+  gateCategory?: string
+  displayName?: string
+  description?: string
 }
 
 const sensitiveCreateFields: ConfigModalField[] = [
@@ -59,16 +65,6 @@ const ambiguousCreateFields: ConfigModalField[] = [
 ]
 
 const ambiguousEditFields = ambiguousCreateFields
-
-const validationCreateFields: ConfigModalField[] = [
-  { name: "key", label: "Key", type: "text", required: true },
-  { name: "value", label: "Value", type: "text", required: true },
-  { name: "type", label: "Type", type: "text", required: true },
-  { name: "category", label: "Category", type: "text", required: true },
-  { name: "description", label: "Description", type: "textarea" },
-]
-
-const validationEditFields = validationCreateFields
 
 export function ConfigPage() {
   const [loading, setLoading] = useState(true)
@@ -128,6 +124,29 @@ export function ConfigPage() {
       toast.error("Failed to update fail mode")
     } finally {
       setValidatorActionId(null)
+    }
+  }
+
+  const handleBulkUpdateValidators = async (payload: {
+    keys: string[]
+    updates: { isActive?: boolean; failMode?: FailMode }
+  }) => {
+    try {
+      const updated = await api.validators.bulkUpdate(payload)
+      const updatedMap = new Map(updated.map((item) => [item.key, item]))
+      setValidators((prev) =>
+        prev.map((item) => {
+          const replacement = updatedMap.get(item.key)
+          return replacement ? { ...item, value: replacement.value, failMode: replacement.failMode } : item
+        })
+      )
+      toast.success("Validators updated")
+      return updated
+    } catch (error) {
+      console.error("Failed to bulk update validators:", error)
+      const message = error instanceof Error ? error.message : "Failed to update validators"
+      toast.error(message)
+      throw error
     }
   }
 
@@ -337,10 +356,10 @@ export function ConfigPage() {
       <Tabs defaultValue="validators" className="space-y-4">
         <TabsList>
           <TabsTrigger value="validators">Validators</TabsTrigger>
+          <TabsTrigger value="validation-configs">Validation Configs</TabsTrigger>
           <TabsTrigger value="path-configs">Path Configs</TabsTrigger>
           <TabsTrigger value="sensitive-file-rules">Sensitive File Rules</TabsTrigger>
           <TabsTrigger value="ambiguous-terms">Ambiguous Terms</TabsTrigger>
-          <TabsTrigger value="validation-configs">Validation Configs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="validators">
@@ -351,6 +370,16 @@ export function ConfigPage() {
             inactiveCount={inactiveValidators}
             onToggle={handleToggleValidator}
             onFailModeChange={handleFailModeChange}
+            onBulkUpdate={handleBulkUpdateValidators}
+          />
+        </TabsContent>
+
+        <TabsContent value="validation-configs">
+          <ValidationConfigsTab
+            items={validationConfigs}
+            onCreate={handleCreateValidation}
+            onUpdate={handleUpdateValidation}
+            onDelete={handleDeleteValidation}
           />
         </TabsContent>
 
@@ -441,39 +470,6 @@ export function ConfigPage() {
             onUpdate={handleUpdateAmbiguous}
             onDelete={handleDeleteAmbiguous}
             onToggle={handleToggleAmbiguous}
-          />
-        </TabsContent>
-
-        <TabsContent value="validation-configs">
-          <ConfigSection
-            title="Validation Configs"
-            description="Config values used by validation checks."
-            items={validationConfigs}
-            columns={[
-              { key: "key", label: "Key" },
-              { key: "value", label: "Value" },
-              { key: "type", label: "Type" },
-              { key: "category", label: "Category" },
-            ]}
-            createFields={validationCreateFields}
-            editFields={validationEditFields}
-            createDefaults={{
-              key: "",
-              value: "",
-              type: "",
-              category: "",
-              description: "",
-            }}
-            getEditValues={(item) => ({
-              key: item.key,
-              value: item.value,
-              type: item.type,
-              category: item.category,
-              description: item.description ?? "",
-            })}
-            onCreate={handleCreateValidation}
-            onUpdate={handleUpdateValidation}
-            onDelete={handleDeleteValidation}
           />
         </TabsContent>
       </Tabs>
