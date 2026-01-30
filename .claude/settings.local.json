@@ -35,7 +35,8 @@
       "Bash(for dir in flows integration edge-cases workspaces)",
       "Bash(do for file in $dir/*.mjs)",
       "Bash(do sed -i \"s|from ''./src/|from ''../../src/|g\" \"$file\")",
-      "Bash(ffmpeg:*)"
+      "Bash(ffmpeg:*)",
+      "Bash(npm run test:*)"
     ]
   }
 }
