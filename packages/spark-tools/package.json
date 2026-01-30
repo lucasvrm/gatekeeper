@@ -91,7 +91,7 @@
     "@types/body-parser": "^1.19.6",
     "@types/express": "^5.0.1",
     "@types/node": "^22.13.9",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.2.10",
     "jsdom": "^25.0.1",
     "rollup": "^4.35.0",
     "rollup-plugin-delete": "^3.0.1",
