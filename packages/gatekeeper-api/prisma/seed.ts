@@ -194,6 +194,27 @@ async function main() {
       category: 'PATHS',
       description: 'Relative path from PROJECT_ROOT to sandbox directory for isolated test execution',
     },
+    {
+      ['key']: 'DIFF_SCOPE_IGNORED_PATTERNS',
+      value: 'package-lock.json,yarn.lock,pnpm-lock.yaml',
+      type: 'STRING',
+      category: 'GATE2',
+      description: 'Comma-separated patterns to ignore in diff scope validation (not counted as scope creep)',
+    },
+    {
+      ['key']: 'DIFF_SCOPE_INCOMPLETE_FAIL_MODE',
+      value: 'HARD',
+      type: 'STRING',
+      category: 'GATE2',
+      description: 'How to handle incomplete implementation: HARD (fail) or WARNING (warn only)',
+    },
+    {
+      ['key']: 'DIFF_SCOPE_ALLOW_TEST_ONLY_DIFF',
+      value: 'true',
+      type: 'BOOLEAN',
+      category: 'GATE2',
+      description: 'Allow diffs that only contain the test file (no implementation files)',
+    },
   ]
 
   for (const config of validationConfigs) {

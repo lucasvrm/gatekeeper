@@ -64,6 +64,7 @@
         "date-fns": "^3.6.0",
         "embla-carousel-react": "^8.5.2",
         "framer-motion": "^12.6.2",
+        "glob": "^13.0.0",
         "input-otp": "^1.4.2",
         "inquirer": "^13.2.0",
         "lucide-react": "^0.484.0",
