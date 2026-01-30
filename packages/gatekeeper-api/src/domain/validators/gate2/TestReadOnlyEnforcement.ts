@@ -2,6 +2,10 @@ import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '..
 import { resolve, isAbsolute } from 'path'
 import { minimatch } from 'minimatch'
 
+function normalizePath(value: string): string {
+  return value.replace(/\\/g, '/').toLowerCase()
+}
+
 export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
   code: 'TEST_READ_ONLY_ENFORCEMENT',
   name: 'Test Read Only Enforcement',
@@ -11,6 +15,7 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
   isHardBlock: true,
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
+    console.log('[TEST_READ_ONLY_ENFORCEMENT] Using testFilePath:', ctx.testFilePath)
     const useWorkingTree = ctx.config.get('DIFF_SCOPE_INCLUDE_WORKING_TREE') === 'true'
     const excludedPatternsStr = ctx.config.get('TEST_READ_ONLY_EXCLUDED_PATHS')
     const excludedPatterns = excludedPatternsStr
@@ -20,11 +25,8 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
     const diffFiles = useWorkingTree
       ? await ctx.services.git.getDiffFilesWithWorkingTree(ctx.baseRef)
       : await ctx.services.git.getDiffFiles(ctx.baseRef, ctx.targetRef)
-    const allowedTestAbsolute = ctx.testFilePath
-      ? isAbsolute(ctx.testFilePath)
-        ? ctx.testFilePath
-        : resolve(ctx.projectPath, ctx.testFilePath)
-      : null
+    const allowedTestAbsolute = ctx.testFilePath ? resolve(ctx.projectPath, ctx.testFilePath) : null
+    const allowedTestNormalized = allowedTestAbsolute ? normalizePath(allowedTestAbsolute) : null
     
     const testFilePattern = /\.(test|spec)\.(ts|tsx|js|jsx)$/
     const modifiedTests = diffFiles.filter((file) => {
@@ -36,7 +38,8 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
       }
       
       const diffAbsolute = resolve(ctx.projectPath, file)
-      if (allowedTestAbsolute && diffAbsolute === allowedTestAbsolute) {
+      const diffNormalized = normalizePath(diffAbsolute)
+      if (allowedTestNormalized && diffNormalized === allowedTestNormalized) {
         return false
       }
       

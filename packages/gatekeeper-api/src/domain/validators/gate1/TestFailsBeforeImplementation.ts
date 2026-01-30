@@ -1,5 +1,5 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
-import { mkdir, rm } from 'fs/promises'
+import { access, copyFile, mkdir, rm } from 'fs/promises'
 import { dirname, isAbsolute, join, relative as pathRelative } from 'path'
 import { tmpdir } from 'os'
 import { TestRunnerService } from '../../../services/TestRunnerService.js'
@@ -13,11 +13,12 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
   isHardBlock: true,
 
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
+    console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Using testFilePath:', ctx.testFilePath)
     if (!ctx.testFilePath) {
       return {
         passed: false,
         status: 'FAILED',
-        message: 'No test file path provided',
+        message: 'Test file path not configured',
         context: {
           inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
           analyzed: [],
@@ -36,8 +37,25 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
       ? pathRelative(ctx.projectPath, ctx.testFilePath)
       : ctx.testFilePath
     const testInWorktree = join(worktreePath, rel)
+    const testInWorktreeNormalized = testInWorktree.replace(/\\/g, '/')
 
     try {
+      try {
+        await access(ctx.testFilePath)
+      } catch {
+        return {
+          passed: false,
+          status: 'FAILED',
+          message: `Test file not found: ${ctx.testFilePath}`,
+          context: {
+            inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
+            analyzed: [],
+            findings: [{ type: 'fail', message: 'Test file not found' }],
+            reasoning: 'Cannot run base_ref test because the test file does not exist.',
+          },
+        }
+      }
+
       // Ensure clean sandbox directory
       await rm(worktreePath, { recursive: true, force: true })
       await mkdir(worktreeParent, { recursive: true })
@@ -51,12 +69,18 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
 
       const runner = new TestRunnerService(worktreePath)
 
+      const testDir = dirname(testInWorktree)
+      const testDirNormalized = testDir.replace(/\\/g, '/')
+      await mkdir(testDirNormalized, { recursive: true })
+      await copyFile(ctx.testFilePath, testInWorktreeNormalized)
+      console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Copied spec to worktree:', testInWorktreeNormalized)
+
       console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Running test in worktree:', {
         testFilePath: ctx.testFilePath,
         testInWorktree,
       })
 
-      const result = await runner.runSingleTest(testInWorktree)
+      const result = await runner.runSingleTest(testInWorktreeNormalized)
 
       if (result.passed) {
         return {
