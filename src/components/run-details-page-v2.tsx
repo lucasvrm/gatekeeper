@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import type { GateResult, RunWithResults, ValidatorResult, ValidatorStatus } from "@/lib/types"
 import { useRunEvents } from "@/hooks/useRunEvents"
@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StatusBadge } from "@/components/status-badge"
 import { FileUploadDialog } from "@/components/file-upload-dialog"
 import { GitCommitButton } from "@/components/git-commit-button"
-import { cn } from "@/lib/utils"
+import { cn, getRepoNameFromPath } from "@/lib/utils"
 import {
   ArrowClockwise,
   ArrowLeft,
@@ -64,29 +64,97 @@ const getNodeClass = (status: ValidatorStatus) => {
 }
 
 export function RunDetailsPageV2() {
-  const { id: outputId } = useParams<{ id: string }>()
+  const { id: paramId } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const runId = paramId
 
-  const contractState = useRunEvents(outputId, "CONTRACT") as {
-    data: RunWithResults | null
-    isLoading: boolean
-    error: Error | null
-  }
-  const executionState = useRunEvents(outputId, "EXECUTION") as {
-    data: RunWithResults | null
-    isLoading: boolean
-    error: Error | null
-  }
-
-  const contractRun = contractState?.data ?? null
-  const executionRun = executionState?.data ?? null
-  const isLoading = Boolean(contractState?.isLoading || executionState?.isLoading)
-  const error = contractState?.error || executionState?.error
+  const [primaryRun, setPrimaryRun] = useState<RunWithResults | null>(null)
+  const [secondaryRun, setSecondaryRun] = useState<RunWithResults | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
   const [expandedGates, setExpandedGates] = useState<Record<number, boolean>>({})
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [uploadRunId, setUploadRunId] = useState<string | null>(null)
+
+  const contractRun =
+    primaryRun?.runType === "CONTRACT" ? primaryRun : secondaryRun?.runType === "CONTRACT" ? secondaryRun : null
+  const executionRun =
+    primaryRun?.runType === "EXECUTION" ? primaryRun : secondaryRun?.runType === "EXECUTION" ? secondaryRun : null
+
+  const loadSecondaryRun = useCallback(
+    async (nextPrimaryRun: RunWithResults) => {
+      let secondaryId: string | undefined
+      if (nextPrimaryRun.runType === "EXECUTION") {
+        secondaryId = nextPrimaryRun.contractRunId
+      } else {
+        secondaryId = nextPrimaryRun.executionRuns?.[0]?.id
+      }
+
+      if (!secondaryId) {
+        setSecondaryRun(null)
+        return
+      }
+
+      const secondary = await api.runs.getWithResults(secondaryId)
+      setSecondaryRun(secondary)
+    },
+    []
+  )
+
+  const loadPrimaryRun = useCallback(async () => {
+    if (!runId) return
+    setIsLoading(true)
+    setError(null)
+    setPrimaryRun(null)
+    setSecondaryRun(null)
+
+    try {
+      const primary = await api.runs.getWithResults(runId)
+      setPrimaryRun(primary)
+      await loadSecondaryRun(primary)
+    } catch (err) {
+      const nextError = err instanceof Error ? err : new Error("Failed to load run")
+      setError(nextError)
+      setPrimaryRun(null)
+      setSecondaryRun(null)
+      toast.error("Failed to load run")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [loadSecondaryRun, runId])
+
+  useEffect(() => {
+    void loadPrimaryRun()
+  }, [loadPrimaryRun])
+
+  const handlePrimaryEvent = useCallback(async () => {
+    if (!runId) return
+    try {
+      const refreshed = await api.runs.getWithResults(runId)
+      setPrimaryRun(refreshed)
+      await loadSecondaryRun(refreshed)
+    } catch (err) {
+      console.error("Failed to refresh primary run:", err)
+      toast.error("Failed to refresh run")
+    }
+  }, [loadSecondaryRun, runId])
+
+  const handleSecondaryEvent = useCallback(async () => {
+    if (!secondaryRun?.id) return
+    try {
+      const refreshed = await api.runs.getWithResults(secondaryRun.id)
+      setSecondaryRun(refreshed)
+    } catch (err) {
+      console.error("Failed to refresh secondary run:", err)
+      toast.error("Failed to refresh run")
+    }
+  }, [secondaryRun?.id])
+
+  const shouldConnectEvents = !error && !isLoading
+  useRunEvents(shouldConnectEvents ? runId : undefined, handlePrimaryEvent)
+  useRunEvents(shouldConnectEvents ? secondaryRun?.id : undefined, handleSecondaryEvent)
 
   const unifiedGates = useMemo<UnifiedGate[]>(() => {
     const gates: UnifiedGate[] = []
@@ -245,9 +313,13 @@ export function RunDetailsPageV2() {
         </Button>
         <div className="flex-1">
           <p className="text-sm text-muted-foreground">
-            <span className="text-primary">{contractRun?.repoSlug || executionRun?.repoSlug}</span>
+            <span className="text-primary" data-testid="run-header-repoName">
+              {primaryRun ? getRepoNameFromPath(primaryRun.projectPath) : "—"}
+            </span>
             <span className="mx-2">/</span>
-            <span className="text-primary">{outputId}</span>
+            <span className="text-primary" data-testid="run-header-outputId">
+              {primaryRun?.outputId ?? "—"}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -255,7 +327,7 @@ export function RunDetailsPageV2() {
             <GitCommitButton
               contractRun={contractRun}
               executionRun={executionRun}
-              outputId={outputId || ""}
+              outputId={primaryRun?.outputId || ""}
             />
           )}
           <Button
