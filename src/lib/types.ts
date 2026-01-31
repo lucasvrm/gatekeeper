@@ -89,6 +89,7 @@ export interface Run {
   baseRef: string
   targetRef: string
   taskPrompt?: string
+  contractJson?: string
   manifestJson: string
   testFilePath: string
   dangerMode: boolean

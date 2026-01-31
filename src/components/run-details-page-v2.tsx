@@ -55,6 +55,16 @@ const getStatusIcon = (status: ValidatorStatus) => {
 
 const getGateTypeLabel = (gateNumber: number) => (gateNumber <= 1 ? "Contrato" : "Execução")
 
+const getChangeType = (run: RunWithResults | null): string | null => {
+  if (!run?.contractJson) return null
+  try {
+    const contract = JSON.parse(run.contractJson)
+    return contract.changeType || null
+  } catch {
+    return null
+  }
+}
+
 const getNodeClass = (status: ValidatorStatus) => {
   if (status === "FAILED") return "border-status-failed bg-status-failed/20"
   if (status === "WARNING") return "border-status-warning bg-status-warning/20"
@@ -370,20 +380,18 @@ export function RunDetailsPageV2() {
           )}
         </Card>
 
-        <Card className="col-span-6 p-4 space-y-2" data-testid="overview-commit">
+        <Card className="col-span-6 p-4 space-y-2" data-testid="overview-task-prompt">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Commit</h3>
-            {executionRun?.commitHash && (
-              <Badge variant="outline" className="font-mono">
-                {executionRun.commitHash.slice(0, 7)}
-              </Badge>
-            )}
+            <h3 className="text-sm font-semibold">Prompt da Tarefa</h3>
+            <Badge variant="outline" className="font-mono" data-testid="task-prompt-badge">
+              {getChangeType(primaryRun) || "—"}
+            </Badge>
           </div>
           <p
             className="text-xs text-muted-foreground truncate"
-            title={executionRun?.commitMessage || "—"}
+            title={primaryRun?.taskPrompt || "—"}
           >
-            {executionRun?.commitMessage || "—"}
+            {primaryRun?.taskPrompt || "—"}
           </p>
         </Card>
       </div>
@@ -401,7 +409,7 @@ export function RunDetailsPageV2() {
                 "px-3",
                 isActive
                   ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-white"
+                  : "bg-muted text-muted-foreground hover:bg-muted/50 hover:text-white"
               )}
               onClick={() => setStatusFilter(status)}
             >
