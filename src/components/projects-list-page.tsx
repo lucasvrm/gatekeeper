@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { NewValidationCtaButton } from "@/components/new-validation-cta-button"
 
 export function ProjectsListPage() {
   const navigate = useNavigate()
@@ -168,10 +169,13 @@ export function ProjectsListPage() {
             Todos os projetos do sistema
           </p>
         </div>
-        <Button onClick={() => navigate("/projects/new")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Projeto
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => navigate("/projects/new")}>
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Projeto
+          </Button>
+          <NewValidationCtaButton />
+        </div>
       </div>
 
       <Card className="p-6">

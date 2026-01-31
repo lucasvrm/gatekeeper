@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CaretLeft, CaretRight, Plus, FunnelSimple, Stop, Trash } from "@phosphor-icons/react"
+import { CaretLeft, CaretRight, FunnelSimple, Stop, Trash } from "@phosphor-icons/react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import {
@@ -47,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { NewValidationCtaButton } from "@/components/new-validation-cta-button"
 
 export function RunsListPage() {
   const navigate = useNavigate()
@@ -258,13 +259,7 @@ export function RunsListPage() {
             Ver e gerenciar todas as runs de validação
           </p>
         </div>
-        <Button
-          onClick={() => navigate("/runs/new")}
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Plus className="w-4 h-4 mr-2" weight="bold" />
-          New Validation
-        </Button>
+        <NewValidationCtaButton />
       </div>
 
       <Card className="p-6 bg-card border-border">

@@ -21,6 +21,7 @@ import { ArrowLeft } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { GitCommitButton } from "@/components/git-commit-button"
 import { getRepoNameFromPath } from "@/lib/utils"
+import { NewValidationCtaButton } from "@/components/new-validation-cta-button"
 
 export function RunDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -278,15 +279,7 @@ export function RunDetailsPage() {
               outputId={primaryRun.outputId}
             />
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/runs/new")}
-            data-testid="btn-new-run"
-            className="bg-white border-gray-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600"
-          >
-            New Run
-          </Button>
+          <NewValidationCtaButton />
         </div>
       </div>
 

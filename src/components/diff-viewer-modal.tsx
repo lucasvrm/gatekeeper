@@ -6,6 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
@@ -109,6 +110,7 @@ export function DiffViewerModal({
       >
         <DialogHeader>
           <DialogTitle>Diff do arquivo</DialogTitle>
+          <DialogDescription className="sr-only">Modal para visualizar diffs de arquivos.</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
@@ -184,3 +186,4 @@ export function DiffViewerModal({
     </Dialog>
   )
 }
+

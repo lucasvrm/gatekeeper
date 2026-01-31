@@ -5,6 +5,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 
 interface CommitAlreadyDoneModalProps {
@@ -32,6 +33,7 @@ export function CommitAlreadyDoneModal({
       >
         <DialogHeader>
           <DialogTitle>Commit já realizado</DialogTitle>
+          <DialogDescription className="sr-only">Modal com detalhes do commit já realizado.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2 text-sm">
@@ -64,3 +66,4 @@ export function CommitAlreadyDoneModal({
     </Dialog>
   )
 }
+

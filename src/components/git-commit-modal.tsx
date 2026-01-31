@@ -6,6 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -53,6 +54,7 @@ export function GitCommitModal({
         {/* CL-UI-MODAL-005: Fixed header with flex-shrink-0 */}
         <DialogHeader data-testid="dialog-header" className="flex-shrink-0">
           <DialogTitle>Commit Changes</DialogTitle>
+          <DialogDescription className="sr-only">Dialog to create a commit and optionally push to remote.</DialogDescription>
         </DialogHeader>
 
         {/* CL-UI-MODAL-002: Scrollable content wrapper */}
@@ -156,3 +158,4 @@ export function GitCommitModal({
     </Dialog>
   )
 }
+

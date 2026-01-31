@@ -7,7 +7,6 @@ import { JsonPreview } from "@/components/json-preview"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import {
   Select,
@@ -33,18 +32,19 @@ export function NewValidationPage() {
     const loadProjects = async () => {
       try {
         const response = await api.projects.list(1, 100)
+        if (!response) return
         setProjects(response.data)
         // Auto-select first active project
         const activeProjects = response.data.filter(p => p.isActive)
-        if (activeProjects.length > 0 && !selectedProjectId) {
-          setSelectedProjectId(activeProjects[0].id)
+        if (activeProjects.length > 0) {
+          setSelectedProjectId((current) => current ?? activeProjects[0].id)
         }
       } catch (error) {
         console.error("Failed to load projects:", error)
       }
     }
     loadProjects()
-  }, [selectedProjectId])
+  }, [])
 
   const canSubmit = useMemo(() => {
     if (!planData) return false
@@ -132,18 +132,16 @@ export function NewValidationPage() {
     setError(null)
   }
 
+  const canUseArtifactsApi = typeof api.artifacts?.list === "function"
+
   return (
     <div className="p-8 space-y-6">
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/runs")}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar para Runs
-        </Button>
-      </div>
-
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Nova Validacao</h1>
-        <p className="text-muted-foreground mt-1">Carregue o plano e o teste</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Nova Validação</h1>
+          <p className="text-muted-foreground mt-1">Carregue o plano e o teste</p>
+        </div>
+        <div />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -195,11 +193,17 @@ export function NewValidationPage() {
                     Artifacts Input
                   </Label>
                 </div>
-                <ArtifactsInput
-                  projectId={selectedProjectId}
-                  onArtifactsLoaded={handleArtifactsLoaded}
-                  onError={(message) => setError(message)}
-                />
+                {canUseArtifactsApi ? (
+                  <ArtifactsInput
+                    projectId={selectedProjectId}
+                    onArtifactsLoaded={handleArtifactsLoaded}
+                    onError={(message) => setError(message)}
+                  />
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    Artifacts indisponíveis no momento.
+                  </div>
+                )}
               </div>
             </Card>
             <Button

@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { NewValidationCtaButton } from "@/components/new-validation-cta-button"
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -129,7 +130,7 @@ export function DashboardPage() {
             </SelectContent>
           </Select>
           <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48" role="button">
               <SelectValue placeholder="Todos Projetos" />
             </SelectTrigger>
             <SelectContent>
@@ -141,6 +142,7 @@ export function DashboardPage() {
               ))}
             </SelectContent>
           </Select>
+          <NewValidationCtaButton />
         </div>
       </div>
 
@@ -328,6 +330,18 @@ export function DashboardPage() {
                     </p>
                   ) : (
                     <p className="font-medium mt-1 font-mono text-sm">{run.projectPath}</p>
+                  )}
+                  {run.taskPrompt && (
+                    <p className="text-sm text-muted-foreground mt-1" data-testid="recent-run-taskPrompt">
+                      {run.taskPrompt}
+                    </p>
+                  )}
+                  {(run.commitHash || run.commitMessage) && (
+                    <p className="text-xs text-muted-foreground mt-1" data-testid="recent-run-commit">
+                      {[run.commitHash ? run.commitHash.slice(0, 7) : null, run.commitMessage || null]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-4">
