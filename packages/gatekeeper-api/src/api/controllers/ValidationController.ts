@@ -3,7 +3,6 @@ import { basename, join } from 'path'
 import { promises as fs } from 'node:fs'
 import { prisma } from '../../db/client.js'
 import { ValidationOrchestrator } from '../../services/ValidationOrchestrator.js'
-import { PathResolverService } from '../../services/PathResolverService.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'
 import type { CreateRunInput } from '../schemas/validation.schema.js'
 
@@ -102,16 +101,10 @@ export class ValidationController {
       const testFileAbsolutePath = join(artifactDir, manifestTestFileName)
       console.log('[createRun] Initial spec path (artifacts):', testFileAbsolutePath)
 
-      // Validação para runs do tipo EXECUTION
-      console.log('[createRun] Checking EXECUTION validation...')
-      let contractRun: Awaited<ReturnType<typeof prisma.validationRun.findUnique>> = null
-      if (data.runType === 'EXECUTION') {
-        if (!data.contractRunId) {
-          res.status(400).json({ error: 'contractRunId is required for EXECUTION runs' })
-          return
-        }
-
-        contractRun = await prisma.validationRun.findUnique({
+      // Validação para runs que referenciam um contract run
+      console.log('[createRun] Checking contract run validation...')
+      if (data.contractRunId) {
+        const contractRun = await prisma.validationRun.findUnique({
           where: { id: data.contractRunId },
         })
 
@@ -152,70 +145,14 @@ export class ValidationController {
 
       console.log('[createRun] Run created:', run.id)
 
-      // Para runs de EXECUTION, copiar arquivos do CONTRACT run e enfileirar execução automaticamente
-      if (data.runType === 'EXECUTION' && contractRun) {
-        console.log('[createRun] Copying files from contract run to execution run...')
-        try {
-          // Criar diretório de artifacts para a execution run
-          const executionArtifactDir = join(artifactsBasePath, sanitizedOutputId)
-          await fs.mkdir(executionArtifactDir, { recursive: true })
-
-          // Copiar plan.json do contract run
-          const contractArtifactDir = join(artifactsBasePath, contractRun.outputId)
-          const contractPlanPath = join(contractArtifactDir, 'plan.json')
-          const executionPlanPath = join(executionArtifactDir, 'plan.json')
-
-          try {
-            await fs.copyFile(contractPlanPath, executionPlanPath)
-            console.log('[createRun] Copied plan.json from contract run')
-          } catch (error) {
-            console.warn('[createRun] Could not copy plan.json:', error)
-          }
-
-          // Copiar spec file do contract run
-          const contractManifest = JSON.parse(contractRun.manifestJson)
-          const specFileName = contractManifest.testFile
-          if (specFileName) {
-            const contractSpecPath = contractRun.testFilePath
-            const executionArtifactsSpecPath = join(executionArtifactDir, specFileName)
-
-            try {
-              // Copiar para artifacts/ primeiro
-              await fs.copyFile(contractSpecPath, executionArtifactsSpecPath)
-              console.log('[createRun] Copied spec file to artifacts:', executionArtifactsSpecPath)
-
-              // Usar PathResolverService para copiar para o path correto
-              const pathResolver = new PathResolverService()
-              const correctSpecPath = await pathResolver.ensureCorrectPath(
-                executionArtifactsSpecPath,
-                data.manifest,
-                projectRoot,
-                sanitizedOutputId
-              )
-              console.log('[createRun] ✅ Spec copied to correct path:', correctSpecPath)
-
-              // Atualizar testFilePath no banco com o path correto
-              await prisma.validationRun.update({
-                where: { id: run.id },
-                data: { testFilePath: correctSpecPath },
-              })
-              console.log('[createRun] Updated run.testFilePath in database')
-            } catch (error) {
-              console.error('[createRun] Error copying/resolving spec file:', error)
-              console.warn('[createRun] Will keep testFilePath as artifacts path')
-            }
-          }
-
-          // Enfileirar execução automaticamente
-          console.log('[createRun] Queueing execution run automatically...')
-          orchestrator.addToQueue(run.id).catch((error) => {
-            console.error(`[createRun] Error queueing execution run ${run.id}:`, error)
-          })
-          console.log('[createRun] Execution run queued successfully')
-        } catch (error) {
-          console.error('[createRun] Error copying files from contract run:', error)
-        }
+      // For runs with contractRunId, queue automatically (spec will be copied by orchestrator)
+      if (data.contractRunId) {
+        console.log('[createRun] Queueing run automatically...')
+        orchestrator.addToQueue(run.id).catch((error) => {
+          console.error(`[createRun] Error queueing run ${run.id}:`, error)
+        })
       } else {
+        // Run is in PENDING state, waiting for file upload to start execution
         console.log('[createRun] Run is in PENDING state, waiting for file upload to start execution...')
       }
 

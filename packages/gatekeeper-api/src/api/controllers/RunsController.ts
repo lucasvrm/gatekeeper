@@ -3,7 +3,6 @@ import { prisma } from '../../db/client.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { RunEventService } from '../../services/RunEventService.js'
-import { PathResolverService } from '../../services/PathResolverService.js'
 import { ArtifactsService } from '../../services/ArtifactsService.js'
 
 export class RunsController {
@@ -252,36 +251,8 @@ export class RunsController {
       },
     })
 
-    // Verify that spec file is in correct path, restore from artifacts if needed
-    console.log('[rerunGate] Verifying spec file path...')
-    if (run.testFilePath && run.manifestJson && run.projectPath) {
-      try {
-        const pathResolver = new PathResolverService()
-        const artifactsDir = await this.resolveArtifactsDir(run)
-        const artifactsPath = path.join(
-          run.projectPath,
-          artifactsDir,
-          run.outputId,
-          path.basename(run.testFilePath),
-        )
-        const correctPath = await pathResolver.recheckAndCopy(run.testFilePath, artifactsPath)
-
-        // Update if path changed
-        if (correctPath !== run.testFilePath) {
-          await prisma.validationRun.update({
-            where: { id },
-            data: { testFilePath: correctPath },
-          })
-          console.log('[rerunGate] ✅ Spec file path updated:', correctPath)
-        } else {
-          console.log('[rerunGate] ✅ Spec file already in correct path')
-        }
-      } catch (error) {
-        console.error('[rerunGate] ⚠️ Failed to verify/restore spec file, continuing anyway:', error)
-      }
-    }
-
     // Import and queue the run for execution
+    // Note: spec path verification is handled by ValidationOrchestrator.ensureSpecAtCorrectPath
     const { ValidationOrchestrator } = await import('../../services/ValidationOrchestrator.js')
     const orchestrator = new ValidationOrchestrator()
     orchestrator.addToQueue(id).catch((error) => {
@@ -478,17 +449,11 @@ export class RunsController {
           }
         }
 
+        // Spec stays in artifacts/, will be copied to correct path by orchestrator
         const artifactsSpecPath = path.join(filesystemArtifactDir, specFileName)
-        const targetSpecPath = await this.resolveAndPersistSpecPath(
-          run,
-          projectRoot,
-          artifactsSpecPath,
-          specFileName,
-        )
-
         uploadedFiles.push({
           type: 'spec',
-          path: targetSpecPath,
+          path: artifactsSpecPath,
           size: (await fs.stat(artifactsSpecPath)).size,
         })
       }
@@ -547,20 +512,12 @@ export class RunsController {
           return
         }
 
-        // Step 1: Save to artifacts/ first
+        // Save to artifacts/ - will be copied to correct path by orchestrator
         const artifactsSpecPath = path.join(artifactDir, specFileName)
         await fs.writeFile(artifactsSpecPath, specFile.buffer)
         console.log('[uploadFiles] Saved spec to artifacts:', artifactsSpecPath)
 
-        // Step 2: Use PathResolverService to copy to correct path
-        const targetSpecPath = await this.resolveAndPersistSpecPath(
-          run,
-          projectRoot,
-          artifactsSpecPath,
-          specFileName,
-        )
-
-        uploadedFiles.push({ type: 'spec', path: targetSpecPath, size: specFile.size })
+        uploadedFiles.push({ type: 'spec', path: artifactsSpecPath, size: specFile.size })
       }
 
       // Reset and queue the run based on its current status
@@ -636,59 +593,5 @@ export class RunsController {
     }
 
     return 'artifacts'
-  }
-
-  private async resolveAndPersistSpecPath(
-    run: { id: string; manifestJson: string | null; outputId: string },
-    projectRoot: string,
-    artifactsSpecPath: string,
-    specFileName: string
-  ): Promise<string> {
-    const pathResolver = new PathResolverService()
-    let targetSpecPath: string
-    let shouldCopyFallback = false
-
-    if (run.manifestJson) {
-      try {
-        const manifest = JSON.parse(run.manifestJson)
-        targetSpecPath = await pathResolver.ensureCorrectPath(
-          artifactsSpecPath,
-          manifest,
-          projectRoot,
-          run.outputId
-        )
-        console.log('[uploadFiles] ✅ Spec copied to correct path:', targetSpecPath)
-      } catch (error) {
-        console.error('[uploadFiles] Failed to resolve spec path, using fallback:', error)
-        targetSpecPath = path.join(projectRoot, 'src', specFileName)
-        shouldCopyFallback = true
-      }
-    } else {
-      targetSpecPath = path.join(projectRoot, 'src', specFileName)
-      shouldCopyFallback = true
-    }
-
-    const normalizedTarget = targetSpecPath.replace(/\\/g, '/')
-    if (shouldCopyFallback || !normalizedTarget.includes('/src/')) {
-      const fallbackPath = path.join(projectRoot, 'src', specFileName)
-      try {
-        await fs.mkdir(path.dirname(fallbackPath), { recursive: true })
-        if (await fs.stat(artifactsSpecPath).then(() => true).catch(() => false)) {
-          await fs.copyFile(artifactsSpecPath, fallbackPath)
-        }
-      } catch (error) {
-        console.error('[uploadFiles] Failed to copy spec to fallback /src path:', error)
-      }
-      targetSpecPath = fallbackPath
-    }
-
-    const normalizedPath = targetSpecPath.replace(/\\/g, '/')
-
-    await prisma.validationRun.update({
-      where: { id: run.id },
-      data: { testFilePath: normalizedPath },
-    })
-
-    return normalizedPath
   }
 }

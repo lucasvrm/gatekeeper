@@ -1,5 +1,5 @@
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, copyFileSync } from 'node:fs'
+import { join, dirname, basename } from 'node:path'
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
 import { GATES_CONFIG, CONTRACT_GATE_NUMBERS, EXECUTION_GATE_NUMBERS } from '../config/gates.config.js'
@@ -31,6 +31,62 @@ export class ValidationOrchestrator {
     this.validatorRepository = new ValidatorResultRepository()
   }
 
+  private async ensureSpecAtCorrectPath(run: ValidationRun): Promise<void> {
+    // Parse manifest to get testFile
+    if (!run.manifestJson) {
+      console.warn('[ensureSpecAtCorrectPath] No manifest found, skipping spec copy')
+      return
+    }
+
+    let manifest: { testFile?: string } | null = null
+    try {
+      manifest = JSON.parse(run.manifestJson)
+    } catch (error) {
+      console.warn('[ensureSpecAtCorrectPath] Failed to parse manifest JSON:', error)
+      return
+    }
+
+    if (!manifest?.testFile) {
+      console.warn('[ensureSpecAtCorrectPath] No testFile in manifest, skipping spec copy')
+      return
+    }
+
+    // Build target path = projectPath + manifest.testFile
+    const targetPath = join(run.projectPath, manifest.testFile)
+
+    // If target already exists, no need to copy
+    if (existsSync(targetPath)) {
+      console.log('[ensureSpecAtCorrectPath] Target already exists, skipping copy:', targetPath)
+      return
+    }
+
+    // Build artifacts path = projectPath/artifacts/outputId/specFileName
+    const specFileName = basename(manifest.testFile)
+    const artifactsPath = join(run.projectPath, 'artifacts', run.outputId, specFileName)
+
+    // Check if artifacts source exists
+    if (!existsSync(artifactsPath)) {
+      console.warn('[ensureSpecAtCorrectPath] Artifacts source does not exist, skipping copy:', artifactsPath)
+      return
+    }
+
+    // Create target directory recursively
+    const targetDir = dirname(targetPath)
+    mkdirSync(targetDir, { recursive: true })
+
+    // Copy file from artifacts to target
+    copyFileSync(artifactsPath, targetPath)
+    console.log('[ensureSpecAtCorrectPath] ✅ Copied spec from', artifactsPath, 'to', targetPath)
+
+    // Update testFilePath in DB with normalized path (forward slashes)
+    const normalizedPath = targetPath.replace(/\\/g, '/')
+    await prisma.validationRun.update({
+      where: { id: run.id },
+      data: { testFilePath: normalizedPath },
+    })
+    console.log('[ensureSpecAtCorrectPath] ✅ Updated testFilePath in DB:', normalizedPath)
+  }
+
   async executeRun(runId: string): Promise<void> {
     console.log('>>> executeRun CALLED with runId:', runId)
     const run = await this.runRepository.findById(runId)
@@ -41,13 +97,22 @@ export class ValidationOrchestrator {
     console.log(`[executeRun] Run projectPath: ${run.projectPath}`)
     console.log(`[executeRun] Run testFilePath: ${run.testFilePath}`)
 
+    // Ensure spec is at correct path before changing status
+    await this.ensureSpecAtCorrectPath(run)
+
+    // Re-fetch run to get updated testFilePath
+    const updatedRun = await this.runRepository.findById(runId)
+    if (!updatedRun) {
+      throw new Error(`Run ${runId} not found after ensureSpecAtCorrectPath`)
+    }
+
     await this.runRepository.update(runId, {
       status: 'RUNNING',
       startedAt: new Date(),
     })
     RunEventService.emitRunStatus(runId, 'RUNNING')
 
-    const ctx = await this.buildContext(run)
+    const ctx = await this.buildContext(updatedRun)
 
     const allowedGates = run.runType === 'EXECUTION'
       ? EXECUTION_GATE_NUMBERS
@@ -344,18 +409,6 @@ export class ValidationOrchestrator {
     const tokenCounterService = new TokenCounterService()
     const logService = new LogService(run.id)
 
-    // CL-CTX-001: Re-resolve testFilePath if it doesn't exist but manifest has testFile
-    let resolvedTestFilePath = run.testFilePath
-    if (run.testFilePath && !existsSync(run.testFilePath)) {
-      if (manifest?.testFile) {
-        const manifestPath = join(run.projectPath, manifest.testFile)
-        if (existsSync(manifestPath)) {
-          console.log(`[buildContext] Re-resolved testFilePath from ${run.testFilePath} to ${manifestPath}`)
-          resolvedTestFilePath = manifestPath
-        }
-      }
-    }
-
     return {
       runId: run.id,
       projectPath: run.projectPath,
@@ -364,7 +417,7 @@ export class ValidationOrchestrator {
       taskPrompt: run.taskPrompt,
       manifest,
       contract,
-      testFilePath: resolvedTestFilePath,
+      testFilePath: run.testFilePath,
       dangerMode: run.dangerMode,
       services: {
         git: gitService,
