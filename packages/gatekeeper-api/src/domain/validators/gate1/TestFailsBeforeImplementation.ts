@@ -1,8 +1,256 @@
-import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
-import { access, copyFile, mkdir, rm } from 'fs/promises'
+import type { ValidatorDefinition, ValidationContext, ValidatorOutput, ValidatorContextInput, ValidatorContextAnalyzedGroup, ValidatorContextFinding } from '../../../types/index.js'
+import { access, copyFile, mkdir, readdir, rm } from 'fs/promises'
 import { dirname, isAbsolute, join, relative as pathRelative } from 'path'
 import { tmpdir } from 'os'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { TestRunnerService } from '../../../services/TestRunnerService.js'
+
+const execAsync = promisify(exec)
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+type FailureClassification = 'VALID_TEST_FAILURE' | 'INFRA_FAILURE' | 'UNKNOWN'
+
+interface InstallResult {
+  success: boolean
+  command: string
+  exitCode: number
+  output: string
+  duration: number
+}
+
+interface LockfileConfig {
+  file: string
+  cmd: string
+}
+
+// ============================================================================
+// Classification Patterns
+// ============================================================================
+
+const INFRA_PATTERNS: RegExp[] = [
+  /Cannot find package/i,
+  /Cannot find module/i,
+  /ERR_MODULE_NOT_FOUND/i,
+  /failed to load config/i,
+  /Startup Error/i,
+  /npm ERR!/i,
+  /command not found/i,
+  /ENOENT/i,
+  /Unsupported engine/i,
+  /Test file not found/i,
+]
+
+const VALID_TEST_FAILURE_PATTERNS: RegExp[] = [
+  /FAIL\s+.*\.(spec|test)\.(ts|tsx|js|jsx)/i,
+  /AssertionError/i,
+  /expect\(.*\)\.to/i,
+  /\d+ failed/i,
+  /Tests:\s+\d+ failed/i,
+  /[✕×]/,
+]
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Classifies test output as VALID_TEST_FAILURE, INFRA_FAILURE, or UNKNOWN
+ */
+function classifyFailure(output: string, exitCode: number): FailureClassification {
+  // If test passed (exitCode 0), this is unexpected in "red phase" context
+  if (exitCode === 0) {
+    return 'UNKNOWN'
+  }
+
+  // Check for infra patterns first (higher priority)
+  for (const pattern of INFRA_PATTERNS) {
+    if (pattern.test(output)) {
+      return 'INFRA_FAILURE'
+    }
+  }
+
+  // Check for valid test failure patterns
+  for (const pattern of VALID_TEST_FAILURE_PATTERNS) {
+    if (pattern.test(output)) {
+      return 'VALID_TEST_FAILURE'
+    }
+  }
+
+  // Fallback to UNKNOWN (will be treated as INFRA)
+  return 'UNKNOWN'
+}
+
+/**
+ * Detects the package manager based on lockfile presence in the worktree
+ */
+async function detectPackageManager(worktreePath: string): Promise<LockfileConfig | null> {
+  const lockfileOrder: LockfileConfig[] = [
+    { file: 'package-lock.json', cmd: 'npm ci' },
+    { file: 'pnpm-lock.yaml', cmd: 'pnpm install --frozen-lockfile' },
+    { file: 'yarn.lock', cmd: 'yarn install --frozen-lockfile' },
+  ]
+
+  let files: string[]
+  try {
+    files = await readdir(worktreePath)
+  } catch {
+    return null
+  }
+
+  for (const config of lockfileOrder) {
+    if (files.includes(config.file)) {
+      return config
+    }
+  }
+
+  return null
+}
+
+/**
+ * Installs dependencies in the worktree
+ */
+async function installDependencies(worktreePath: string): Promise<InstallResult> {
+  const packageManager = await detectPackageManager(worktreePath)
+
+  if (!packageManager) {
+    return {
+      success: false,
+      command: 'none',
+      exitCode: -1,
+      output: 'No lockfile found (package-lock.json, pnpm-lock.yaml, or yarn.lock)',
+      duration: 0,
+    }
+  }
+
+  const startTime = Date.now()
+
+  try {
+    const { stdout, stderr } = await execAsync(packageManager.cmd, {
+      cwd: worktreePath,
+      timeout: 300000, // 5 minutes
+      maxBuffer: 10 * 1024 * 1024, // 10MB
+    })
+
+    const duration = Date.now() - startTime
+    const output = `${stdout}\n${stderr}`.trim()
+
+    return {
+      success: true,
+      command: packageManager.cmd,
+      exitCode: 0,
+      output,
+      duration,
+    }
+  } catch (error) {
+    const duration = Date.now() - startTime
+    const execError = error as { code?: number; stdout?: string; stderr?: string; message?: string }
+    const output = `${execError.stdout || ''}\n${execError.stderr || ''}\n${execError.message || ''}`.trim()
+
+    return {
+      success: false,
+      command: packageManager.cmd,
+      exitCode: execError.code ?? 1,
+      output,
+      duration,
+    }
+  }
+}
+
+/**
+ * Generates ValidatorOutput with proper context, inputs, analyzed groups, and evidence
+ */
+function generateValidatorOutput(
+  classification: FailureClassification,
+  testPassed: boolean,
+  testOutput: string,
+  testExitCode: number,
+  testDuration: number,
+  baseRef: string,
+  testFilePath: string,
+  worktreePath: string,
+  installResult?: InstallResult
+): ValidatorOutput {
+  const contextInputs: ValidatorContextInput[] = [
+    { label: 'BaseRef', value: baseRef },
+    { label: 'TestFilePath', value: testFilePath },
+    { label: 'WorktreePath', value: worktreePath },
+  ]
+
+  const analyzedItems: string[] = []
+
+  if (installResult) {
+    analyzedItems.push(`Install: ${installResult.command} (exitCode: ${installResult.exitCode}, duration: ${installResult.duration}ms)`)
+  }
+  analyzedItems.push(`Test: exitCode=${testExitCode}, duration=${testDuration}ms`)
+
+  const contextAnalyzed: ValidatorContextAnalyzedGroup[] = [
+    { label: 'Commands Executed', items: analyzedItems },
+  ]
+
+  const outputExcerpt = testOutput.slice(0, 500)
+
+  // TDD Violation case - test passed on baseRef
+  if (testPassed) {
+    const findings: ValidatorContextFinding[] = [
+      { type: 'fail', message: 'Test passed on baseRef - TDD red phase required' },
+    ]
+
+    return {
+      passed: false,
+      status: 'FAILED',
+      message: 'CLÁUSULA PÉTREA VIOLATION: Test passed on base_ref but should fail',
+      context: {
+        inputs: contextInputs,
+        analyzed: contextAnalyzed,
+        findings,
+        reasoning: 'Test must fail on base_ref to confirm TDD red phase.',
+      },
+      evidence: `Classification: TDD_VIOLATION\nTest output:\n${outputExcerpt}`,
+    }
+  }
+
+  // INFRA_FAILURE case
+  if (classification === 'INFRA_FAILURE' || classification === 'UNKNOWN') {
+    const findings: ValidatorContextFinding[] = [
+      { type: 'fail', message: `Classification: ${classification}` },
+    ]
+
+    return {
+      passed: false,
+      status: 'FAILED',
+      message: `Infra failure detected: ${classification}`,
+      context: {
+        inputs: contextInputs,
+        analyzed: contextAnalyzed,
+        findings,
+        reasoning: 'Infrastructure issues prevent reliable test execution.',
+      },
+      evidence: `Classification: INFRA\nTest output:\n${outputExcerpt}`,
+    }
+  }
+
+  // VALID_TEST_FAILURE case - PASS
+  const findings: ValidatorContextFinding[] = [
+    { type: 'pass', message: 'Valid test failure detected' },
+  ]
+
+  return {
+    passed: true,
+    status: 'PASSED',
+    message: 'Test correctly fails on base_ref (TDD red phase confirmed)',
+    context: {
+      inputs: contextInputs,
+      analyzed: contextAnalyzed,
+      findings,
+      reasoning: 'Test failure on base_ref confirms TDD red phase.',
+    },
+    evidence: `Classification: VALID\nTest output:\n${outputExcerpt}`,
+  }
+}
 
 export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
   code: 'TEST_FAILS_BEFORE_IMPLEMENTATION',
@@ -39,6 +287,8 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
     const testInWorktree = join(worktreePath, rel)
     const testInWorktreeNormalized = testInWorktree.replace(/\\/g, '/')
 
+    let installResult: InstallResult | undefined
+
     try {
       try {
         await access(ctx.testFilePath)
@@ -48,11 +298,16 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
           status: 'FAILED',
           message: `Test file not found: ${ctx.testFilePath}`,
           context: {
-            inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
+            inputs: [
+              { label: 'BaseRef', value: ctx.baseRef },
+              { label: 'TestFilePath', value: ctx.testFilePath },
+              { label: 'WorktreePath', value: worktreePath },
+            ],
             analyzed: [],
             findings: [{ type: 'fail', message: 'Test file not found' }],
             reasoning: 'Cannot run base_ref test because the test file does not exist.',
           },
+          evidence: 'Classification: INFRA\nTest file does not exist in the source location.',
         }
       }
 
@@ -66,6 +321,27 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
       })
 
       await ctx.services.git.createWorktree(ctx.baseRef, worktreePath)
+
+      // RF1: Install dependencies in the worktree
+      console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Installing dependencies in worktree...')
+      installResult = await installDependencies(worktreePath)
+
+      if (!installResult.success) {
+        console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Dependency installation failed:', installResult.output)
+        return generateValidatorOutput(
+          'INFRA_FAILURE',
+          false,
+          installResult.output,
+          installResult.exitCode,
+          installResult.duration,
+          ctx.baseRef,
+          ctx.testFilePath,
+          worktreePath,
+          installResult
+        )
+      }
+
+      console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Dependencies installed successfully')
 
       const runner = new TestRunnerService(worktreePath)
 
@@ -82,84 +358,41 @@ export const TestFailsBeforeImplementationValidator: ValidatorDefinition = {
 
       const result = await runner.runSingleTest(testInWorktreeNormalized)
 
-      if (result.passed) {
-        return {
-          passed: false,
-          status: 'FAILED',
-          message: 'CLÁUSULA PÉTREA VIOLATION: Test passed on base_ref but should fail (TDD red phase required)',
-          context: {
-            inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
-            analyzed: [{ label: 'Test Run Result', items: [`passed: ${result.passed}`, `exitCode: ${result.exitCode}`] }],
-            findings: [{ type: 'fail', message: 'Test passed on base_ref; should fail in red phase' }],
-            reasoning: 'Test execution on base_ref unexpectedly passed.',
-          },
-          evidence:
-            `Test output on ${ctx.baseRef} (worktree):\n${result.output}\n\n` +
-            `This violates TDD principles - the test must fail before implementation.`,
-          details: {
-            baseRef: ctx.baseRef,
-            testPassed: true,
-            exitCode: result.exitCode,
-            worktreePath,
-          },
-        }
-      }
+      // RF2: Classify the failure
+      const classification = classifyFailure(result.output, result.exitCode)
+      console.log('[TEST_FAILS_BEFORE_IMPLEMENTATION] Failure classification:', classification)
 
-      // If the test file doesn't exist yet on baseRef, it's acceptable (still a "red" condition).
-      const missingFile = result.output.includes('Test file not found')
-      if (missingFile) {
-        return {
-          passed: true,
-          status: 'PASSED',
-          message: 'Test file does not exist on base_ref (acceptable - file may not exist yet)',
-          context: {
-            inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
-            analyzed: [{ label: 'Test Run Result', items: ['test file not found'] }],
-            findings: [{ type: 'pass', message: 'Test file missing on base_ref (acceptable)' }],
-            reasoning: 'Missing test file on base_ref is treated as a failing baseline, which is acceptable.',
-          },
-          evidence: `BaseRef ${ctx.baseRef} (worktree) missing test file:\n${result.output}`,
-          metrics: {
-            baseRef: ctx.baseRef,
-            exitCode: result.exitCode,
-            duration: result.duration,
-          },
-        }
-      }
-
-      // Test failed - correct for TDD red phase
-      return {
-        passed: true,
-        status: 'PASSED',
-        message: 'Test correctly fails on base_ref (TDD red phase confirmed)',
-        context: {
-          inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
-          analyzed: [{ label: 'Test Run Result', items: [`passed: ${result.passed}`, `exitCode: ${result.exitCode}`] }],
-          findings: [{ type: 'pass', message: 'Test failed on base_ref as expected' }],
-          reasoning: 'Test failure on base_ref confirms the TDD red phase.',
-        },
-        evidence: `Test failed as expected on ${ctx.baseRef} (worktree):\n${result.output}`,
-        metrics: {
-          baseRef: ctx.baseRef,
-          exitCode: result.exitCode,
-          duration: result.duration,
-        },
-      }
+      // RF3: Generate output based on classification
+      return generateValidatorOutput(
+        classification,
+        result.passed,
+        result.output,
+        result.exitCode,
+        result.duration,
+        ctx.baseRef,
+        ctx.testFilePath,
+        worktreePath,
+        installResult
+      )
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       return {
         passed: false,
         status: 'FAILED',
         message: 'Failed to run base_ref test in worktree',
         context: {
-          inputs: [{ label: 'BaseRef', value: ctx.baseRef }],
-          analyzed: [{ label: 'Test Run Result', items: ['error running test in worktree'] }],
+          inputs: [
+            { label: 'BaseRef', value: ctx.baseRef },
+            { label: 'TestFilePath', value: ctx.testFilePath },
+            { label: 'WorktreePath', value: worktreePath },
+          ],
+          analyzed: installResult
+            ? [{ label: 'Commands Executed', items: [`Install: ${installResult.command} (exitCode: ${installResult.exitCode})`] }]
+            : [],
           findings: [{ type: 'fail', message: 'Worktree test execution failed' }],
           reasoning: 'An error occurred while running the test in the base_ref worktree.',
         },
-        evidence:
-          `BaseRef: ${ctx.baseRef}\n` +
-          `Worktree: ${worktreePath}\n` +
-          `Error: ${error instanceof Error ? error.message : String(error)}`,
+        evidence: `Classification: INFRA\nBaseRef: ${ctx.baseRef}\nWorktree: ${worktreePath}\nError: ${errorMessage}`,
       }
     } finally {
       try {

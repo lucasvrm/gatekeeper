@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import type { GateResult, RunWithResults, ValidatorContext, ValidatorResult, ValidatorStatus } from "@/lib/types"
+import type { GateResult, RunStatus, RunWithResults, ValidatorContext, ValidatorResult, ValidatorStatus } from "@/lib/types"
 import { ValidatorContextPanel } from "@/components/validator-context-panel"
 import { useRunEvents } from "@/hooks/useRunEvents"
 import { api } from "@/lib/api"
@@ -66,12 +66,25 @@ const getChangeType = (run: RunWithResults | null): string | null => {
 }
 
 const getNodeClass = (status: ValidatorStatus) => {
-  if (status === "FAILED") return "border-status-failed bg-status-failed/20"
+  if (status === "PASSED") return "border-status-passed bg-status-passed"
+  if (status === "FAILED") return "border-status-failed bg-status-failed"
   if (status === "WARNING") return "border-status-warning bg-status-warning/20"
   if (status === "SKIPPED") return "border-status-skipped bg-status-skipped/20"
   if (status === "RUNNING") return "border-status-running bg-status-running/20"
-  if (status === "PENDING") return "border-status-pending bg-status-pending/20"
-  return "border-status-passed bg-status-passed/20"
+  return "border-status-pending bg-status-pending/20"
+}
+
+const getProgressBarColor = (status: RunStatus | undefined): string => {
+  switch (status) {
+    case "RUNNING":
+      return "bg-status-warning"
+    case "PASSED":
+      return "bg-status-passed"
+    case "FAILED":
+      return "bg-status-failed"
+    default:
+      return "bg-status-pending"
+  }
 }
 
 export function RunDetailsPageV2() {
@@ -347,11 +360,7 @@ export function RunDetailsPageV2() {
             aria-valuenow={progressPercentage}
             value={progressPercentage}
             className="h-2"
-            indicatorClassName={cn(
-              progressPercentage === 100 && "bg-status-passed",
-              progressPercentage < 100 && progressPercentage > 0 && "bg-status-warning",
-              progressPercentage === 0 && "bg-status-pending"
-            )}
+            indicatorClassName={getProgressBarColor(primaryRun?.status)}
           />
           <p className="text-xs text-muted-foreground">
             {filterCounts.PASSED} / {filterCounts.ALL} passed
@@ -380,16 +389,12 @@ export function RunDetailsPageV2() {
           )}
         </Card>
 
-        <Card className="col-span-6 p-4 space-y-2" data-testid="overview-task-prompt">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Prompt da Tarefa</h3>
-            <Badge variant="outline" className="font-mono" data-testid="task-prompt-badge">
-              {getChangeType(primaryRun) || "—"}
-            </Badge>
-          </div>
+        <Card className="col-span-6 p-4 space-y-1" data-testid="overview-task-prompt">
+          <h3 className="text-sm font-semibold">Prompt da Tarefa</h3>
           <p
-            className="text-xs text-muted-foreground truncate"
+            className="text-xs text-muted-foreground whitespace-pre-wrap break-words line-clamp-4"
             title={primaryRun?.taskPrompt || "—"}
+            data-testid="task-prompt-content"
           >
             {primaryRun?.taskPrompt || "—"}
           </p>
