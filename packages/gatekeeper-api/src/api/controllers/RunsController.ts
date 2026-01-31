@@ -406,14 +406,7 @@ export class RunsController {
 
       // Resolver paths
       const artifactsBasePath = path.join(projectRoot, artifactsDir)
-      const runTestFilePath = run.testFilePath
-      let artifactDir: string
-
-      if (runTestFilePath && path.isAbsolute(runTestFilePath)) {
-        artifactDir = path.dirname(runTestFilePath)
-      } else {
-        artifactDir = path.join(artifactsBasePath, run.outputId)
-      }
+      const artifactDir = path.join(artifactsBasePath, run.outputId)
 
       await fs.mkdir(artifactDir, { recursive: true })
       const uploadedFiles: { type: string; path: string; size: number }[] = []
@@ -577,11 +570,6 @@ export class RunsController {
   private async resolveArtifactsDir(
     run: { testFilePath: string; projectId: string | null },
   ): Promise<string> {
-    const testFilePath = run.testFilePath || ''
-    if (testFilePath.includes('/artifacts/') || testFilePath.includes('\\artifacts\\')) {
-      return 'artifacts'
-    }
-
     if (run.projectId) {
       const project = await prisma.project.findUnique({
         where: { id: run.projectId },

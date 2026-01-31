@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { basename, join } from 'path'
+import { basename, join, isAbsolute, relative, resolve } from 'path'
 import { promises as fs } from 'node:fs'
 import { prisma } from '../../db/client.js'
 import { ValidationOrchestrator } from '../../services/ValidationOrchestrator.js'
@@ -21,8 +21,6 @@ const allowedTestExtensions = new Set([
 const sanitizeOutputId = (outputId: string): string => {
   return outputId.replace(/\.\./g, '').replace(/[\\/ ]/g, '')
 }
-
-const sanitizeTestFileName = (value: string): string => basename(value.trim())
 
 export class ValidationController {
   async createRun(req: Request, res: Response): Promise<void> {
@@ -79,14 +77,30 @@ export class ValidationController {
         projectPath,
       })
 
-      // Resolver paths
-      const artifactsBasePath = join(projectRoot, artifactsDir)
-      const manifestTestFileName = sanitizeTestFileName(data.manifest.testFile)
-      if (!manifestTestFileName) {
+      const manifestTestFile = data.manifest.testFile?.trim()
+      if (!manifestTestFile) {
         res.status(400).json({ error: 'Invalid test file name in manifest' })
         return
       }
-      const lowerFileName = manifestTestFileName.toLowerCase()
+      if (isAbsolute(manifestTestFile)) {
+        res.status(400).json({
+          error: 'Invalid manifest.testFile',
+          message: 'manifest.testFile must be a relative path inside the project root.',
+        })
+        return
+      }
+
+      const resolvedTestPath = resolve(projectPath, manifestTestFile)
+      const relativeToProject = relative(projectPath, resolvedTestPath)
+      if (relativeToProject.startsWith('..') || isAbsolute(relativeToProject)) {
+        res.status(400).json({
+          error: 'Invalid manifest.testFile',
+          message: 'manifest.testFile must not escape the project root.',
+        })
+        return
+      }
+
+      const lowerFileName = basename(manifestTestFile).toLowerCase()
       const hasAllowedExtension = Array.from(allowedTestExtensions).some((ext) =>
         lowerFileName.endsWith(ext),
       )
@@ -95,11 +109,9 @@ export class ValidationController {
         return
       }
 
-      // Spec file will be uploaded to artifacts/ initially
-      // uploadFiles will move it to the correct path based on conventions
-      const artifactDir = join(artifactsBasePath, sanitizedOutputId)
-      const testFileAbsolutePath = join(artifactDir, manifestTestFileName)
-      console.log('[createRun] Initial spec path (artifacts):', testFileAbsolutePath)
+      const canonicalTestPath = join(projectPath, manifestTestFile)
+      const normalizedCanonicalTestPath = canonicalTestPath.replace(/\\/g, '/')
+      console.log('[createRun] Canonical spec path:', normalizedCanonicalTestPath)
 
       // Validação para runs que referenciam um contract run
       console.log('[createRun] Checking contract run validation...')
@@ -132,7 +144,7 @@ export class ValidationController {
           projectPath: projectPath,
           taskPrompt: data.taskPrompt,
           manifestJson: JSON.stringify(data.manifest),
-          testFilePath: testFileAbsolutePath,
+          testFilePath: normalizedCanonicalTestPath,
           baseRef: baseRef,
           targetRef: targetRef,
           dangerMode: data.dangerMode,

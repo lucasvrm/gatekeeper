@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, copyFileSync } from 'node:fs'
-import { join, dirname, basename } from 'node:path'
+import { join, dirname, basename, isAbsolute, relative, resolve } from 'node:path'
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
 import { GATES_CONFIG, CONTRACT_GATE_NUMBERS, EXECUTION_GATE_NUMBERS } from '../config/gates.config.js'
@@ -51,32 +51,46 @@ export class ValidationOrchestrator {
       return
     }
 
+    if (isAbsolute(manifest.testFile)) {
+      throw new Error('manifest.testFile must be a relative path inside the project root.')
+    }
+
+    const resolvedTestPath = resolve(run.projectPath, manifest.testFile)
+    const relativeToProject = relative(run.projectPath, resolvedTestPath)
+    if (relativeToProject.startsWith('..') || isAbsolute(relativeToProject)) {
+      throw new Error('manifest.testFile must not escape the project root.')
+    }
+
     // Build target path = projectPath + manifest.testFile
     const targetPath = join(run.projectPath, manifest.testFile)
+    const targetExists = existsSync(targetPath)
 
-    // If target already exists, no need to copy
-    if (existsSync(targetPath)) {
-      console.log('[ensureSpecAtCorrectPath] Target already exists, skipping copy:', targetPath)
-      return
+    let artifactsDir = 'artifacts'
+    if (run.projectId) {
+      const project = await prisma.project.findUnique({
+        where: { id: run.projectId },
+        include: { workspace: true },
+      })
+      if (project?.workspace?.artifactsDir) {
+        artifactsDir = project.workspace.artifactsDir
+      }
     }
 
-    // Build artifacts path = projectPath/artifacts/outputId/specFileName
+    // Build artifacts path = projectPath/<artifactsDir>/outputId/specFileName
     const specFileName = basename(manifest.testFile)
-    const artifactsPath = join(run.projectPath, 'artifacts', run.outputId, specFileName)
+    const artifactsPath = join(run.projectPath, artifactsDir, run.outputId, specFileName)
+    const artifactsExists = existsSync(artifactsPath)
 
-    // Check if artifacts source exists
-    if (!existsSync(artifactsPath)) {
-      console.warn('[ensureSpecAtCorrectPath] Artifacts source does not exist, skipping copy:', artifactsPath)
-      return
+    if (artifactsExists) {
+      const targetDir = dirname(targetPath)
+      mkdirSync(targetDir, { recursive: true })
+      copyFileSync(artifactsPath, targetPath)
+      console.log('[ensureSpecAtCorrectPath] ✅ Copied spec from', artifactsPath, 'to', targetPath)
+    } else if (!targetExists) {
+      throw new Error(
+        `Spec file not found in artifacts staging path: ${artifactsPath}. Ensure the artifacts folder is selected.`,
+      )
     }
-
-    // Create target directory recursively
-    const targetDir = dirname(targetPath)
-    mkdirSync(targetDir, { recursive: true })
-
-    // Copy file from artifacts to target
-    copyFileSync(artifactsPath, targetPath)
-    console.log('[ensureSpecAtCorrectPath] ✅ Copied spec from', artifactsPath, 'to', targetPath)
 
     // Update testFilePath in DB with normalized path (forward slashes)
     const normalizedPath = targetPath.replace(/\\/g, '/')
