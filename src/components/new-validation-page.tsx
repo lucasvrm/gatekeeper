@@ -109,7 +109,7 @@ export function NewValidationPage() {
       }
 
       toast.success("Validacao iniciada com sucesso")
-      navigate(`/runs/${response.runId}`)
+      navigate(`/runs/${response.runId}/v2`)
     } catch (error) {
       console.error("Failed to create run:", error)
       setError("Falha ao iniciar validacao")

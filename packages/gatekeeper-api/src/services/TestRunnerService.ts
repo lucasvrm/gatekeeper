@@ -1,11 +1,35 @@
 import { execa } from 'execa'
-import { relative, isAbsolute, resolve } from 'path'
-import { existsSync } from 'fs'
+import { relative, isAbsolute, resolve, sep, posix } from 'path'
+import * as fs from 'fs'
 import { stripAnsi } from '../utils/stripAnsi.js'
 import type { TestRunnerService as ITestRunnerService, TestResult } from '../types/index.js'
 
 type TestRunnerOptions = {
   timeout?: number
+}
+
+type PathApi = {
+  resolve: typeof resolve
+  relative: typeof relative
+  sep: string
+}
+
+export function deriveRunnerCwdAndPath(absoluteTestPath: string, projectPath: string) {
+  const isPosixStyle =
+    absoluteTestPath.startsWith('/') &&
+    !absoluteTestPath.includes('\\') &&
+    projectPath.startsWith('/') &&
+    !projectPath.includes('\\')
+  const pathApi: PathApi = isPosixStyle ? posix : { resolve, relative, sep }
+
+  const packageRoot = pathApi.resolve(projectPath, 'packages', 'gatekeeper-api')
+  const isInPackage =
+    absoluteTestPath === packageRoot || absoluteTestPath.startsWith(packageRoot + pathApi.sep)
+
+  const runnerCwd = isInPackage ? packageRoot : projectPath
+  const runnerPath = pathApi.relative(runnerCwd, absoluteTestPath).replace(/\\/g, '/')
+
+  return { runnerCwd, runnerPath }
 }
 
 export class TestRunnerService implements ITestRunnerService {
@@ -27,7 +51,7 @@ export class TestRunnerService implements ITestRunnerService {
 
       // Check if file exists
       const absoluteTestPath = isAbsolute(testPath) ? testPath : resolve(this.projectPath, testPath)
-      if (!existsSync(absoluteTestPath)) {
+      if (!fs.existsSync(absoluteTestPath)) {
         return {
           passed: false,
           exitCode: 1,
@@ -37,16 +61,16 @@ export class TestRunnerService implements ITestRunnerService {
         }
       }
 
-      // Convert absolute path to relative for test runner
-      const relativePath = isAbsolute(testPath)
-        ? relative(this.projectPath, testPath).replace(/\\/g, '/')
-        : testPath
+      const { runnerCwd, runnerPath } = deriveRunnerCwdAndPath(
+        absoluteTestPath,
+        this.projectPath,
+      )
 
-      console.log('[TestRunnerService]   relativePath:', relativePath)
-      console.log('[TestRunnerService]   cwd:', this.projectPath)
+      console.log('[TestRunnerService]   relativePath:', runnerPath)
+      console.log('[TestRunnerService]   cwd:', runnerCwd)
 
-      const result = await execa('npm', ['test', '--', relativePath], {
-        cwd: this.projectPath,
+      const result = await execa('npm', ['test', '--', runnerPath], {
+        cwd: runnerCwd,
         reject: false,
         env: { ...process.env, CI: '1' },
         timeout: this.timeoutMs,

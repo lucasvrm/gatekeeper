@@ -318,7 +318,7 @@ export function DashboardPage() {
               <div
                 key={run.id}
                 className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/runs/${run.id}`)}
+                onClick={() => navigate(`/runs/${run.id}/v2`)}
               >
                 <div className="flex-1">
                   <p className="font-mono text-sm text-muted-foreground">

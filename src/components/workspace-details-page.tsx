@@ -202,7 +202,7 @@ export function WorkspaceDetailsPage() {
                 <TableRow
                   key={run.id}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/runs/${run.id}`)}
+                  onClick={() => navigate(`/runs/${run.id}/v2`)}
                 >
                   <TableCell className="font-mono text-sm">
                     {run.id.substring(0, 8)}

@@ -379,7 +379,7 @@ export function RunsListPage() {
                   <TableRow
                     key={run.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/runs/${run.id}`)}
+                    onClick={() => navigate(`/runs/${run.id}/v2`)}
                   >
                     <TableCell
                       onClick={(event) => event.stopPropagation()}

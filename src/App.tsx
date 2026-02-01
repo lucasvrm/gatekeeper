@@ -24,8 +24,9 @@ function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/runs" element={<RunsListPage />} />
           <Route path="/runs/new" element={<NewValidationPage />} />
-          <Route path="/runs/:id" element={<RunDetailsPage />} />
+          <Route path="/runs/:id" element={<RunDetailsPageV2 />} />
           <Route path="/runs/:id/v2" element={<RunDetailsPageV2 />} />
+          <Route path="/runs/:id/legacy" element={<RunDetailsPage />} />
           <Route path="/gates" element={<GatesPage />} />
           <Route path="/mcp" element={<MCPSessionPage />} />
           <Route path="/config" element={<ConfigPage />} />
