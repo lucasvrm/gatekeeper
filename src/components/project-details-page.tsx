@@ -24,28 +24,28 @@ export function ProjectDetailsPage() {
   const [runs, setRuns] = useState<Run[]>([])
   const [loading, setLoading] = useState(true)
 
-  const loadData = async () => {
-    if (!id) return
-
-    setLoading(true)
-    try {
-      const [projectData, runsData] = await Promise.all([
-        api.projects.get(id),
-        api.runs.list(1, 100),
-      ])
-      setProject(projectData)
-
-      // Filter runs for this project
-      const projectRuns = runsData.data.filter((run) => run.projectId === id)
-      setRuns(projectRuns)
-    } catch (error) {
-      console.error("Failed to load project:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
+    const loadData = async () => {
+      if (!id) return
+
+      setLoading(true)
+      try {
+        const [projectData, runsData] = await Promise.all([
+          api.projects.get(id),
+          api.runs.list(1, 100),
+        ])
+        setProject(projectData)
+
+        // Filter runs for this project
+        const projectRuns = runsData.data.filter((run) => run.projectId === id)
+        setRuns(projectRuns)
+      } catch (error) {
+        console.error("Failed to load project:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
     loadData()
   }, [id])
 

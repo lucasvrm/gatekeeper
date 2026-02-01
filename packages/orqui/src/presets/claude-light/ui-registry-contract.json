@@ -1,0 +1,508 @@
+{
+  "$orqui": {
+    "schema": "ui-registry-contract",
+    "version": "1.0.0",
+    "hash": "preset-claude-light-v1",
+    "generatedAt": "2026-02-01T00:00:00.000Z"
+  },
+  "components": {
+    "Button": {
+      "name": "Button",
+      "category": "primitive",
+      "description": "Botão de ação principal. Suporta variantes de estilo, tamanhos e estado de carregamento.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": { "type": "enum", "required": false, "description": "Estilo visual do botão", "default": "default", "enumValues": ["default", "destructive", "outline", "secondary", "ghost", "link"] },
+        "size": { "type": "enum", "required": false, "description": "Tamanho do botão", "default": "default", "enumValues": ["default", "sm", "lg", "icon"] },
+        "disabled": { "type": "boolean", "required": false, "description": "Desabilita interações", "default": false },
+        "loading": { "type": "boolean", "required": false, "description": "Exibe indicador de carregamento", "default": false }
+      },
+      "slots": {
+        "children": { "description": "Label ou conteúdo do botão", "required": true, "acceptedComponents": ["Icon"] },
+        "icon": { "description": "Ícone à esquerda do label", "required": false, "acceptedComponents": ["Icon"] }
+      },
+      "variants": [
+        { "name": "primary", "props": { "variant": "default", "size": "default" } },
+        { "name": "danger", "props": { "variant": "destructive", "size": "default" } },
+        { "name": "subtle", "props": { "variant": "ghost", "size": "sm" } },
+        { "name": "icon-only", "props": { "variant": "ghost", "size": "icon" } },
+        { "name": "cta", "props": { "variant": "default", "size": "lg" } }
+      ],
+      "examples": [
+        { "name": "Botão primário", "props": { "variant": "default" }, "slots": { "children": "Enviar mensagem" } },
+        { "name": "Botão de cancelar", "props": { "variant": "outline" }, "slots": { "children": "Cancelar" } },
+        { "name": "Botão destrutivo", "props": { "variant": "destructive" }, "slots": { "children": "Excluir conversa" } }
+      ],
+      "tags": ["action", "form", "cta", "interactive"]
+    },
+    "Input": {
+      "name": "Input",
+      "category": "primitive",
+      "description": "Campo de entrada de texto com suporte a placeholder, ícone e validação.",
+      "source": "shadcn-ui",
+      "props": {
+        "type": { "type": "enum", "required": false, "description": "Tipo do input HTML", "default": "text", "enumValues": ["text", "email", "password", "number", "url", "search", "tel"] },
+        "placeholder": { "type": "string", "required": false, "description": "Texto placeholder" },
+        "disabled": { "type": "boolean", "required": false, "description": "Desabilita o campo", "default": false },
+        "error": { "type": "boolean", "required": false, "description": "Exibe estado de erro", "default": false }
+      },
+      "slots": {
+        "icon": { "description": "Ícone no início do campo", "required": false, "acceptedComponents": ["Icon"] }
+      },
+      "variants": [
+        { "name": "default", "props": { "type": "text" } },
+        { "name": "search", "props": { "type": "search", "placeholder": "Buscar..." } },
+        { "name": "password", "props": { "type": "password", "placeholder": "••••••••" } },
+        { "name": "error", "props": { "type": "text", "error": true } }
+      ],
+      "examples": [
+        { "name": "Campo de busca", "props": { "type": "search", "placeholder": "Buscar conversas..." }, "slots": {} },
+        { "name": "Campo de email", "props": { "type": "email", "placeholder": "seu@email.com" }, "slots": {} }
+      ],
+      "tags": ["form", "input", "text", "interactive"]
+    },
+    "Textarea": {
+      "name": "Textarea",
+      "category": "primitive",
+      "description": "Campo de texto multilinha com auto-resize e limite de caracteres.",
+      "source": "shadcn-ui",
+      "props": {
+        "placeholder": { "type": "string", "required": false, "description": "Texto placeholder", "default": "Digite sua mensagem..." },
+        "rows": { "type": "number", "required": false, "description": "Número inicial de linhas", "default": 3 },
+        "maxLength": { "type": "number", "required": false, "description": "Limite máximo de caracteres" },
+        "disabled": { "type": "boolean", "required": false, "description": "Desabilita o campo", "default": false },
+        "autoResize": { "type": "boolean", "required": false, "description": "Auto-redimensiona com o conteúdo", "default": true }
+      },
+      "slots": {},
+      "variants": [
+        { "name": "chat-input", "props": { "placeholder": "Envie uma mensagem para Claude...", "rows": 1, "autoResize": true } },
+        { "name": "comment", "props": { "placeholder": "Adicione um comentário...", "rows": 3 } },
+        { "name": "code", "props": { "placeholder": "Cole seu código aqui...", "rows": 8 } }
+      ],
+      "examples": [
+        { "name": "Chat input", "props": { "placeholder": "Envie uma mensagem...", "autoResize": true }, "slots": {} }
+      ],
+      "tags": ["form", "input", "text", "chat"]
+    },
+    "Card": {
+      "name": "Card",
+      "category": "layout",
+      "description": "Container elevado para agrupar conteúdo relacionado com header, body e footer.",
+      "source": "shadcn-ui",
+      "props": {
+        "hoverable": { "type": "boolean", "required": false, "description": "Adiciona efeito hover", "default": false },
+        "padding": { "type": "enum", "required": false, "description": "Tamanho do padding interno", "default": "md", "enumValues": ["none", "sm", "md", "lg"] }
+      },
+      "slots": {
+        "header": { "description": "Cabeçalho do card com título e descrição", "required": false, "acceptedComponents": ["Badge", "Button"] },
+        "children": { "description": "Conteúdo principal do card", "required": true, "acceptedComponents": [] },
+        "footer": { "description": "Rodapé com ações", "required": false, "acceptedComponents": ["Button"] }
+      },
+      "variants": [
+        { "name": "default", "props": { "padding": "md" } },
+        { "name": "interactive", "props": { "hoverable": true, "padding": "md" } },
+        { "name": "compact", "props": { "padding": "sm" } },
+        { "name": "flush", "props": { "padding": "none" } }
+      ],
+      "examples": [
+        { "name": "Card de conversa", "props": { "hoverable": true }, "slots": { "header": "Conversa sobre React", "children": "Último acesso há 2 horas", "footer": "Continuar" } },
+        { "name": "Card de projeto", "props": { "padding": "lg" }, "slots": { "header": "Meu Projeto", "children": "12 conversas · 3 artefatos" } }
+      ],
+      "tags": ["container", "layout", "content", "surface"]
+    },
+    "Avatar": {
+      "name": "Avatar",
+      "category": "primitive",
+      "description": "Imagem de perfil circular com fallback de iniciais e indicador de status.",
+      "source": "shadcn-ui",
+      "props": {
+        "src": { "type": "string", "required": false, "description": "URL da imagem" },
+        "alt": { "type": "string", "required": false, "description": "Texto alternativo", "default": "Avatar" },
+        "fallback": { "type": "string", "required": false, "description": "Iniciais como fallback", "default": "U" },
+        "size": { "type": "enum", "required": false, "description": "Tamanho do avatar", "default": "md", "enumValues": ["xs", "sm", "md", "lg", "xl"] },
+        "status": { "type": "enum", "required": false, "description": "Indicador de status", "default": "none", "enumValues": ["none", "online", "offline", "busy", "away"] }
+      },
+      "slots": {},
+      "variants": [
+        { "name": "user", "props": { "size": "md", "fallback": "U" } },
+        { "name": "claude", "props": { "size": "md", "fallback": "C" } },
+        { "name": "small", "props": { "size": "sm" } },
+        { "name": "with-status", "props": { "size": "md", "status": "online" } }
+      ],
+      "examples": [
+        { "name": "Avatar de usuário", "props": { "fallback": "JD", "size": "md" }, "slots": {} },
+        { "name": "Avatar do Claude", "props": { "fallback": "✦", "size": "md" }, "slots": {} }
+      ],
+      "tags": ["profile", "user", "image", "identity"]
+    },
+    "Badge": {
+      "name": "Badge",
+      "category": "primitive",
+      "description": "Label pequeno para status, categorias ou contadores.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": { "type": "enum", "required": false, "description": "Estilo visual", "default": "default", "enumValues": ["default", "secondary", "destructive", "outline", "success", "warning"] },
+        "size": { "type": "enum", "required": false, "description": "Tamanho", "default": "default", "enumValues": ["default", "sm", "lg"] }
+      },
+      "slots": {
+        "children": { "description": "Texto do badge", "required": true, "acceptedComponents": [] }
+      },
+      "variants": [
+        { "name": "default", "props": { "variant": "default" } },
+        { "name": "success", "props": { "variant": "success" } },
+        { "name": "warning", "props": { "variant": "warning" } },
+        { "name": "error", "props": { "variant": "destructive" } },
+        { "name": "outline", "props": { "variant": "outline" } },
+        { "name": "counter", "props": { "variant": "secondary", "size": "sm" } }
+      ],
+      "examples": [
+        { "name": "Badge de status", "props": { "variant": "success" }, "slots": { "children": "Ativo" } },
+        { "name": "Badge de modelo", "props": { "variant": "secondary" }, "slots": { "children": "Opus 4.5" } }
+      ],
+      "tags": ["status", "label", "tag", "indicator"]
+    },
+    "Dialog": {
+      "name": "Dialog",
+      "category": "overlay",
+      "description": "Modal centrado para confirmações, formulários e conteúdo focal.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": { "type": "boolean", "required": true, "description": "Controla visibilidade", "default": false },
+        "modal": { "type": "boolean", "required": false, "description": "Bloqueia interação com o fundo", "default": true },
+        "size": { "type": "enum", "required": false, "description": "Largura do dialog", "default": "md", "enumValues": ["sm", "md", "lg", "xl", "full"] }
+      },
+      "slots": {
+        "trigger": { "description": "Elemento que abre o dialog", "required": false, "acceptedComponents": ["Button"] },
+        "header": { "description": "Título e descrição", "required": false, "acceptedComponents": [] },
+        "children": { "description": "Conteúdo do dialog", "required": true, "acceptedComponents": [] },
+        "footer": { "description": "Ações de confirmação", "required": false, "acceptedComponents": ["Button"] }
+      },
+      "variants": [
+        { "name": "confirm", "props": { "size": "sm", "modal": true } },
+        { "name": "form", "props": { "size": "md", "modal": true } },
+        { "name": "preview", "props": { "size": "lg", "modal": true } }
+      ],
+      "examples": [
+        { "name": "Confirmação de exclusão", "props": { "open": true, "size": "sm" }, "slots": { "header": "Excluir conversa?", "children": "Esta ação não pode ser desfeita.", "footer": "Confirmar" } }
+      ],
+      "tags": ["overlay", "modal", "confirm", "form"]
+    },
+    "Sheet": {
+      "name": "Sheet",
+      "category": "overlay",
+      "description": "Painel deslizante lateral para configurações, filtros ou navegação auxiliar.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": { "type": "boolean", "required": true, "description": "Controla visibilidade", "default": false },
+        "side": { "type": "enum", "required": false, "description": "Lado de abertura", "default": "right", "enumValues": ["top", "right", "bottom", "left"] },
+        "size": { "type": "enum", "required": false, "description": "Largura do sheet", "default": "md", "enumValues": ["sm", "md", "lg"] }
+      },
+      "slots": {
+        "trigger": { "description": "Elemento que abre o sheet", "required": false, "acceptedComponents": ["Button"] },
+        "header": { "description": "Cabeçalho com título", "required": false, "acceptedComponents": [] },
+        "children": { "description": "Conteúdo scrollável", "required": true, "acceptedComponents": [] },
+        "footer": { "description": "Ações fixas no rodapé", "required": false, "acceptedComponents": ["Button"] }
+      },
+      "variants": [
+        { "name": "settings", "props": { "side": "right", "size": "md" } },
+        { "name": "mobile-nav", "props": { "side": "left", "size": "sm" } },
+        { "name": "bottom-panel", "props": { "side": "bottom", "size": "lg" } }
+      ],
+      "examples": [
+        { "name": "Painel de configurações", "props": { "open": true, "side": "right" }, "slots": { "header": "Configurações", "children": "Preferências do usuário" } }
+      ],
+      "tags": ["overlay", "panel", "navigation", "settings"]
+    },
+    "Tabs": {
+      "name": "Tabs",
+      "category": "navigation",
+      "description": "Navegação por abas para alternar entre views relacionadas.",
+      "source": "shadcn-ui",
+      "props": {
+        "defaultValue": { "type": "string", "required": true, "description": "Aba ativa inicial" },
+        "orientation": { "type": "enum", "required": false, "description": "Direção das abas", "default": "horizontal", "enumValues": ["horizontal", "vertical"] }
+      },
+      "slots": {
+        "tabs": { "description": "Lista de triggers das abas", "required": true, "acceptedComponents": [] },
+        "panels": { "description": "Conteúdo de cada aba", "required": true, "acceptedComponents": [] }
+      },
+      "variants": [
+        { "name": "default", "props": { "orientation": "horizontal" } },
+        { "name": "vertical", "props": { "orientation": "vertical" } },
+        { "name": "underline", "props": { "orientation": "horizontal" } }
+      ],
+      "examples": [
+        { "name": "Abas de projeto", "props": { "defaultValue": "chat" }, "slots": { "tabs": "Chat · Artefatos · Config", "panels": "Conteúdo da aba ativa" } }
+      ],
+      "tags": ["navigation", "tabs", "view-switching"]
+    },
+    "Select": {
+      "name": "Select",
+      "category": "primitive",
+      "description": "Menu dropdown para seleção única com busca opcional.",
+      "source": "shadcn-ui",
+      "props": {
+        "placeholder": { "type": "string", "required": false, "description": "Texto quando nada selecionado", "default": "Selecione..." },
+        "disabled": { "type": "boolean", "required": false, "description": "Desabilita o select", "default": false },
+        "searchable": { "type": "boolean", "required": false, "description": "Habilita busca nas opções", "default": false }
+      },
+      "slots": {
+        "options": { "description": "Lista de opções disponíveis", "required": true, "acceptedComponents": [] }
+      },
+      "variants": [
+        { "name": "default", "props": { "placeholder": "Selecione..." } },
+        { "name": "model-picker", "props": { "placeholder": "Escolha o modelo", "searchable": true } },
+        { "name": "compact", "props": { "placeholder": "..." } }
+      ],
+      "examples": [
+        { "name": "Seletor de modelo", "props": { "placeholder": "Claude 4.5 Opus" }, "slots": { "options": "Opus · Sonnet · Haiku" } }
+      ],
+      "tags": ["form", "select", "dropdown", "picker"]
+    },
+    "Switch": {
+      "name": "Switch",
+      "category": "primitive",
+      "description": "Toggle on/off para configurações binárias.",
+      "source": "shadcn-ui",
+      "props": {
+        "checked": { "type": "boolean", "required": false, "description": "Estado do switch", "default": false },
+        "disabled": { "type": "boolean", "required": false, "description": "Desabilita o switch", "default": false },
+        "label": { "type": "string", "required": false, "description": "Label associado" }
+      },
+      "slots": {},
+      "variants": [
+        { "name": "default", "props": { "checked": false } },
+        { "name": "active", "props": { "checked": true } },
+        { "name": "with-label", "props": { "label": "Ativar recurso" } }
+      ],
+      "examples": [
+        { "name": "Toggle de feature", "props": { "label": "Modo escuro", "checked": false }, "slots": {} },
+        { "name": "Toggle ativo", "props": { "label": "Web search", "checked": true }, "slots": {} }
+      ],
+      "tags": ["form", "toggle", "settings", "boolean"]
+    },
+    "Tooltip": {
+      "name": "Tooltip",
+      "category": "overlay",
+      "description": "Dica flutuante que aparece ao passar o mouse sobre um elemento.",
+      "source": "shadcn-ui",
+      "props": {
+        "content": { "type": "string", "required": true, "description": "Texto do tooltip" },
+        "side": { "type": "enum", "required": false, "description": "Posição do tooltip", "default": "top", "enumValues": ["top", "right", "bottom", "left"] },
+        "delay": { "type": "number", "required": false, "description": "Delay em ms antes de exibir", "default": 300 }
+      },
+      "slots": {
+        "children": { "description": "Elemento que recebe o tooltip", "required": true, "acceptedComponents": ["Button", "Icon"] }
+      },
+      "variants": [
+        { "name": "instant", "props": { "delay": 0 } },
+        { "name": "default", "props": { "delay": 300 } },
+        { "name": "slow", "props": { "delay": 700 } }
+      ],
+      "examples": [
+        { "name": "Tooltip em ícone", "props": { "content": "Configurações", "side": "bottom" }, "slots": { "children": "⚙️" } }
+      ],
+      "tags": ["overlay", "hint", "help", "hover"]
+    },
+    "Separator": {
+      "name": "Separator",
+      "category": "layout",
+      "description": "Linha divisória horizontal ou vertical para separar seções.",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": { "type": "enum", "required": false, "description": "Direção do separador", "default": "horizontal", "enumValues": ["horizontal", "vertical"] },
+        "decorative": { "type": "boolean", "required": false, "description": "Se é apenas decorativo", "default": true }
+      },
+      "slots": {},
+      "variants": [
+        { "name": "horizontal", "props": { "orientation": "horizontal" } },
+        { "name": "vertical", "props": { "orientation": "vertical" } }
+      ],
+      "examples": [
+        { "name": "Divisor de seção", "props": { "orientation": "horizontal" }, "slots": {} }
+      ],
+      "tags": ["layout", "divider", "spacing"]
+    },
+    "ScrollArea": {
+      "name": "ScrollArea",
+      "category": "layout",
+      "description": "Área scrollável com scrollbar customizado e suave.",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": { "type": "enum", "required": false, "description": "Direção do scroll", "default": "vertical", "enumValues": ["vertical", "horizontal", "both"] },
+        "scrollbarSize": { "type": "enum", "required": false, "description": "Espessura da scrollbar", "default": "default", "enumValues": ["thin", "default", "thick"] }
+      },
+      "slots": {
+        "children": { "description": "Conteúdo scrollável", "required": true, "acceptedComponents": [] }
+      },
+      "variants": [
+        { "name": "sidebar", "props": { "orientation": "vertical", "scrollbarSize": "thin" } },
+        { "name": "chat", "props": { "orientation": "vertical", "scrollbarSize": "default" } },
+        { "name": "code", "props": { "orientation": "both", "scrollbarSize": "thin" } }
+      ],
+      "examples": [
+        { "name": "Lista de conversas", "props": { "orientation": "vertical" }, "slots": { "children": "Lista de itens scrollável" } }
+      ],
+      "tags": ["layout", "scroll", "overflow", "container"]
+    },
+    "Skeleton": {
+      "name": "Skeleton",
+      "category": "feedback",
+      "description": "Placeholder animado para indicar carregamento de conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "width": { "type": "string", "required": false, "description": "Largura do skeleton", "default": "100%" },
+        "height": { "type": "string", "required": false, "description": "Altura do skeleton", "default": "20px" },
+        "rounded": { "type": "enum", "required": false, "description": "Arredondamento", "default": "md", "enumValues": ["none", "sm", "md", "lg", "full"] }
+      },
+      "slots": {},
+      "variants": [
+        { "name": "text", "props": { "width": "80%", "height": "16px", "rounded": "sm" } },
+        { "name": "title", "props": { "width": "60%", "height": "24px", "rounded": "md" } },
+        { "name": "avatar", "props": { "width": "40px", "height": "40px", "rounded": "full" } },
+        { "name": "card", "props": { "width": "100%", "height": "120px", "rounded": "lg" } }
+      ],
+      "examples": [
+        { "name": "Skeleton de mensagem", "props": { "width": "70%", "height": "16px" }, "slots": {} }
+      ],
+      "tags": ["feedback", "loading", "placeholder"]
+    },
+    "DropdownMenu": {
+      "name": "DropdownMenu",
+      "category": "overlay",
+      "description": "Menu contextual com itens, separadores e sub-menus.",
+      "source": "shadcn-ui",
+      "props": {
+        "align": { "type": "enum", "required": false, "description": "Alinhamento do menu", "default": "start", "enumValues": ["start", "center", "end"] },
+        "side": { "type": "enum", "required": false, "description": "Lado de abertura", "default": "bottom", "enumValues": ["top", "right", "bottom", "left"] }
+      },
+      "slots": {
+        "trigger": { "description": "Elemento que abre o menu", "required": true, "acceptedComponents": ["Button", "Avatar"] },
+        "items": { "description": "Itens do menu", "required": true, "acceptedComponents": ["Separator"] }
+      },
+      "variants": [
+        { "name": "context", "props": { "align": "start", "side": "bottom" } },
+        { "name": "profile", "props": { "align": "end", "side": "bottom" } },
+        { "name": "action-bar", "props": { "align": "center", "side": "top" } }
+      ],
+      "examples": [
+        { "name": "Menu de conversa", "props": { "align": "end" }, "slots": { "trigger": "⋯", "items": "Renomear · Compartilhar · Excluir" } }
+      ],
+      "tags": ["overlay", "menu", "context", "actions"]
+    },
+    "Accordion": {
+      "name": "Accordion",
+      "category": "layout",
+      "description": "Seções colapsáveis para organizar conteúdo em grupos expansíveis.",
+      "source": "shadcn-ui",
+      "props": {
+        "type": { "type": "enum", "required": false, "description": "Modo de abertura", "default": "single", "enumValues": ["single", "multiple"] },
+        "collapsible": { "type": "boolean", "required": false, "description": "Permite fechar todas", "default": true }
+      },
+      "slots": {
+        "items": { "description": "Itens do accordion (trigger + content)", "required": true, "acceptedComponents": [] }
+      },
+      "variants": [
+        { "name": "single", "props": { "type": "single", "collapsible": true } },
+        { "name": "multiple", "props": { "type": "multiple" } },
+        { "name": "faq", "props": { "type": "single", "collapsible": true } }
+      ],
+      "examples": [
+        { "name": "FAQ", "props": { "type": "single" }, "slots": { "items": "Como funciona? · Quanto custa? · Posso cancelar?" } }
+      ],
+      "tags": ["layout", "collapsible", "faq", "sections"]
+    },
+    "Table": {
+      "name": "Table",
+      "category": "data",
+      "description": "Tabela de dados com header fixo, sorting e seleção de linhas.",
+      "source": "shadcn-ui",
+      "props": {
+        "striped": { "type": "boolean", "required": false, "description": "Linhas alternadas com background", "default": false },
+        "hoverable": { "type": "boolean", "required": false, "description": "Destaque no hover", "default": true },
+        "compact": { "type": "boolean", "required": false, "description": "Padding reduzido", "default": false }
+      },
+      "slots": {
+        "header": { "description": "Colunas do cabeçalho", "required": true, "acceptedComponents": [] },
+        "body": { "description": "Linhas de dados", "required": true, "acceptedComponents": ["Badge", "Button", "Avatar"] },
+        "footer": { "description": "Rodapé com totais ou paginação", "required": false, "acceptedComponents": ["Pagination"] }
+      },
+      "variants": [
+        { "name": "default", "props": { "hoverable": true } },
+        { "name": "striped", "props": { "striped": true, "hoverable": true } },
+        { "name": "compact", "props": { "compact": true, "hoverable": true } }
+      ],
+      "examples": [
+        { "name": "Tabela de conversas", "props": { "hoverable": true }, "slots": { "header": "Nome · Data · Mensagens", "body": "3 linhas de dados" } }
+      ],
+      "tags": ["data", "table", "list", "grid"]
+    },
+    "Breadcrumb": {
+      "name": "Breadcrumb",
+      "category": "navigation",
+      "description": "Trilha de navegação hierárquica indicando a localização atual.",
+      "source": "shadcn-ui",
+      "props": {
+        "separator": { "type": "string", "required": false, "description": "Caractere separador entre itens", "default": "/" },
+        "maxItems": { "type": "number", "required": false, "description": "Máximo de itens visíveis (restante colapsado)", "default": 4 }
+      },
+      "slots": {
+        "items": { "description": "Itens do breadcrumb", "required": true, "acceptedComponents": [] }
+      },
+      "variants": [
+        { "name": "default", "props": { "separator": "/" } },
+        { "name": "chevron", "props": { "separator": "›" } },
+        { "name": "collapsed", "props": { "maxItems": 3 } }
+      ],
+      "examples": [
+        { "name": "Navegação de projeto", "props": { "separator": "/" }, "slots": { "items": "Home / Projetos / Meu App / Configurações" } }
+      ],
+      "tags": ["navigation", "breadcrumb", "hierarchy", "path"]
+    },
+    "Progress": {
+      "name": "Progress",
+      "category": "feedback",
+      "description": "Barra de progresso para indicar o avanço de uma operação.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": { "type": "number", "required": true, "description": "Porcentagem de progresso (0-100)", "default": 0 },
+        "max": { "type": "number", "required": false, "description": "Valor máximo", "default": 100 },
+        "indeterminate": { "type": "boolean", "required": false, "description": "Modo indeterminado (loading)", "default": false },
+        "size": { "type": "enum", "required": false, "description": "Espessura da barra", "default": "md", "enumValues": ["sm", "md", "lg"] }
+      },
+      "slots": {},
+      "variants": [
+        { "name": "determinate", "props": { "value": 60, "size": "md" } },
+        { "name": "indeterminate", "props": { "indeterminate": true, "size": "sm" } },
+        { "name": "complete", "props": { "value": 100, "size": "md" } }
+      ],
+      "examples": [
+        { "name": "Upload progress", "props": { "value": 73, "size": "md" }, "slots": {} }
+      ],
+      "tags": ["feedback", "progress", "loading", "status"]
+    },
+    "Popover": {
+      "name": "Popover",
+      "category": "overlay",
+      "description": "Conteúdo flutuante ancorado a um elemento trigger.",
+      "source": "shadcn-ui",
+      "props": {
+        "align": { "type": "enum", "required": false, "description": "Alinhamento", "default": "center", "enumValues": ["start", "center", "end"] },
+        "side": { "type": "enum", "required": false, "description": "Lado de exibição", "default": "bottom", "enumValues": ["top", "right", "bottom", "left"] }
+      },
+      "slots": {
+        "trigger": { "description": "Elemento que abre o popover", "required": true, "acceptedComponents": ["Button"] },
+        "children": { "description": "Conteúdo do popover", "required": true, "acceptedComponents": [] }
+      },
+      "variants": [
+        { "name": "dropdown", "props": { "align": "start", "side": "bottom" } },
+        { "name": "tooltip-rich", "props": { "align": "center", "side": "top" } },
+        { "name": "picker", "props": { "align": "end", "side": "bottom" } }
+      ],
+      "examples": [
+        { "name": "Seletor de modelo", "props": { "align": "center", "side": "bottom" }, "slots": { "trigger": "Claude Opus", "children": "Lista de modelos disponíveis" } }
+      ],
+      "tags": ["overlay", "floating", "anchor", "dropdown"]
+    }
+  }
+}

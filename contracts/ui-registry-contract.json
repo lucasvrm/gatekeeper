@@ -1,0 +1,3429 @@
+{
+  "$orqui": {
+    "schema": "ui-registry-contract",
+    "version": "1.0.0",
+    "hash": "sha256:12b73291f3f5f0a8ec99e5bebb2fb0b57e40c8ab4049f25bade013089f99f639",
+    "generatedAt": "2026-02-01T23:04:04.445Z"
+  },
+  "components": {
+    "Accordion": {
+      "name": "Accordion",
+      "category": "layout",
+      "description": "Painéis verticais expansíveis para organizar conteúdo em seções colapsáveis.",
+      "source": "shadcn-ui",
+      "props": {
+        "type": {
+          "type": "enum",
+          "required": true,
+          "description": "Tipo de seleção",
+          "enumValues": [
+            "single",
+            "multiple"
+          ]
+        },
+        "collapsible": {
+          "type": "boolean",
+          "required": false,
+          "description": "Permite colapsar todos (apenas type=single)",
+          "default": false
+        },
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "AccordionItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "single",
+          "props": {
+            "type": "single",
+            "collapsible": true
+          }
+        },
+        {
+          "name": "multiple",
+          "props": {
+            "type": "multiple"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "FAQ",
+          "props": {
+            "type": "single",
+            "collapsible": true
+          },
+          "slots": {
+            "children": "AccordionItem x3"
+          }
+        }
+      ],
+      "tags": [
+        "disclosure",
+        "faq",
+        "sections"
+      ]
+    },
+    "Alert": {
+      "name": "Alert",
+      "category": "feedback",
+      "description": "Componente de feedback para exibir mensagens importantes ao usuário.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "destructive"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "icon": {
+          "description": "Ícone do alerta",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título do alerta",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição do alerta",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "variant": "default"
+          }
+        },
+        {
+          "name": "destructive",
+          "props": {
+            "variant": "destructive"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Success",
+          "props": {
+            "variant": "default"
+          },
+          "slots": {
+            "title": "Sucesso",
+            "description": "Operação concluída."
+          }
+        }
+      ],
+      "tags": [
+        "feedback",
+        "notification",
+        "message"
+      ]
+    },
+    "AlertDialog": {
+      "name": "AlertDialog",
+      "category": "feedback",
+      "description": "Modal interruptivo para confirmações críticas que requerem ação do usuário.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o diálogo",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título do diálogo",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição da ação",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "cancel": {
+          "description": "Botão de cancelar",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "action": {
+          "description": "Botão de confirmar",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Delete confirmation",
+          "props": {},
+          "slots": {
+            "title": "Tem certeza?",
+            "description": "Essa ação não pode ser desfeita.",
+            "cancel": "Cancelar",
+            "action": "Deletar"
+          }
+        }
+      ],
+      "tags": [
+        "modal",
+        "confirmation",
+        "destructive"
+      ]
+    },
+    "AspectRatio": {
+      "name": "AspectRatio",
+      "category": "layout",
+      "description": "Exibe conteúdo em uma proporção específica (aspect ratio).",
+      "source": "shadcn-ui",
+      "props": {
+        "ratio": {
+          "type": "number",
+          "required": false,
+          "description": "Proporção largura/altura",
+          "default": 1
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Conteúdo (geralmente imagem ou vídeo)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "16:9",
+          "props": {
+            "ratio": 1.7777777777777777
+          }
+        },
+        {
+          "name": "4:3",
+          "props": {
+            "ratio": 1.3333333333333333
+          }
+        },
+        {
+          "name": "1:1",
+          "props": {
+            "ratio": 1
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Video",
+          "props": {
+            "ratio": 1.7777777777777777
+          },
+          "slots": {
+            "children": "<img />"
+          }
+        }
+      ],
+      "tags": [
+        "media",
+        "image",
+        "video",
+        "proportion"
+      ]
+    },
+    "Avatar": {
+      "name": "Avatar",
+      "category": "data-display",
+      "description": "Exibição de imagem de perfil com fallback para iniciais.",
+      "source": "shadcn-ui",
+      "props": {
+        "src": {
+          "type": "string",
+          "required": false,
+          "description": "URL da imagem"
+        },
+        "alt": {
+          "type": "string",
+          "required": false,
+          "description": "Texto alternativo"
+        },
+        "fallback": {
+          "type": "string",
+          "required": true,
+          "description": "Texto de fallback (iniciais)"
+        },
+        "size": {
+          "type": "enum",
+          "required": false,
+          "description": "Tamanho",
+          "default": "md",
+          "enumValues": [
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "sm",
+          "props": {
+            "size": "sm",
+            "fallback": "LV"
+          }
+        },
+        {
+          "name": "md",
+          "props": {
+            "size": "md",
+            "fallback": "LV"
+          }
+        },
+        {
+          "name": "lg",
+          "props": {
+            "size": "lg",
+            "fallback": "LV"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "With image",
+          "props": {
+            "src": "/avatar.jpg",
+            "alt": "Lucas",
+            "fallback": "LV"
+          }
+        }
+      ],
+      "tags": [
+        "profile",
+        "user",
+        "image"
+      ]
+    },
+    "Badge": {
+      "name": "Badge",
+      "category": "data-display",
+      "description": "Label pequeno para indicar status, contagem ou categoria.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "secondary",
+            "destructive",
+            "outline"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Texto do badge",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "variant": "default"
+          }
+        },
+        {
+          "name": "secondary",
+          "props": {
+            "variant": "secondary"
+          }
+        },
+        {
+          "name": "destructive",
+          "props": {
+            "variant": "destructive"
+          }
+        },
+        {
+          "name": "outline",
+          "props": {
+            "variant": "outline"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Status",
+          "props": {
+            "variant": "default"
+          },
+          "slots": {
+            "children": "Ativo"
+          }
+        }
+      ],
+      "tags": [
+        "status",
+        "label",
+        "tag",
+        "count"
+      ]
+    },
+    "Breadcrumb": {
+      "name": "Breadcrumb",
+      "category": "navigation",
+      "description": "Caminho de navegação hierárquico mostrando a localização atual.",
+      "source": "shadcn-ui",
+      "props": {
+        "separator": {
+          "type": "ReactNode",
+          "required": false,
+          "description": "Separador entre itens"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "BreadcrumbItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {},
+          "slots": {
+            "children": "Home > Settings > Profile"
+          }
+        }
+      ],
+      "tags": [
+        "navigation",
+        "hierarchy",
+        "path"
+      ]
+    },
+    "Button": {
+      "name": "Button",
+      "category": "primitive",
+      "description": "Botão de ação padrão com múltiplas variantes visuais e tamanhos.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "destructive",
+            "outline",
+            "secondary",
+            "ghost",
+            "link"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "required": false,
+          "description": "Tamanho",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "sm",
+            "lg",
+            "icon"
+          ]
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "asChild": {
+          "type": "boolean",
+          "required": false,
+          "description": "Renderiza como filho (slot pattern)",
+          "default": false
+        },
+        "type": {
+          "type": "enum",
+          "required": false,
+          "description": "Tipo HTML do botão",
+          "default": "button",
+          "enumValues": [
+            "button",
+            "submit",
+            "reset"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Conteúdo do botão",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "icon": {
+          "description": "Ícone",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "variant": "default"
+          }
+        },
+        {
+          "name": "destructive",
+          "props": {
+            "variant": "destructive"
+          }
+        },
+        {
+          "name": "outline",
+          "props": {
+            "variant": "outline"
+          }
+        },
+        {
+          "name": "secondary",
+          "props": {
+            "variant": "secondary"
+          }
+        },
+        {
+          "name": "ghost",
+          "props": {
+            "variant": "ghost"
+          }
+        },
+        {
+          "name": "link",
+          "props": {
+            "variant": "link"
+          }
+        },
+        {
+          "name": "icon-only",
+          "props": {
+            "variant": "outline",
+            "size": "icon"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Primary",
+          "props": {
+            "variant": "default"
+          },
+          "slots": {
+            "children": "Salvar"
+          }
+        }
+      ],
+      "tags": [
+        "action",
+        "form",
+        "cta",
+        "interactive"
+      ]
+    },
+    "Calendar": {
+      "name": "Calendar",
+      "category": "form",
+      "description": "Calendário para seleção de datas.",
+      "source": "shadcn-ui",
+      "props": {
+        "mode": {
+          "type": "enum",
+          "required": false,
+          "description": "Modo de seleção",
+          "default": "single",
+          "enumValues": [
+            "single",
+            "multiple",
+            "range"
+          ]
+        },
+        "selected": {
+          "type": "object",
+          "required": false,
+          "description": "Data(s) selecionada(s)"
+        },
+        "onSelect": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao selecionar data"
+        },
+        "disabled": {
+          "type": "function",
+          "required": false,
+          "description": "Função que retorna se uma data está desabilitada"
+        },
+        "fromDate": {
+          "type": "object",
+          "required": false,
+          "description": "Data mínima permitida"
+        },
+        "toDate": {
+          "type": "object",
+          "required": false,
+          "description": "Data máxima permitida"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "single",
+          "props": {
+            "mode": "single"
+          }
+        },
+        {
+          "name": "range",
+          "props": {
+            "mode": "range"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Date picker",
+          "props": {
+            "mode": "single"
+          }
+        }
+      ],
+      "tags": [
+        "date",
+        "picker",
+        "selection",
+        "scheduling"
+      ]
+    },
+    "Card": {
+      "name": "Card",
+      "category": "layout",
+      "description": "Container para conteúdo estruturado com header, body e footer opcionais.",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "header": {
+          "description": "Cabeçalho do card (título, descrição)",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo principal",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Rodapé do card (ações)",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Dashboard card",
+          "props": {},
+          "slots": {
+            "header": "Métricas",
+            "children": "Gráfico",
+            "footer": "Ver detalhes"
+          }
+        }
+      ],
+      "tags": [
+        "container",
+        "content",
+        "group",
+        "dashboard"
+      ]
+    },
+    "Carousel": {
+      "name": "Carousel",
+      "category": "layout",
+      "description": "Componente de conteúdo deslizante (slider).",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "loop": {
+          "type": "boolean",
+          "required": false,
+          "description": "Loop infinito",
+          "default": false
+        },
+        "autoplay": {
+          "type": "boolean",
+          "required": false,
+          "description": "Autoplay",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "CarouselItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "previous": {
+          "description": "Botão anterior",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "next": {
+          "description": "Botão próximo",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Image gallery",
+          "props": {
+            "loop": true
+          },
+          "slots": {
+            "children": "3 slides"
+          }
+        }
+      ],
+      "tags": [
+        "slider",
+        "gallery",
+        "content"
+      ]
+    },
+    "Checkbox": {
+      "name": "Checkbox",
+      "category": "form",
+      "description": "Input para seleção de opções (marcar/desmarcar).",
+      "source": "shadcn-ui",
+      "props": {
+        "checked": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado marcado (controlado)"
+        },
+        "defaultChecked": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado inicial",
+          "default": false
+        },
+        "onCheckedChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "label": {
+          "description": "Label associado",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "unchecked",
+          "props": {
+            "defaultChecked": false
+          }
+        },
+        {
+          "name": "checked",
+          "props": {
+            "defaultChecked": true
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Terms",
+          "props": {
+            "required": true
+          },
+          "slots": {
+            "label": "Aceito os termos"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "selection",
+        "toggle"
+      ]
+    },
+    "Collapsible": {
+      "name": "Collapsible",
+      "category": "layout",
+      "description": "Painel de conteúdo expansível/colapsável.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento toggle",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo colapsável",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "closed",
+          "props": {
+            "defaultOpen": false
+          }
+        },
+        {
+          "name": "open",
+          "props": {
+            "defaultOpen": true
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Settings section",
+          "props": {
+            "defaultOpen": false
+          },
+          "slots": {
+            "trigger": "Avançado",
+            "children": "Opções avançadas"
+          }
+        }
+      ],
+      "tags": [
+        "disclosure",
+        "expand",
+        "collapse",
+        "toggle"
+      ]
+    },
+    "Combobox": {
+      "name": "Combobox",
+      "category": "form",
+      "description": "Campo de input com autocomplete e lista dropdown de opções.",
+      "source": "shadcn-ui",
+      "props": {
+        "options": {
+          "type": "array",
+          "required": true,
+          "description": "Lista de opções",
+          "items": {
+            "type": "object",
+            "shape": {
+              "value": "string",
+              "label": "string"
+            }
+          }
+        },
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "emptyMessage": {
+          "type": "string",
+          "required": false,
+          "description": "Mensagem quando sem resultados",
+          "default": "Nenhum resultado."
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Framework picker",
+          "props": {
+            "options": [
+              {
+                "value": "react",
+                "label": "React"
+              },
+              {
+                "value": "vue",
+                "label": "Vue"
+              }
+            ],
+            "placeholder": "Selecione..."
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "autocomplete",
+        "search",
+        "select"
+      ]
+    },
+    "Command": {
+      "name": "Command",
+      "category": "navigation",
+      "description": "Paleta de comandos / campo de busca com atalhos de teclado.",
+      "source": "shadcn-ui",
+      "props": {
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "onSelect": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao selecionar comando"
+        },
+        "filter": {
+          "type": "function",
+          "required": false,
+          "description": "Função customizada de filtro"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "CommandGroup(s) com CommandItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "placeholder": "Buscar comando..."
+          },
+          "slots": {
+            "children": "Groups + Items"
+          }
+        }
+      ],
+      "tags": [
+        "search",
+        "palette",
+        "keyboard",
+        "navigation"
+      ]
+    },
+    "ContextMenu": {
+      "name": "ContextMenu",
+      "category": "navigation",
+      "description": "Menu contextual exibido ao clicar com botão direito.",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Área que ativa o menu (botão direito)",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "ContextMenuItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "File actions",
+          "props": {},
+          "slots": {
+            "trigger": "Right-click area",
+            "children": "Edit, Copy, Delete"
+          }
+        }
+      ],
+      "tags": [
+        "menu",
+        "context",
+        "right-click",
+        "actions"
+      ]
+    },
+    "DataTable": {
+      "name": "DataTable",
+      "category": "data-display",
+      "description": "Tabela complexa com sorting, filtering, pagination e seleção.",
+      "source": "shadcn-ui",
+      "props": {
+        "columns": {
+          "type": "array",
+          "required": true,
+          "description": "Definição das colunas",
+          "items": {
+            "type": "object",
+            "shape": {
+              "id": "string",
+              "header": "string",
+              "accessorKey": "string"
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "required": true,
+          "description": "Dados da tabela"
+        },
+        "sorting": {
+          "type": "boolean",
+          "required": false,
+          "description": "Habilita sorting",
+          "default": true
+        },
+        "filtering": {
+          "type": "boolean",
+          "required": false,
+          "description": "Habilita filtering",
+          "default": true
+        },
+        "pagination": {
+          "type": "boolean",
+          "required": false,
+          "description": "Habilita paginação",
+          "default": true
+        },
+        "selection": {
+          "type": "boolean",
+          "required": false,
+          "description": "Habilita seleção de linhas",
+          "default": false
+        },
+        "pageSize": {
+          "type": "number",
+          "required": false,
+          "description": "Itens por página",
+          "default": 10
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "toolbar": {
+          "description": "Toolbar acima da tabela",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "empty": {
+          "description": "Estado vazio",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Users table",
+          "props": {
+            "columns": [
+              {
+                "id": "name",
+                "header": "Nome",
+                "accessorKey": "name"
+              }
+            ],
+            "data": [],
+            "sorting": true,
+            "pagination": true
+          }
+        }
+      ],
+      "tags": [
+        "table",
+        "data",
+        "sorting",
+        "filtering",
+        "pagination"
+      ]
+    },
+    "DatePicker": {
+      "name": "DatePicker",
+      "category": "form",
+      "description": "Campo input para seleção de datas com calendário popup.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "object",
+          "required": false,
+          "description": "Data selecionada"
+        },
+        "onChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao selecionar"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "fromDate": {
+          "type": "object",
+          "required": false,
+          "description": "Data mínima"
+        },
+        "toDate": {
+          "type": "object",
+          "required": false,
+          "description": "Data máxima"
+        },
+        "format": {
+          "type": "string",
+          "required": false,
+          "description": "Formato de exibição",
+          "default": "PPP"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "placeholder": "Selecione uma data"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "date",
+        "input",
+        "calendar"
+      ]
+    },
+    "Dialog": {
+      "name": "Dialog",
+      "category": "feedback",
+      "description": "Modal overlay para formulários e interações que requerem foco.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "modal": {
+          "type": "boolean",
+          "required": false,
+          "description": "Bloqueia interação com conteúdo abaixo",
+          "default": true
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o dialog",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo do dialog",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Ações do dialog",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Edit profile",
+          "props": {},
+          "slots": {
+            "trigger": "Editar perfil",
+            "title": "Editar perfil",
+            "children": "Form fields",
+            "footer": "Salvar"
+          }
+        }
+      ],
+      "tags": [
+        "modal",
+        "overlay",
+        "form",
+        "interactive"
+      ]
+    },
+    "Drawer": {
+      "name": "Drawer",
+      "category": "feedback",
+      "description": "Painel deslizante a partir de uma borda da tela.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "direction": {
+          "type": "enum",
+          "required": false,
+          "description": "Direção de abertura",
+          "default": "bottom",
+          "enumValues": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "shouldScaleBackground": {
+          "type": "boolean",
+          "required": false,
+          "description": "Escala o fundo",
+          "default": true
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o drawer",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Ações",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "bottom",
+          "props": {
+            "direction": "bottom"
+          }
+        },
+        {
+          "name": "right",
+          "props": {
+            "direction": "right"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Mobile menu",
+          "props": {
+            "direction": "bottom"
+          },
+          "slots": {
+            "trigger": "Menu",
+            "children": "Nav items"
+          }
+        }
+      ],
+      "tags": [
+        "panel",
+        "mobile",
+        "slide",
+        "overlay"
+      ]
+    },
+    "DropdownMenu": {
+      "name": "DropdownMenu",
+      "category": "navigation",
+      "description": "Lista de ações acionada por um botão (menu dropdown).",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Botão que abre o menu",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "DropdownMenuItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "User menu",
+          "props": {},
+          "slots": {
+            "trigger": "Opções",
+            "children": "Perfil, Config, Sair"
+          }
+        }
+      ],
+      "tags": [
+        "menu",
+        "actions",
+        "dropdown",
+        "navigation"
+      ]
+    },
+    "Form": {
+      "name": "Form",
+      "category": "form",
+      "description": "Wrapper para gerenciamento de estado e validação de formulários (react-hook-form).",
+      "source": "shadcn-ui",
+      "props": {
+        "onSubmit": {
+          "type": "function",
+          "required": true,
+          "description": "Callback ao submeter"
+        },
+        "defaultValues": {
+          "type": "object",
+          "required": false,
+          "description": "Valores iniciais"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "FormField(s) e botão submit",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Login form",
+          "props": {
+            "onSubmit": "handleSubmit"
+          },
+          "slots": {
+            "children": "Email + Password + Submit"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "validation",
+        "input",
+        "submit"
+      ]
+    },
+    "HoverCard": {
+      "name": "HoverCard",
+      "category": "data-display",
+      "description": "Overlay de informações exibido ao passar o mouse.",
+      "source": "shadcn-ui",
+      "props": {
+        "openDelay": {
+          "type": "number",
+          "required": false,
+          "description": "Delay para abrir (ms)",
+          "default": 200
+        },
+        "closeDelay": {
+          "type": "number",
+          "required": false,
+          "description": "Delay para fechar (ms)",
+          "default": 300
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que ativa o hover",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo do card",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "User preview",
+          "props": {},
+          "slots": {
+            "trigger": "@username",
+            "children": "Avatar + bio + stats"
+          }
+        }
+      ],
+      "tags": [
+        "tooltip",
+        "preview",
+        "hover",
+        "information"
+      ]
+    },
+    "Input": {
+      "name": "Input",
+      "category": "form",
+      "description": "Campo de input de texto padrão.",
+      "source": "shadcn-ui",
+      "props": {
+        "type": {
+          "type": "enum",
+          "required": false,
+          "description": "Tipo do input HTML",
+          "default": "text",
+          "enumValues": [
+            "text",
+            "email",
+            "password",
+            "number",
+            "search",
+            "tel",
+            "url",
+            "file",
+            "hidden"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao digitar"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "text",
+          "props": {
+            "type": "text",
+            "placeholder": "Digite..."
+          }
+        },
+        {
+          "name": "email",
+          "props": {
+            "type": "email",
+            "placeholder": "email@exemplo.com"
+          }
+        },
+        {
+          "name": "password",
+          "props": {
+            "type": "password"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Search",
+          "props": {
+            "type": "search",
+            "placeholder": "Buscar..."
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "text",
+        "field"
+      ]
+    },
+    "InputOTP": {
+      "name": "InputOTP",
+      "category": "form",
+      "description": "Input para códigos de verificação (OTP) com campos separados.",
+      "source": "shadcn-ui",
+      "props": {
+        "maxLength": {
+          "type": "number",
+          "required": true,
+          "description": "Quantidade de dígitos"
+        },
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "onChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao digitar"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "pattern": {
+          "type": "string",
+          "required": false,
+          "description": "Regex de validação por dígito"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "6-digit",
+          "props": {
+            "maxLength": 6
+          }
+        },
+        {
+          "name": "4-digit",
+          "props": {
+            "maxLength": 4
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Verification",
+          "props": {
+            "maxLength": 6
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "otp",
+        "verification",
+        "code",
+        "2fa"
+      ]
+    },
+    "Label": {
+      "name": "Label",
+      "category": "form",
+      "description": "Label acessível para elementos de formulário.",
+      "source": "shadcn-ui",
+      "props": {
+        "htmlFor": {
+          "type": "string",
+          "required": false,
+          "description": "ID do elemento associado"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Texto do label",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "htmlFor": "email"
+          },
+          "slots": {
+            "children": "Email"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "label",
+        "accessibility"
+      ]
+    },
+    "Menubar": {
+      "name": "Menubar",
+      "category": "navigation",
+      "description": "Barra de menu horizontal persistente (estilo desktop).",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "MenubarMenu(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "App menubar",
+          "props": {},
+          "slots": {
+            "children": "File, Edit, View, Help"
+          }
+        }
+      ],
+      "tags": [
+        "menu",
+        "bar",
+        "navigation",
+        "desktop"
+      ]
+    },
+    "NavigationMenu": {
+      "name": "NavigationMenu",
+      "category": "navigation",
+      "description": "Menu de navegação complexo com submenus e mega-menus.",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "NavigationMenuItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Main nav",
+          "props": {},
+          "slots": {
+            "children": "Products, Solutions, Resources"
+          }
+        }
+      ],
+      "tags": [
+        "navigation",
+        "menu",
+        "mega-menu",
+        "header"
+      ]
+    },
+    "Pagination": {
+      "name": "Pagination",
+      "category": "navigation",
+      "description": "Navegação entre páginas de conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "currentPage": {
+          "type": "number",
+          "required": true,
+          "description": "Página atual"
+        },
+        "totalPages": {
+          "type": "number",
+          "required": true,
+          "description": "Total de páginas"
+        },
+        "onPageChange": {
+          "type": "function",
+          "required": true,
+          "description": "Callback ao mudar página"
+        },
+        "siblingCount": {
+          "type": "number",
+          "required": false,
+          "description": "Páginas vizinhas visíveis",
+          "default": 1
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "currentPage": 1,
+            "totalPages": 10,
+            "onPageChange": "setPage"
+          }
+        }
+      ],
+      "tags": [
+        "navigation",
+        "pagination",
+        "pages"
+      ]
+    },
+    "Popover": {
+      "name": "Popover",
+      "category": "feedback",
+      "description": "Overlay flutuante de conteúdo acionado por clique.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "side": {
+          "type": "enum",
+          "required": false,
+          "description": "Lado de posicionamento",
+          "default": "bottom",
+          "enumValues": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "required": false,
+          "description": "Alinhamento",
+          "default": "center",
+          "enumValues": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o popover",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo do popover",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "bottom",
+          "props": {
+            "side": "bottom"
+          }
+        },
+        {
+          "name": "right",
+          "props": {
+            "side": "right"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Color picker",
+          "props": {},
+          "slots": {
+            "trigger": "Escolher cor",
+            "children": "Color grid"
+          }
+        }
+      ],
+      "tags": [
+        "overlay",
+        "floating",
+        "popup",
+        "content"
+      ]
+    },
+    "Progress": {
+      "name": "Progress",
+      "category": "feedback",
+      "description": "Indicador de progresso ou carregamento.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "number",
+          "required": false,
+          "description": "Valor atual (0-100)"
+        },
+        "max": {
+          "type": "number",
+          "required": false,
+          "description": "Valor máximo",
+          "default": 100
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "25%",
+          "props": {
+            "value": 25
+          }
+        },
+        {
+          "name": "75%",
+          "props": {
+            "value": 75
+          }
+        },
+        {
+          "name": "indeterminate",
+          "props": {}
+        }
+      ],
+      "examples": [
+        {
+          "name": "Upload progress",
+          "props": {
+            "value": 60,
+            "max": 100
+          }
+        }
+      ],
+      "tags": [
+        "loading",
+        "progress",
+        "indicator",
+        "bar"
+      ]
+    },
+    "RadioGroup": {
+      "name": "RadioGroup",
+      "category": "form",
+      "description": "Grupo de opções mutuamente exclusivas (selecionar uma).",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "vertical",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "RadioGroupItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        },
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Plan selection",
+          "props": {
+            "defaultValue": "free"
+          },
+          "slots": {
+            "children": "Free, Pro, Enterprise"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "radio",
+        "selection",
+        "group"
+      ]
+    },
+    "Resizable": {
+      "name": "Resizable",
+      "category": "layout",
+      "description": "Painéis redimensionáveis pelo usuário.",
+      "source": "shadcn-ui",
+      "props": {
+        "direction": {
+          "type": "enum",
+          "required": false,
+          "description": "Direção de resize",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "ResizablePanel(s) com ResizableHandle entre eles",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "direction": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "direction": "vertical"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Code editor",
+          "props": {
+            "direction": "horizontal"
+          },
+          "slots": {
+            "children": "Sidebar + Editor + Preview"
+          }
+        }
+      ],
+      "tags": [
+        "layout",
+        "resize",
+        "panels",
+        "split"
+      ]
+    },
+    "ScrollArea": {
+      "name": "ScrollArea",
+      "category": "layout",
+      "description": "Área de conteúdo com scrollbars customizados.",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação do scroll",
+          "default": "vertical",
+          "enumValues": [
+            "vertical",
+            "horizontal",
+            "both"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Conteúdo scrollável",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        },
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Long list",
+          "props": {},
+          "slots": {
+            "children": "50 items"
+          }
+        }
+      ],
+      "tags": [
+        "scroll",
+        "overflow",
+        "scrollbar",
+        "container"
+      ]
+    },
+    "Select": {
+      "name": "Select",
+      "category": "form",
+      "description": "Dropdown selector customizado.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "SelectItem(s), opcionalmente em SelectGroup(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Country picker",
+          "props": {
+            "placeholder": "País..."
+          },
+          "slots": {
+            "children": "Brasil, Portugal, EUA"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "select",
+        "dropdown",
+        "picker"
+      ]
+    },
+    "Separator": {
+      "name": "Separator",
+      "category": "layout",
+      "description": "Linha separadora visual entre seções de conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "decorative": {
+          "type": "boolean",
+          "required": false,
+          "description": "Se é puramente decorativo (acessibilidade)",
+          "default": true
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        }
+      ],
+      "examples": [],
+      "tags": [
+        "layout",
+        "divider",
+        "separator",
+        "line"
+      ]
+    },
+    "Sheet": {
+      "name": "Sheet",
+      "category": "feedback",
+      "description": "Painel lateral overlay (side panel).",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "side": {
+          "type": "enum",
+          "required": false,
+          "description": "Lado de posicionamento",
+          "default": "right",
+          "enumValues": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o sheet",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Ações",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "right",
+          "props": {
+            "side": "right"
+          }
+        },
+        {
+          "name": "left",
+          "props": {
+            "side": "left"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Settings",
+          "props": {
+            "side": "right"
+          },
+          "slots": {
+            "trigger": "⚙",
+            "title": "Configurações",
+            "children": "Form fields"
+          }
+        }
+      ],
+      "tags": [
+        "panel",
+        "side",
+        "overlay",
+        "drawer"
+      ]
+    },
+    "Sidebar": {
+      "name": "Sidebar",
+      "category": "navigation",
+      "description": "Barra lateral colapsável de navegação.",
+      "source": "shadcn-ui",
+      "props": {
+        "collapsible": {
+          "type": "enum",
+          "required": false,
+          "description": "Comportamento de colapso",
+          "default": "offcanvas",
+          "enumValues": [
+            "offcanvas",
+            "icon",
+            "none"
+          ]
+        },
+        "side": {
+          "type": "enum",
+          "required": false,
+          "description": "Lado",
+          "default": "left",
+          "enumValues": [
+            "left",
+            "right"
+          ]
+        },
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "sidebar",
+          "enumValues": [
+            "sidebar",
+            "floating",
+            "inset"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "header": {
+          "description": "Cabeçalho da sidebar",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Grupos e itens de navegação",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Rodapé da sidebar",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "rail": {
+          "description": "Rail para toggle da sidebar",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "collapsible": "offcanvas",
+            "side": "left"
+          }
+        },
+        {
+          "name": "icon-collapse",
+          "props": {
+            "collapsible": "icon"
+          }
+        },
+        {
+          "name": "floating",
+          "props": {
+            "variant": "floating"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "App sidebar",
+          "props": {
+            "collapsible": "icon"
+          },
+          "slots": {
+            "header": "Logo",
+            "children": "Nav groups",
+            "footer": "User menu"
+          }
+        }
+      ],
+      "tags": [
+        "navigation",
+        "sidebar",
+        "layout",
+        "collapsible"
+      ]
+    },
+    "Skeleton": {
+      "name": "Skeleton",
+      "category": "feedback",
+      "description": "Placeholder de carregamento que simula a forma do conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Card skeleton",
+          "props": {
+            "className": "h-[125px] w-full rounded-xl"
+          }
+        }
+      ],
+      "tags": [
+        "loading",
+        "placeholder",
+        "skeleton",
+        "shimmer"
+      ]
+    },
+    "Slider": {
+      "name": "Slider",
+      "category": "form",
+      "description": "Input para seleção de valor numérico em um range.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "array",
+          "required": false,
+          "description": "Valor(es) atual(is)"
+        },
+        "defaultValue": {
+          "type": "array",
+          "required": false,
+          "description": "Valor(es) padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "min": {
+          "type": "number",
+          "required": false,
+          "description": "Valor mínimo",
+          "default": 0
+        },
+        "max": {
+          "type": "number",
+          "required": false,
+          "description": "Valor máximo",
+          "default": 100
+        },
+        "step": {
+          "type": "number",
+          "required": false,
+          "description": "Incremento",
+          "default": 1
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "single",
+          "props": {
+            "defaultValue": [
+              50
+            ]
+          }
+        },
+        {
+          "name": "range",
+          "props": {
+            "defaultValue": [
+              25,
+              75
+            ]
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Volume",
+          "props": {
+            "defaultValue": [
+              80
+            ],
+            "min": 0,
+            "max": 100,
+            "step": 1
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "range",
+        "slider",
+        "numeric"
+      ]
+    },
+    "Sonner": {
+      "name": "Sonner",
+      "category": "feedback",
+      "description": "Sistema de notificações toast (via Sonner library).",
+      "source": "shadcn-ui",
+      "props": {
+        "position": {
+          "type": "enum",
+          "required": false,
+          "description": "Posição na tela",
+          "default": "bottom-right",
+          "enumValues": [
+            "top-left",
+            "top-center",
+            "top-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right"
+          ]
+        },
+        "expand": {
+          "type": "boolean",
+          "required": false,
+          "description": "Expandir toasts empilhados",
+          "default": false
+        },
+        "richColors": {
+          "type": "boolean",
+          "required": false,
+          "description": "Cores ricas por tipo",
+          "default": true
+        },
+        "duration": {
+          "type": "number",
+          "required": false,
+          "description": "Duração padrão (ms)",
+          "default": 4000
+        },
+        "closeButton": {
+          "type": "boolean",
+          "required": false,
+          "description": "Mostrar botão fechar",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "bottom-right",
+          "props": {
+            "position": "bottom-right"
+          }
+        },
+        {
+          "name": "top-center",
+          "props": {
+            "position": "top-center"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "position": "bottom-right",
+            "richColors": true
+          }
+        }
+      ],
+      "tags": [
+        "toast",
+        "notification",
+        "feedback",
+        "alert"
+      ]
+    },
+    "Switch": {
+      "name": "Switch",
+      "category": "form",
+      "description": "Toggle entre dois estados (on/off).",
+      "source": "shadcn-ui",
+      "props": {
+        "checked": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado (controlado)"
+        },
+        "defaultChecked": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado inicial",
+          "default": false
+        },
+        "onCheckedChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "label": {
+          "description": "Label associado",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "off",
+          "props": {
+            "defaultChecked": false
+          }
+        },
+        {
+          "name": "on",
+          "props": {
+            "defaultChecked": true
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dark mode",
+          "props": {
+            "defaultChecked": false
+          },
+          "slots": {
+            "label": "Modo escuro"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "toggle",
+        "switch",
+        "boolean"
+      ]
+    },
+    "Table": {
+      "name": "Table",
+      "category": "data-display",
+      "description": "Tabela simples para exibição de dados.",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "caption": {
+          "description": "Legenda da tabela",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "header": {
+          "description": "TableRow com TableHead(s)",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "body": {
+          "description": "TableRow(s) com TableCell(s)",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Rodapé da tabela",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Invoice table",
+          "props": {},
+          "slots": {
+            "header": "Invoice, Status, Amount",
+            "body": "3 rows"
+          }
+        }
+      ],
+      "tags": [
+        "table",
+        "data",
+        "display",
+        "rows"
+      ]
+    },
+    "Tabs": {
+      "name": "Tabs",
+      "category": "navigation",
+      "description": "Interface com abas para organização de conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "TabsTrigger(s) em TabsList + TabsContent(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Settings tabs",
+          "props": {
+            "defaultValue": "general"
+          },
+          "slots": {
+            "children": "General, Security, Notifications"
+          }
+        }
+      ],
+      "tags": [
+        "tabs",
+        "navigation",
+        "sections",
+        "organize"
+      ]
+    },
+    "Textarea": {
+      "name": "Textarea",
+      "category": "form",
+      "description": "Campo de texto multi-linha.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao digitar"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "rows": {
+          "type": "number",
+          "required": false,
+          "description": "Linhas visíveis",
+          "default": 3
+        },
+        "maxLength": {
+          "type": "number",
+          "required": false,
+          "description": "Máximo de caracteres"
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Comment",
+          "props": {
+            "placeholder": "Escreva um comentário...",
+            "rows": 4
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "text",
+        "multiline"
+      ]
+    },
+    "Toggle": {
+      "name": "Toggle",
+      "category": "primitive",
+      "description": "Botão toggle que alterna entre estados pressed/unpressed.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "outline"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "required": false,
+          "description": "Tamanho",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "sm",
+            "lg"
+          ]
+        },
+        "pressed": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado pressionado (controlado)"
+        },
+        "defaultPressed": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado inicial",
+          "default": false
+        },
+        "onPressedChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Conteúdo (ícone ou texto)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "variant": "default"
+          }
+        },
+        {
+          "name": "outline",
+          "props": {
+            "variant": "outline"
+          }
+        },
+        {
+          "name": "pressed",
+          "props": {
+            "defaultPressed": true
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Bold toggle",
+          "props": {
+            "variant": "outline"
+          },
+          "slots": {
+            "children": "B"
+          }
+        }
+      ],
+      "tags": [
+        "toggle",
+        "button",
+        "state",
+        "pressed"
+      ]
+    },
+    "Tooltip": {
+      "name": "Tooltip",
+      "category": "data-display",
+      "description": "Label popup exibido ao passar o mouse sobre um elemento.",
+      "source": "shadcn-ui",
+      "props": {
+        "content": {
+          "type": "string",
+          "required": true,
+          "description": "Texto do tooltip"
+        },
+        "side": {
+          "type": "enum",
+          "required": false,
+          "description": "Lado de posicionamento",
+          "default": "bottom",
+          "enumValues": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "required": false,
+          "description": "Alinhamento",
+          "default": "center",
+          "enumValues": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "delayDuration": {
+          "type": "number",
+          "required": false,
+          "description": "Delay para exibir (ms)",
+          "default": 200
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que ativa o tooltip",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "top",
+          "props": {
+            "content": "Tooltip",
+            "side": "top"
+          }
+        },
+        {
+          "name": "bottom",
+          "props": {
+            "content": "Tooltip",
+            "side": "bottom"
+          }
+        },
+        {
+          "name": "left",
+          "props": {
+            "content": "Tooltip",
+            "side": "left"
+          }
+        },
+        {
+          "name": "right",
+          "props": {
+            "content": "Tooltip",
+            "side": "right"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Icon tooltip",
+          "props": {
+            "content": "Adicionar item"
+          },
+          "slots": {
+            "trigger": "+"
+          }
+        }
+      ],
+      "tags": [
+        "tooltip",
+        "hint",
+        "hover",
+        "label",
+        "help"
+      ]
+    }
+  }
+}

@@ -14,7 +14,10 @@ export default tseslint.config(
       '**/.vite/**',
       '**/node_modules/**',
       '**/*.config.js',
-      'packages/*/dist/**'
+      'packages/*/dist/**',
+      '**/artifacts/**',
+      '**/*.{spec,test}.{ts,tsx,js,jsx}',
+      '**/__tests__/**'
     ]
   },
   

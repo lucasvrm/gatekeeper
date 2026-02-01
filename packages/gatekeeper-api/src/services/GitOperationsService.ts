@@ -1,5 +1,4 @@
 import { execSync } from 'child_process'
-import path from 'path'
 
 export interface GitStatusResult {
   hasChanges: boolean
@@ -42,11 +41,20 @@ export class GitOperationsService {
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe'],
       }).trim()
-    } catch (error: any) {
-      const stderr = error?.stderr?.toString?.().trim()
-      const stdout = error?.stdout?.toString?.().trim()
+    } catch (error) {
+      const execError =
+        typeof error === 'object' && error !== null
+          ? (error as {
+              stderr?: { toString?: () => string } | string
+              stdout?: { toString?: () => string } | string
+              message?: string
+            })
+          : null
+      const stderr = typeof execError?.stderr === 'string' ? execError.stderr : execError?.stderr?.toString?.()
+      const stdout = typeof execError?.stdout === 'string' ? execError.stdout : execError?.stdout?.toString?.()
       const detail = [stderr, stdout].filter(Boolean).join('\n')
-      throw new Error(detail || error.message || 'Git command failed')
+      const fallbackMessage = error instanceof Error ? error.message : execError?.message
+      throw new Error(detail || fallbackMessage || 'Git command failed')
     }
   }
 
@@ -152,8 +160,9 @@ export class GitOperationsService {
   async add(): Promise<void> {
     try {
       this.execGit('add .')
-    } catch (error: any) {
-      throw new Error(`Failed to stage changes: ${error.message}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to stage changes'
+      throw new Error(`Failed to stage changes: ${message}`)
     }
   }
 
@@ -177,8 +186,8 @@ export class GitOperationsService {
         commitHash,
         message,
       }
-    } catch (error: any) {
-      const errorMessage = error.message || 'Commit failed'
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Commit failed'
 
       // Check for common error scenarios
       if (errorMessage.includes('nothing to commit')) {
@@ -217,8 +226,8 @@ export class GitOperationsService {
         branch,
         commitHash,
       }
-    } catch (error: any) {
-      const errorMessage = error.message || 'Push failed'
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Push failed'
 
       // Check for specific error scenarios
       if (errorMessage.includes('rejected') || errorMessage.includes('non-fast-forward')) {
@@ -238,8 +247,9 @@ export class GitOperationsService {
   async pull(): Promise<void> {
     try {
       this.execGit('pull')
-    } catch (error: any) {
-      throw new Error(`Failed to pull: ${error.message}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to pull'
+      throw new Error(`Failed to pull: ${message}`)
     }
   }
 

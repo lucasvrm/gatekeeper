@@ -113,7 +113,8 @@
         "typescript": "~5.7.2",
         "typescript-eslint": "^8.53.0",
         "vite": "^7.2.6",
-        "vitest": "^4.0.17"
+        "vitest": "^4.0.17",
+        "@orqui/cli": "file:packages/orqui"
     },
     "workspaces": {
         "packages": [

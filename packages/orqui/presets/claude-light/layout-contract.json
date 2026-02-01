@@ -1,0 +1,412 @@
+{
+  "$orqui": {
+    "schema": "layout-contract",
+    "version": "1.0.0",
+    "hash": "preset-claude-light-v1",
+    "generatedAt": "2026-02-01T00:00:00.000Z"
+  },
+  "structure": {
+    "regions": {
+      "sidebar": {
+        "enabled": true,
+        "position": "left",
+        "dimensions": {
+          "width": "$tokens.sizing.sidebar-width",
+          "height": "$tokens.sizing.full-height",
+          "minWidth": "$tokens.sizing.sidebar-collapsed"
+        },
+        "padding": {
+          "top": "$tokens.spacing.md",
+          "right": "$tokens.spacing.sm",
+          "bottom": "$tokens.spacing.md",
+          "left": "$tokens.spacing.sm"
+        },
+        "containers": [
+          { "name": "brand", "description": "Logo e nome da aplicação", "order": 0 },
+          { "name": "newAction", "description": "Botão de ação principal (ex: Nova conversa)", "order": 1 },
+          { "name": "navSections", "description": "Grupos de navegação (recentes, favoritos)", "order": 2 },
+          { "name": "sidebarFooter", "description": "Perfil do usuário e configurações", "order": 3 }
+        ],
+        "behavior": {
+          "fixed": true,
+          "collapsible": true,
+          "scrollable": true,
+          "collapsedDisplay": "icon-only"
+        },
+        "navigation": {
+          "icons": { "enabled": true, "size": "$tokens.sizing.icon-md", "gap": "$tokens.spacing.xs" }
+        },
+        "collapseButton": {
+          "icon": "chevron",
+          "position": "edge-center"
+        },
+        "separators": {
+          "header": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid",
+            "extend": "full"
+          },
+          "footer": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid",
+            "extend": "full"
+          },
+          "navGroups": {
+            "enabled": false,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid",
+            "extend": "inset"
+          }
+        }
+      },
+      "header": {
+        "enabled": true,
+        "position": "top",
+        "dimensions": { "height": "$tokens.sizing.header-height" },
+        "padding": {
+          "top": "$tokens.spacing.xs",
+          "right": "$tokens.spacing.lg",
+          "bottom": "$tokens.spacing.xs",
+          "left": "$tokens.spacing.lg"
+        },
+        "containers": [
+          { "name": "headerLeft", "description": "Breadcrumbs e contexto", "order": 0 },
+          { "name": "headerCenter", "description": "Seletor de modelo ou título", "order": 1 },
+          { "name": "headerRight", "description": "Ações do usuário", "order": 2 }
+        ],
+        "behavior": { "fixed": true, "collapsible": false, "scrollable": false },
+        "separators": {
+          "bottom": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid",
+            "extend": "full"
+          }
+        }
+      },
+      "main": {
+        "enabled": true,
+        "position": "center",
+        "padding": {
+          "top": "$tokens.spacing.xl",
+          "right": "$tokens.spacing.2xl",
+          "bottom": "$tokens.spacing.xl",
+          "left": "$tokens.spacing.2xl"
+        },
+        "containers": [
+          { "name": "contentArea", "description": "Área principal de conteúdo com largura máxima centralizada", "order": 0 }
+        ],
+        "behavior": { "fixed": false, "collapsible": false, "scrollable": true }
+      },
+      "footer": {
+        "enabled": true,
+        "position": "bottom",
+        "dimensions": { "height": "$tokens.sizing.footer-height" },
+        "padding": {
+          "top": "$tokens.spacing.sm",
+          "right": "$tokens.spacing.lg",
+          "bottom": "$tokens.spacing.sm",
+          "left": "$tokens.spacing.lg"
+        },
+        "containers": [
+          { "name": "inputArea", "description": "Campo de entrada principal (ex: chat input)", "order": 0 }
+        ],
+        "behavior": { "fixed": true, "collapsible": false, "scrollable": false },
+        "separators": {
+          "top": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid",
+            "extend": "full"
+          }
+        }
+      }
+    },
+    "breadcrumbs": {
+      "enabled": true,
+      "position": "header",
+      "alignment": "left",
+      "separator": "/",
+      "clickable": true,
+      "showHome": true,
+      "homeLabel": "Home",
+      "homeRoute": "/"
+    },
+    "logo": {
+      "type": "icon-text",
+      "text": "Claude",
+      "icon": "✦",
+      "iconUrl": "",
+      "iconSize": 22,
+      "imageUrl": "",
+      "position": "sidebar",
+      "headerSlot": "left",
+      "sidebarAlign": "left",
+      "alignWithHeader": true,
+      "padding": { "top": 0, "right": 0, "bottom": 0, "left": 4 },
+      "iconGap": 10,
+      "typography": {
+        "fontFamily": "Styrene A",
+        "fontSize": 17,
+        "fontWeight": 600,
+        "color": "#1a1a1a",
+        "letterSpacing": -0.3
+      }
+    },
+    "favicon": {
+      "type": "emoji",
+      "url": "",
+      "emoji": "✦"
+    },
+    "headerElements": {
+      "search": {
+        "enabled": false,
+        "placeholder": "Buscar conversas..."
+      },
+      "cta": {
+        "enabled": true,
+        "label": "Novo chat",
+        "variant": "outline",
+        "route": "/new"
+      },
+      "icons": {
+        "enabled": true,
+        "items": [
+          { "id": "share", "route": "/share" },
+          { "id": "settings", "route": "/settings" }
+        ],
+        "gap": "12"
+      }
+    },
+    "pages": {
+      "chat": {
+        "label": "Chat",
+        "route": "/chat",
+        "icon": "💬",
+        "overrides": {}
+      },
+      "projects": {
+        "label": "Projetos",
+        "route": "/projects",
+        "icon": "📁",
+        "overrides": {
+          "headerElements": {
+            "cta": { "enabled": true, "label": "Novo projeto", "variant": "default", "route": "/projects/new" }
+          }
+        }
+      },
+      "artifacts": {
+        "label": "Artefatos",
+        "route": "/artifacts",
+        "icon": "✨",
+        "overrides": {}
+      },
+      "settings": {
+        "label": "Configurações",
+        "route": "/settings",
+        "icon": "⚙️",
+        "overrides": {
+          "headerElements": {
+            "cta": { "enabled": false }
+          }
+        }
+      }
+    }
+  },
+  "tokens": {
+    "colors": {
+      "bg": { "value": "#ffffff" },
+      "surface": { "value": "#f9f5f0" },
+      "surface-2": { "value": "#f3ede5" },
+      "surface-3": { "value": "#ebe4d9" },
+      "border": { "value": "#e8e0d4" },
+      "border-2": { "value": "#d4cbbf" },
+      "text": { "value": "#1a1a1a" },
+      "text-muted": { "value": "#6b6560" },
+      "text-dim": { "value": "#9c958e" },
+      "accent": { "value": "#d97706" },
+      "accent-dim": { "value": "#b45309" },
+      "accent-fg": { "value": "#ffffff" },
+      "danger": { "value": "#dc2626" },
+      "danger-dim": { "value": "#b91c1c" },
+      "success": { "value": "#16a34a" },
+      "success-dim": { "value": "#15803d" },
+      "warning": { "value": "#ca8a04" },
+      "warning-dim": { "value": "#a16207" },
+      "sidebar-bg": { "value": "#f5f0e8" },
+      "header-bg": { "value": "#ffffff" },
+      "input-bg": { "value": "#ffffff" },
+      "input-border": { "value": "#d4cbbf" },
+      "card-bg": { "value": "#ffffff" },
+      "card-border": { "value": "#e8e0d4" },
+      "ring": { "value": "#d9770644" },
+      "hover": { "value": "#f0e9df" },
+      "active": { "value": "#e8dfd3" },
+      "muted": { "value": "#f5f0e8" }
+    },
+    "spacing": {
+      "2xs": { "value": 2, "unit": "px" },
+      "xs": { "value": 4, "unit": "px" },
+      "sm": { "value": 8, "unit": "px" },
+      "md": { "value": 16, "unit": "px" },
+      "lg": { "value": 24, "unit": "px" },
+      "xl": { "value": 32, "unit": "px" },
+      "2xl": { "value": 48, "unit": "px" },
+      "3xl": { "value": 64, "unit": "px" }
+    },
+    "sizing": {
+      "sidebar-width": { "value": 260, "unit": "px" },
+      "sidebar-collapsed": { "value": 60, "unit": "px" },
+      "header-height": { "value": 52, "unit": "px" },
+      "footer-height": { "value": 72, "unit": "px" },
+      "full-height": { "value": 100, "unit": "vh" },
+      "content-max": { "value": 768, "unit": "px" },
+      "icon-sm": { "value": 16, "unit": "px" },
+      "icon-md": { "value": 20, "unit": "px" },
+      "icon-lg": { "value": 24, "unit": "px" },
+      "avatar": { "value": 32, "unit": "px" }
+    },
+    "borderRadius": {
+      "none": { "value": 0, "unit": "px" },
+      "sm": { "value": 4, "unit": "px" },
+      "md": { "value": 8, "unit": "px" },
+      "lg": { "value": 12, "unit": "px" },
+      "xl": { "value": 16, "unit": "px" },
+      "2xl": { "value": 24, "unit": "px" },
+      "full": { "value": 9999, "unit": "px" }
+    },
+    "borderWidth": {
+      "none": { "value": 0, "unit": "px" },
+      "thin": { "value": 1, "unit": "px" },
+      "medium": { "value": 2, "unit": "px" }
+    },
+    "fontFamilies": {
+      "primary": { "family": "Söhne", "fallbacks": ["-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "sans-serif"] },
+      "display": { "family": "Tiempos Headline", "fallbacks": ["Georgia", "Times New Roman", "serif"] },
+      "mono": { "family": "Söhne Mono", "fallbacks": ["SF Mono", "Fira Code", "Consolas", "monospace"] },
+      "ui": { "family": "Inter", "fallbacks": ["-apple-system", "BlinkMacSystemFont", "sans-serif"] }
+    },
+    "fontSizes": {
+      "2xs": { "value": 10, "unit": "px" },
+      "xs": { "value": 12, "unit": "px" },
+      "sm": { "value": 13, "unit": "px" },
+      "md": { "value": 15, "unit": "px" },
+      "lg": { "value": 17, "unit": "px" },
+      "xl": { "value": 20, "unit": "px" },
+      "2xl": { "value": 24, "unit": "px" },
+      "3xl": { "value": 30, "unit": "px" },
+      "4xl": { "value": 36, "unit": "px" }
+    },
+    "fontWeights": {
+      "light": { "value": 300 },
+      "regular": { "value": 400 },
+      "medium": { "value": 500 },
+      "semibold": { "value": 600 },
+      "bold": { "value": 700 }
+    },
+    "lineHeights": {
+      "none": { "value": 1 },
+      "tight": { "value": 1.25 },
+      "snug": { "value": 1.375 },
+      "normal": { "value": 1.5 },
+      "relaxed": { "value": 1.625 },
+      "loose": { "value": 2 }
+    },
+    "letterSpacings": {
+      "tighter": { "value": -0.04, "unit": "em" },
+      "tight": { "value": -0.02, "unit": "em" },
+      "normal": { "value": 0, "unit": "em" },
+      "wide": { "value": 0.025, "unit": "em" },
+      "wider": { "value": 0.05, "unit": "em" }
+    }
+  },
+  "textStyles": {
+    "display": {
+      "description": "Título hero ou de página principal",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.4xl",
+      "fontWeight": "$tokens.fontWeights.bold",
+      "lineHeight": "$tokens.lineHeights.tight",
+      "letterSpacing": "$tokens.letterSpacings.tighter"
+    },
+    "heading-1": {
+      "description": "Título principal de seção",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.3xl",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.tight",
+      "letterSpacing": "$tokens.letterSpacings.tight"
+    },
+    "heading-2": {
+      "description": "Subtítulo de seção",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.2xl",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.snug",
+      "letterSpacing": "$tokens.letterSpacings.tight"
+    },
+    "heading-3": {
+      "description": "Título de card ou grupo",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.lg",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.snug",
+      "letterSpacing": "$tokens.letterSpacings.normal"
+    },
+    "body": {
+      "description": "Texto de leitura principal",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.md",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.relaxed",
+      "letterSpacing": "$tokens.letterSpacings.normal"
+    },
+    "body-sm": {
+      "description": "Texto secundário e descrições",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.normal"
+    },
+    "caption": {
+      "description": "Labels, metadados e timestamps",
+      "fontFamily": "$tokens.fontFamilies.ui",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wide"
+    },
+    "code": {
+      "description": "Blocos de código e valores inline",
+      "fontFamily": "$tokens.fontFamilies.mono",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.relaxed",
+      "letterSpacing": "$tokens.letterSpacings.normal"
+    },
+    "nav-item": {
+      "description": "Itens de navegação na sidebar",
+      "fontFamily": "$tokens.fontFamilies.ui",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.normal"
+    },
+    "button": {
+      "description": "Labels de botões e CTAs",
+      "fontFamily": "$tokens.fontFamilies.ui",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.none",
+      "letterSpacing": "$tokens.letterSpacings.normal"
+    }
+  }
+}

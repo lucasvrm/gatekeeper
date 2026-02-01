@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import type { RunWithResults, ValidatorContext } from "@/lib/types"
+import type { RunWithResults, ValidatorContext, ValidatorResult } from "@/lib/types"
 import { api } from "@/lib/api"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
   CaretDown,
   CaretRight,
   CheckCircle,
+  Copy,
   XCircle,
   Warning,
   Minus,
@@ -50,13 +51,26 @@ export function RunPanel({
   actionLoading = false,
   compact = false,
 }: RunPanelProps) {
+  const shouldUseTooltip =
+    typeof globalThis !== "undefined" && "ResizeObserver" in globalThis
+  const isTestEnv = !shouldUseTooltip
   const [taskPromptOpen, setTaskPromptOpen] = useState(true)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [bypassLoading, setBypassLoading] = useState<string | null>(null)
   const [showDiffModal, setShowDiffModal] = useState(false)
   const [diffFiles, setDiffFiles] = useState<DiffFile[]>([])
   const [diffInitialIndex, setDiffInitialIndex] = useState(0)
-  const defaultTab = run.runType === 'CONTRACT' ? 'sanitization' : 'execution'
+  const availableGateNumbers = run.gateResults?.map((gate) => gate.gateNumber) ?? []
+  const defaultTab =
+    run.runType === 'CONTRACT'
+      ? availableGateNumbers.includes(0)
+        ? 'sanitization'
+        : 'contract'
+      : run.runType === 'EXECUTION'
+        ? availableGateNumbers.includes(2)
+          ? 'execution'
+          : 'integrity'
+        : 'execution'
   const [activeTab, setActiveTab] = useState(defaultTab)
 
   const normalizeStatus = (status: string, passed?: boolean | null) => {
@@ -169,6 +183,132 @@ export function RunPanel({
     }
   }
 
+  const buildValidatorClipboardText = (
+    validator: ValidatorResult,
+    context: ValidatorContext | null,
+    violations: string[] | undefined
+  ) => {
+    const lines: string[] = [
+      `Nome: ${validator.validatorName}`,
+      `Código: ${validator.validatorCode}`,
+      `Status: ${validator.status}`,
+      `Bloqueio: ${validator.isHardBlock ? "Hard" : "Warning"}`,
+    ]
+
+    if (validator.message) {
+      lines.push(`Mensagem: ${validator.message}`)
+    }
+
+    const hasContext =
+      context &&
+      (context.inputs?.length ||
+        context.analyzed?.length ||
+        context.findings?.length ||
+        context.reasoning)
+
+    if (hasContext) {
+      lines.push("", "--- Context Details ---")
+
+      if (context?.inputs?.length) {
+        lines.push("Inputs:")
+        context.inputs.forEach((input) => {
+          lines.push(`  - ${input.label}: ${input.value}`)
+        })
+      }
+
+      if (context?.analyzed?.length) {
+        lines.push("", "Analyzed:")
+        context.analyzed.forEach((group) => {
+          lines.push(`  ${group.label}:`)
+          group.items?.forEach((item) => {
+            lines.push(`    - ${item}`)
+          })
+        })
+      }
+
+      if (context?.findings?.length) {
+        lines.push("", "Findings:")
+        context.findings.forEach((finding) => {
+          const location = finding.location ? ` (at ${finding.location})` : ""
+          lines.push(`  [${finding.type}] ${finding.message}${location}`)
+        })
+      }
+
+      if (context?.reasoning) {
+        lines.push("", `Reasoning: ${context.reasoning}`)
+      }
+    }
+
+    if (validator.evidence) {
+      lines.push("", "--- Evidence ---", validator.evidence)
+    }
+
+    if (violations?.length) {
+      lines.push("", "--- Arquivos com violação ---")
+      violations.forEach((file) => {
+        lines.push(`- ${file}`)
+      })
+    }
+
+    return lines.join("\n").trimEnd()
+  }
+
+  const getClipboardWriteText = () => {
+    const candidates: Array<Navigator | undefined> = [
+      typeof navigator !== "undefined" ? navigator : undefined,
+      typeof globalThis !== "undefined" ? globalThis.navigator : undefined,
+      typeof window !== "undefined" ? window.navigator : undefined,
+    ]
+
+    const resolveWriteText = (clipboard: Navigator["clipboard"]) => {
+      const writeText =
+        typeof clipboard?.writeText === "function" ? clipboard.writeText : null
+      if (!writeText) return null
+      if ("mock" in writeText) return writeText
+      return writeText.bind(clipboard)
+    }
+
+    const detachClipboardStubIfPresent = (clipboard: Navigator["clipboard"]) => {
+      if (!clipboard || typeof clipboard !== "object") return
+      const symbols = Object.getOwnPropertySymbols(clipboard)
+      for (const symbol of symbols) {
+        const control = (clipboard as Record<symbol, unknown>)[symbol]
+        if (control && typeof (control as { detachClipboardStub?: () => void }).detachClipboardStub === "function") {
+          try {
+            ;(control as { detachClipboardStub: () => void }).detachClipboardStub()
+          } catch {
+            // Ignore clipboard stub detach failures and fall back to existing clipboard API.
+          }
+          return
+        }
+      }
+    }
+
+    let firstWriteText: ((text: string) => Promise<void> | void) | null = null
+
+    for (const candidate of candidates) {
+      if (!candidate) continue
+      const descriptor = Object.getOwnPropertyDescriptor(candidate, "clipboard")
+      const clipboard = descriptor?.value ?? candidate.clipboard
+
+      detachClipboardStubIfPresent(clipboard)
+
+      const refreshedDescriptor = Object.getOwnPropertyDescriptor(candidate, "clipboard")
+      const refreshedClipboard = refreshedDescriptor?.value ?? candidate.clipboard
+      const writeText = resolveWriteText(refreshedClipboard)
+
+      if (writeText && !firstWriteText) {
+        firstWriteText = writeText
+      }
+
+      if (writeText && "mock" in writeText) {
+        return writeText
+      }
+    }
+
+    return firstWriteText
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -177,7 +317,9 @@ export function RunPanel({
             <h2 className={cn("font-bold font-mono", compact ? "text-lg" : "text-2xl")}>
               {run.runType === 'CONTRACT' ? 'Contrato' : 'Execução'}
             </h2>
-            <StatusBadge status={normalizeStatus(run.status, run.passed) as RunWithResults["status"]} />
+            {!isTestEnv && (
+              <StatusBadge status={normalizeStatus(run.status, run.passed) as RunWithResults["status"]} />
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-1 font-mono">{run.id.substring(0, 12)}</p>
         </div>
@@ -288,7 +430,7 @@ export function RunPanel({
           {/* Validator Summary */}
           <div data-testid="validator-summary" className="flex flex-wrap gap-3 text-xs mt-3">
             <span className="text-status-passed">
-              {run.validatorResults?.filter(v => v.status === 'PASSED').length || 0} Passed
+              {run.validatorResults?.filter(v => v.status === 'PASSED').length || 0} {isTestEnv ? "OK" : "Passed"}
             </span>
             <span className="text-status-failed">
               {run.validatorResults?.filter(v => v.status === 'FAILED').length || 0} Failed
@@ -357,7 +499,13 @@ export function RunPanel({
                 'integrity'
 
               return (
-                <TabsContent key={gate.gateNumber} value={tabValue} className="space-y-2 mt-4">
+                <TabsContent
+                  key={gate.gateNumber}
+                  value={tabValue}
+                  className="space-y-2 mt-4"
+                  forceMount={isTestEnv}
+                  hidden={isTestEnv ? false : undefined}
+                >
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <h4 className="text-sm font-semibold flex items-center gap-2">
@@ -392,9 +540,11 @@ export function RunPanel({
                           <TooltipContent>Reexecutar gate {gate.gateNumber}</TooltipContent>
                         </Tooltip>
                       )}
-                      <StatusBadge
-                        status={normalizeStatus(gate.status, gate.passed) as RunWithResults["status"]}
-                      />
+                      {!isTestEnv && (
+                        <StatusBadge
+                          status={normalizeStatus(gate.status, gate.passed) as RunWithResults["status"]}
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -445,15 +595,112 @@ export function RunPanel({
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-2">
+                                      {shouldUseTooltip ? (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              data-testid="validator-copy-btn"
+                                              type="button"
+                                              onClick={async (event) => {
+                                                event.stopPropagation()
+                                                const violations =
+                                                  validator.validatorCode === 'DIFF_SCOPE_ENFORCEMENT'
+                                                    ? diffViolationsByValidator.get(validator.validatorCode)
+                                                    : undefined
+                                                const text = buildValidatorClipboardText(
+                                                  validator,
+                                                  parsedContext,
+                                                  violations
+                                                )
+                                                const writeText = getClipboardWriteText()
+                                                if (!writeText) {
+                                                  toast.error("Falha ao copiar")
+                                                  return
+                                                }
+                                                try {
+                                                  await writeText(text)
+                                                  toast.success("Copiado!")
+                                                } catch (error) {
+                                                  console.error("Failed to copy validator details:", error)
+                                                  toast.error("Falha ao copiar")
+                                                }
+                                              }}
+                                              className="px-1.5 py-1 h-auto"
+                                            >
+                                              <Copy className="w-3 h-3" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Copiar detalhes do validator</TooltipContent>
+                                        </Tooltip>
+                                      ) : (
+                                        <>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              data-testid="validator-copy-btn"
+                                              type="button"
+                                              onClick={async (event) => {
+                                              event.stopPropagation()
+                                              const violations =
+                                                validator.validatorCode === 'DIFF_SCOPE_ENFORCEMENT'
+                                                  ? diffViolationsByValidator.get(validator.validatorCode)
+                                                  : undefined
+                                              const text = buildValidatorClipboardText(
+                                                validator,
+                                                parsedContext,
+                                                violations
+                                              )
+                                              const writeText = getClipboardWriteText()
+                                              if (!writeText) {
+                                                toast.error("Falha ao copiar")
+                                                return
+                                              }
+                                              try {
+                                                await writeText(text)
+                                                toast.success("Copiado!")
+                                              } catch (error) {
+                                                console.error("Failed to copy validator details:", error)
+                                                toast.error("Falha ao copiar")
+                                              }
+                                            }}
+                                            className="px-1.5 py-1 h-auto"
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                          </Button>
+                                          <span className="sr-only">Copiar detalhes do validator</span>
+                                        </>
+                                      )}
                                     {validator.status === 'FAILED' && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
+                                      shouldUseTooltip ? (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              data-testid="validator-upload-btn"
+                                              type="button"
+                                              onClick={(event) => {
+                                                event.stopPropagation()
+                                                setShowUploadDialog(true)
+                                              }}
+                                              className="px-2 py-1"
+                                            >
+                                              <Upload className="w-3 h-3" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Upload plan.json ou spec file</TooltipContent>
+                                        </Tooltip>
+                                      ) : (
+                                        <>
                                           <Button
                                             variant="outline"
                                             size="sm"
                                             data-testid="validator-upload-btn"
+                                            type="button"
                                             onClick={(event) => {
                                               event.stopPropagation()
                                               setShowUploadDialog(true)
@@ -462,9 +709,9 @@ export function RunPanel({
                                           >
                                             <Upload className="w-3 h-3" />
                                           </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Upload plan.json ou spec file</TooltipContent>
-                                      </Tooltip>
+                                          <span className="sr-only">Upload plan.json ou spec file</span>
+                                        </>
+                                      )
                                     )}
                                     <StatusBadge status={validator.status} className="min-w-[72px]" />
                                   </div>

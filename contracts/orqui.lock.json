@@ -1,0 +1,14 @@
+{
+  "contracts": {
+    "layout-contract": {
+      "version": "1.0.0",
+      "hash": "sha256:e72d8d305ce74714402f7e38ab03bfa98ecc5bb997b7ecf5df33b4175b57d4b6",
+      "updatedAt": "2026-02-01T23:04:04.451Z"
+    },
+    "ui-registry-contract": {
+      "version": "1.0.0",
+      "hash": "sha256:12b73291f3f5f0a8ec99e5bebb2fb0b57e40c8ab4049f25bade013089f99f639",
+      "updatedAt": "2026-02-01T23:04:04.462Z"
+    }
+  }
+}

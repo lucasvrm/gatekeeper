@@ -1,0 +1,299 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://orqui.dev/schemas/ui-registry-contract/v1.0.0",
+  "title": "Orqui UI Registry Contract",
+  "description": "Contrato canônico que define o catálogo de componentes de UI. Fonte da verdade gerada pelo Orqui.",
+  "type": "object",
+  "required": ["$orqui", "components"],
+  "additionalProperties": false,
+  "properties": {
+    "$orqui": {
+      "type": "object",
+      "description": "Metadados do contrato Orqui",
+      "required": ["schema", "version", "hash", "generatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "ui-registry-contract"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "SHA-256 do conteúdo canonicalizado. Algoritmo: (1) remover campo $orqui, (2) ordenar chaves recursivamente, (3) JSON.stringify sem whitespace, (4) SHA-256 hex."
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+
+    "components": {
+      "type": "object",
+      "description": "Mapa de componentes registrados. Chave = identificador PascalCase.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Z][a-zA-Z0-9]*$": {
+          "$ref": "#/$defs/componentDefinition"
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "componentDefinition": {
+      "type": "object",
+      "description": "Definição completa de um componente de UI",
+      "required": ["name", "category", "description", "props", "examples"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][a-zA-Z0-9]*$",
+          "description": "Nome do componente em PascalCase"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["primitive", "semantic", "layout", "feedback", "navigation", "data-display", "form"],
+          "description": "Categoria do componente"
+        },
+        "description": {
+          "type": "string",
+          "description": "Descrição do propósito e uso do componente"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["shadcn-ui", "custom", "html-native"],
+          "default": "custom",
+          "description": "Origem do componente"
+        },
+        "props": {
+          "type": "object",
+          "description": "Mapa de props do componente. Chave = camelCase.",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z][a-zA-Z0-9]*$": {
+              "$ref": "#/$defs/propDefinition"
+            }
+          }
+        },
+        "slots": {
+          "type": "object",
+          "description": "Slots de composição do componente (children, header, footer, etc.). São pontos onde outros componentes ou conteúdo podem ser inseridos. Não confundir com 'containers' do Layout Contract.",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z][a-zA-Z0-9]*$": {
+              "$ref": "#/$defs/slotDefinition"
+            }
+          }
+        },
+        "variants": {
+          "type": "array",
+          "description": "Combinações nomeadas de props para uso rápido. NOTA: a validação de que os valores de props aqui são compatíveis com o schema de props do componente é responsabilidade do Orqui na geração, não do JSON Schema estático.",
+          "items": { "$ref": "#/$defs/variant" }
+        },
+        "examples": {
+          "type": "array",
+          "description": "Exemplos de uso do componente. Obrigatório ao menos 1. NOTA: mesma política de validação dos variants — o Orqui valida compatibilidade com props na geração.",
+          "items": { "$ref": "#/$defs/example" },
+          "minItems": 1
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags para busca e categorização",
+          "items": { "type": "string" }
+        }
+      }
+    },
+
+    "propDefinition": {
+      "type": "object",
+      "description": "Definição de uma prop. 100% explícita, sem ambiguidade.",
+      "required": ["type", "required", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "enum", "ReactNode", "function", "object", "array"],
+          "description": "Tipo da prop"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Se a prop é obrigatória"
+        },
+        "description": {
+          "type": "string",
+          "description": "Descrição do propósito da prop"
+        },
+        "default": {
+          "description": "Valor padrão (quando não required)"
+        },
+        "enumValues": {
+          "type": "array",
+          "description": "Valores possíveis. Obrigatório quando type='enum'.",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "items": {
+          "$ref": "#/$defs/propShape",
+          "description": "Schema dos itens quando type='array'. Obrigatório para arrays."
+        },
+        "shape": {
+          "type": "object",
+          "description": "Schema das propriedades quando type='object'. Obrigatório para objects. Chave = nome da propriedade.",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-zA-Z][a-zA-Z0-9]*$": {
+              "$ref": "#/$defs/propShape"
+            }
+          }
+        },
+        "constraints": {
+          "$ref": "#/$defs/propConstraints"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "enum" } } },
+          "then": { "required": ["type", "required", "description", "enumValues"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "array" } } },
+          "then": { "required": ["type", "required", "description", "items"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "object" } } },
+          "then": { "required": ["type", "required", "description", "shape"] }
+        }
+      ]
+    },
+
+    "propShape": {
+      "type": "object",
+      "description": "Schema de uma propriedade dentro de um object ou item de array. Recursivo para estruturas aninhadas.",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "enum", "object", "array"],
+          "description": "Tipo do campo"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": "string"
+        },
+        "enumValues": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "items": {
+          "$ref": "#/$defs/propShape",
+          "description": "Schema dos itens quando type='array'"
+        },
+        "shape": {
+          "type": "object",
+          "description": "Schema das propriedades quando type='object'",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-zA-Z][a-zA-Z0-9]*$": {
+              "$ref": "#/$defs/propShape"
+            }
+          }
+        }
+      }
+    },
+
+    "propConstraints": {
+      "type": "object",
+      "description": "Restrições adicionais sobre o valor da prop",
+      "additionalProperties": false,
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "minLength": { "type": "integer" },
+        "maxLength": { "type": "integer" },
+        "pattern": { "type": "string", "description": "Regex para validação de string" }
+      }
+    },
+
+    "slotDefinition": {
+      "type": "object",
+      "description": "Um slot de composição do componente — ponto onde conteúdo filho é inserido",
+      "required": ["description", "required"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "acceptedComponents": {
+          "type": "array",
+          "description": "Componentes aceitos neste slot (PascalCase). Array vazio = qualquer componente aceito.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][a-zA-Z0-9]*$"
+          }
+        }
+      }
+    },
+
+    "variant": {
+      "type": "object",
+      "description": "Combinação nomeada de props (preset)",
+      "required": ["name", "props"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome da variante (ex: 'destructive', 'outline', 'ghost')"
+        },
+        "description": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object",
+          "description": "Valores de props. Validação contra o schema de props do componente é feita pelo Orqui na geração.",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "example": {
+      "type": "object",
+      "description": "Exemplo de uso do componente",
+      "required": ["name", "props"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome descritivo do exemplo"
+        },
+        "description": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object",
+          "description": "Valores de props. Validação contra o schema de props do componente é feita pelo Orqui na geração.",
+          "additionalProperties": true
+        },
+        "slots": {
+          "type": "object",
+          "description": "Conteúdo dos slots para este exemplo",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

@@ -93,12 +93,13 @@ export class GitController {
       if (!gitService) return
       const status = await gitService.getStatus()
       res.json(status)
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to check git status'
       console.error('Git status error:', error)
       res.status(500).json({
         error: {
           code: 'STATUS_CHECK_FAILED',
-          message: error.message || 'Failed to check git status',
+          message,
         },
       })
     }
@@ -114,12 +115,13 @@ export class GitController {
       if (!gitService) return
       await gitService.add()
       res.json({ success: true })
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to stage changes'
       console.error('Git add error:', error)
       res.status(500).json({
         error: {
           code: 'ADD_FAILED',
-          message: error.message || 'Failed to stage changes',
+          message,
         },
       })
     }
@@ -190,8 +192,8 @@ export class GitController {
                 committedAt = ${committedAt.toISOString()}
             WHERE id = ${runId}
           `
-        } catch (error: any) {
-          const messageText = error?.message || ''
+        } catch (error) {
+          const messageText = error instanceof Error ? error.message : ''
           const needsColumns =
             messageText.includes('no such column') ||
             messageText.includes('Unknown column') ||
@@ -209,7 +211,7 @@ export class GitController {
                     committedAt = ${committedAt.toISOString()}
                 WHERE id = ${runId}
               `
-            } catch (columnError: any) {
+            } catch (columnError) {
               console.error('Failed to update commit fields after adding columns:', columnError)
             }
           } else {
@@ -218,16 +220,21 @@ export class GitController {
         }
       }
       res.json(result)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Git commit error:', error)
 
-      if (error.code) {
-        res.status(400).json({ error })
+      const errorWithCode =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? (error as { code?: string; message?: string })
+          : null
+      if (errorWithCode?.code) {
+        res.status(400).json({ error: errorWithCode })
       } else {
+        const message = error instanceof Error ? error.message : 'Failed to commit changes'
         res.status(500).json({
           error: {
             code: 'COMMIT_FAILED',
-            message: error.message || 'Failed to commit changes',
+            message,
           },
         })
       }
@@ -244,17 +251,23 @@ export class GitController {
       if (!gitService) return
       const result = await gitService.push()
       res.json(result)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Git push error:', error)
+      const errorWithCode =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? (error as { code?: string; message?: string })
+          : null
 
-      if (error.code) {
-        const statusCode = error.code === 'REMOTE_AHEAD' ? 409 : error.code === 'PERMISSION_DENIED' ? 403 : 500
-        res.status(statusCode).json({ error })
+      if (errorWithCode?.code) {
+        const statusCode =
+          errorWithCode.code === 'REMOTE_AHEAD' ? 409 : errorWithCode.code === 'PERMISSION_DENIED' ? 403 : 500
+        res.status(statusCode).json({ error: errorWithCode })
       } else {
+        const message = error instanceof Error ? error.message : 'Failed to push changes'
         res.status(500).json({
           error: {
             code: 'PUSH_FAILED',
-            message: error.message || 'Failed to push changes',
+            message,
           },
         })
       }
@@ -271,12 +284,13 @@ export class GitController {
       if (!gitService) return
       await gitService.pull()
       res.json({ success: true })
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to pull changes'
       console.error('Git pull error:', error)
       res.status(500).json({
         error: {
           code: 'PULL_FAILED',
-          message: error.message || 'Failed to pull changes',
+          message,
         },
       })
     }
@@ -292,12 +306,13 @@ export class GitController {
       if (!gitService) return
       const result = await gitService.getBranchInfo()
       res.json(result)
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to get branch info'
       console.error('Git branch error:', error)
       res.status(500).json({
         error: {
           code: 'BRANCH_CHECK_FAILED',
-          message: error.message || 'Failed to get branch info',
+          message,
         },
       })
     }
@@ -345,12 +360,13 @@ export class GitController {
       if (!gitService) return
       const result = await gitService.getFileDiff(file, baseRef, targetRef)
       res.json(result)
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to get diff'
       console.error('Git diff error:', error)
       res.status(500).json({
         error: {
           code: 'DIFF_FAILED',
-          message: error.message || 'Failed to get diff',
+          message,
         },
       })
     }
@@ -366,12 +382,13 @@ export class GitController {
       if (!gitService) return
       const result = await gitService.fetchStatus()
       res.json(result)
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch and check status'
       console.error('Git fetch/status error:', error)
       res.status(500).json({
         error: {
           code: 'FETCH_STATUS_FAILED',
-          message: error.message || 'Failed to fetch and check status',
+          message,
         },
       })
     }

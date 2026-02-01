@@ -27,5 +27,9 @@
   },
   "include": [
     "vitest.setup.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "artifacts"
   ]
 }

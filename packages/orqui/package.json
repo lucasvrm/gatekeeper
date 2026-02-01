@@ -1,0 +1,37 @@
+{
+  "name": "@orqui/cli",
+  "version": "0.1.0",
+  "description": "Orqui — UI Layout Designer. Contract-driven design system governance.",
+  "type": "module",
+  "bin": {
+    "orqui": "./bin/orqui.js"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./vite": "./src/vite-plugin.js",
+    "./runtime": "./src/runtime.tsx"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "keywords": [
+    "orqui",
+    "design-system",
+    "contracts",
+    "layout",
+    "ui-registry",
+    "vite-plugin"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

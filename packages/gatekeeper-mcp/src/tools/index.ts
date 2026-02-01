@@ -3,7 +3,7 @@
  * Exports all tool definitions and handlers
  */
 
-import type { Tool, CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js'
+import type { Tool, TextContent } from '@modelcontextprotocol/sdk/types.js'
 import type { GatekeeperClient } from '../client/GatekeeperClient.js'
 import type { Config } from '../config.js'
 import { projectTools, handleProjectTool } from './projects.tools.js'

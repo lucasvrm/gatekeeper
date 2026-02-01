@@ -1,0 +1,757 @@
+{
+  "$orqui": {
+    "schema": "layout-contract",
+    "version": "1.0.0",
+    "hash": "sha256:e72d8d305ce74714402f7e38ab03bfa98ecc5bb997b7ecf5df33b4175b57d4b6",
+    "generatedAt": "2026-02-01T23:04:04.444Z"
+  },
+  "structure": {
+    "regions": {
+      "sidebar": {
+        "enabled": true,
+        "position": "left",
+        "dimensions": {
+          "width": "$tokens.sizing.sidebar-width",
+          "height": "$tokens.sizing.full-height",
+          "minWidth": "$tokens.sizing.sidebar-min"
+        },
+        "padding": {
+          "top": "$tokens.spacing.md",
+          "right": "$tokens.spacing.sm",
+          "bottom": "$tokens.spacing.md",
+          "left": "$tokens.spacing.sm"
+        },
+        "containers": [
+          {
+            "name": "brand",
+            "description": "Logo e nome da aplicação",
+            "order": 0,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.spacing.xs",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.spacing.xs"
+            }
+          },
+          {
+            "name": "search",
+            "description": "Campo de busca global",
+            "order": 1,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.spacing.xs",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.spacing.xs"
+            }
+          },
+          {
+            "name": "navigation",
+            "description": "Links de navegação principal",
+            "order": 2,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.spacing.xs",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.spacing.xs"
+            }
+          },
+          {
+            "name": "sidebarFooter",
+            "description": "Perfil do usuário e ações de conta",
+            "order": 3,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.spacing.xs",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.spacing.xs"
+            }
+          }
+        ],
+        "behavior": {
+          "fixed": true,
+          "collapsible": true,
+          "scrollable": true,
+          "collapsedDisplay": "icon-only"
+        },
+        "navigation": {
+          "icons": {
+            "enabled": true,
+            "size": "$tokens.sizing.icon-md",
+            "gap": "$tokens.spacing.sm"
+          }
+        },
+        "collapseButton": {
+          "icon": "chevron",
+          "position": "header-end",
+          "size": "$tokens.sizing.icon-md"
+        },
+        "separators": {
+          "header": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          },
+          "footer": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          },
+          "navGroups": {
+            "enabled": false,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          }
+        }
+      },
+      "header": {
+        "enabled": true,
+        "position": "top",
+        "dimensions": {
+          "height": "$tokens.sizing.header-height"
+        },
+        "padding": {
+          "top": "$tokens.spacing.sm",
+          "right": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.sm",
+          "left": "$tokens.spacing.xl"
+        },
+        "containers": [
+          {
+            "name": "breadcrumb",
+            "description": "Navegação hierárquica da página atual",
+            "order": 0
+          },
+          {
+            "name": "pageTitle",
+            "description": "Título e descrição da página",
+            "order": 1
+          },
+          {
+            "name": "actions",
+            "description": "Ações contextuais (botões, filtros, busca)",
+            "order": 2
+          },
+          {
+            "name": "userMenu",
+            "description": "Avatar, notificações, menu do usuário",
+            "order": 3
+          }
+        ],
+        "behavior": {
+          "fixed": true,
+          "collapsible": false,
+          "scrollable": false
+        },
+        "separators": {
+          "bottom": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          }
+        }
+      },
+      "main": {
+        "enabled": true,
+        "position": "center",
+        "dimensions": {
+          "maxWidth": "$tokens.sizing.content-max-width"
+        },
+        "padding": {
+          "top": "$tokens.spacing.xl",
+          "right": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.2xl",
+          "left": "$tokens.spacing.xl"
+        },
+        "containers": [
+          {
+            "name": "alerts",
+            "description": "Alertas e notificações de sistema",
+            "order": 0
+          },
+          {
+            "name": "content",
+            "description": "Conteúdo principal da página",
+            "order": 1
+          }
+        ],
+        "behavior": {
+          "fixed": false,
+          "collapsible": false,
+          "scrollable": true
+        }
+      },
+      "footer": {
+        "enabled": true,
+        "position": "bottom",
+        "dimensions": {
+          "height": "$tokens.sizing.footer-height"
+        },
+        "padding": {
+          "top": "$tokens.spacing.sm",
+          "right": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.sm",
+          "left": "$tokens.spacing.xl"
+        },
+        "containers": [
+          {
+            "name": "status",
+            "description": "Status do sistema e versão",
+            "order": 0
+          },
+          {
+            "name": "links",
+            "description": "Links de suporte e documentação",
+            "order": 1
+          }
+        ],
+        "behavior": {
+          "fixed": false,
+          "collapsible": false,
+          "scrollable": false
+        },
+        "separators": {
+          "top": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          }
+        }
+      }
+    },
+    "breadcrumbs": {
+      "enabled": true,
+      "position": "header",
+      "alignment": "left",
+      "separator": "/",
+      "clickable": true
+    },
+    "logo": {
+      "type": "text",
+      "text": "App",
+      "icon": "⬡",
+      "iconUrl": "",
+      "imageUrl": "",
+      "position": "sidebar",
+      "headerSlot": "left",
+      "sidebarAlign": "left",
+      "alignWithHeader": false,
+      "padding": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "iconGap": 8,
+      "typography": {
+        "fontFamily": "",
+        "fontSize": 16,
+        "fontWeight": 700,
+        "color": "",
+        "letterSpacing": 0
+      }
+    }
+  },
+  "tokens": {
+    "spacing": {
+      "2xs": {
+        "value": 2,
+        "unit": "px"
+      },
+      "xs": {
+        "value": 4,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 8,
+        "unit": "px"
+      },
+      "md": {
+        "value": 16,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 24,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 32,
+        "unit": "px"
+      },
+      "2xl": {
+        "value": 48,
+        "unit": "px"
+      },
+      "3xl": {
+        "value": 64,
+        "unit": "px"
+      }
+    },
+    "sizing": {
+      "sidebar-width": {
+        "value": 260,
+        "unit": "px"
+      },
+      "sidebar-min": {
+        "value": 200,
+        "unit": "px"
+      },
+      "sidebar-collapsed": {
+        "value": 64,
+        "unit": "px"
+      },
+      "header-height": {
+        "value": 56,
+        "unit": "px"
+      },
+      "footer-height": {
+        "value": 40,
+        "unit": "px"
+      },
+      "full-height": {
+        "value": 100,
+        "unit": "vh"
+      },
+      "content-max-width": {
+        "value": 1200,
+        "unit": "px"
+      },
+      "dialog-sm": {
+        "value": 400,
+        "unit": "px"
+      },
+      "dialog-md": {
+        "value": 560,
+        "unit": "px"
+      },
+      "dialog-lg": {
+        "value": 720,
+        "unit": "px"
+      },
+      "sheet-width": {
+        "value": 380,
+        "unit": "px"
+      },
+      "drawer-height": {
+        "value": 320,
+        "unit": "px"
+      },
+      "popover-width": {
+        "value": 280,
+        "unit": "px"
+      },
+      "command-width": {
+        "value": 480,
+        "unit": "px"
+      },
+      "avatar-sm": {
+        "value": 24,
+        "unit": "px"
+      },
+      "avatar-md": {
+        "value": 36,
+        "unit": "px"
+      },
+      "avatar-lg": {
+        "value": 48,
+        "unit": "px"
+      },
+      "icon-sm": {
+        "value": 14,
+        "unit": "px"
+      },
+      "icon-md": {
+        "value": 18,
+        "unit": "px"
+      },
+      "icon-lg": {
+        "value": 24,
+        "unit": "px"
+      },
+      "input-height": {
+        "value": 36,
+        "unit": "px"
+      },
+      "input-height-sm": {
+        "value": 28,
+        "unit": "px"
+      },
+      "input-height-lg": {
+        "value": 44,
+        "unit": "px"
+      }
+    },
+    "fontFamilies": {
+      "primary": {
+        "family": "Inter",
+        "fallbacks": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif"
+        ]
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "fallbacks": [
+          "SF Mono",
+          "Fira Code",
+          "Cascadia Code",
+          "monospace"
+        ]
+      },
+      "display": {
+        "family": "Inter",
+        "fallbacks": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "sans-serif"
+        ]
+      }
+    },
+    "fontSizes": {
+      "2xs": {
+        "value": 10,
+        "unit": "px"
+      },
+      "xs": {
+        "value": 11,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 13,
+        "unit": "px"
+      },
+      "md": {
+        "value": 14,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 16,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 18,
+        "unit": "px"
+      },
+      "2xl": {
+        "value": 22,
+        "unit": "px"
+      },
+      "3xl": {
+        "value": 28,
+        "unit": "px"
+      },
+      "4xl": {
+        "value": 36,
+        "unit": "px"
+      },
+      "5xl": {
+        "value": 48,
+        "unit": "px"
+      }
+    },
+    "fontWeights": {
+      "regular": {
+        "value": 400
+      },
+      "medium": {
+        "value": 500
+      },
+      "semibold": {
+        "value": 600
+      },
+      "bold": {
+        "value": 700
+      }
+    },
+    "lineHeights": {
+      "none": {
+        "value": 1
+      },
+      "tight": {
+        "value": 1.2
+      },
+      "snug": {
+        "value": 1.35
+      },
+      "normal": {
+        "value": 1.5
+      },
+      "relaxed": {
+        "value": 1.7
+      }
+    },
+    "letterSpacings": {
+      "tighter": {
+        "value": -0.03,
+        "unit": "em"
+      },
+      "tight": {
+        "value": -0.015,
+        "unit": "em"
+      },
+      "normal": {
+        "value": 0,
+        "unit": "em"
+      },
+      "wide": {
+        "value": 0.025,
+        "unit": "em"
+      },
+      "wider": {
+        "value": 0.05,
+        "unit": "em"
+      }
+    },
+    "colors": {
+      "bg": {
+        "value": "#0a0a0b"
+      },
+      "surface": {
+        "value": "#141417"
+      },
+      "surface-2": {
+        "value": "#1c1c21"
+      },
+      "surface-3": {
+        "value": "#24242b"
+      },
+      "border": {
+        "value": "#2a2a33"
+      },
+      "border-2": {
+        "value": "#3a3a45"
+      },
+      "text": {
+        "value": "#e4e4e7"
+      },
+      "text-muted": {
+        "value": "#8b8b96"
+      },
+      "text-dim": {
+        "value": "#5b5b66"
+      },
+      "accent": {
+        "value": "#6d9cff"
+      },
+      "accent-dim": {
+        "value": "#4a7adf"
+      },
+      "accent-fg": {
+        "value": "#ffffff"
+      },
+      "danger": {
+        "value": "#ff6b6b"
+      },
+      "danger-dim": {
+        "value": "#cc5555"
+      },
+      "success": {
+        "value": "#4ade80"
+      },
+      "success-dim": {
+        "value": "#22c55e"
+      },
+      "warning": {
+        "value": "#fbbf24"
+      },
+      "warning-dim": {
+        "value": "#d4a017"
+      },
+      "sidebar-bg": {
+        "value": "#111114"
+      },
+      "header-bg": {
+        "value": "#0a0a0b"
+      },
+      "input-bg": {
+        "value": "#1c1c21"
+      },
+      "input-border": {
+        "value": "#2a2a33"
+      },
+      "card-bg": {
+        "value": "#141417"
+      },
+      "card-border": {
+        "value": "#2a2a33"
+      },
+      "ring": {
+        "value": "#6d9cff44"
+      }
+    },
+    "borderRadius": {
+      "none": {
+        "value": 0,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 4,
+        "unit": "px"
+      },
+      "md": {
+        "value": 6,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 8,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 12,
+        "unit": "px"
+      },
+      "full": {
+        "value": 9999,
+        "unit": "px"
+      }
+    },
+    "borderWidth": {
+      "none": {
+        "value": 0,
+        "unit": "px"
+      },
+      "thin": {
+        "value": 1,
+        "unit": "px"
+      },
+      "medium": {
+        "value": 2,
+        "unit": "px"
+      }
+    }
+  },
+  "textStyles": {
+    "display-1": {
+      "description": "Hero / display heading, usado em landing pages e estados vazios",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.5xl",
+      "fontWeight": "$tokens.fontWeights.bold",
+      "lineHeight": "$tokens.lineHeights.none",
+      "letterSpacing": "$tokens.letterSpacings.tighter"
+    },
+    "heading-1": {
+      "description": "Título principal de página",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.3xl",
+      "fontWeight": "$tokens.fontWeights.bold",
+      "lineHeight": "$tokens.lineHeights.tight",
+      "letterSpacing": "$tokens.letterSpacings.tight"
+    },
+    "heading-2": {
+      "description": "Título de seção",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.2xl",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.tight",
+      "letterSpacing": "$tokens.letterSpacings.tight"
+    },
+    "heading-3": {
+      "description": "Título de card ou grupo",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.lg",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "heading-4": {
+      "description": "Subtítulo ou label de grupo",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.md",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "body": {
+      "description": "Texto padrão de conteúdo",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.md",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "body-lg": {
+      "description": "Texto de leitura, parágrafos longos",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.lg",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.relaxed"
+    },
+    "body-sm": {
+      "description": "Texto secundário, descrições curtas",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "caption": {
+      "description": "Labels, metadados, timestamps",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wide"
+    },
+    "overline": {
+      "description": "Texto acima de títulos, categorias em caps",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.2xs",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wider"
+    },
+    "code": {
+      "description": "Código inline e blocos de código",
+      "fontFamily": "$tokens.fontFamilies.mono",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.relaxed"
+    },
+    "code-sm": {
+      "description": "Código em contextos compactos (badges, tags)",
+      "fontFamily": "$tokens.fontFamilies.mono",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "ui-label": {
+      "description": "Labels de formulário e controles de UI",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.none"
+    },
+    "ui-button": {
+      "description": "Texto em botões",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.none"
+    },
+    "nav-item": {
+      "description": "Itens de navegação em sidebar e menus",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "table-header": {
+      "description": "Cabeçalhos de tabela e data table",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wide"
+    },
+    "table-cell": {
+      "description": "Células de tabela",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    }
+  }
+}

@@ -4,7 +4,6 @@
  */
 
 import * as fs from 'fs'
-import * as path from 'path'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import type { ToolContext, ToolResult } from './index.js'
 
