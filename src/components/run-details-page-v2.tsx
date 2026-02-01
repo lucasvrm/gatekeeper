@@ -33,6 +33,7 @@ import {
   CheckCircle,
   Clock,
   Minus,
+  Play,
   Trash,
   Upload,
   Warning,
@@ -180,6 +181,7 @@ export function RunDetailsPageV2() {
   const [hoveredUploadGate, setHoveredUploadGate] = useState<number | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+  const [executionLoading, setExecutionLoading] = useState(false)
 
   const contractRun =
     primaryRun?.runType === "CONTRACT" ? primaryRun : secondaryRun?.runType === "CONTRACT" ? secondaryRun : null
@@ -360,6 +362,13 @@ export function RunDetailsPageV2() {
     [validatorsByGate]
   )
 
+  const canStartExecution = useMemo(() => {
+    if (!contractRun) return false
+    const gate0 = contractRun.gateResults?.find((gate) => gate.gateNumber === 0)
+    const gate1 = contractRun.gateResults?.find((gate) => gate.gateNumber === 1)
+    return gate0?.status === "PASSED" && gate1?.status === "PASSED" && !executionRun
+  }, [contractRun, executionRun])
+
   const progressPercentage = useMemo(() => {
     if (unifiedValidators.length === 0) return 0
     const passedCount = unifiedValidators.filter((v) => v.status === "PASSED").length
@@ -392,6 +401,41 @@ export function RunDetailsPageV2() {
     } catch (error) {
       console.error("Failed to rerun gate:", error)
       toast.error("Failed to rerun gate")
+    }
+  }
+
+  const handleStartExecution = async () => {
+    if (!contractRun) return
+    if (!contractRun.projectId) {
+      toast.error("Contract run does not have a projectId. Cannot start execution.")
+      return
+    }
+    if (!contractRun.taskPrompt) {
+      toast.error("Contract run does not have a taskPrompt. Cannot start execution.")
+      return
+    }
+
+    setExecutionLoading(true)
+    try {
+      const manifest = JSON.parse(contractRun.manifestJson)
+      const response = await api.runs.create({
+        outputId: contractRun.outputId,
+        taskPrompt: contractRun.taskPrompt,
+        manifest,
+        dangerMode: contractRun.dangerMode,
+        runType: "EXECUTION",
+        contractRunId: contractRun.id,
+        projectId: contractRun.projectId,
+      })
+
+      toast.success("Execution run started")
+      const executionData = await api.runs.getWithResults(response.runId)
+      setSecondaryRun(executionData)
+    } catch (error) {
+      console.error("Failed to start execution run:", error)
+      toast.error("Failed to start execution run")
+    } finally {
+      setExecutionLoading(false)
     }
   }
 
@@ -693,6 +737,16 @@ export function RunDetailsPageV2() {
               </div>
               {executionRun ? (
                 <p className="text-xs text-muted-foreground">{executionRun.id.slice(0, 8)}</p>
+              ) : canStartExecution ? (
+                <Button
+                  size="sm"
+                  onClick={handleStartExecution}
+                  disabled={executionLoading}
+                  className="w-full justify-center"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  {executionLoading ? "..." : "Execução"}
+                </Button>
               ) : (
                 <p className="text-xs text-muted-foreground">Aguardando execução</p>
               )}
