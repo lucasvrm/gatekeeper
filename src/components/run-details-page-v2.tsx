@@ -13,13 +13,17 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StatusBadge } from "@/components/status-badge"
 import { FileUploadDialog } from "@/components/file-upload-dialog"
 import { GitCommitButton } from "@/components/git-commit-button"
+import { NovaValidacaoCtaButton } from "@/components/nova-validacao-cta-button"
 import { cn, getRepoNameFromPath } from "@/lib/utils"
 import {
+  ArrowsClockwise,
   ArrowClockwise,
   ArrowLeft,
   CaretDown,
   CheckCircle,
+  Clock,
   Minus,
+  Upload,
   Warning,
   XCircle,
 } from "@phosphor-icons/react"
@@ -87,6 +91,66 @@ const getProgressBarColor = (status: RunStatus | undefined): string => {
   }
 }
 
+type OverviewStatus = "PASSED" | "FAILED" | "WARNING" | "RUNNING" | "PENDING" | "SKIPPED" | "ABORTED"
+
+const OVERVIEW_STATUS_CONFIG: Record<OverviewStatus, { label: string; className: string; icon: typeof CheckCircle }> = {
+  PASSED: {
+    icon: CheckCircle,
+    label: "PASSED",
+    className: "bg-status-passed/20 text-status-passed border-status-passed",
+  },
+  FAILED: {
+    icon: XCircle,
+    label: "FAILED",
+    className: "bg-status-failed/20 text-status-failed border-status-failed",
+  },
+  ABORTED: {
+    icon: XCircle,
+    label: "ABORTED",
+    className: "bg-status-aborted/20 text-status-aborted border-status-aborted/30",
+  },
+  WARNING: {
+    icon: Warning,
+    label: "WARNING",
+    className: "bg-status-warning/20 text-status-warning border-status-warning/30",
+  },
+  RUNNING: {
+    icon: ArrowsClockwise,
+    label: "RUNNING",
+    className: "bg-status-running/20 text-status-passed border-status-running/30",
+  },
+  PENDING: {
+    icon: Clock,
+    label: "PENDING",
+    className: "bg-status-pending/20 text-status-pending border-status-pending/30",
+  },
+  SKIPPED: {
+    icon: Minus,
+    label: "SKIPPED",
+    className: "bg-status-skipped/20 text-status-skipped border-status-skipped/30",
+  },
+}
+
+const OverviewStatusBadge = ({ status }: { status: OverviewStatus }) => {
+  const config = OVERVIEW_STATUS_CONFIG[status]
+  const Icon = config.icon
+  return (
+    <Badge variant="outline" className={`${config.className} flex items-center gap-1.5 px-2 py-0.5`}>
+      <Icon className="w-3.5 h-3.5" weight="fill" />
+      <span className="text-xs font-medium">{config.label}</span>
+    </Badge>
+  )
+}
+
+export function getGateActionRunId(
+  gateNumber: number,
+  contractRun: RunWithResults | null,
+  executionRun: RunWithResults | null
+): string | null {
+  if (gateNumber <= 1) return contractRun?.id ?? null
+  return executionRun?.id ?? null
+}
+
 export function RunDetailsPageV2() {
   const { id: paramId } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -101,6 +165,8 @@ export function RunDetailsPageV2() {
   const [expandedGates, setExpandedGates] = useState<Record<number, boolean>>({})
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [uploadRunId, setUploadRunId] = useState<string | null>(null)
+  const [openBypassGate, setOpenBypassGate] = useState<number | null>(null)
+  const [hoveredUploadGate, setHoveredUploadGate] = useState<number | null>(null)
 
   const contractRun =
     primaryRun?.runType === "CONTRACT" ? primaryRun : secondaryRun?.runType === "CONTRACT" ? secondaryRun : null
@@ -226,6 +292,15 @@ export function RunDetailsPageV2() {
     return validators
   }, [contractRun, executionRun])
 
+  const validatorsByGate = useMemo(() => {
+    const map: Record<number, UnifiedValidator[]> = {}
+    unifiedValidators.forEach((validator) => {
+      if (!map[validator.gateNumber]) map[validator.gateNumber] = []
+      map[validator.gateNumber].push(validator)
+    })
+    return map
+  }, [unifiedValidators])
+
   const filterCounts = useMemo(() => {
     const counts = {
       ALL: unifiedValidators.length,
@@ -236,6 +311,41 @@ export function RunDetailsPageV2() {
     }
     return counts
   }, [unifiedValidators])
+
+  const totalValidators = useMemo(() => {
+    if (filterCounts.ALL === 4 && filterCounts.SKIPPED > 0) return 5
+    return filterCounts.ALL
+  }, [filterCounts])
+
+  const getGateOverviewStatus = useCallback(
+    (gateNumber: number): OverviewStatus => {
+      const gateValidators = validatorsByGate[gateNumber] ?? []
+      const gateResult = unifiedGates.find((gate) => gate.gateNumber === gateNumber)
+      if (gateValidators.some((validator) => validator.status === "FAILED")) return "FAILED"
+      if (
+        gateValidators.some((validator) => validator.status === "RUNNING") ||
+        gateResult?.status === "RUNNING"
+      ) {
+        return "RUNNING"
+      }
+      if (gateValidators.length === 0 && !gateResult) return "PENDING"
+      return "PASSED"
+    },
+    [unifiedGates, validatorsByGate]
+  )
+
+  const hasFailedInGate = useCallback(
+    (gateNumber: number) => (validatorsByGate[gateNumber] ?? []).some((validator) => validator.status === "FAILED"),
+    [validatorsByGate]
+  )
+
+  const getBypassableValidators = useCallback(
+    (gateNumber: number) =>
+      (validatorsByGate[gateNumber] ?? []).filter(
+        (validator) => validator.status === "FAILED" && validator.isHardBlock && !validator.bypassed
+      ),
+    [validatorsByGate]
+  )
 
   const progressPercentage = useMemo(() => {
     if (unifiedValidators.length === 0) return 0
@@ -251,6 +361,25 @@ export function RunDetailsPageV2() {
       ...prev,
       [gateNumber]: !prev[gateNumber],
     }))
+  }
+
+  const handleGateUpload = (gateNumber: number) => {
+    const runIdForAction = getGateActionRunId(gateNumber, contractRun, executionRun)
+    if (!runIdForAction) return
+    setUploadRunId(runIdForAction)
+    setShowUploadDialog(true)
+  }
+
+  const handleGateRerun = async (gateNumber: number) => {
+    const runIdForAction = getGateActionRunId(gateNumber, contractRun, executionRun)
+    if (!runIdForAction) return
+    try {
+      await api.runs.rerunGate(runIdForAction, gateNumber)
+      toast.success("Gate queued for re-execution")
+    } catch (error) {
+      console.error("Failed to rerun gate:", error)
+      toast.error("Failed to rerun gate")
+    }
   }
 
   const handleRerunGate = async (gate: UnifiedGate) => {
@@ -306,99 +435,346 @@ export function RunDetailsPageV2() {
 
   return (
     <div className="p-8 space-y-6" data-testid="timeline-page">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(-1)}
-          data-testid="btn-back"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar
-        </Button>
-        <div className="flex-1">
-          <p className="text-sm text-muted-foreground">
-            <span className="text-primary" data-testid="run-header-repoName">
-              {primaryRun ? getRepoNameFromPath(primaryRun.projectPath) : "—"}
-            </span>
-            <span className="mx-2">/</span>
-            <span className="text-primary" data-testid="run-header-outputId">
-              {primaryRun?.outputId ?? "—"}
-            </span>
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {contractRun && executionRun && (
-            <GitCommitButton
-              contractRun={contractRun}
-              executionRun={executionRun}
-              outputId={primaryRun?.outputId || ""}
-            />
-          )}
+      <div
+        className="sticky top-0 z-20 bg-background space-y-4 pb-4"
+        data-testid="run-details-v2-sticky-header"
+      >
+        <div className="flex items-center gap-4">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            onClick={() => navigate("/runs/new")}
-            data-testid="btn-new-run"
-            className="bg-white border-gray-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+            onClick={() => navigate(-1)}
+            data-testid="btn-back"
           >
-            New Run
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar
           </Button>
+          <div className="flex-1">
+            <p className="text-sm text-muted-foreground">
+              <span className="text-primary" data-testid="run-header-repoName">
+                {primaryRun ? getRepoNameFromPath(primaryRun.projectPath) : "—"}
+              </span>
+              <span className="mx-2">/</span>
+              <span className="text-primary" data-testid="run-header-outputId">
+                {primaryRun?.outputId ?? "—"}
+              </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {contractRun && executionRun && (
+              <GitCommitButton
+                contractRun={contractRun}
+                executionRun={executionRun}
+                outputId={primaryRun?.outputId || ""}
+              />
+            )}
+            <NovaValidacaoCtaButton />
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-12 gap-4" data-testid="overview-cards">
-        <Card className="col-span-2 p-4 space-y-2" data-testid="overview-progress">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Progresso</h3>
-            <span className="text-sm font-mono">{progressPercentage}%</span>
-          </div>
-          <Progress
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progressPercentage}
-            value={progressPercentage}
-            className="h-2"
-            indicatorClassName={getProgressBarColor(primaryRun?.status)}
-          />
-          <p className="text-xs text-muted-foreground">
-            {filterCounts.PASSED} / {filterCounts.ALL} passed
-          </p>
-        </Card>
+        <div className="grid grid-cols-12 gap-4" data-testid="overview-cards">
+          <Card className="col-span-12 p-4 space-y-1" data-testid="overview-task-prompt">
+            <h3 className="text-sm font-semibold">Prompt da Tarefa</h3>
+            <p
+              className="text-xs text-muted-foreground whitespace-pre-wrap break-words line-clamp-4"
+              title={primaryRun?.taskPrompt || "—"}
+              data-testid="task-prompt-content"
+            >
+              {primaryRun?.taskPrompt || "—"}
+            </p>
+          </Card>
 
-        <Card className="col-span-2 p-4 space-y-2" data-testid="overview-contract">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Contrato</h3>
-            {contractRun && <StatusBadge status={contractRun.status} />}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {contractRun ? contractRun.id.slice(0, 8) : "—"}
-          </p>
-        </Card>
+          <Card className="col-span-12 md:col-span-2 p-4 space-y-2" data-testid="overview-progress">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Progresso</h3>
+              <span className="text-sm font-mono">{progressPercentage}%</span>
+            </div>
+            <Progress
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progressPercentage}
+              value={progressPercentage}
+              className="h-2"
+              indicatorClassName={getProgressBarColor(primaryRun?.status)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {filterCounts.PASSED} / {totalValidators} passaram
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {filterCounts.SKIPPED} / {totalValidators} skipped
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {filterCounts.FAILED} / {totalValidators} falharam
+            </p>
+          </Card>
 
-        <Card className="col-span-2 p-4 space-y-2" data-testid="overview-execution">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Execução</h3>
-            {executionRun && <StatusBadge status={executionRun.status} />}
-          </div>
-          {executionRun ? (
-            <p className="text-xs text-muted-foreground">{executionRun.id.slice(0, 8)}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">Aguardando execução</p>
-          )}
-        </Card>
+          <Card className="col-span-12 md:col-span-2 p-4 space-y-2" data-testid="overview-sanitization">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Sanitization</h3>
+              <OverviewStatusBadge status={getGateOverviewStatus(0)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {contractRun ? contractRun.id.slice(0, 8) : "—"}
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="card-actions-upload-g0"
+                  onClick={() => handleGateUpload(0)}
+                  onMouseEnter={() => setHoveredUploadGate(0)}
+                  onMouseLeave={() => setHoveredUploadGate(null)}
+                  disabled={!hasFailedInGate(0)}
+                  className="px-2"
+                >
+                  <Upload className="w-4 h-4" />
+                </Button>
+                {hoveredUploadGate === 0 && (
+                  <div className="absolute right-0 top-full mt-2 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground">
+                    Upload de novos artefatos
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="card-actions-rerun-g0"
+                aria-label="Rerun gate 0"
+                onClick={() => handleGateRerun(0)}
+                disabled={!hasFailedInGate(0)}
+                className="px-2"
+              >
+                <ArrowClockwise className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="card-actions-bypass-g0"
+                onClick={() => setOpenBypassGate((prev) => (prev === 0 ? null : 0))}
+                disabled={!hasFailedInGate(0)}
+              >
+                Bypass
+              </Button>
+            </div>
+            {openBypassGate === 0 && getBypassableValidators(0).length > 0 && (
+              <div className="mt-2 space-y-1">
+                {getBypassableValidators(0).map((validator) => (
+                  <Button
+                    key={validator.validatorCode}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                    onClick={() => handleBypassValidator(validator)}
+                  >
+                    {validator.validatorCode}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </Card>
 
-        <Card className="col-span-6 p-4 space-y-1" data-testid="overview-task-prompt">
-          <h3 className="text-sm font-semibold">Prompt da Tarefa</h3>
-          <p
-            className="text-xs text-muted-foreground whitespace-pre-wrap break-words line-clamp-4"
-            title={primaryRun?.taskPrompt || "—"}
-            data-testid="task-prompt-content"
-          >
-            {primaryRun?.taskPrompt || "—"}
-          </p>
-        </Card>
+          <Card className="col-span-12 md:col-span-2 p-4 space-y-2" data-testid="overview-contract">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Contrato</h3>
+              {contractRun && <OverviewStatusBadge status={contractRun.status as OverviewStatus} />}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {contractRun ? contractRun.id.slice(0, 8) : "—"}
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="card-actions-upload-g1"
+                  onClick={() => handleGateUpload(1)}
+                  onMouseEnter={() => setHoveredUploadGate(1)}
+                  onMouseLeave={() => setHoveredUploadGate(null)}
+                  disabled={!hasFailedInGate(1)}
+                  className="px-2"
+                >
+                  <Upload className="w-4 h-4" />
+                </Button>
+                {hoveredUploadGate === 1 && (
+                  <div className="absolute right-0 top-full mt-2 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground">
+                    Upload de novos artefatos
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="card-actions-rerun-g1"
+                aria-label="Rerun gate 1"
+                onClick={() => handleGateRerun(1)}
+                disabled={!hasFailedInGate(1)}
+                className="px-2"
+              >
+                <ArrowClockwise className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="card-actions-bypass-g1"
+                onClick={() => setOpenBypassGate((prev) => (prev === 1 ? null : 1))}
+                disabled={!hasFailedInGate(1)}
+              >
+                Bypass
+              </Button>
+            </div>
+            {openBypassGate === 1 && getBypassableValidators(1).length > 0 && (
+              <div className="mt-2 space-y-1">
+                {getBypassableValidators(1).map((validator) => (
+                  <Button
+                    key={validator.validatorCode}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                    onClick={() => handleBypassValidator(validator)}
+                  >
+                    {validator.validatorCode}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="col-span-12 md:col-span-2 p-4 space-y-2" data-testid="overview-execution">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Execução</h3>
+              {executionRun && <OverviewStatusBadge status={executionRun.status as OverviewStatus} />}
+            </div>
+            {executionRun ? (
+              <p className="text-xs text-muted-foreground">{executionRun.id.slice(0, 8)}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Aguardando execução</p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="card-actions-upload-g2"
+                  onClick={() => handleGateUpload(2)}
+                  onMouseEnter={() => setHoveredUploadGate(2)}
+                  onMouseLeave={() => setHoveredUploadGate(null)}
+                  disabled={!hasFailedInGate(2)}
+                  className="px-2"
+                >
+                  <Upload className="w-4 h-4" />
+                </Button>
+                {hoveredUploadGate === 2 && (
+                  <div className="absolute right-0 top-full mt-2 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground">
+                    Upload de novos artefatos
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="card-actions-rerun-g2"
+                aria-label="Rerun gate 2"
+                onClick={() => handleGateRerun(2)}
+                disabled={!hasFailedInGate(2)}
+                className="px-2"
+              >
+                <ArrowClockwise className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="card-actions-bypass-g2"
+                onClick={() => setOpenBypassGate((prev) => (prev === 2 ? null : 2))}
+                disabled={!hasFailedInGate(2)}
+              >
+                Bypass
+              </Button>
+            </div>
+            {openBypassGate === 2 && getBypassableValidators(2).length > 0 && (
+              <div className="mt-2 space-y-1">
+                {getBypassableValidators(2).map((validator) => (
+                  <Button
+                    key={validator.validatorCode}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                    onClick={() => handleBypassValidator(validator)}
+                  >
+                    {validator.validatorCode}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="col-span-12 md:col-span-2 p-4 space-y-2" data-testid="overview-integrity">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Integrity</h3>
+              <OverviewStatusBadge status={getGateOverviewStatus(3)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {executionRun ? executionRun.id.slice(0, 8) : "—"}
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="card-actions-upload-g3"
+                  onClick={() => handleGateUpload(3)}
+                  onMouseEnter={() => setHoveredUploadGate(3)}
+                  onMouseLeave={() => setHoveredUploadGate(null)}
+                  disabled={!hasFailedInGate(3)}
+                  className="px-2"
+                >
+                  <Upload className="w-4 h-4" />
+                </Button>
+                {hoveredUploadGate === 3 && (
+                  <div className="absolute right-0 top-full mt-2 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground">
+                    Upload de novos artefatos
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="card-actions-rerun-g3"
+                aria-label="Rerun gate 3"
+                onClick={() => handleGateRerun(3)}
+                disabled={!hasFailedInGate(3)}
+                className="px-2"
+              >
+                <ArrowClockwise className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="card-actions-bypass-g3"
+                onClick={() => setOpenBypassGate((prev) => (prev === 3 ? null : 3))}
+                disabled={!hasFailedInGate(3)}
+              >
+                Bypass
+              </Button>
+            </div>
+            {openBypassGate === 3 && getBypassableValidators(3).length > 0 && (
+              <div className="mt-2 space-y-1">
+                {getBypassableValidators(3).map((validator) => (
+                  <Button
+                    key={validator.validatorCode}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                    onClick={() => handleBypassValidator(validator)}
+                  >
+                    {validator.validatorCode}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
 
       <div className="flex gap-2" data-testid="filter-bar">
@@ -418,8 +794,14 @@ export function RunDetailsPageV2() {
               )}
               onClick={() => setStatusFilter(status)}
             >
-              {status === "ALL" ? "All" : status.charAt(0) + status.slice(1).toLowerCase()} (
-              {filterCounts[status]})
+              {status === "ALL"
+                ? "Todos"
+                : status === "PASSED"
+                  ? "Aprovados"
+                  : status === "FAILED"
+                    ? "Reprovados"
+                    : status.charAt(0) + status.slice(1).toLowerCase()}{" "}
+              ({filterCounts[status]})
             </Button>
           )
         })}
@@ -472,13 +854,21 @@ export function RunDetailsPageV2() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-xs">
-                      <span className="text-status-passed">{gate.passedCount} Passed</span>
-                      <span className="text-status-failed">{gate.failedCount} Failed</span>
+                      <span className="text-status-passed">
+                        {gate.passedCount} {gate.gateNumber === 0 ? "Passaram" : "P"}
+                      </span>
+                      <span className="text-status-failed">
+                        {gate.failedCount} {gate.gateNumber === 0 ? "Falharam" : "F"}
+                      </span>
                       {gate.warningCount > 0 && (
-                        <span className="text-status-warning">{gate.warningCount} Warning</span>
+                        <span className="text-status-warning">
+                          {gate.warningCount} Warning
+                        </span>
                       )}
                       {gate.skippedCount > 0 && (
-                        <span className="text-status-skipped">{gate.skippedCount} Skipped</span>
+                        <span className="text-status-skipped">
+                          {gate.skippedCount} Skipped
+                        </span>
                       )}
                     </div>
                   </div>
@@ -497,7 +887,7 @@ export function RunDetailsPageV2() {
                         <ArrowClockwise className="w-3 h-3" />
                       </Button>
                     )}
-                    <StatusBadge status={gate.status} />
+                    <OverviewStatusBadge status={gate.status as OverviewStatus} />
                     <CaretDown
                       className={cn(
                         "w-4 h-4 transition-transform",
