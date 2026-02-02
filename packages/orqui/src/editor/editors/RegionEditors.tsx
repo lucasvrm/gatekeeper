@@ -4,13 +4,14 @@ import { resolveToken, resolveTokenNum } from "../lib/utils";
 import { Field, Row, Section, WBSub, EmptyState, ColorInput } from "../components/shared";
 import { TokenRefSelect } from "./ColorTokenEditor";
 import { PhosphorIconSelect } from "../components/PhosphorIcons";
+import { SeparatorEditor } from "./ContentLayoutEditor";
 
 // ============================================================================
 // Container Editor
 // ============================================================================
-export function ContainerEditor({ containers, onChange }) {
+export function ContainerEditor({ containers, onChange, isHeader = false }) {
   const add = () => {
-    onChange([...containers, { name: `container${containers.length}`, description: "", order: containers.length, padding: { top: "$tokens.spacing.xs", right: "$tokens.spacing.xs", bottom: "$tokens.spacing.xs", left: "$tokens.spacing.xs" } }]);
+    onChange([...containers, { name: `container${containers.length}`, description: "", order: containers.length, padding: { top: "$tokens.spacing.xs", right: "$tokens.spacing.xs", bottom: "$tokens.spacing.xs", left: "$tokens.spacing.xs" }, ...(isHeader ? { zone: "content" } : {}) }]);
   };
   const update = (i, field, val) => {
     const updated = [...containers];
@@ -33,6 +34,12 @@ export function ContainerEditor({ containers, onChange }) {
             <input value={c.name} onChange={(e) => update(i, "name", e.target.value)} style={{ ...s.input, width: 120, fontWeight: 600 }} placeholder="name" />
             <input value={c.description} onChange={(e) => update(i, "description", e.target.value)} style={{ ...s.input, flex: 1 }} placeholder="descrição" />
             <input type="number" value={c.order} onChange={(e) => update(i, "order", e.target.value)} style={{ ...s.input, width: 50 }} />
+            {isHeader && (
+              <select value={c.zone || "content"} onChange={(e) => update(i, "zone", e.target.value)} style={{ ...s.select, width: 100, fontSize: 11 }} title="Header zone">
+                <option value="sidebar">Sidebar Zone</option>
+                <option value="content">Content Zone</option>
+              </select>
+            )}
             <button onClick={() => setExpandedPadding(expandedPadding === i ? null : i)} style={{ ...s.btnSmall, fontSize: 10 }} title="Padding">⊞</button>
             <button onClick={() => remove(i)} style={s.btnDanger}>✕</button>
           </div>
@@ -52,6 +59,162 @@ export function ContainerEditor({ containers, onChange }) {
         </div>
       ))}
       <button onClick={add} style={s.btnSmall}>+ Container</button>
+    </div>
+  );
+}
+
+
+// ============================================================================
+// Header Zone Editor — manages the two-zone alignment system
+// ============================================================================
+export function HeaderZoneEditor({ zones, tokens, onChange }) {
+  const z = zones || {
+    sidebar: {
+      width: "$tokens.sizing.sidebar-width",
+      collapsedWidth: "$tokens.sizing.sidebar-collapsed",
+      paddingLeft: "$tokens.sizing.sidebar-pad",
+      borderRight: { enabled: true, color: "$tokens.colors.border", width: "$tokens.borderWidth.thin" },
+      contains: ["brand"],
+    },
+    content: {
+      paddingLeft: "$tokens.sizing.main-pad",
+      paddingRight: "$tokens.sizing.main-pad",
+      contains: ["breadcrumb", "spacer", "actions", "userMenu"],
+    },
+  };
+
+  const updateSidebar = (field, val) => onChange({ ...z, sidebar: { ...z.sidebar, [field]: val } });
+  const updateContent = (field, val) => onChange({ ...z, content: { ...z.content, [field]: val } });
+  const updateBorderRight = (field, val) => {
+    onChange({ ...z, sidebar: { ...z.sidebar, borderRight: { ...(z.sidebar.borderRight || {}), [field]: val } } });
+  };
+
+  return (
+    <div>
+      <div style={s.infoBox}>
+        <strong style={{ color: COLORS.text }}>Alignment Grid:</strong> O header é dividido em duas zonas rígidas.
+        A <strong style={{ color: COLORS.accent }}>Sidebar Zone</strong> alinha com a sidebar (usando <code style={{ color: COLORS.accent }}>sidebar-pad</code>).
+        A <strong style={{ color: COLORS.accent }}>Content Zone</strong> alinha com o conteúdo principal (usando <code style={{ color: COLORS.accent }}>main-pad</code>).
+      </div>
+
+      {/* Sidebar Zone */}
+      <div style={{ marginTop: 16, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Sidebar Zone (logo)</div>
+      <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
+        <Row gap={8}>
+          <Field label="Width" style={{ flex: 1 }}>
+            <TokenRefSelect value={z.sidebar?.width} tokens={tokens} category="sizing" onChange={(v) => updateSidebar("width", v)} />
+          </Field>
+          <Field label="Collapsed Width" style={{ flex: 1 }}>
+            <TokenRefSelect value={z.sidebar?.collapsedWidth} tokens={tokens} category="sizing" onChange={(v) => updateSidebar("collapsedWidth", v)} />
+          </Field>
+          <Field label="Padding Left" style={{ flex: 1 }}>
+            <TokenRefSelect value={z.sidebar?.paddingLeft} tokens={tokens} category="sizing" onChange={(v) => updateSidebar("paddingLeft", v)} />
+          </Field>
+        </Row>
+        <Row gap={8}>
+          <Field label="Border Right" style={{ flex: 0, minWidth: 80 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", paddingTop: 4 }}>
+              <input type="checkbox" checked={z.sidebar?.borderRight?.enabled ?? true} onChange={(e) => updateBorderRight("enabled", e.target.checked)} />
+              Ativo
+            </label>
+          </Field>
+          {z.sidebar?.borderRight?.enabled && (
+            <Field label="Border Color" style={{ flex: 1 }}>
+              <TokenRefSelect value={z.sidebar?.borderRight?.color} tokens={tokens} category="colors" onChange={(v) => updateBorderRight("color", v)} />
+            </Field>
+          )}
+        </Row>
+      </div>
+
+      {/* Content Zone */}
+      <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Content Zone (breadcrumbs + actions)</div>
+      <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
+        <Row gap={8}>
+          <Field label="Padding Left" style={{ flex: 1 }}>
+            <TokenRefSelect value={z.content?.paddingLeft} tokens={tokens} category="sizing" onChange={(v) => updateContent("paddingLeft", v)} />
+          </Field>
+          <Field label="Padding Right" style={{ flex: 1 }}>
+            <TokenRefSelect value={z.content?.paddingRight} tokens={tokens} category="sizing" onChange={(v) => updateContent("paddingRight", v)} />
+          </Field>
+        </Row>
+      </div>
+    </div>
+  );
+}
+
+
+// ============================================================================
+// Collapsed Tooltip Editor — mandatory tooltip config for collapsed sidebar
+// ============================================================================
+export function CollapsedTooltipEditor({ tooltip, tokens, onChange }) {
+  const tt = tooltip || {
+    mandatory: true,
+    background: "$tokens.colors.surface-3",
+    color: "$tokens.colors.text",
+    borderColor: "$tokens.colors.border",
+    borderRadius: "$tokens.borderRadius.sm",
+    fontSize: "$tokens.fontSizes.xs",
+    fontFamily: "$tokens.fontFamilies.mono",
+    fontWeight: "$tokens.fontWeights.medium",
+    padding: "5px 10px",
+    shadow: "0 4px 12px rgba(0,0,0,0.4)",
+    offset: "12px",
+    arrow: true,
+  };
+  const update = (field, val) => onChange({ ...tt, [field]: val });
+
+  return (
+    <div>
+      <div style={s.infoBox}>
+        <strong style={{ color: COLORS.text }}>Obrigatório:</strong> Tooltip aparece automaticamente no hover
+        dos itens quando a sidebar está colapsada. Não pode ser desativado — é essencial para UX.
+        Customize apenas a aparência visual abaixo.
+      </div>
+
+      <Row gap={8}>
+        <Field label="Background" style={{ flex: 1 }}>
+          <TokenRefSelect value={tt.background} tokens={tokens} category="colors" onChange={(v) => update("background", v)} />
+        </Field>
+        <Field label="Text Color" style={{ flex: 1 }}>
+          <TokenRefSelect value={tt.color} tokens={tokens} category="colors" onChange={(v) => update("color", v)} />
+        </Field>
+        <Field label="Border Color" style={{ flex: 1 }}>
+          <TokenRefSelect value={tt.borderColor} tokens={tokens} category="colors" onChange={(v) => update("borderColor", v)} />
+        </Field>
+      </Row>
+      <Row gap={8}>
+        <Field label="Font Size" style={{ flex: 1 }}>
+          <TokenRefSelect value={tt.fontSize} tokens={tokens} category="fontSizes" onChange={(v) => update("fontSize", v)} />
+        </Field>
+        <Field label="Font Family" style={{ flex: 1 }}>
+          <TokenRefSelect value={tt.fontFamily} tokens={tokens} category="fontFamilies" onChange={(v) => update("fontFamily", v)} />
+        </Field>
+        <Field label="Font Weight" style={{ flex: 1 }}>
+          <TokenRefSelect value={tt.fontWeight} tokens={tokens} category="fontWeights" onChange={(v) => update("fontWeight", v)} />
+        </Field>
+      </Row>
+      <Row gap={8}>
+        <Field label="Border Radius" style={{ flex: 1 }}>
+          <TokenRefSelect value={tt.borderRadius} tokens={tokens} category="borderRadius" onChange={(v) => update("borderRadius", v)} />
+        </Field>
+        <Field label="Padding" style={{ flex: 1 }}>
+          <input value={tt.padding || ""} onChange={(e) => update("padding", e.target.value)} style={s.input} placeholder="5px 10px" />
+        </Field>
+        <Field label="Offset" style={{ flex: 1 }}>
+          <input value={tt.offset || ""} onChange={(e) => update("offset", e.target.value)} style={s.input} placeholder="12px" />
+        </Field>
+      </Row>
+      <Row gap={8}>
+        <Field label="Shadow" style={{ flex: 1 }}>
+          <input value={tt.shadow || ""} onChange={(e) => update("shadow", e.target.value)} style={s.input} placeholder="0 4px 12px rgba(0,0,0,0.4)" />
+        </Field>
+        <Field label="Arrow" style={{ flex: 0, minWidth: 80 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", paddingTop: 4 }}>
+            <input type="checkbox" checked={tt.arrow !== false} onChange={(e) => update("arrow", e.target.checked)} />
+            Seta
+          </label>
+        </Field>
+      </Row>
     </div>
   );
 }
@@ -125,6 +288,15 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
 
   return (
     <div>
+      {/* Alignment Pad Info */}
+      {region.alignmentPad && (
+        <div style={{ ...s.infoBox, marginBottom: 16, marginTop: 8 }}>
+          <strong style={{ color: COLORS.text }}>Alignment Pad:</strong> Todos os elementos da sidebar alinham pelo token{" "}
+          <code style={{ color: COLORS.accent }}>{region.alignmentPad}</code>.
+          A nav usa <code style={{ color: COLORS.accent }}>calc(sidebar-pad - 6px)</code> no container + <code style={{ color: COLORS.accent }}>6px</code> interno no item = mesmo alinhamento.
+        </div>
+      )}
+
       {/* Navigation Typography */}
       <div style={{ marginTop: 16, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Navigation Typography</div>
       <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
@@ -263,12 +435,12 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
         {navGroups.map(g => (
           <div key={g.id} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
             <input value={g.label} onChange={(e) => updateGroup(g.id, "label", e.target.value)} style={{ ...s.input, flex: 1, fontSize: 12 }} placeholder="Nome do grupo" />
-            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: COLORS.textDim, whiteSpace: "nowrap" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: COLORS.textDim, whiteSpace: "nowrap" as const }}>
               <input type="checkbox" checked={g.collapsible ?? false} onChange={(e) => updateGroup(g.id, "collapsible", e.target.checked)} />
               Colapsável
             </label>
             <span style={{ fontSize: 9, color: COLORS.textDim, fontFamily: "monospace" }}>{g.id}</span>
-            <button onClick={() => removeGroup(g.id)} style={{ ...s.btnSmall, padding: "2px 6px", fontSize: 10, color: COLORS.error }}>✕</button>
+            <button onClick={() => removeGroup(g.id)} style={{ ...s.btnSmall, padding: "2px 6px", fontSize: 10, color: COLORS.danger }}>✕</button>
           </div>
         ))}
         <button onClick={addGroup} style={{ ...s.btnSmall, width: "100%", padding: "5px 0", marginTop: 4, fontSize: 11, color: COLORS.accent }}>
@@ -279,7 +451,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
       {/* Navigation Items */}
       <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
         Itens de Navegação
-        <span style={{ fontSize: 10, color: COLORS.accent, fontWeight: 400, textTransform: "none", marginLeft: 8 }}>
+        <span style={{ fontSize: 10, color: COLORS.accent, fontWeight: 400, textTransform: "none" as const, marginLeft: 8 }}>
           fonte da verdade
         </span>
       </div>
@@ -292,7 +464,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
               {/* Main row */}
               <div style={{ display: "flex", gap: 4, alignItems: "center", padding: "6px 8px" }}>
                 {/* Reorder */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0 }}>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: 1, flexShrink: 0 }}>
                   <button onClick={() => moveNavItem(idx, -1)} disabled={idx === 0} style={{ ...s.btnSmall, padding: "0 3px", fontSize: 8, opacity: idx === 0 ? 0.2 : 0.7, lineHeight: "12px" }}>▲</button>
                   <button onClick={() => moveNavItem(idx, 1)} disabled={idx === navItems.length - 1} style={{ ...s.btnSmall, padding: "0 3px", fontSize: 8, opacity: idx === navItems.length - 1 ? 0.2 : 0.7, lineHeight: "12px" }}>▼</button>
                 </div>
@@ -307,7 +479,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
                   {isExpanded ? "▲" : "⋯"}
                 </button>
                 {/* Remove */}
-                <button onClick={() => removeNavItem(item.id)} style={{ ...s.btnSmall, padding: "2px 6px", fontSize: 10, color: COLORS.error }} title="Remover">✕</button>
+                <button onClick={() => removeNavItem(item.id)} style={{ ...s.btnSmall, padding: "2px 6px", fontSize: 10, color: COLORS.danger }} title="Remover">✕</button>
               </div>
 
               {/* Expanded details */}
@@ -337,14 +509,14 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
                     </Field>
                   </Row>
                   {/* Sub-items */}
-                  <div style={{ marginTop: 8, fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>Sub-itens</div>
+                  <div style={{ marginTop: 8, fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase" as const, letterSpacing: "0.04em", marginBottom: 4 }}>Sub-itens</div>
                   {subItems.map((sub, si) => (
                     <div key={sub.id || si} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 3, paddingLeft: 8 }}>
                       <span style={{ fontSize: 10, color: COLORS.textDim }}>↳</span>
                       <PhosphorIconSelect value={sub.icon || ""} allowEmpty placeholder="—" onChange={(val) => updateSubItem(item.id, sub.id, "icon", val)} />
                       <input value={sub.label || ""} onChange={(e) => updateSubItem(item.id, sub.id, "label", e.target.value)} style={{ ...s.input, flex: 1, fontSize: 11 }} placeholder="Sub-label" />
                       <input value={sub.route || ""} onChange={(e) => updateSubItem(item.id, sub.id, "route", e.target.value)} style={{ ...s.input, width: 80, fontSize: 10, fontFamily: "monospace" }} placeholder="/sub-rota" />
-                      <button onClick={() => removeSubItem(item.id, sub.id)} style={{ ...s.btnSmall, padding: "1px 5px", fontSize: 9, color: COLORS.error }}>✕</button>
+                      <button onClick={() => removeSubItem(item.id, sub.id)} style={{ ...s.btnSmall, padding: "1px 5px", fontSize: 9, color: COLORS.danger }}>✕</button>
                     </div>
                   ))}
                   <button onClick={() => addSubItem(item.id)} style={{ ...s.btnSmall, fontSize: 10, color: COLORS.accent, marginTop: 2, padding: "3px 8px" }}>
@@ -369,7 +541,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
           <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Collapsed Display</div>
           <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
             <Field label="Mode when collapsed">
-              <select value={behavior.collapsedDisplay || "icon-only"} onChange={(e) => updateBehavior("collapsedDisplay", e.target.value)} style={s.select}>
+              <select value={behavior.collapsedDisplay || "letter-only"} onChange={(e) => updateBehavior("collapsedDisplay", e.target.value)} style={s.select}>
                 <option value="icon-only">Icon only</option>
                 <option value="icon-letter">Icon + first letter</option>
                 <option value="letter-only">First letter only</option>
@@ -379,8 +551,23 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
               {behavior.collapsedDisplay === "icon-only" && "Mostra apenas o ícone de cada item de navegação"}
               {behavior.collapsedDisplay === "icon-letter" && "Mostra ícone + primeira letra do label"}
               {behavior.collapsedDisplay === "letter-only" && "Mostra apenas a primeira letra do label (como avatar)"}
-              {!behavior.collapsedDisplay && "Mostra apenas o ícone de cada item de navegação"}
+              {!behavior.collapsedDisplay && "Mostra apenas a primeira letra do label (como avatar)"}
             </div>
+          </div>
+
+          {/* Collapsed Tooltip — mandatory */}
+          <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Tooltip (Collapsed)
+            <span style={{ fontSize: 9, color: COLORS.accent, fontWeight: 400, textTransform: "none" as const, marginLeft: 8, padding: "1px 6px", background: COLORS.accent + "15", borderRadius: 4 }}>
+              obrigatório
+            </span>
+          </div>
+          <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
+            <CollapsedTooltipEditor
+              tooltip={region.collapsedTooltip}
+              tokens={tokens}
+              onChange={(tt) => onChange({ ...region, collapsedTooltip: tt })}
+            />
           </div>
 
           {/* Collapse Button */}
@@ -416,7 +603,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
 
       {/* Separators */}
       <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Separators</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
         <Field label="Header separator">
           <SeparatorEditor separator={seps.header || { enabled: true, color: "$tokens.colors.border", width: "$tokens.borderWidth.thin", style: "solid" }} tokens={tokens} onChange={(v) => updateSep("header", v)} />
         </Field>
@@ -442,12 +629,15 @@ export function RegionEditor({ name, region, tokens, onChange }) {
   const updateBehavior = (field, val) => onChange({ ...region, behavior: { ...region.behavior, [field]: val } });
 
   const regionLabel = { sidebar: "Sidebar", header: "Header", main: "Main", footer: "Footer" }[name] || name;
+  const isHeader = name === "header";
+  const hasZones = isHeader && region.zones;
 
   return (
     <div style={{ ...s.card, marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>
           {regionLabel} <span style={{ ...s.tag, marginLeft: 6 }}>{region.enabled ? "ativo" : "inativo"}</span>
+          {hasZones && <span style={{ ...s.tag, marginLeft: 4, background: COLORS.accent + "15", color: COLORS.accent, border: `1px solid ${COLORS.accent}30` }}>zone-based</span>}
         </span>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: COLORS.textMuted, cursor: "pointer" }}>
           <input type="checkbox" checked={region.enabled} onChange={(e) => {
@@ -484,14 +674,31 @@ export function RegionEditor({ name, region, tokens, onChange }) {
             )}
           </Row>
 
-          <div style={{ marginTop: 12, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Padding</div>
-          <Row gap={8}>
-            {["top", "right", "bottom", "left"].map((side) => (
-              <Field key={side} label={side} style={{ flex: 1 }}>
-                <TokenRefSelect value={region.padding?.[side]} tokens={tokens} category="spacing" onChange={(v) => updatePad(side, v)} />
-              </Field>
-            ))}
-          </Row>
+          {/* Header Zones — replaces flat padding for header */}
+          {hasZones && (
+            <>
+              <div style={{ marginTop: 16, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Header Zones (Alignment Grid)</div>
+              <HeaderZoneEditor
+                zones={region.zones}
+                tokens={tokens}
+                onChange={(z) => update("zones", z)}
+              />
+            </>
+          )}
+
+          {/* Flat padding — for non-header regions or header without zones */}
+          {!hasZones && (
+            <>
+              <div style={{ marginTop: 12, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Padding</div>
+              <Row gap={8}>
+                {["top", "right", "bottom", "left"].map((side) => (
+                  <Field key={side} label={side} style={{ flex: 1 }}>
+                    <TokenRefSelect value={region.padding?.[side]} tokens={tokens} category="spacing" onChange={(v) => updatePad(side, v)} />
+                  </Field>
+                ))}
+              </Row>
+            </>
+          )}
 
           <div style={{ marginTop: 12, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Behavior</div>
           <Row gap={16}>
@@ -503,7 +710,7 @@ export function RegionEditor({ name, region, tokens, onChange }) {
           </Row>
 
           <div style={{ marginTop: 16, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Containers</div>
-          <ContainerEditor containers={region.containers || []} onChange={(c) => update("containers", c)} />
+          <ContainerEditor containers={region.containers || []} onChange={(c) => update("containers", c)} isHeader={isHeader} />
 
           {/* Sidebar-specific config */}
           {name === "sidebar" && (

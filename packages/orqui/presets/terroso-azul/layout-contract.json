@@ -4,7 +4,7 @@
     "version": "1.0.0",
     "preset": "gatekeeper-header-first",
     "description": "Gatekeeper — Header full-width com identidade Barricade (amber/gold dark theme)",
-    "hash": "",
+    "hash": "sha256:gatekeeper-light-v3-2026020219",
     "generatedAt": ""
   },
   "structure": {
@@ -840,88 +840,79 @@
     },
     "colors": {
       "bg": {
-        "value": "#0a0a0d"
+        "value": "#f8f9fb"
       },
       "surface": {
-        "value": "#111114"
+        "value": "#ffffff"
       },
       "surface-2": {
-        "value": "#1a1a1f"
+        "value": "#f1f3f5"
       },
       "surface-3": {
-        "value": "#232329"
+        "value": "#e9ecef"
       },
       "border": {
-        "value": "#2c2c35"
+        "value": "#dee2e6"
       },
       "border-2": {
-        "value": "#3c3c47"
+        "value": "#ced4da"
       },
       "text": {
-        "value": "#e6e6ea"
+        "value": "#212529"
       },
       "text-muted": {
-        "value": "#87879a"
+        "value": "#6c757d"
       },
       "text-dim": {
-        "value": "#55556a"
+        "value": "#adb5bd"
       },
       "accent": {
-        "value": "#e89c28"
+        "value": "#4a7cca"
       },
       "accent-dim": {
-        "value": "#bf7e1c"
+        "value": "#3a6ab5"
       },
       "accent-fg": {
-        "value": "#0a0a0d"
+        "value": "#ffffff"
       },
       "danger": {
-        "value": "#e85555"
+        "value": "#c0392b"
       },
       "danger-dim": {
-        "value": "#bf3e3e"
+        "value": "#a93226"
       },
       "success": {
-        "value": "#3cc26a"
+        "value": "#27ae60"
       },
       "success-dim": {
-        "value": "#2aa352"
+        "value": "#1e8449"
       },
       "warning": {
-        "value": "#f0c030"
+        "value": "#d4a017"
       },
       "warning-dim": {
-        "value": "#c8a020"
+        "value": "#b8860b"
       },
       "sidebar-bg": {
-        "value": "#0d0d11"
+        "value": "#f2f4f7"
       },
       "header-bg": {
-        "value": "#0a0a0d"
+        "value": "#f8f9fb"
       },
       "input-bg": {
-        "value": "#141418"
+        "value": "#ffffff"
       },
       "input-border": {
-        "value": "#2c2c35"
+        "value": "#dee2e6"
       },
       "card-bg": {
-        "value": "#111114"
+        "value": "#ffffff"
       },
       "card-border": {
-        "value": "#2c2c35"
+        "value": "#dee2e6"
       },
       "ring": {
-        "value": "#e89c2833"
-      },
-      "success-fg": {
-        "value": "#ffffff"
-      },
-      "warning-fg": {
-        "value": "#0a0a0d"
-      },
-      "danger-fg": {
-        "value": "#ffffff"
+        "value": "#4a7cca33"
       }
     },
     "borderRadius": {

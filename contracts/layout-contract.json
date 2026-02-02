@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:264b26990a47e1ad430d18fc85550c20dfc81c4d01cc76216c96cb29dd10976b",
-    "generatedAt": "2026-02-02T16:43:27.753Z"
+    "hash": "sha256:d6897b0f6a2ead944b1b2b8ad4930dc9d3f6e69a7d9cdc7da8ec973fffceac09",
+    "generatedAt": "2026-02-02T19:38:22.616Z"
   },
   "structure": {
     "regions": {
@@ -17,9 +17,9 @@
         },
         "padding": {
           "top": "$tokens.spacing.sm",
-          "right": "$tokens.spacing.sm",
-          "bottom": "$tokens.spacing.md",
-          "left": "$tokens.spacing.sm"
+          "right": "0",
+          "bottom": "0",
+          "left": "0"
         },
         "containers": [
           {
@@ -28,9 +28,9 @@
             "order": 0,
             "padding": {
               "top": "$tokens.spacing.md",
-              "right": "$tokens.spacing.sm",
+              "right": "$tokens.sizing.sidebar-pad",
               "bottom": "$tokens.spacing.md",
-              "left": "$tokens.spacing.md"
+              "left": "$tokens.sizing.sidebar-pad"
             }
           },
           {
@@ -39,10 +39,12 @@
             "order": 1,
             "padding": {
               "top": "$tokens.spacing.sm",
-              "right": "$tokens.spacing.xs",
+              "right": "$tokens.sizing.sidebar-nav-pad",
               "bottom": "$tokens.spacing.xs",
-              "left": "$tokens.spacing.sm"
-            }
+              "left": "$tokens.sizing.sidebar-nav-pad"
+            },
+            "navItemInternalPad": "6px",
+            "_alignNote": "container-pad + navItemInternalPad = sidebar-pad"
           },
           {
             "name": "sidebarFooter",
@@ -50,9 +52,9 @@
             "order": 2,
             "padding": {
               "top": "$tokens.spacing.xs",
-              "right": "$tokens.spacing.xs",
+              "right": "$tokens.sizing.sidebar-nav-pad",
               "bottom": "$tokens.spacing.xs",
-              "left": "$tokens.spacing.xs"
+              "left": "$tokens.sizing.sidebar-nav-pad"
             }
           }
         ],
@@ -60,7 +62,7 @@
           "fixed": true,
           "collapsible": true,
           "scrollable": false,
-          "collapsedDisplay": "icon-only"
+          "collapsedDisplay": "letter-only"
         },
         "navigation": {
           "icons": {
@@ -86,7 +88,50 @@
             "hoverBackground": "$tokens.colors.surface",
             "hoverFontWeight": ""
           },
-          "items": []
+          "items": [
+            {
+              "id": "dashboard",
+              "label": "Dashboard",
+              "icon": "ph:chart-bar",
+              "route": "/dashboard"
+            },
+            {
+              "id": "runs",
+              "label": "Runs",
+              "icon": "ph:flow-arrow",
+              "route": "/runs"
+            },
+            {
+              "id": "gates",
+              "label": "Gates",
+              "icon": "ph:shield-check",
+              "route": "/gates"
+            },
+            {
+              "id": "workspaces",
+              "label": "Workspaces",
+              "icon": "ph:folder",
+              "route": "/workspaces"
+            },
+            {
+              "id": "projects",
+              "label": "Projects",
+              "icon": "ph:squares-four",
+              "route": "/projects"
+            },
+            {
+              "id": "mcp",
+              "label": "MCP",
+              "icon": "ph:lightning",
+              "route": "/mcp"
+            },
+            {
+              "id": "config",
+              "label": "Config",
+              "icon": "ph:gear",
+              "route": "/config"
+            }
+          ]
         },
         "collapseButton": {
           "icon": "chevron",
@@ -113,7 +158,23 @@
             "style": "solid"
           }
         },
-        "background": "$tokens.colors.sidebar-bg"
+        "background": "$tokens.colors.sidebar-bg",
+        "alignmentPad": "$tokens.sizing.sidebar-pad",
+        "collapsedTooltip": {
+          "mandatory": true,
+          "_note": "Always enabled when collapsed. Not user-configurable.",
+          "background": "$tokens.colors.surface-3",
+          "color": "$tokens.colors.text",
+          "borderColor": "$tokens.colors.border",
+          "borderRadius": "$tokens.borderRadius.sm",
+          "fontSize": "$tokens.fontSizes.xs",
+          "fontFamily": "$tokens.fontFamilies.mono",
+          "fontWeight": "$tokens.fontWeights.medium",
+          "padding": "5px 10px",
+          "shadow": "0 4px 12px rgba(0,0,0,0.4)",
+          "offset": "12px",
+          "arrow": true
+        }
       },
       "header": {
         "enabled": true,
@@ -122,31 +183,35 @@
           "height": "$tokens.sizing.header-height"
         },
         "padding": {
-          "top": "$tokens.spacing.sm",
-          "right": "$tokens.spacing.xl",
-          "bottom": "$tokens.spacing.sm",
-          "left": "$tokens.spacing.lg"
+          "top": "0",
+          "right": "0",
+          "bottom": "0",
+          "left": "0"
         },
         "containers": [
           {
             "name": "brand",
             "description": "Logo e identidade da aplicação",
-            "order": 0
+            "order": 0,
+            "zone": "sidebar"
           },
           {
             "name": "breadcrumb",
             "description": "Navegação hierárquica da página atual",
-            "order": 1
+            "order": 1,
+            "zone": "content"
           },
           {
             "name": "actions",
             "description": "Ações contextuais (busca, CTAs, ícones)",
-            "order": 2
+            "order": 2,
+            "zone": "content"
           },
           {
             "name": "userMenu",
             "description": "Avatar, notificações, menu do usuário",
-            "order": 3
+            "order": 3,
+            "zone": "content"
           }
         ],
         "behavior": {
@@ -162,7 +227,34 @@
             "style": "solid"
           }
         },
-        "background": "$tokens.colors.header-bg"
+        "background": "$tokens.colors.header-bg",
+        "zones": {
+          "sidebar": {
+            "description": "Left zone — matches sidebar width. Contains logo.",
+            "width": "$tokens.sizing.sidebar-width",
+            "collapsedWidth": "$tokens.sizing.sidebar-collapsed",
+            "paddingLeft": "$tokens.sizing.sidebar-pad",
+            "borderRight": {
+              "enabled": true,
+              "color": "$tokens.colors.border",
+              "width": "$tokens.borderWidth.thin"
+            },
+            "contains": [
+              "brand"
+            ]
+          },
+          "content": {
+            "description": "Right zone — flex:1, matches main content padding. Contains breadcrumbs + actions.",
+            "paddingLeft": "$tokens.sizing.main-pad",
+            "paddingRight": "$tokens.sizing.main-pad",
+            "contains": [
+              "breadcrumb",
+              "spacer",
+              "actions",
+              "userMenu"
+            ]
+          }
+        }
       },
       "main": {
         "enabled": true,
@@ -172,9 +264,9 @@
         },
         "padding": {
           "top": "$tokens.spacing.lg",
-          "right": "$tokens.spacing.xl",
+          "right": "$tokens.sizing.main-pad",
           "bottom": "$tokens.spacing.xl",
-          "left": "$tokens.spacing.xl"
+          "left": "$tokens.sizing.main-pad"
         },
         "containers": [
           {
@@ -197,10 +289,10 @@
           "height": "$tokens.sizing.footer-height"
         },
         "padding": {
-          "top": "$tokens.spacing.xs",
-          "right": "$tokens.spacing.xl",
-          "bottom": "$tokens.spacing.xs",
-          "left": "$tokens.spacing.xl"
+          "top": "0",
+          "right": "$tokens.sizing.main-pad",
+          "bottom": "0",
+          "left": "$tokens.sizing.main-pad"
         },
         "containers": [
           {
@@ -237,7 +329,7 @@
       "separator": "›",
       "clickable": true,
       "padding": {
-        "left": "$tokens.spacing.md"
+        "left": "0"
       },
       "typography": {
         "fontSize": "$tokens.fontSizes.xs",
@@ -249,7 +341,8 @@
       "arrows": false,
       "autoHide": false,
       "showHome": true,
-      "homeLabel": "Home"
+      "homeLabel": "Home",
+      "_alignNote": "Left edge controlled by header content-zone paddingLeft"
     },
     "logo": {
       "type": "icon-text",
@@ -260,12 +353,12 @@
       "position": "header",
       "headerSlot": "left",
       "sidebarAlign": "left",
-      "alignWithHeader": false,
+      "alignWithHeader": true,
       "padding": {
         "top": 0,
-        "right": 20,
+        "right": 0,
         "bottom": 0,
-        "left": 4
+        "left": 0
       },
       "iconGap": 8,
       "typography": {
@@ -275,7 +368,8 @@
         "color": "#e89c28",
         "letterSpacing": -0.02
       },
-      "iconSize": 26
+      "iconSize": 26,
+      "_alignNote": "Padding controlled by header sidebar-zone paddingLeft"
     },
     "favicon": {
       "type": "emoji",
@@ -381,8 +475,7 @@
       }
     },
     "contentLayout": {
-      "maxWidth": "$tokens.sizing.content-max-width",
-      "centering": true,
+      "centering": false,
       "grid": {
         "enabled": false,
         "columns": 1,
@@ -394,9 +487,9 @@
       "enabled": true,
       "showTitle": true,
       "showSubtitle": true,
-      "showDivider": true,
+      "showDivider": false,
       "padding": {
-        "top": "$tokens.spacing.lg",
+        "top": "0",
         "right": "0",
         "bottom": "$tokens.spacing.lg",
         "left": "0"
@@ -448,6 +541,31 @@
       "headerColor": "$tokens.colors.accent-dim",
       "headerWidth": "2px",
       "headerStyle": "solid"
+    },
+    "alignmentGrid": {
+      "_doc": "Two master tokens control ALL horizontal alignment across the entire layout",
+      "sidebarPad": {
+        "token": "$tokens.sizing.sidebar-pad",
+        "controls": [
+          "header sidebar-zone paddingLeft",
+          "sidebar workspace left/right padding",
+          "sidebar nav left/right padding (via calc with navItemInternalPad)",
+          "sidebar footer left/right padding",
+          "logo left edge (via header sidebar-zone)"
+        ]
+      },
+      "mainPad": {
+        "token": "$tokens.sizing.main-pad",
+        "controls": [
+          "header content-zone paddingLeft/Right",
+          "breadcrumbs left edge",
+          "header actions right edge",
+          "main content paddingLeft/Right",
+          "page title left edge",
+          "cards/content left edge",
+          "footer paddingLeft/Right"
+        ]
+      }
     }
   },
   "tokens": {
@@ -495,7 +613,7 @@
         "unit": "px"
       },
       "sidebar-collapsed": {
-        "value": 48,
+        "value": 52,
         "unit": "px"
       },
       "header-height": {
@@ -577,6 +695,21 @@
       "input-height-lg": {
         "value": 42,
         "unit": "px"
+      },
+      "sidebar-pad": {
+        "value": 16,
+        "unit": "px",
+        "description": "Master horizontal padding inside sidebar — controls alignment of logo, workspace, nav icons, user"
+      },
+      "main-pad": {
+        "value": 28,
+        "unit": "px",
+        "description": "Master horizontal padding for main content area — controls alignment of breadcrumbs, title, cards, header actions"
+      },
+      "sidebar-nav-pad": {
+        "value": 10,
+        "unit": "px",
+        "description": "Sidebar navigation container padding = sidebar-pad(16) - navItemInternalPad(6). Ensures nav text aligns with brand/footer."
       }
     },
     "fontFamilies": {
@@ -705,88 +838,79 @@
     },
     "colors": {
       "bg": {
-        "value": "#0a0a0d"
+        "value": "#f8f9fb"
       },
       "surface": {
-        "value": "#111114"
+        "value": "#ffffff"
       },
       "surface-2": {
-        "value": "#1a1a1f"
+        "value": "#f1f3f5"
       },
       "surface-3": {
-        "value": "#232329"
+        "value": "#e9ecef"
       },
       "border": {
-        "value": "#2c2c35"
+        "value": "#dee2e6"
       },
       "border-2": {
-        "value": "#3c3c47"
+        "value": "#ced4da"
       },
       "text": {
-        "value": "#e6e6ea"
+        "value": "#212529"
       },
       "text-muted": {
-        "value": "#87879a"
+        "value": "#6c757d"
       },
       "text-dim": {
-        "value": "#55556a"
+        "value": "#adb5bd"
       },
       "accent": {
-        "value": "#e89c28"
+        "value": "#4a7cca"
       },
       "accent-dim": {
-        "value": "#bf7e1c"
+        "value": "#3a6ab5"
       },
       "accent-fg": {
-        "value": "#0a0a0d"
+        "value": "#ffffff"
       },
       "danger": {
-        "value": "#e85555"
+        "value": "#c0392b"
       },
       "danger-dim": {
-        "value": "#bf3e3e"
+        "value": "#a93226"
       },
       "success": {
-        "value": "#3cc26a"
+        "value": "#27ae60"
       },
       "success-dim": {
-        "value": "#2aa352"
+        "value": "#1e8449"
       },
       "warning": {
-        "value": "#f0c030"
+        "value": "#d4a017"
       },
       "warning-dim": {
-        "value": "#c8a020"
+        "value": "#b8860b"
       },
       "sidebar-bg": {
-        "value": "#0d0d11"
+        "value": "#f2f4f7"
       },
       "header-bg": {
-        "value": "#0a0a0d"
+        "value": "#f8f9fb"
       },
       "input-bg": {
-        "value": "#141418"
+        "value": "#ffffff"
       },
       "input-border": {
-        "value": "#2c2c35"
+        "value": "#dee2e6"
       },
       "card-bg": {
-        "value": "#111114"
+        "value": "#ffffff"
       },
       "card-border": {
-        "value": "#2c2c35"
+        "value": "#dee2e6"
       },
       "ring": {
-        "value": "#e89c2833"
-      },
-      "success-fg": {
-        "value": "#ffffff"
-      },
-      "warning-fg": {
-        "value": "#0a0a0d"
-      },
-      "danger-fg": {
-        "value": "#ffffff"
+        "value": "#4a7cca33"
       }
     },
     "borderRadius": {

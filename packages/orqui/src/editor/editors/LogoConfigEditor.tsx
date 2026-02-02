@@ -369,6 +369,16 @@ export function LogoConfigEditor({ logo, onChange }) {
       {/* Padding */}
       <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 10 }}>Padding do Container</div>
+
+        {/* Alignment Grid warning */}
+        {cfg.alignWithHeader && (
+          <div style={{ padding: "8px 10px", background: COLORS.surface2, borderRadius: 6, fontSize: 11, color: COLORS.textDim, lineHeight: 1.5, borderLeft: `3px solid ${COLORS.accent}40`, marginBottom: 10 }}>
+            <strong style={{ color: COLORS.text }}>⚡ Alignment Grid:</strong> O padding horizontal do logo é controlado pelo token{" "}
+            <code style={{ color: COLORS.accent }}>sidebar-pad</code> via header sidebar-zone.
+            Padding left/right = 0 é intencional — ajuste apenas offset vertical se necessário.
+          </div>
+        )}
+
         <Row gap={8}>
           {(["top", "right", "bottom", "left"] as const).map(side => (
             <Field key={side} label={side} style={{ flex: 1 }}>
@@ -427,8 +437,14 @@ export function LogoConfigEditor({ logo, onChange }) {
             </Field>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginTop: 8 }}>
               <input type="checkbox" checked={cfg.alignWithHeader ?? true} onChange={(e) => update("alignWithHeader", e.target.checked)} />
-              Alinhamento do container da logo e do header variável?
+              Usar Alignment Grid (padding controlado por sidebar-pad)
             </label>
+            {cfg.alignWithHeader && (
+              <div style={{ marginTop: 6, fontSize: 11, color: COLORS.textDim, lineHeight: 1.5 }}>
+                Logo herda o padding da <strong style={{ color: COLORS.accent }}>header sidebar-zone</strong>. Altere{" "}
+                <code style={{ color: COLORS.accent }}>sidebar-pad</code> em Tokens → Sizing para ajustar.
+              </div>
+            )}
           </>
         )}
       </div>

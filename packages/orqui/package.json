@@ -9,7 +9,7 @@
   "exports": {
     ".": "./src/index.js",
     "./vite": "./src/vite-plugin.js",
-    "./runtime": "./src/runtime.tsx"
+    "./runtime": "./src/runtime/index.ts"
   },
   "files": [
     "bin",

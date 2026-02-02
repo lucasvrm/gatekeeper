@@ -207,6 +207,13 @@ export class RunsController {
       return
     }
 
+    if (run.commitHash) {
+      res.status(409).json({
+        error: { code: 'RUN_COMMITTED', message: 'Run já commitada. Nenhuma alteração permitida.' }
+      })
+      return
+    }
+
     if (run.status === 'PENDING' || run.status === 'RUNNING') {
       res.status(400).json({
         error: 'Cannot rerun gate',
@@ -271,6 +278,13 @@ export class RunsController {
 
     if (!run) {
       res.status(404).json({ error: 'Run not found' })
+      return
+    }
+
+    if (run.commitHash) {
+      res.status(409).json({
+        error: { code: 'RUN_COMMITTED', message: 'Run já commitada. Nenhuma alteração permitida.' }
+      })
       return
     }
 
@@ -388,6 +402,13 @@ export class RunsController {
 
     if (!run) {
       res.status(404).json({ error: 'Run not found' })
+      return
+    }
+
+    if (run.commitHash) {
+      res.status(409).json({
+        error: { code: 'RUN_COMMITTED', message: 'Run já commitada. Nenhuma alteração permitida.' }
+      })
       return
     }
 

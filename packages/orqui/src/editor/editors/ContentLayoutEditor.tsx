@@ -176,6 +176,16 @@ export function BreadcrumbEditor({ breadcrumbs, tokens, onChange }) {
 
           {/* Padding */}
           <div style={{ marginTop: 12, marginBottom: 4, fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Padding</div>
+
+          {/* Alignment Grid warning */}
+          {bc.position === "header" && (!bc.padding?.left || bc.padding.left === "0") && (
+            <div style={{ padding: "8px 10px", background: COLORS.surface2, borderRadius: 6, fontSize: 11, color: COLORS.textDim, lineHeight: 1.5, borderLeft: `3px solid ${COLORS.accent}40`, marginBottom: 10 }}>
+              <strong style={{ color: COLORS.text }}>⚡ Alignment Grid:</strong> O alinhamento horizontal dos breadcrumbs é controlado pelo token{" "}
+              <code style={{ color: COLORS.accent }}>main-pad</code> via header content-zone.
+              Padding left = 0 aqui é intencional — não precisa de padding independente.
+            </div>
+          )}
+
           <Row gap={12}>
             <Field label="Top" style={{ flex: 1 }}>
               <TokenRefSelect tokens={tokens} value={bc.padding?.top} category="spacing" onChange={(v) => onChange({ ...bc, padding: { ...bc.padding, top: v } })} />

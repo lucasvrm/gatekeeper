@@ -7,34 +7,108 @@ export const DEFAULT_LAYOUT = {
       sidebar: {
         enabled: true,
         position: "left",
-        dimensions: { width: "$tokens.sizing.sidebar-width", height: "$tokens.sizing.full-height" },
-        padding: { top: "$tokens.spacing.md", right: "$tokens.spacing.sm", bottom: "$tokens.spacing.md", left: "$tokens.spacing.sm" },
+        dimensions: { width: "$tokens.sizing.sidebar-width", height: "$tokens.sizing.full-height", minWidth: "$tokens.sizing.sidebar-collapsed" },
+        padding: { top: "$tokens.spacing.sm", right: "0", bottom: "0", left: "0" },
+        alignmentPad: "$tokens.sizing.sidebar-pad",
         containers: [
-          { name: "logo", description: "Logo ou título da aplicação", order: 0 },
-          { name: "navLinks", description: "Links de navegação principal", order: 1 },
-          { name: "sidebarFooter", description: "Conteúdo fixo no rodapé da sidebar", order: 2 },
+          {
+            name: "brand", description: "Nome do workspace ativo", order: 0,
+            padding: { top: "$tokens.spacing.md", right: "$tokens.sizing.sidebar-pad", bottom: "$tokens.spacing.md", left: "$tokens.sizing.sidebar-pad" },
+          },
+          {
+            name: "navigation", description: "Links de navegação principal", order: 1,
+            padding: { top: "$tokens.spacing.sm", right: "calc($tokens.sizing.sidebar-pad - 6px)", bottom: "$tokens.spacing.xs", left: "calc($tokens.sizing.sidebar-pad - 6px)" },
+            navItemInternalPad: "6px",
+          },
+          {
+            name: "sidebarFooter", description: "Perfil do usuário e ações de conta", order: 2,
+            padding: { top: "$tokens.spacing.xs", right: "calc($tokens.sizing.sidebar-pad - 6px)", bottom: "$tokens.spacing.xs", left: "calc($tokens.sizing.sidebar-pad - 6px)" },
+          },
         ],
-        behavior: { fixed: true, collapsible: false, scrollable: true },
+        behavior: { fixed: true, collapsible: false, scrollable: true, collapsedDisplay: "letter-only" },
+        collapsedTooltip: {
+          mandatory: true,
+          background: "$tokens.colors.surface-3",
+          color: "$tokens.colors.text",
+          borderColor: "$tokens.colors.border",
+          borderRadius: "$tokens.borderRadius.sm",
+          fontSize: "$tokens.fontSizes.xs",
+          fontFamily: "$tokens.fontFamilies.mono",
+          fontWeight: "$tokens.fontWeights.medium",
+          padding: "5px 10px",
+          shadow: "0 4px 12px rgba(0,0,0,0.4)",
+          offset: "12px",
+          arrow: true,
+        },
       },
       header: {
         enabled: true,
         position: "top",
         dimensions: { height: "$tokens.sizing.header-height" },
-        padding: { top: "$tokens.spacing.sm", right: "$tokens.spacing.lg", bottom: "$tokens.spacing.sm", left: "$tokens.spacing.lg" },
+        padding: { top: "0", right: "0", bottom: "0", left: "0" },
+        zones: {
+          sidebar: {
+            description: "Left zone — matches sidebar width. Contains logo.",
+            width: "$tokens.sizing.sidebar-width",
+            collapsedWidth: "$tokens.sizing.sidebar-collapsed",
+            paddingLeft: "$tokens.sizing.sidebar-pad",
+            borderRight: { enabled: true, color: "$tokens.colors.border", width: "$tokens.borderWidth.thin" },
+            contains: ["brand"],
+          },
+          content: {
+            description: "Right zone — flex:1, matches main content padding.",
+            paddingLeft: "$tokens.sizing.main-pad",
+            paddingRight: "$tokens.sizing.main-pad",
+            contains: ["breadcrumb", "spacer", "actions", "userMenu"],
+          },
+        },
         containers: [
-          { name: "pageHeader", description: "Título da página atual e breadcrumbs", order: 0 },
-          { name: "headerActions", description: "Ações contextuais do header", order: 1 },
+          { name: "brand", description: "Logo e identidade da aplicação", order: 0, zone: "sidebar" },
+          { name: "breadcrumb", description: "Navegação hierárquica da página atual", order: 1, zone: "content" },
+          { name: "actions", description: "Ações contextuais (busca, CTAs, ícones)", order: 2, zone: "content" },
+          { name: "userMenu", description: "Avatar, notificações, menu do usuário", order: 3, zone: "content" },
         ],
         behavior: { fixed: true, collapsible: false, scrollable: false },
+        separators: {
+          bottom: { enabled: true, color: "$tokens.colors.border", width: "$tokens.borderWidth.thin", style: "solid" },
+        },
       },
       main: {
         enabled: true,
         position: "center",
-        padding: { top: "$tokens.spacing.lg", right: "$tokens.spacing.lg", bottom: "$tokens.spacing.lg", left: "$tokens.spacing.lg" },
+        padding: { top: "$tokens.spacing.lg", right: "$tokens.sizing.main-pad", bottom: "$tokens.spacing.xl", left: "$tokens.sizing.main-pad" },
         containers: [{ name: "contentBody", description: "Área principal de conteúdo", order: 0 }],
         behavior: { fixed: false, collapsible: false, scrollable: true },
       },
-      footer: { enabled: false },
+      footer: {
+        enabled: false,
+        padding: { top: "0", right: "$tokens.sizing.main-pad", bottom: "0", left: "$tokens.sizing.main-pad" },
+      },
+    },
+    alignmentGrid: {
+      _doc: "Two master tokens control ALL horizontal alignment across the entire layout",
+      sidebarPad: {
+        token: "$tokens.sizing.sidebar-pad",
+        controls: [
+          "header sidebar-zone paddingLeft",
+          "sidebar workspace left/right padding",
+          "sidebar nav left/right padding (via calc with navItemInternalPad)",
+          "sidebar footer left/right padding",
+          "logo left edge (via header sidebar-zone)",
+        ],
+      },
+      mainPad: {
+        token: "$tokens.sizing.main-pad",
+        controls: [
+          "header content-zone paddingLeft/Right",
+          "breadcrumbs left edge",
+          "header actions right edge",
+          "main content paddingLeft/Right",
+          "page title left edge",
+          "cards/content left edge",
+          "footer paddingLeft/Right",
+        ],
+      },
     },
     contentLayout: {
       maxWidth: "",
@@ -46,7 +120,7 @@ export const DEFAULT_LAYOUT = {
       showTitle: true,
       showSubtitle: true,
       showDivider: false,
-      padding: { top: "$tokens.spacing.lg", right: "0", bottom: "$tokens.spacing.md", left: "0" },
+      padding: { top: "0", right: "0", bottom: "$tokens.spacing.lg", left: "0" },
       typography: {
         title: { fontSize: "$tokens.fontSizes.3xl", fontWeight: "$tokens.fontWeights.bold", letterSpacing: "-0.02em" },
         subtitle: { fontSize: "$tokens.fontSizes.sm", color: "$tokens.colors.text-muted" },
@@ -61,6 +135,7 @@ export const DEFAULT_LAYOUT = {
       showHome: true,
       homeLabel: "Home",
       homeRoute: "/",
+      padding: { left: "0" },
     },
     logo: {
       type: "text",
@@ -109,6 +184,9 @@ export const DEFAULT_LAYOUT = {
     },
     sizing: {
       "sidebar-width": { value: 240, unit: "px" },
+      "sidebar-collapsed": { value: 52, unit: "px" },
+      "sidebar-pad": { value: 16, unit: "px" },
+      "main-pad": { value: 28, unit: "px" },
       "header-height": { value: 56, unit: "px" },
       "full-height": { value: 100, unit: "vh" },
     },
@@ -233,6 +311,7 @@ export const COLORS = {
   accent: "#6d9cff",
   accentDim: "#4a7adf",
   danger: "#ff6b6b",
+  error: "#ff6b6b",
   success: "#4ade80",
   warning: "#fbbf24",
 };
@@ -247,6 +326,7 @@ export const s = {
   label: { fontSize: 11, color: COLORS.textMuted, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" },
   card: { background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 16 },
   tag: { background: COLORS.surface3, border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "2px 8px", fontSize: 11, color: COLORS.textMuted, display: "inline-block" },
+  infoBox: { padding: "8px 10px", background: COLORS.surface2, borderRadius: 6, fontSize: 11, color: COLORS.textDim, lineHeight: 1.5, borderLeft: `3px solid ${COLORS.accent}40` } as any,
 };
 
 

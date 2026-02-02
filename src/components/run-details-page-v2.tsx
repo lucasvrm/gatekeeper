@@ -80,6 +80,10 @@ export function RunDetailsPageV2() {
   const executionRun =
     primaryRun?.runType === "EXECUTION" ? primaryRun : secondaryRun?.runType === "EXECUTION" ? secondaryRun : null
 
+  const isCommitted = Boolean(
+    executionRun?.commitHash || contractRun?.commitHash
+  )
+
   const loadSecondaryRun = useCallback(
     async (nextPrimaryRun: RunWithResults) => {
       let secondaryId: string | undefined
@@ -426,6 +430,15 @@ export function RunDetailsPageV2() {
             {primaryRun && (
               <>
                 <StatusBadge status={primaryRun.status ?? "PENDING"} />
+                {isCommitted && (
+                  <Badge
+                    variant="outline"
+                    data-testid="committed-badge"
+                    className="text-xs font-mono bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                  >
+                    ✓ Commitado {(executionRun?.commitHash || contractRun?.commitHash || "").slice(0, 7)}
+                  </Badge>
+                )}
                 <Badge
                   variant="outline"
                   role="button"
@@ -482,7 +495,7 @@ export function RunDetailsPageV2() {
         })}
 
         {/* Start Execution — inline, right-aligned */}
-        {canStartExecution && (
+        {!isCommitted && canStartExecution && (
           <>
             <div className="flex-1" />
             <span className="text-xs font-medium text-muted-foreground">Gates 0 e 1 aprovados</span>
@@ -642,7 +655,7 @@ export function RunDetailsPageV2() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={!hasFailed}
+                    disabled={isCommitted || !hasFailed}
                     onClick={() => handleGateUpload(gate.gateNumber)}
                     className="flex-1 h-6 text-[10px] justify-center"
                     data-testid={`kanban-upload-g${gate.gateNumber}`}
@@ -653,7 +666,7 @@ export function RunDetailsPageV2() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={!hasFailed}
+                    disabled={isCommitted || !hasFailed}
                     onClick={() => handleGateRerun(gate.gateNumber)}
                     className="flex-1 h-6 text-[10px] justify-center"
                     data-testid={`kanban-rerun-g${gate.gateNumber}`}
@@ -664,7 +677,7 @@ export function RunDetailsPageV2() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={!hasFailed}
+                    disabled={isCommitted || !hasFailed}
                     onClick={() => setOpenBypassGate((prev) => (prev === gate.gateNumber ? null : gate.gateNumber))}
                     className="flex-1 h-6 text-[10px] justify-center"
                     data-testid={`kanban-bypass-g${gate.gateNumber}`}
@@ -674,7 +687,7 @@ export function RunDetailsPageV2() {
                 </div>
 
                 {/* Bypass dropdown */}
-                {openBypassGate === gate.gateNumber && getBypassableValidators(gate.gateNumber).length > 0 && (
+                {!isCommitted && openBypassGate === gate.gateNumber && getBypassableValidators(gate.gateNumber).length > 0 && (
                   <div className="mt-1 space-y-1">
                     {getBypassableValidators(gate.gateNumber).map((validator) => (
                       <Button
@@ -691,7 +704,7 @@ export function RunDetailsPageV2() {
                 )}
 
                 {/* Start execution CTA (only in gate 2 column when no execution run) */}
-                {gate.gateNumber === 2 && canStartExecution && (
+                {!isCommitted && gate.gateNumber === 2 && canStartExecution && (
                   <Button
                     size="sm"
                     onClick={handleStartExecution}
@@ -841,7 +854,7 @@ export function RunDetailsPageV2() {
 
             {/* Modal actions */}
             <div className="flex gap-2 mt-6 pt-4 border-t border-border">
-              {selectedValidator.status === "FAILED" && selectedValidator.isHardBlock && (
+              {!isCommitted && selectedValidator.status === "FAILED" && selectedValidator.isHardBlock && (
                 <>
                   <Button
                     size="sm"
@@ -867,7 +880,7 @@ export function RunDetailsPageV2() {
                   </Button>
                 </>
               )}
-              {selectedValidator.status === "FAILED" && !selectedValidator.isHardBlock && (
+              {!isCommitted && selectedValidator.status === "FAILED" && !selectedValidator.isHardBlock && (
                 <Button
                   size="sm"
                   className="flex-1"

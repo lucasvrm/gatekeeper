@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "ui-registry-contract",
     "version": "1.0.0",
-    "hash": "sha256:b91982e592e4d297bf8b1048b212ed0fcd3f03716ad4a5fb59d7796312220c3d",
-    "generatedAt": "2026-02-02T16:43:27.754Z"
+    "hash": "sha256:d14f836be8112fc74f43a8a80f0074649e44cdefb0f1dd1531d7883381014606",
+    "generatedAt": "2026-02-02T19:38:22.617Z"
   },
   "components": {
     "Accordion": {
@@ -3949,6 +3949,525 @@
         "borderRadius": "$tokens.borderRadius.sm",
         "shadow": "0 2px 8px rgba(0,0,0,0.3)"
       }
+    }
+  },
+  "uiBehaviors": {
+    "scrollbar": {
+      "width": "5px",
+      "thumbColor": "rgba(232,156,40,0.12)",
+      "thumbHoverColor": "rgba(232,156,40,0.25)",
+      "trackColor": "transparent",
+      "borderRadius": "3px",
+      "_cssTarget": "::-webkit-scrollbar, scrollbar-width, scrollbar-color"
+    },
+    "skeleton": {
+      "animation": "pulse",
+      "baseColor": "rgba(232,156,40,0.04)",
+      "highlightColor": "rgba(232,156,40,0.08)",
+      "borderRadius": "$tokens.borderRadius.sm",
+      "duration": "1.8s",
+      "_cssTarget": "[data-orqui-skeleton]"
+    },
+    "toast": {
+      "position": "bottom-right",
+      "maxVisible": 3,
+      "duration": 4000,
+      "styling": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "borderRadius": "$tokens.borderRadius.md",
+        "shadow": "0 4px 16px rgba(0,0,0,0.3)",
+        "textColor": "$tokens.colors.text",
+        "descriptionColor": "$tokens.colors.text-muted",
+        "successColor": "$tokens.colors.success",
+        "errorColor": "$tokens.colors.danger",
+        "warningColor": "$tokens.colors.accent"
+      },
+      "_cssTarget": "[data-sonner-toaster]"
+    },
+    "emptyState": {
+      "icon": "ph:magnifying-glass",
+      "title": "Nenhum item encontrado",
+      "description": "Tente ajustar seus filtros ou criar um novo item.",
+      "showAction": true,
+      "actionLabel": "Criar Novo",
+      "styling": {
+        "iconSize": 48,
+        "iconColor": "$tokens.colors.text-dim",
+        "titleFontSize": "$tokens.fontSizes.lg",
+        "titleFontWeight": "$tokens.fontWeights.semibold",
+        "titleColor": "$tokens.colors.text",
+        "descriptionFontSize": "$tokens.fontSizes.sm",
+        "descriptionColor": "$tokens.colors.text-muted",
+        "actionVariant": "outline",
+        "gap": "$tokens.spacing.md"
+      }
+    },
+    "tableSeparator": {
+      "color": "$tokens.colors.border",
+      "width": "1px",
+      "style": "solid",
+      "headerColor": "$tokens.colors.accent-dim",
+      "headerWidth": "2px",
+      "headerStyle": "solid"
+    },
+    "focusRing": {
+      "color": "$tokens.colors.ring",
+      "width": "2px",
+      "offset": "2px",
+      "style": "solid"
+    }
+  },
+  "navigation": {
+    "sidebar": {
+      "items": [
+        {
+          "id": "dashboard",
+          "label": "Dashboard",
+          "icon": "ph:chart-bar",
+          "route": "/dashboard",
+          "description": "Visão geral de workspaces, projetos e validações"
+        },
+        {
+          "id": "runs",
+          "label": "Runs",
+          "icon": "ph:flow-arrow",
+          "route": "/runs",
+          "description": "Ver e gerenciar todas as runs de validação"
+        },
+        {
+          "id": "gates",
+          "label": "Gates",
+          "icon": "ph:shield-check",
+          "route": "/gates",
+          "description": "Visão geral de todos os validation gates"
+        },
+        {
+          "id": "workspaces",
+          "label": "Workspaces",
+          "icon": "ph:folder",
+          "route": "/workspaces",
+          "description": "Gerenciar workspaces de validação"
+        },
+        {
+          "id": "projects",
+          "label": "Projects",
+          "icon": "ph:squares-four",
+          "route": "/projects",
+          "description": "Gerenciar projetos de validação"
+        },
+        {
+          "id": "mcp",
+          "label": "MCP",
+          "icon": "ph:lightning",
+          "route": "/mcp",
+          "description": "Model Context Protocol — sessões e ferramentas"
+        },
+        {
+          "id": "config",
+          "label": "Config",
+          "icon": "ph:gear",
+          "route": "/config",
+          "description": "Configurações gerais do Gatekeeper"
+        }
+      ],
+      "groups": [],
+      "icons": {
+        "enabled": true,
+        "library": "phosphor",
+        "size": "$tokens.sizing.icon-md",
+        "gap": "$tokens.spacing.sm",
+        "activeColor": "$tokens.colors.accent",
+        "inactiveColor": "currentColor"
+      },
+      "typography": {
+        "fontSize": "$tokens.fontSizes.sm",
+        "fontFamily": "$tokens.fontFamilies.mono",
+        "fontWeight": "$tokens.fontWeights.medium",
+        "activeFontWeight": "$tokens.fontWeights.bold",
+        "activeColor": "$tokens.colors.accent",
+        "hoverColor": "$tokens.colors.accent-dim",
+        "hoverBackground": "$tokens.colors.surface",
+        "activeBackground": "$tokens.colors.surface-2"
+      },
+      "activeCard": {
+        "enabled": true,
+        "borderColor": "$tokens.colors.accent",
+        "borderWidth": "1",
+        "borderRadius": "$tokens.borderRadius.md",
+        "padding": "$tokens.spacing.sm"
+      },
+      "collapsed": {
+        "display": "icon-only",
+        "tooltip": {
+          "enabled": true,
+          "mandatory": true,
+          "position": "right",
+          "offset": "12px",
+          "background": "$tokens.colors.surface-3",
+          "color": "$tokens.colors.text",
+          "borderColor": "$tokens.colors.border",
+          "borderRadius": "$tokens.borderRadius.sm",
+          "fontSize": "$tokens.fontSizes.xs",
+          "fontFamily": "$tokens.fontFamilies.mono",
+          "fontWeight": "$tokens.fontWeights.medium",
+          "padding": "5px 10px",
+          "shadow": "0 4px 12px rgba(0,0,0,0.4)",
+          "arrow": true,
+          "arrowSize": "3px",
+          "delay": 0,
+          "transition": "opacity 0.15s ease"
+        },
+        "letterFallback": {
+          "_note": "When icon-only mode but item has no icon, show first letter",
+          "fontSize": 13,
+          "fontWeight": "$tokens.fontWeights.medium",
+          "activeColor": "$tokens.colors.accent",
+          "activeBg": "rgba(232,156,40,0.08)",
+          "borderRadius": "$tokens.borderRadius.md",
+          "size": 26
+        }
+      }
+    },
+    "breadcrumbs": {
+      "enabled": true,
+      "position": "header",
+      "separator": "›",
+      "clickable": true,
+      "showHome": true,
+      "homeLabel": "Home",
+      "homeRoute": "/",
+      "typography": {
+        "fontSize": "$tokens.fontSizes.xs",
+        "fontFamily": "$tokens.fontFamilies.mono",
+        "fontWeight": "$tokens.fontWeights.medium",
+        "activeColor": "$tokens.colors.accent",
+        "linkColor": "$tokens.colors.text-muted",
+        "separatorColor": "$tokens.colors.text-dim",
+        "hoverColor": "$tokens.colors.text"
+      }
+    }
+  },
+  "sidebar": {
+    "enabled": true,
+    "position": "left",
+    "dimensions": {
+      "width": "$tokens.sizing.sidebar-width",
+      "collapsedWidth": "$tokens.sizing.sidebar-collapsed",
+      "minWidth": "$tokens.sizing.sidebar-min"
+    },
+    "behavior": {
+      "collapsible": true,
+      "collapsedDisplay": "icon-only",
+      "scrollable": false,
+      "fixed": true
+    },
+    "collapseButton": {
+      "icon": "chevron",
+      "position": "edge-center",
+      "size": "$tokens.sizing.icon-md"
+    },
+    "padding": {
+      "master": "$tokens.sizing.sidebar-pad",
+      "containers": {
+        "brand": {
+          "top": "$tokens.spacing.md",
+          "right": "$tokens.sizing.sidebar-pad",
+          "bottom": "$tokens.spacing.md",
+          "left": "$tokens.sizing.sidebar-pad"
+        },
+        "navigation": {
+          "top": "$tokens.spacing.sm",
+          "right": "$tokens.sizing.sidebar-nav-pad",
+          "bottom": "$tokens.spacing.sm",
+          "left": "$tokens.sizing.sidebar-nav-pad"
+        },
+        "footer": {
+          "top": "$tokens.spacing.xs",
+          "right": "$tokens.sizing.sidebar-nav-pad",
+          "bottom": "$tokens.spacing.xs",
+          "left": "$tokens.sizing.sidebar-nav-pad"
+        }
+      }
+    },
+    "separators": {
+      "header": {
+        "enabled": true,
+        "color": "$tokens.colors.border",
+        "width": "$tokens.borderWidth.thin",
+        "style": "solid"
+      },
+      "footer": {
+        "enabled": true,
+        "color": "$tokens.colors.border",
+        "width": "$tokens.borderWidth.thin",
+        "style": "solid"
+      },
+      "navGroups": {
+        "enabled": false,
+        "color": "$tokens.colors.border"
+      }
+    },
+    "background": "$tokens.colors.sidebar-bg"
+  },
+  "pages": {
+    "dashboard": {
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "description": "Visão geral de workspaces, projetos e validações",
+      "browserTitle": "Dashboard — Gatekeeper",
+      "icon": "ph:chart-bar"
+    },
+    "runs": {
+      "label": "Runs de Validação",
+      "route": "/runs",
+      "description": "Ver e gerenciar todas as runs de validação",
+      "browserTitle": "Runs de Validação — Gatekeeper",
+      "icon": "ph:flow-arrow"
+    },
+    "new-validation": {
+      "label": "Nova Validação",
+      "route": "/runs/new",
+      "description": "Carregue o plano e o teste",
+      "browserTitle": "Nova Validação | Gatekeeper",
+      "parentPage": "runs"
+    },
+    "gates": {
+      "label": "Validation Gates",
+      "route": "/gates",
+      "description": "Visão geral de todos os validation gates e seus validators",
+      "browserTitle": "Validation Gates — Gatekeeper",
+      "icon": "ph:shield-check"
+    },
+    "workspaces": {
+      "label": "Workspaces",
+      "route": "/workspaces",
+      "description": "Gerenciar workspaces de validação",
+      "browserTitle": "Workspaces — Gatekeeper",
+      "icon": "ph:folder"
+    },
+    "projects": {
+      "label": "Projects",
+      "route": "/projects",
+      "description": "Gerenciar projetos de validação",
+      "browserTitle": "Projects — Gatekeeper",
+      "icon": "ph:squares-four"
+    },
+    "mcp": {
+      "label": "MCP",
+      "route": "/mcp",
+      "description": "Model Context Protocol — sessões e ferramentas",
+      "browserTitle": "MCP — Gatekeeper",
+      "icon": "ph:lightning"
+    },
+    "config": {
+      "label": "Config",
+      "route": "/config",
+      "description": "Configurações gerais do Gatekeeper",
+      "browserTitle": "Config — Gatekeeper",
+      "icon": "ph:gear"
+    }
+  },
+  "header": {
+    "enabled": true,
+    "layoutMode": "header-first",
+    "dimensions": {
+      "height": "$tokens.sizing.header-height"
+    },
+    "background": "$tokens.colors.header-bg",
+    "zones": {
+      "sidebar": {
+        "width": "$tokens.sizing.sidebar-width",
+        "collapsedWidth": "$tokens.sizing.sidebar-collapsed",
+        "paddingLeft": "$tokens.sizing.sidebar-pad",
+        "borderRight": {
+          "enabled": true,
+          "color": "$tokens.colors.border",
+          "width": "$tokens.borderWidth.thin"
+        },
+        "contains": [
+          "brand"
+        ]
+      },
+      "content": {
+        "paddingLeft": "$tokens.sizing.main-pad",
+        "paddingRight": "$tokens.sizing.main-pad",
+        "contains": [
+          "breadcrumb",
+          "spacer",
+          "actions",
+          "userMenu"
+        ]
+      }
+    },
+    "separators": {
+      "bottom": {
+        "enabled": true,
+        "color": "$tokens.colors.border",
+        "width": "$tokens.borderWidth.thin",
+        "style": "solid"
+      }
+    },
+    "elements": {
+      "search": {
+        "enabled": true,
+        "placeholder": "Buscar...",
+        "icon": "ph:magnifying-glass",
+        "styling": {
+          "background": "$tokens.colors.input-bg",
+          "borderColor": "$tokens.colors.input-border",
+          "focusBorderColor": "$tokens.colors.accent",
+          "borderRadius": "$tokens.borderRadius.md",
+          "height": "$tokens.sizing.input-height-sm",
+          "fontSize": "$tokens.fontSizes.sm",
+          "iconColor": "$tokens.colors.text-muted"
+        }
+      },
+      "ctas": [
+        {
+          "id": "cta-mcp",
+          "label": "MCP",
+          "variant": "outline",
+          "route": "/mcp",
+          "icon": "ph:hard-drives"
+        },
+        {
+          "id": "cta-new-validation",
+          "label": "Nova Validação",
+          "variant": "default",
+          "route": "/runs/new"
+        }
+      ],
+      "icons": {
+        "enabled": true,
+        "items": [
+          {
+            "id": "bell",
+            "icon": "ph:bell",
+            "route": "/notifications",
+            "badge": {
+              "dot": true
+            }
+          },
+          {
+            "id": "settings",
+            "icon": "ph:gear",
+            "route": "/settings"
+          }
+        ],
+        "styling": {
+          "size": "$tokens.sizing.icon-md",
+          "color": "$tokens.colors.text-muted",
+          "hoverColor": "$tokens.colors.text",
+          "gap": "$tokens.spacing.xs"
+        }
+      },
+      "order": [
+        "cta:cta-mcp",
+        "search",
+        "cta:cta-new-validation",
+        "icons"
+      ]
+    }
+  },
+  "logo": {
+    "type": "icon-text",
+    "text": "Gatekeeper",
+    "icon": "ph:barricade",
+    "position": "header",
+    "headerSlot": "left",
+    "iconSize": 26,
+    "iconGap": 8,
+    "typography": {
+      "fontFamily": "JetBrains Mono",
+      "fontSize": 19,
+      "fontWeight": 700,
+      "color": "#e89c28",
+      "letterSpacing": -0.02
+    }
+  },
+  "alignmentGrid": {
+    "_doc": "Two master tokens control ALL horizontal alignment",
+    "sidebarPad": {
+      "token": "$tokens.sizing.sidebar-pad",
+      "value": "16px",
+      "controls": [
+        "sidebar brand container paddingLeft/Right",
+        "sidebar nav container padding (via sidebar-nav-pad = sidebarPad - 6px)",
+        "sidebar footer container padding (via sidebar-nav-pad)",
+        "header sidebar-zone paddingLeft",
+        "logo positioning in header"
+      ]
+    },
+    "mainPad": {
+      "token": "$tokens.sizing.main-pad",
+      "value": "28px",
+      "controls": [
+        "main content area paddingLeft/Right",
+        "header content-zone paddingLeft/Right",
+        "footer paddingLeft/Right",
+        "breadcrumbs left alignment",
+        "page header left alignment",
+        "card grid left alignment",
+        "table left alignment"
+      ]
+    }
+  },
+  "icons": {
+    "library": "phosphor",
+    "style": "regular",
+    "svgViewBox": "0 0 256 256",
+    "available": [
+      "house",
+      "gear",
+      "magnifying-glass",
+      "bell",
+      "user",
+      "shield-check",
+      "shield",
+      "lock",
+      "key",
+      "eye",
+      "warning",
+      "folder",
+      "file",
+      "code",
+      "rocket",
+      "lightning",
+      "star",
+      "heart",
+      "globe",
+      "sparkle",
+      "robot",
+      "chart-bar",
+      "flow-arrow",
+      "chat-circle",
+      "list",
+      "squares-four",
+      "clipboard",
+      "database",
+      "plus",
+      "check",
+      "x",
+      "barricade",
+      "door",
+      "door-open",
+      "envelope",
+      "question",
+      "moon",
+      "sun",
+      "arrow-square-down",
+      "share-network",
+      "hard-drives"
+    ],
+    "navMapping": {
+      "dashboard": "ph:chart-bar",
+      "runs": "ph:flow-arrow",
+      "gates": "ph:shield-check",
+      "workspaces": "ph:folder",
+      "projects": "ph:squares-four",
+      "mcp": "ph:lightning",
+      "config": "ph:gear"
     }
   }
 }
