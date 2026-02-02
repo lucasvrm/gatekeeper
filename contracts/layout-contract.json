@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:f94ed8ed22a3825615793f28097e662ff4caa32ba412a057f40eb45cfe2cd088",
-    "generatedAt": "2026-02-02T02:34:49.162Z"
+    "hash": "sha256:996727872ab3ea4d95ecc4dac5693715b092792faf82ae0c222b3200e78ceeca",
+    "generatedAt": "2026-02-02T03:10:07.228Z"
   },
   "structure": {
     "regions": {
@@ -276,7 +276,7 @@
         "placeholder": "Buscar..."
       },
       "cta": {
-        "enabled": true,
+        "enabled": false,
         "label": "Nova Validação",
         "variant": "default",
         "route": "/runs/new"
@@ -293,7 +293,27 @@
             "route": "/settings"
           }
         ]
-      }
+      },
+      "ctas": [
+        {
+          "id": "cta-1770001674670",
+          "label": "Nova Validação",
+          "variant": "default",
+          "route": "/runs/new"
+        },
+        {
+          "id": "cta-1770001676593",
+          "label": "MCP",
+          "variant": "outline",
+          "route": "/mcp",
+          "icon": "ph:hard-drives"
+        }
+      ],
+      "order": [
+        "search",
+        "ctas",
+        "icons"
+      ]
     }
   },
   "tokens": {

@@ -14,6 +14,8 @@ import { ProjectsListPage } from "@/components/projects-list-page"
 import { ProjectDetailsPage } from "@/components/project-details-page"
 import { ProjectFormPage } from "@/components/project-form-page"
 import { MCPSessionPage } from "@/components/mcp-session-page"
+import { CommandPalette } from "@/components/command-palette"
+import { useCommandPalette } from "@/hooks/use-command-palette"
 
 import layoutContract from "../contracts/layout-contract.json"
 import registryContract from "../contracts/ui-registry-contract.json"
@@ -42,6 +44,8 @@ const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
 })
 
 function App() {
+  const { open, setOpen, openPalette } = useCommandPalette()
+
   return (
     <ContractProvider layout={layoutContract} registry={registryContract}>
       <BrowserRouter>
@@ -60,6 +64,7 @@ function App() {
               ))}
             </div>
           }
+          onSearch={() => openPalette()}
         >
           <Routes>
             <Route path="/" element={<DashboardPage />} />
@@ -82,6 +87,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppShell>
+        <CommandPalette open={open} onOpenChange={setOpen} />
         <Toaster />
       </BrowserRouter>
     </ContractProvider>
