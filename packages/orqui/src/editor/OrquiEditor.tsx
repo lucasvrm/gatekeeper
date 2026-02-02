@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 
 // ============================================================================
 // Types
@@ -1327,14 +1328,62 @@ function SidebarConfigEditor({ region, tokens, onChange }) {
   const behavior = region.behavior || {};
   const cb = region.collapseButton || { icon: "chevron", position: "header-end" };
   const seps = region.separators || {};
-  const navItems = nav.items || [];
+  const navItemsRaw = nav.items || [];
+  // Ensure every item has an id (legacy migration)
+  const navItems = navItemsRaw.map((item, i) => item.id ? item : { ...item, id: `nav-legacy-${i}` });
+  if (navItemsRaw.some((item, i) => !item.id)) {
+    // Auto-persist ids once
+    setTimeout(() => updateNavItems(navItems), 0);
+  }
+  const navGroups = nav.groups || [];
 
   const updateNav = (field, val) => onChange({ ...region, navigation: { ...nav, icons: { ...nav.icons, [field]: val } } });
   const updateNavTypo = (field, val) => onChange({ ...region, navigation: { ...nav, typography: { ...navTypo, [field]: val } } });
   const updateNavItems = (items) => onChange({ ...region, navigation: { ...nav, items } });
+  const updateNavGroups = (groups) => onChange({ ...region, navigation: { ...nav, groups } });
   const updateBehavior = (field, val) => onChange({ ...region, behavior: { ...behavior, [field]: val } });
   const updateCB = (field, val) => onChange({ ...region, collapseButton: { ...cb, [field]: val } });
   const updateSep = (name, val) => onChange({ ...region, separators: { ...seps, [name]: val } });
+
+  // Nav item CRUD
+  const addNavItem = () => {
+    const id = `nav-${Date.now()}`;
+    updateNavItems([...navItems, { id, icon: "ph:house", label: "Novo item", route: "/" }]);
+  };
+  const removeNavItem = (id) => updateNavItems(navItems.filter(i => i.id !== id));
+  const updateNavItem = (id, field, val) => updateNavItems(navItems.map(i => i.id === id ? { ...i, [field]: val } : i));
+  const moveNavItem = (idx, dir) => {
+    const arr = [...navItems];
+    const target = idx + dir;
+    if (target < 0 || target >= arr.length) return;
+    [arr[idx], arr[target]] = [arr[target], arr[idx]];
+    updateNavItems(arr);
+  };
+  // Sub-items
+  const addSubItem = (parentId) => {
+    const subId = `sub-${Date.now()}`;
+    updateNavItems(navItems.map(i => i.id === parentId ? { ...i, children: [...(i.children || []), { id: subId, label: "Sub-item", route: "" }] } : i));
+  };
+  const removeSubItem = (parentId, subId) => {
+    updateNavItems(navItems.map(i => i.id === parentId ? { ...i, children: (i.children || []).filter(c => c.id !== subId) } : i));
+  };
+  const updateSubItem = (parentId, subId, field, val) => {
+    updateNavItems(navItems.map(i => i.id === parentId ? {
+      ...i, children: (i.children || []).map(c => c.id === subId ? { ...c, [field]: val } : c),
+    } : i));
+  };
+  // Groups
+  const addGroup = () => {
+    const id = `grp-${Date.now()}`;
+    updateNavGroups([...navGroups, { id, label: "Novo Grupo", collapsible: false }]);
+  };
+  const removeGroup = (id) => {
+    updateNavGroups(navGroups.filter(g => g.id !== id));
+    // Ungroup items that were in this group
+    updateNavItems(navItems.map(i => i.group === id ? { ...i, group: undefined } : i));
+  };
+  const updateGroup = (id, field, val) => updateNavGroups(navGroups.map(g => g.id === id ? { ...g, [field]: val } : g));
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   return (
     <div>
@@ -1465,73 +1514,114 @@ function SidebarConfigEditor({ region, tokens, onChange }) {
         )}
       </div>
 
+      {/* Navigation Groups */}
+      <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        Grupos de Navegação
+      </div>
+      <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
+        {navGroups.length === 0 && (
+          <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 6 }}>Sem grupos — todos os itens ficam no nível raiz.</div>
+        )}
+        {navGroups.map(g => (
+          <div key={g.id} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+            <input value={g.label} onChange={(e) => updateGroup(g.id, "label", e.target.value)} style={{ ...s.input, flex: 1, fontSize: 12 }} placeholder="Nome do grupo" />
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: COLORS.textDim, whiteSpace: "nowrap" }}>
+              <input type="checkbox" checked={g.collapsible ?? false} onChange={(e) => updateGroup(g.id, "collapsible", e.target.checked)} />
+              Colapsável
+            </label>
+            <span style={{ fontSize: 9, color: COLORS.textDim, fontFamily: "monospace" }}>{g.id}</span>
+            <button onClick={() => removeGroup(g.id)} style={{ ...s.btnSmall, padding: "2px 6px", fontSize: 10, color: COLORS.error }}>✕</button>
+          </div>
+        ))}
+        <button onClick={addGroup} style={{ ...s.btnSmall, width: "100%", padding: "5px 0", marginTop: 4, fontSize: 11, color: COLORS.accent }}>
+          + Adicionar grupo
+        </button>
+      </div>
+
       {/* Navigation Items */}
       <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-        Navigation Items
-        <span style={{ fontSize: 10, color: COLORS.textDim, fontWeight: 400, textTransform: "none", marginLeft: 8 }}>
-          (rendered when no sidebarNav prop)
+        Itens de Navegação
+        <span style={{ fontSize: 10, color: COLORS.accent, fontWeight: 400, textTransform: "none", marginLeft: 8 }}>
+          fonte da verdade
         </span>
       </div>
       <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
-        {navItems.map((item, idx) => (
-          <div key={idx} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
-            <div style={{ width: 36, flexShrink: 0 }}>
-              <button
-                onClick={() => {
-                  // Cycle: if has icon, show picker (via prompt for now)
-                  const val = prompt("Ícone (emoji, ex: 🏠 ou ph:house)", item.icon || "");
-                  if (val !== null) {
-                    const updated = [...navItems];
-                    updated[idx] = { ...item, icon: val };
-                    updateNavItems(updated);
-                  }
-                }}
-                style={{ ...s.btnSmall, width: 36, height: 32, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                title="Escolher ícone"
-              >
-                {item.icon?.startsWith("ph:") ? (
-                  <PhosphorSvg d={getPhosphorPath(item.icon.slice(3)) || ""} size={16} />
-                ) : (
-                  <span style={{ fontSize: 14 }}>{item.icon || "—"}</span>
-                )}
-              </button>
+        {navItems.map((item, idx) => {
+          const isExpanded = expandedItem === item.id;
+          const subItems = item.children || [];
+          return (
+            <div key={item.id || idx} style={{ marginBottom: 6, borderRadius: 6, border: `1px solid ${isExpanded ? COLORS.accent + "40" : COLORS.border}`, background: isExpanded ? COLORS.surface3 : "transparent" }}>
+              {/* Main row */}
+              <div style={{ display: "flex", gap: 4, alignItems: "center", padding: "6px 8px" }}>
+                {/* Reorder */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0 }}>
+                  <button onClick={() => moveNavItem(idx, -1)} disabled={idx === 0} style={{ ...s.btnSmall, padding: "0 3px", fontSize: 8, opacity: idx === 0 ? 0.2 : 0.7, lineHeight: "12px" }}>▲</button>
+                  <button onClick={() => moveNavItem(idx, 1)} disabled={idx === navItems.length - 1} style={{ ...s.btnSmall, padding: "0 3px", fontSize: 8, opacity: idx === navItems.length - 1 ? 0.2 : 0.7, lineHeight: "12px" }}>▼</button>
+                </div>
+                {/* Icon */}
+                <PhosphorIconSelect value={item.icon || ""} allowEmpty placeholder="—" onChange={(val) => updateNavItem(item.id, "icon", val)} />
+                {/* Label */}
+                <input value={item.label || ""} onChange={(e) => updateNavItem(item.id, "label", e.target.value)} style={{ ...s.input, flex: 1, fontSize: 12 }} placeholder="Label" />
+                {/* Route */}
+                <input value={item.route || ""} onChange={(e) => updateNavItem(item.id, "route", e.target.value)} style={{ ...s.input, width: 80, fontSize: 11, fontFamily: "monospace" }} placeholder="/rota" />
+                {/* Expand toggle */}
+                <button onClick={() => setExpandedItem(isExpanded ? null : item.id)} style={{ ...s.btnSmall, padding: "2px 6px", fontSize: 10, color: COLORS.textDim }} title="Mais opções">
+                  {isExpanded ? "▲" : "⋯"}
+                </button>
+                {/* Remove */}
+                <button onClick={() => removeNavItem(item.id)} style={{ ...s.btnSmall, padding: "2px 6px", fontSize: 10, color: COLORS.error }} title="Remover">✕</button>
+              </div>
+
+              {/* Expanded details */}
+              {isExpanded && (
+                <div style={{ padding: "4px 8px 8px 32px", borderTop: `1px solid ${COLORS.border}` }}>
+                  <Row gap={8}>
+                    <Field label="Grupo" style={{ flex: 1 }}>
+                      <select value={item.group || ""} onChange={(e) => updateNavItem(item.id, "group", e.target.value || undefined)} style={s.select}>
+                        <option value="">— Sem grupo —</option>
+                        {navGroups.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Badge" style={{ width: 80 }}>
+                      <input value={item.badge?.text || ""} onChange={(e) => updateNavItem(item.id, "badge", e.target.value ? { ...item.badge, text: e.target.value } : undefined)} style={{ ...s.input, fontSize: 11 }} placeholder="Ex: 3" />
+                    </Field>
+                    <Field label="" style={{ width: 60 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: COLORS.textDim, cursor: "pointer", marginTop: 4 }}>
+                        <input type="checkbox" checked={item.badge?.dot ?? false} onChange={(e) => updateNavItem(item.id, "badge", e.target.checked ? { ...item.badge, dot: true } : item.badge?.text ? { text: item.badge.text } : undefined)} />
+                        Dot
+                      </label>
+                    </Field>
+                    <Field label="" style={{ width: 60 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: COLORS.textDim, cursor: "pointer", marginTop: 4 }}>
+                        <input type="checkbox" checked={item.disabled ?? false} onChange={(e) => updateNavItem(item.id, "disabled", e.target.checked || undefined)} />
+                        Off
+                      </label>
+                    </Field>
+                  </Row>
+                  {/* Sub-items */}
+                  <div style={{ marginTop: 8, fontSize: 10, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>Sub-itens</div>
+                  {subItems.map((sub, si) => (
+                    <div key={sub.id || si} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 3, paddingLeft: 8 }}>
+                      <span style={{ fontSize: 10, color: COLORS.textDim }}>↳</span>
+                      <PhosphorIconSelect value={sub.icon || ""} allowEmpty placeholder="—" onChange={(val) => updateSubItem(item.id, sub.id, "icon", val)} />
+                      <input value={sub.label || ""} onChange={(e) => updateSubItem(item.id, sub.id, "label", e.target.value)} style={{ ...s.input, flex: 1, fontSize: 11 }} placeholder="Sub-label" />
+                      <input value={sub.route || ""} onChange={(e) => updateSubItem(item.id, sub.id, "route", e.target.value)} style={{ ...s.input, width: 80, fontSize: 10, fontFamily: "monospace" }} placeholder="/sub-rota" />
+                      <button onClick={() => removeSubItem(item.id, sub.id)} style={{ ...s.btnSmall, padding: "1px 5px", fontSize: 9, color: COLORS.error }}>✕</button>
+                    </div>
+                  ))}
+                  <button onClick={() => addSubItem(item.id)} style={{ ...s.btnSmall, fontSize: 10, color: COLORS.accent, marginTop: 2, padding: "3px 8px" }}>
+                    + Sub-item
+                  </button>
+                </div>
+              )}
             </div>
-            <input
-              value={item.label || ""}
-              onChange={(e) => {
-                const updated = [...navItems];
-                updated[idx] = { ...item, label: e.target.value };
-                updateNavItems(updated);
-              }}
-              style={{ ...s.input, flex: 1, fontSize: 12 }}
-              placeholder="Label"
-            />
-            <input
-              value={item.route || ""}
-              onChange={(e) => {
-                const updated = [...navItems];
-                updated[idx] = { ...item, route: e.target.value };
-                updateNavItems(updated);
-              }}
-              style={{ ...s.input, width: 80, fontSize: 11 }}
-              placeholder="/route"
-            />
-            <button
-              onClick={() => updateNavItems(navItems.filter((_, i) => i !== idx))}
-              style={{ ...s.btnSmall, padding: "4px 8px", fontSize: 12, color: COLORS.error }}
-              title="Remover"
-            >✕</button>
-          </div>
-        ))}
-        <button
-          onClick={() => updateNavItems([...navItems, { icon: "ph:house", label: "New Item", route: "/" }])}
-          style={{ ...s.btnSmall, width: "100%", padding: "6px 0", marginTop: 4, fontSize: 11, color: COLORS.accent }}
-        >
+          );
+        })}
+        <button onClick={addNavItem} style={{ ...s.btnSmall, width: "100%", padding: "6px 0", marginTop: 4, fontSize: 11, color: COLORS.accent }}>
           + Adicionar item
         </button>
         <div style={{ marginTop: 8, fontSize: 10, color: COLORS.textDim }}>
-          Estes itens são renderizados como fallback quando o app não passa sidebarNav via props.
-          Ícones suportam emoji (🏠) ou Phosphor (ph:house, ph:gear, ph:shield-check, etc).
+          O Orqui é a fonte da verdade para navegação. Se o app passar <code style={{ color: COLORS.accent }}>sidebarNav</code> como prop, ela terá prioridade.
         </div>
       </div>
 
@@ -1937,6 +2027,154 @@ function getPhosphorPath(name: string): string | null {
   return null;
 }
 
+// Compact Phosphor icon selector — button + popover with search
+function PhosphorIconSelect({ value, onChange, allowEmpty = false, placeholder = "Ícone" }: {
+  value: string; // "ph:house" or ""
+  onChange: (val: string) => void;
+  allowEmpty?: boolean;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const popoverRef = React.useRef<HTMLDivElement>(null);
+
+  // Position popover relative to trigger, rendered via portal
+  useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const popW = 300, popH = 360;
+    let top = rect.bottom + 4;
+    let left = rect.left;
+    // Flip up if not enough space below
+    if (top + popH > window.innerHeight) top = rect.top - popH - 4;
+    // Clamp left
+    if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
+    if (left < 4) left = 4;
+    setPos({ top, left });
+  }, [open]);
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    if (!open) return;
+    const onMouse = (e: MouseEvent) => {
+      if (triggerRef.current?.contains(e.target as Node)) return;
+      if (popoverRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onMouse);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onMouse); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const phName = value?.startsWith("ph:") ? value.slice(3) : value || "";
+  const phPath = phName ? getPhosphorPath(phName) : null;
+
+  const allIcons = PHOSPHOR_ICONS_FLAT;
+  const filtered = search
+    ? allIcons.filter(i => i.name.includes(search.toLowerCase().replace(/\s+/g, "-")))
+    : allIcons;
+
+  const groupedFiltered = search
+    ? [["Resultados", filtered] as const]
+    : (Object.entries(PHOSPHOR_CATEGORIES) as [string, typeof allIcons][]);
+
+  const popover = open ? ReactDOM.createPortal(
+    <div ref={popoverRef} style={{
+      position: "fixed", top: pos.top, left: pos.left, zIndex: 99999,
+      width: 300, maxHeight: 360, overflowY: "auto",
+      background: COLORS.surface1, border: `1px solid ${COLORS.border}`,
+      borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.55)",
+      padding: 8,
+    }}>
+      <input
+        autoFocus
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Buscar ícone..."
+        style={{ ...s.input, width: "100%", fontSize: 11, marginBottom: 6, padding: "6px 8px", boxSizing: "border-box" }}
+      />
+      {allowEmpty && (
+        <button
+          onClick={() => { onChange(""); setOpen(false); }}
+          style={{
+            ...s.btnSmall, width: "100%", textAlign: "left", padding: "5px 8px",
+            marginBottom: 4, fontSize: 11, color: COLORS.textDim,
+            background: !value ? COLORS.accent + "15" : "transparent",
+            border: "none", borderRadius: 4, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 6,
+          }}
+        >
+          <span style={{ width: 18, textAlign: "center" }}>—</span>
+          <span>Nenhum ícone</span>
+        </button>
+      )}
+      {groupedFiltered.map(([cat, icons]) => (
+        (icons as typeof allIcons).length > 0 && (
+          <div key={cat as string} style={{ marginBottom: 6 }}>
+            <div style={{ fontSize: 9, color: COLORS.textDim, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", padding: "4px 4px 2px", marginTop: 2 }}>
+              {cat as string}
+            </div>
+            <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+              {(icons as typeof allIcons).map(ic => {
+                const isSelected = phName === ic.name;
+                return (
+                  <button
+                    key={ic.name}
+                    onClick={() => { onChange(`ph:${ic.name}`); setOpen(false); }}
+                    title={ic.name}
+                    style={{
+                      ...s.btnSmall, padding: 5, display: "flex", alignItems: "center", justifyContent: "center",
+                      background: isSelected ? COLORS.accent + "25" : COLORS.surface3,
+                      border: isSelected ? `1.5px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
+                      borderRadius: 5, cursor: "pointer", width: 30, height: 30,
+                      color: isSelected ? COLORS.accent : COLORS.textMuted,
+                    }}
+                  >
+                    <PhosphorSvg d={ic.d} size={16} color={isSelected ? COLORS.accent : COLORS.textMuted} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )
+      ))}
+      {filtered.length === 0 && (
+        <div style={{ fontSize: 11, color: COLORS.textDim, padding: 12, textAlign: "center" }}>Nenhum ícone encontrado</div>
+      )}
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        onClick={() => { setOpen(!open); setSearch(""); }}
+        style={{
+          ...s.btnSmall,
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "4px 10px", minWidth: 80, justifyContent: "space-between",
+          background: COLORS.surface3, border: `1px solid ${open ? COLORS.accent : COLORS.border}`,
+          borderRadius: 6, cursor: "pointer", fontSize: 11, color: COLORS.text,
+        }}
+        title={value || placeholder}
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          {phPath ? <PhosphorSvg d={phPath} size={14} color={COLORS.text} /> : null}
+          <span style={{ color: phName ? COLORS.text : COLORS.textDim, maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {phName || placeholder}
+          </span>
+        </span>
+        <span style={{ fontSize: 8, color: COLORS.textDim }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {popover}
+    </>
+  );
+}
+
 function IconPicker({ value, onSelect }: { value: string; onSelect: (icon: string) => void }) {
   const [tab, setTab] = useState<"emoji" | "phosphor">(value?.startsWith("ph:") ? "phosphor" : "emoji");
   const [expanded, setExpanded] = useState(false);
@@ -2332,7 +2570,7 @@ function LogoConfigEditor({ logo, onChange }) {
 // ============================================================================
 // Header Elements Editor
 // ============================================================================
-const HEADER_ICON_OPTIONS = ["bell", "settings", "user", "mail", "help", "moon", "sun", "menu", "search", "grid", "download", "share"];
+const HEADER_ICON_OPTIONS = ["bell", "settings", "user", "mail", "help", "moon", "sun", "menu", "search", "grid", "download", "share", "server"];
 const HEADER_ICON_PHOSPHOR: Record<string, string> = {
   bell: "bell", settings: "gear", user: "user", mail: "envelope", help: "question", moon: "moon",
   sun: "sun", menu: "list", search: "magnifying-glass", grid: "squares-four", download: "arrow-square-down", share: "share-network", server: "hard-drives",
@@ -2556,19 +2794,11 @@ function HeaderElementsEditor({ elements, onChange }) {
             </label>
             {(cfg.search?.showIcon !== false) && (
               <Field label="Ícone da pesquisa">
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {["magnifying-glass", "eye", "list", "sparkle"].map(icName => (
-                    <button key={icName} onClick={() => update("search", "icon", `ph:${icName}`)} style={{
-                      ...s.btnSmall, padding: "6px 8px",
-                      background: (cfg.search?.icon === `ph:${icName}` || (!cfg.search?.icon && icName === "magnifying-glass")) ? COLORS.accent + "20" : COLORS.surface3,
-                      border: (cfg.search?.icon === `ph:${icName}` || (!cfg.search?.icon && icName === "magnifying-glass")) ? `1px solid ${COLORS.accent}50` : `1px solid ${COLORS.border}`,
-                      display: "inline-flex", alignItems: "center",
-                    }} title={icName}>
-                      <MiniPhosphorIcon name={icName} size={14} color={COLORS.text} />
-                    </button>
-                  ))}
-                  <input value={cfg.search?.icon || "ph:magnifying-glass"} onChange={(e) => update("search", "icon", e.target.value)} style={{ ...s.input, width: 150, fontSize: 11, fontFamily: "monospace" }} placeholder="ph:icon-name" />
-                </div>
+                <PhosphorIconSelect
+                  value={cfg.search?.icon || "ph:magnifying-glass"}
+                  onChange={(val) => update("search", "icon", val || "ph:magnifying-glass")}
+                  placeholder="magnifying-glass"
+                />
               </Field>
             )}
           </>
@@ -2670,8 +2900,13 @@ function HeaderElementsEditor({ elements, onChange }) {
                 <Field label="Rota (link)" style={{ flex: 1 }}>
                   <input value={cta.route || ""} onChange={(e) => updateCta(cta.id, "route", e.target.value)} style={{ ...s.input, fontFamily: "monospace" }} placeholder="/nova-acao" />
                 </Field>
-                <Field label="Ícone (ph:name)" style={{ width: 150 }}>
-                  <input value={cta.icon || ""} onChange={(e) => updateCta(cta.id, "icon", e.target.value)} style={{ ...s.input, fontFamily: "monospace", fontSize: 11 }} placeholder="ph:plus" />
+                <Field label="Ícone" style={{ width: 150 }}>
+                  <PhosphorIconSelect
+                    value={cta.icon || ""}
+                    allowEmpty
+                    placeholder="Nenhum"
+                    onChange={(val) => updateCta(cta.id, "icon", val)}
+                  />
                 </Field>
               </Row>
               {/* Preview */}

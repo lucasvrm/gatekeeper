@@ -42,6 +42,8 @@ export type ValidatorCode =
   | 'TEST_CLAUSE_MAPPING_VALID'
   | 'DIFF_SCOPE_ENFORCEMENT'
   | 'TEST_READ_ONLY_ENFORCEMENT'
+  | 'UI_COMPONENT_REGISTRY'
+  | 'UI_PROPS_COMPLIANCE'
   | 'TASK_TEST_PASSES'
   | 'STRICT_COMPILATION'
   | 'STYLE_CONSISTENCY_LINT'
@@ -161,6 +163,65 @@ export interface SandboxService {
   cleanup(sandboxPath: string): Promise<void>
 }
 
+export interface UIComponentProp {
+  type: string
+  required: boolean
+  description: string
+  default?: unknown
+  enumValues?: string[]
+}
+
+export interface UIComponentSlot {
+  name: string
+  description?: string
+}
+
+export interface UIComponentVariant {
+  name: string
+  props?: Record<string, unknown>
+}
+
+export interface UIComponentExample {
+  title?: string
+  code: string
+}
+
+export interface UIRegistryComponent {
+  name: string
+  category: string
+  description?: string
+  source?: string
+  props: Record<string, UIComponentProp>
+  slots: UIComponentSlot[]
+  variants: UIComponentVariant[]
+  examples: UIComponentExample[]
+  tags: string[]
+}
+
+export interface UIRegistryContract {
+  $orqui?: { version: string }
+  components: Record<string, UIRegistryComponent>
+}
+
+export interface LayoutContract {
+  $orqui?: { version: string }
+  structure?: unknown
+  tokens?: unknown
+  textStyles?: unknown
+}
+
+export interface OrquiLock {
+  version: string
+  generatedAt?: string
+  contracts?: string[]
+}
+
+export interface UIContracts {
+  registry: UIRegistryContract | null
+  layout: LayoutContract | null
+  lock: OrquiLock | null
+}
+
 export interface ValidationContext {
   runId: string
   projectPath: string
@@ -185,6 +246,7 @@ export interface ValidationContext {
   sensitivePatterns: string[]
   ambiguousTerms: string[]
   bypassedValidators: Set<string>
+  uiContracts: UIContracts | null
 }
 
 export interface ValidatorContextInput {

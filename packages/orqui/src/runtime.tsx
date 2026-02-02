@@ -39,10 +39,26 @@ interface NavTypography {
   hoverBackground?: string;
   hoverCardBorder?: string;
 }
+interface NavItem {
+  id: string;
+  icon?: string;
+  label: string;
+  route?: string;
+  group?: string;
+  badge?: { text?: string; count?: number; dot?: boolean; color?: string };
+  children?: NavItem[];
+  disabled?: boolean;
+}
+interface NavGroup {
+  id: string;
+  label: string;
+  collapsible?: boolean;
+}
 interface NavigationConfig {
   icons?: { enabled: boolean; size?: string; gap?: string };
   typography?: NavTypography;
-  items?: Array<{ icon?: string; label: string; route?: string }>;
+  items?: NavItem[];
+  groups?: NavGroup[];
 }
 interface CollapseButtonConfig {
   icon?: string;
@@ -1184,6 +1200,174 @@ function BreadcrumbRenderer({ config, pages, currentPage, navigate, resolveToken
 }
 
 // ============================================================================
+// SidebarNavRenderer — renders navigation from contract with groups, badges, sub-items
+// ============================================================================
+function SidebarNavRenderer({ navConfig, page, navigate, collapsed, collapsedDisplay }: {
+  navConfig: NavigationConfig;
+  page?: string;
+  navigate?: (route: string) => void;
+  collapsed?: boolean;
+  collapsedDisplay?: string;
+}) {
+  const items = navConfig.items || [];
+  const groups = navConfig.groups || [];
+  const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Track current pathname for active state
+  const [pathname, setPathname] = useState(() =>
+    typeof window !== "undefined" ? window.location.pathname : "/"
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sync = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", sync);
+    const origPush = history.pushState.bind(history);
+    const origReplace = history.replaceState.bind(history);
+    history.pushState = (...args: Parameters<typeof origPush>) => { origPush(...args); sync(); };
+    history.replaceState = (...args: Parameters<typeof origReplace>) => { origReplace(...args); sync(); };
+    return () => {
+      window.removeEventListener("popstate", sync);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+    };
+  }, []);
+
+  const isActive = (route?: string) => {
+    if (!route) return false;
+    if (page && route === `/${page}`) return true;
+    return pathname === route || pathname.startsWith(route + "/");
+  };
+
+  const handleClick = (e: React.MouseEvent, route?: string) => {
+    if (!route) return;
+    e.preventDefault();
+    if (navigate) navigate(route);
+    else window.location.href = route;
+  };
+
+  const renderBadge = (badge?: NavItem["badge"]) => {
+    if (!badge) return null;
+    if (badge.dot) {
+      return <span style={{ width: 6, height: 6, borderRadius: "50%", background: badge.color || "var(--destructive, #ef4444)", flexShrink: 0 }} />;
+    }
+    const text = badge.text || (badge.count != null ? String(badge.count) : null);
+    if (!text) return null;
+    return (
+      <span style={{
+        fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 10,
+        background: badge.color || "var(--destructive, #ef4444)",
+        color: "#fff", lineHeight: "16px", flexShrink: 0, minWidth: 18, textAlign: "center",
+      }}>{text}</span>
+    );
+  };
+
+  const renderItem = (item: NavItem, depth = 0) => {
+    const active = isActive(item.route);
+    const hasChildren = item.children && item.children.length > 0;
+    const isSubOpen = openSubs[item.id] ?? active; // Auto-open if child is active
+
+    return (
+      <div key={item.id}>
+        <a
+          href={item.route || "#"}
+          onClick={(e) => {
+            if (hasChildren && !item.route) {
+              e.preventDefault();
+              setOpenSubs(prev => ({ ...prev, [item.id]: !isSubOpen }));
+            } else {
+              handleClick(e, item.route);
+            }
+          }}
+          data-active={active ? "true" : undefined}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: depth > 0 ? "6px 12px 6px 28px" : "8px 12px",
+            borderRadius: 6,
+            textDecoration: "none",
+            color: "var(--sidebar-foreground, var(--foreground))",
+            fontSize: depth > 0 ? 13 : 14,
+            opacity: item.disabled ? 0.4 : 1,
+            pointerEvents: item.disabled ? "none" as const : undefined,
+            cursor: item.disabled ? "default" : "pointer",
+          }}
+        >
+          {item.icon && <IconValue icon={item.icon} size={depth > 0 ? 16 : 18} color="currentColor" />}
+          {!collapsed && <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>}
+          {!collapsed && renderBadge(item.badge)}
+          {!collapsed && hasChildren && (
+            <span style={{ fontSize: 10, color: "var(--sidebar-foreground)", opacity: 0.4, transition: "transform 0.2s", transform: isSubOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+          )}
+        </a>
+        {/* Children (sub-items) */}
+        {hasChildren && isSubOpen && !collapsed && (
+          <div style={{ overflow: "hidden" }}>
+            {item.children!.map(child => renderItem(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Group items
+  const groupMap = new Map<string, NavItem[]>();
+  const ungrouped: NavItem[] = [];
+  for (const item of items) {
+    if (item.group) {
+      if (!groupMap.has(item.group)) groupMap.set(item.group, []);
+      groupMap.get(item.group)!.push(item);
+    } else {
+      ungrouped.push(item);
+    }
+  }
+
+  // Build ordered list: ungrouped first, then each group
+  const sections: Array<{ group?: NavGroup; items: NavItem[] }> = [];
+  if (ungrouped.length) sections.push({ items: ungrouped });
+  for (const g of groups) {
+    const gItems = groupMap.get(g.id) || [];
+    if (gItems.length) sections.push({ group: g, items: gItems });
+  }
+  // Any groups referenced by items but not in groups[] config
+  for (const [gId, gItems] of groupMap) {
+    if (!groups.find(g => g.id === gId)) {
+      sections.push({ group: { id: gId, label: gId.charAt(0).toUpperCase() + gId.slice(1) }, items: gItems });
+    }
+  }
+
+  return (
+    <>
+      {sections.map((sec, si) => {
+        const gCollapsed = sec.group?.collapsible && collapsedGroups[sec.group.id];
+        return (
+          <div key={sec.group?.id || `_ungrouped_${si}`}>
+            {sec.group && !collapsed && (
+              <div
+                onClick={() => sec.group!.collapsible && setCollapsedGroups(prev => ({ ...prev, [sec.group!.id]: !gCollapsed }))}
+                style={{
+                  fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+                  color: "var(--sidebar-foreground)", opacity: 0.4,
+                  padding: "12px 12px 4px",
+                  cursor: sec.group.collapsible ? "pointer" : "default",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  userSelect: "none",
+                }}
+              >
+                <span>{sec.group.label}</span>
+                {sec.group.collapsible && (
+                  <span style={{ fontSize: 8, transition: "transform 0.2s", transform: gCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
+                )}
+              </div>
+            )}
+            {!gCollapsed && sec.items.map(item => renderItem(item))}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ============================================================================
 // AppShell — renders layout from contract, uses same CSS vars as components
 // ============================================================================
 interface AppShellProps {
@@ -1352,31 +1536,17 @@ export function AppShell({
     }
   }, [faviconConfig]);
 
-  // Fallback nav items from contract when no sidebarNav prop provided
+  // Navigation: contract is source of truth, sidebarNav prop overrides if provided
   const contractNavItems = sidebar?.navigation?.items;
-  const effectiveNav = sidebarNav || (contractNavItems?.length ? (
-    contractNavItems.map((item: any, i: number) => (
-      <a
-        key={i}
-        href={item.route || "#"}
-        onClick={(e) => {
-          if (item.route) {
-            if (navigate) { e.preventDefault(); navigate(item.route); }
-          }
-        }}
-        data-active={page === item.route ? "true" : undefined}
-        style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "8px 12px", borderRadius: 6,
-          textDecoration: "none",
-          color: "var(--sidebar-foreground, var(--foreground))",
-          fontSize: 14,
-        }}
-      >
-        {item.icon && <IconValue icon={item.icon} size={18} color="currentColor" />}
-        <span>{item.label}</span>
-      </a>
-    ))
+  const hasContractNav = contractNavItems && contractNavItems.length > 0;
+  const effectiveNav = sidebarNav || (hasContractNav ? (
+    <SidebarNavRenderer
+      navConfig={sidebar!.navigation!}
+      page={page}
+      navigate={navigate}
+      collapsed={collapsed}
+      collapsedDisplay={collapsedDisplay}
+    />
   ) : null);
 
   return (

@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, copyFileSync } from 'node:fs'
+import { existsSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs'
 import { join, dirname, basename, isAbsolute, relative, resolve } from 'node:path'
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
 import { GATES_CONFIG, CONTRACT_GATE_NUMBERS, EXECUTION_GATE_NUMBERS } from '../config/gates.config.js'
-import type { ValidationContext, GateDefinition, ManifestInput, ContractInput } from '../types/index.js'
+import type { ValidationContext, GateDefinition, ManifestInput, ContractInput, UIContracts, UIRegistryContract, LayoutContract, OrquiLock } from '../types/index.js'
 import { GitService } from './GitService.js'
 import { ASTService } from './ASTService.js'
 import { TestRunnerService } from './TestRunnerService.js'
@@ -423,6 +423,51 @@ export class ValidationOrchestrator {
     const tokenCounterService = new TokenCounterService()
     const logService = new LogService(run.id)
 
+    // Load UI contracts from Orqui
+    let uiContracts: UIContracts | null = null
+    const uiContractsDir = configMap.get('UI_CONTRACTS_DIR') || join(run.projectPath, 'contracts')
+    const lockFileName = 'orqui.lock' + '.json'
+    const lockFilePath = join(uiContractsDir, lockFileName)
+
+    // Check if UI lock file existsSync orqui.lock.json - try/catch handles parse errors
+    if (existsSync(lockFilePath)) {
+      let lock: OrquiLock | null = null
+      let registry: UIRegistryContract | null = null
+      let layout: LayoutContract | null = null
+
+      try {
+        const lockContent = readFileSync(lockFilePath, 'utf-8')
+        lock = JSON.parse(lockContent) as OrquiLock
+      } catch (error) {
+        console.warn('[buildContext] Failed to parse UI contract lock file:', error)
+        lock = null
+      }
+
+      try {
+        const registryPath = join(uiContractsDir, 'ui-registry-contract.json')
+        if (existsSync(registryPath)) {
+          const registryContent = readFileSync(registryPath, 'utf-8')
+          registry = JSON.parse(registryContent) as UIRegistryContract
+        }
+      } catch (error) {
+        console.warn('[buildContext] Failed to parse ui-registry-contract.json:', error)
+        registry = null
+      }
+
+      try {
+        const layoutPath = join(uiContractsDir, 'layout-contract.json')
+        if (existsSync(layoutPath)) {
+          const layoutContent = readFileSync(layoutPath, 'utf-8')
+          layout = JSON.parse(layoutContent) as LayoutContract
+        }
+      } catch (error) {
+        console.warn('[buildContext] Failed to parse layout-contract.json:', error)
+        layout = null
+      }
+
+      uiContracts = { registry, layout, lock }
+    }
+
     return {
       runId: run.id,
       projectPath: run.projectPath,
@@ -447,6 +492,7 @@ export class ValidationOrchestrator {
       sensitivePatterns,
       ambiguousTerms,
       bypassedValidators,
+      uiContracts,
     }
   }
 

@@ -21,6 +21,8 @@ import { TestClauseMappingValidValidator } from '../domain/validators/gate1/Test
 
 import { DiffScopeEnforcementValidator } from '../domain/validators/gate2/DiffScopeEnforcement.js'
 import { TestReadOnlyEnforcementValidator } from '../domain/validators/gate2/TestReadOnlyEnforcement.js'
+import { UIComponentRegistryValidator } from '../domain/validators/gate2/UIComponentRegistry.js'
+import { UIPropsComplianceValidator } from '../domain/validators/gate2/UIPropsCompliance.js'
 import { TaskTestPassesValidator } from '../domain/validators/gate2/TaskTestPasses.js'
 import { StrictCompilationValidator } from '../domain/validators/gate2/StrictCompilation.js'
 import { StyleConsistencyLintValidator } from '../domain/validators/gate2/StyleConsistencyLint.js'
@@ -70,6 +72,8 @@ export const GATES_CONFIG: GateDefinition[] = [
     validators: [
       DiffScopeEnforcementValidator,
       TestReadOnlyEnforcementValidator,
+      UIComponentRegistryValidator,
+      UIPropsComplianceValidator,
       TaskTestPassesValidator,
       StrictCompilationValidator,
       StyleConsistencyLintValidator,

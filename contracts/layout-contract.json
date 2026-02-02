@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:23a5e264b8f40337a95f479a86e045874746998d40f934201f040219e64df311",
-    "generatedAt": "2026-02-02T03:23:14.399Z"
+    "hash": "sha256:cb4adcff662f1b746eeae47c8597228d2e45415dc79b788b2ebfafdd3636f2a0",
+    "generatedAt": "2026-02-02T04:20:53.647Z"
   },
   "structure": {
     "regions": {
@@ -76,7 +76,8 @@
             "hoverColor": "$tokens.colors.danger-dim",
             "cardEnabled": true,
             "activeBackground": "$tokens.colors.card-bg"
-          }
+          },
+          "items": []
         },
         "collapseButton": {
           "icon": "chevron",
@@ -159,17 +160,12 @@
           "maxWidth": "$tokens.sizing.content-max-width"
         },
         "padding": {
-          "top": "$tokens.spacing.sm",
+          "top": "$tokens.spacing.xs",
           "right": "$tokens.spacing.sm",
           "bottom": "$tokens.spacing.sm",
           "left": "$tokens.spacing.sm"
         },
         "containers": [
-          {
-            "name": "alerts",
-            "description": "Alertas e notificações de sistema",
-            "order": 0
-          },
           {
             "name": "content",
             "description": "Conteúdo principal da página",
@@ -252,9 +248,9 @@
         "top": 0,
         "right": 0,
         "bottom": 15,
-        "left": 7
+        "left": 12
       },
-      "iconGap": 4,
+      "iconGap": 6,
       "typography": {
         "fontFamily": "JetBrains Mono",
         "fontSize": 22,
