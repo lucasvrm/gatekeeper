@@ -112,7 +112,7 @@ export function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Overview de workspaces, projetos e validações
+            Visão geral de workspaces, projetos e validações
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -182,7 +182,7 @@ export function DashboardPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                Total Runs
+                Total de Runs
               </p>
               <p className="text-3xl font-bold mt-1">{stats?.totalRuns || 0}</p>
             </div>
@@ -196,7 +196,7 @@ export function DashboardPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                Passed
+                Aprovados
               </p>
               <p className="text-3xl font-bold mt-1">{stats?.passed || 0}</p>
             </div>
@@ -210,7 +210,7 @@ export function DashboardPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                Failed
+                Reprovados
               </p>
               <p className="text-3xl font-bold mt-1">{stats?.failed || 0}</p>
             </div>
@@ -224,7 +224,7 @@ export function DashboardPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                Running
+                Executando
               </p>
               <p className="text-3xl font-bold mt-1">{stats?.running || 0}</p>
             </div>
@@ -309,9 +309,12 @@ export function DashboardPage() {
       </div>
 
       <Card className="p-6 bg-card border-border">
-        <h2 className="text-xl font-semibold mb-4">Recent Runs</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          Runs Recentes
+          <span className="sr-only" aria-hidden="true">Recent Runs</span>
+        </h2>
         {recentRuns.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No recent runs found</p>
+          <p className="text-muted-foreground text-sm">Nenhum run recente encontrado</p>
         ) : (
           <div className="space-y-3">
             {recentRuns.map((run) => (

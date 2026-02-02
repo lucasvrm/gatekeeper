@@ -29,7 +29,7 @@ export function GitErrorModal({ open, onOpenChange, title, summary, details }: G
         </pre>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            Fechar
           </Button>
         </DialogFooter>
       </DialogContent>

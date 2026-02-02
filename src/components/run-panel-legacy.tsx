@@ -112,10 +112,10 @@ export function RunPanelLegacy({
     setBypassLoading(validatorCode)
     try {
       await api.runs.bypassValidator(run.id, validatorCode)
-      toast.success("Validator bypassed; run queued for re-execution")
+      toast.success("Validator by-passado; run enfileirado para reexecução")
     } catch (error) {
       console.error("Failed to bypass validator:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to bypass validator")
+      toast.error(error instanceof Error ? error.message : "Falha ao by-passar validator")
     } finally {
       setBypassLoading(null)
     }
@@ -144,7 +144,7 @@ export function RunPanelLegacy({
 
   const handleOpenDiffModal = async (files: string[], initialIndex: number) => {
     if (!run.projectId) {
-      toast.error('ProjectId missing for diff viewer')
+      toast.error('ProjectId necessário para visualizador de diff')
       return
     }
 
@@ -164,7 +164,7 @@ export function RunPanelLegacy({
       setShowDiffModal(true)
     } catch (error) {
       console.error('Failed to load diff:', error)
-      toast.error('Failed to load diff')
+      toast.error('Falha ao carregar diff')
     }
   }
 
@@ -199,7 +199,7 @@ export function RunPanelLegacy({
             size={compact ? "sm" : "default"}
             onClick={() => setShowUploadDialog(true)}
             disabled={actionLoading}
-            title="Upload plan.json or spec file"
+            title="Upload do plan.json ou arquivo spec"
           >
             <Upload className="w-4 h-4" />
           </Button>
@@ -290,13 +290,13 @@ export function RunPanelLegacy({
           {/* Validator Summary */}
           <div data-testid="validator-summary" className="flex flex-wrap gap-3 text-xs mt-3">
             <span className="text-status-passed">
-              {run.validatorResults?.filter(v => v.status === 'PASSED').length || 0} {isTestEnv ? "OK" : "Passed"}
+              {run.validatorResults?.filter(v => v.status === 'PASSED').length || 0} {isTestEnv ? "OK" : "Aprovados"}
             </span>
             <span className="text-status-failed">
-              {run.validatorResults?.filter(v => v.status === 'FAILED').length || 0} Failed
+              {run.validatorResults?.filter(v => v.status === 'FAILED').length || 0} Reprovados
             </span>
             <span className="text-muted-foreground">
-              {run.validatorResults?.filter(v => v.status === 'SKIPPED').length || 0} Skipped
+              {run.validatorResults?.filter(v => v.status === 'SKIPPED').length || 0} Ignorados
             </span>
           </div>
         </div>
@@ -320,7 +320,7 @@ export function RunPanelLegacy({
                   className="flex-1"
                   onClick={() => setActiveTab('contract')}
                 >
-                  Contract
+                  Contrato
                 </TabsTrigger>
               </>
             ) : (
@@ -331,7 +331,7 @@ export function RunPanelLegacy({
                   className="flex-1"
                   onClick={() => setActiveTab('execution')}
                 >
-                  Execution
+                  Execução
                 </TabsTrigger>
                 <TabsTrigger
                   value="integrity"
@@ -339,7 +339,7 @@ export function RunPanelLegacy({
                   className="flex-1"
                   onClick={() => setActiveTab('integrity')}
                 >
-                  Integrity
+                  Integridade
                 </TabsTrigger>
               </>
             )}
@@ -375,8 +375,8 @@ export function RunPanelLegacy({
                         </span>
                       </h4>
                       <div className="flex items-center gap-3 mt-0.5 text-[13px]">
-                        <span className="text-status-passed">{gate.passedCount} Passed</span>
-                        <span className="text-status-failed">{gate.failedCount} Failed</span>
+                        <span className="text-status-passed">{gate.passedCount} Aprovados</span>
+                        <span className="text-status-failed">{gate.failedCount} Reprovados</span>
                         {gate.warningCount > 0 && (
                           <span className="text-status-warning">{gate.warningCount} Warning</span>
                         )}
@@ -391,7 +391,7 @@ export function RunPanelLegacy({
                               size="sm"
                               onClick={() => onRerunGate(gate.gateNumber)}
                               disabled={actionLoading}
-                              aria-label={`Rerun gate ${gate.gateNumber}`}
+                              aria-label={`Reexecutar gate ${gate.gateNumber}`}
                               className="h-7 hover:bg-status-running hover:text-white hover:border-status-running"
                             >
                               <ArrowClockwise className="w-3 h-3" />
@@ -552,7 +552,7 @@ export function RunPanelLegacy({
                                               <Upload className="w-3 h-3" />
                                             </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent>Upload plan.json ou spec file</TooltipContent>
+                                          <TooltipContent>Upload do plan.json ou arquivo spec</TooltipContent>
                                         </Tooltip>
                                       ) : (
                                         <>
@@ -569,7 +569,7 @@ export function RunPanelLegacy({
                                           >
                                             <Upload className="w-3 h-3" />
                                           </Button>
-                                          <span className="sr-only">Upload plan.json ou spec file</span>
+                                          <span className="sr-only">Upload do plan.json ou arquivo spec</span>
                                         </>
                                       )
                                     )}
@@ -586,7 +586,7 @@ export function RunPanelLegacy({
                                       }}
                                       disabled={isBypassInProgress || actionLoading}
                                     >
-                                      {isBypassInProgress ? "Bypassing…" : "Bypass"}
+                                      {isBypassInProgress ? "By-passando..." : "By-pass"}
                                     </Button>
                                   )}
                                 </div>

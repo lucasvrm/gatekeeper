@@ -813,6 +813,7 @@ const PHOSPHOR_SVG_PATHS: Record<string, string> = {
   "sun": "M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z",
   "arrow-square-down": "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V48H208V208Zm-42.34-77.66a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L120,148.69V88a8,8,0,0,1,16,0v60.69l18.34-18.35A8,8,0,0,1,165.66,130.34Z",
   "share-network": "M176,160a39.89,39.89,0,0,0-28.62,12.09l-46.1-29.63a39.8,39.8,0,0,0,0-28.92l46.1-29.63a40,40,0,1,0-8.66-13.45l-46.1,29.63a40,40,0,1,0,0,55.82l46.1,29.63A40,40,0,1,0,176,160Zm0-128a24,24,0,1,1-24,24A24,24,0,0,1,176,32ZM64,152a24,24,0,1,1,24-24A24,24,0,0,1,64,152Zm112,72a24,24,0,1,1,24-24A24,24,0,0,1,176,224Z",
+  "hard-drives": "M208,136H48a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136Zm0,56H48V152H208v40Zm0-160H48A16,16,0,0,0,32,48V88a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,56H48V48H208V88ZM188,172a12,12,0,1,1-12-12A12,12,0,0,1,188,172Zm-40,0a12,12,0,1,1-12-12A12,12,0,0,1,148,172ZM188,68a12,12,0,1,1-12-12A12,12,0,0,1,188,68Zm-40,0a12,12,0,1,1-12-12A12,12,0,0,1,148,68Z",
 };
 
 /** Render inline SVG for a Phosphor icon name */
@@ -905,7 +906,7 @@ function LogoRenderer({ config, collapsed }: { config?: LogoConfig; collapsed?: 
 const HEADER_ICON_TO_PHOSPHOR: Record<string, string> = {
   bell: "bell", settings: "gear", user: "user", mail: "envelope", help: "question",
   moon: "moon", sun: "sun", menu: "list", search: "magnifying-glass", grid: "squares-four",
-  download: "arrow-square-down", share: "share-network",
+  download: "arrow-square-down", share: "share-network", server: "hard-drives",
 };
 
 const CTA_VARIANT_CSS: Record<string, any> = {
@@ -985,14 +986,31 @@ function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, navigate
     });
   };
 
+  // Render individual CTA by id
+  const renderSingleCta = (ctaId: string) => {
+    const allItems: Array<{ id: string; label: string; variant?: string; route?: string; icon?: string }> = [];
+    if (config.ctas?.length) allItems.push(...config.ctas);
+    else if (config.cta?.enabled) allItems.push({ id: "cta-0", label: config.cta.label || "Action", variant: config.cta.variant, route: config.cta.route, icon: config.cta.icon });
+    const cta = allItems.find(c => c.id === ctaId);
+    if (!cta) return null;
+    const style = CTA_VARIANT_CSS[cta.variant || "default"] || CTA_VARIANT_CSS.default;
+    const phIcon = cta.icon?.startsWith("ph:") ? cta.icon.slice(3) : undefined;
+    return (
+      <button key={cta.id} onClick={() => handleNavigation(cta.route, onCTA)} style={{
+        padding: "6px 14px", borderRadius: 6, cursor: "pointer",
+        fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 6,
+        ...style,
+      }}>
+        {phIcon && <PhosphorIcon name={phIcon} size={14} />}
+        {cta.label}
+      </button>
+    );
+  };
+
   const renderCtas = () => {
     const items: Array<{ id: string; label: string; variant?: string; route?: string; icon?: string }> = [];
-    // Support both legacy single CTA and new multi-CTA array
-    if (config.ctas?.length) {
-      items.push(...config.ctas);
-    } else if (config.cta?.enabled) {
-      items.push({ id: "cta-0", label: config.cta.label || "Action", variant: config.cta.variant, route: config.cta.route, icon: config.cta.icon });
-    }
+    if (config.ctas?.length) items.push(...config.ctas);
+    else if (config.cta?.enabled) items.push({ id: "cta-0", label: config.cta.label || "Action", variant: config.cta.variant, route: config.cta.route, icon: config.cta.icon });
     if (!items.length) return null;
     return items.map((cta) => {
       const style = CTA_VARIANT_CSS[cta.variant || "default"] || CTA_VARIANT_CSS.default;
@@ -1010,7 +1028,7 @@ function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, navigate
     });
   };
 
-  // Render in configured order
+  // Render in configured order — supports "search", "icons", "ctas" (legacy grouped), "cta:<id>" (individual)
   const order = config.order || ["search", "icons", "ctas"];
   const renderers: Record<string, () => React.ReactNode> = {
     search: renderSearch,
@@ -1021,6 +1039,9 @@ function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, navigate
   return (
     <>
       {order.map(key => {
+        if (key.startsWith("cta:")) {
+          return <React.Fragment key={key}>{renderSingleCta(key.slice(4))}</React.Fragment>;
+        }
         const fn = renderers[key];
         return fn ? <React.Fragment key={key}>{fn()}</React.Fragment> : null;
       })}
@@ -1040,11 +1061,36 @@ function BreadcrumbRenderer({ config, pages, currentPage, navigate, resolveToken
 }) {
   if (!config?.enabled) return null;
 
+  // Track pathname reactively — covers pushState, replaceState, and popstate
+  const [pathname, setPathname] = useState(() =>
+    typeof window !== "undefined" ? window.location.pathname : "/"
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sync = () => setPathname(window.location.pathname);
+
+    // Listen for back/forward
+    window.addEventListener("popstate", sync);
+
+    // Monkey-patch pushState/replaceState to detect SPA navigation
+    const origPush = history.pushState.bind(history);
+    const origReplace = history.replaceState.bind(history);
+    history.pushState = (...args: Parameters<typeof origPush>) => { origPush(...args); sync(); };
+    history.replaceState = (...args: Parameters<typeof origReplace>) => { origReplace(...args); sync(); };
+
+    return () => {
+      window.removeEventListener("popstate", sync);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+    };
+  }, []);
+
   const resolve = (ref?: string) => ref ? (resolveToken?.(ref) ?? ref) : undefined;
 
-  // Derive current page from prop OR from URL pathname
-  const derivedPage = currentPage
-    || (typeof window !== "undefined" ? window.location.pathname.split("/").filter(Boolean)[0] : "");
+  // Derive current page from prop OR from tracked pathname
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const derivedPage = currentPage || pathSegments[0] || "";
   if (!derivedPage) return null;
 
   // Build breadcrumb items from URL segments
@@ -1055,16 +1101,14 @@ function BreadcrumbRenderer({ config, pages, currentPage, navigate, resolveToken
     items.push({ label: config.homeLabel || "Home", route: config.homeRoute || "/" });
   }
 
-  // Parse all URL segments for deep paths (e.g. /runs/abc123 → Runs > abc123)
-  const pathSegments = typeof window !== "undefined"
-    ? window.location.pathname.split("/").filter(Boolean)
-    : [derivedPage];
+  // Use prop-derived segments or tracked pathname segments
+  const segments = currentPage ? [currentPage] : pathSegments;
 
-  pathSegments.forEach((seg, i) => {
+  segments.forEach((seg, i) => {
     const pageConfig = pages?.[seg];
     const label = pageConfig?.label || seg.charAt(0).toUpperCase() + seg.slice(1).replace(/[-_]/g, " ");
-    const isLast = i === pathSegments.length - 1;
-    const route = isLast ? undefined : "/" + pathSegments.slice(0, i + 1).join("/");
+    const isLast = i === segments.length - 1;
+    const route = isLast ? undefined : "/" + segments.slice(0, i + 1).join("/");
     items.push({ label, route });
   });
 

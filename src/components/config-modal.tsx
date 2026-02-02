@@ -95,7 +95,7 @@ export function ConfigModal({
                     }
                   />
                   <span className="text-sm text-muted-foreground">
-                    {values[field.name] ? "Active" : "Inactive"}
+                    {values[field.name] ? "Ativo" : "Inativo"}
                   </span>
                 </div>
               ) : (
@@ -116,7 +116,7 @@ export function ConfigModal({
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={submitting}>
-            Cancel
+            Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitLabel}

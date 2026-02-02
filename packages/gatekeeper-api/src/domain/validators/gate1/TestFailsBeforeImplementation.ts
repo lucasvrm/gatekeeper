@@ -25,6 +25,7 @@ interface InstallResult {
 interface LockfileConfig {
   file: string
   cmd: string
+  fallbackCmd: string
 }
 
 // ============================================================================
@@ -89,9 +90,9 @@ function classifyFailure(output: string, exitCode: number): FailureClassificatio
  */
 async function detectPackageManager(worktreePath: string): Promise<LockfileConfig | null> {
   const lockfileOrder: LockfileConfig[] = [
-    { file: 'package-lock.json', cmd: 'npm ci' },
-    { file: 'pnpm-lock.yaml', cmd: 'pnpm install --frozen-lockfile' },
-    { file: 'yarn.lock', cmd: 'yarn install --frozen-lockfile' },
+    { file: 'package-lock.json', cmd: 'npm ci', fallbackCmd: 'npm install --no-audit --no-fund' },
+    { file: 'pnpm-lock.yaml', cmd: 'pnpm install --frozen-lockfile', fallbackCmd: 'pnpm install --no-frozen-lockfile' },
+    { file: 'yarn.lock', cmd: 'yarn install --frozen-lockfile', fallbackCmd: 'yarn install' },
   ]
 
   let files: string[]
@@ -111,7 +112,66 @@ async function detectPackageManager(worktreePath: string): Promise<LockfileConfi
 }
 
 /**
- * Installs dependencies in the worktree
+ * Patterns that indicate a lockfile sync issue (recoverable via fallback)
+ */
+const LOCKFILE_SYNC_PATTERNS: RegExp[] = [
+  /package-lock\.json.*are in sync/i,
+  /npm ci.*can only install.*when.*in sync/i,
+  /Missing:.*from lock file/i,
+  /EUSAGE/i,
+  /frozen-lockfile/i,
+  /lockfile is not up-to-date/i,
+]
+
+function isLockfileSyncError(output: string): boolean {
+  return LOCKFILE_SYNC_PATTERNS.some((pattern) => pattern.test(output))
+}
+
+/**
+ * Executes a single install command and returns the result
+ */
+async function executeInstallCommand(
+  command: string,
+  worktreePath: string
+): Promise<InstallResult> {
+  const startTime = Date.now()
+
+  try {
+    const { stdout, stderr } = await execAsync(command, {
+      cwd: worktreePath,
+      timeout: 300000, // 5 minutes
+      maxBuffer: 10 * 1024 * 1024, // 10MB
+    })
+
+    const duration = Date.now() - startTime
+    const output = `${stdout}\n${stderr}`.trim()
+
+    return {
+      success: true,
+      command,
+      exitCode: 0,
+      output,
+      duration,
+    }
+  } catch (error) {
+    const duration = Date.now() - startTime
+    const execError = error as { code?: number; stdout?: string; stderr?: string; message?: string }
+    const output = `${execError.stdout || ''}\n${execError.stderr || ''}\n${execError.message || ''}`.trim()
+
+    return {
+      success: false,
+      command,
+      exitCode: execError.code ?? 1,
+      output,
+      duration,
+    }
+  }
+}
+
+/**
+ * Installs dependencies in the worktree.
+ * Uses strict install (npm ci) first; falls back to permissive install (npm install)
+ * if the failure is due to lockfile desync (common when checking out older refs).
  */
 async function installDependencies(worktreePath: string): Promise<InstallResult> {
   const packageManager = await detectPackageManager(worktreePath)
@@ -126,38 +186,39 @@ async function installDependencies(worktreePath: string): Promise<InstallResult>
     }
   }
 
-  const startTime = Date.now()
+  // Try strict install first (npm ci / --frozen-lockfile)
+  const strictResult = await executeInstallCommand(packageManager.cmd, worktreePath)
 
-  try {
-    const { stdout, stderr } = await execAsync(packageManager.cmd, {
-      cwd: worktreePath,
-      timeout: 300000, // 5 minutes
-      maxBuffer: 10 * 1024 * 1024, // 10MB
-    })
+  if (strictResult.success) {
+    return strictResult
+  }
 
-    const duration = Date.now() - startTime
-    const output = `${stdout}\n${stderr}`.trim()
+  // If strict install failed due to lockfile sync issues, try permissive fallback
+  if (isLockfileSyncError(strictResult.output)) {
+    console.log(
+      `[TEST_FAILS_BEFORE_IMPLEMENTATION] Lockfile sync issue detected, falling back to: ${packageManager.fallbackCmd}`
+    )
 
-    return {
-      success: true,
-      command: packageManager.cmd,
-      exitCode: 0,
-      output,
-      duration,
+    const fallbackResult = await executeInstallCommand(packageManager.fallbackCmd, worktreePath)
+
+    if (fallbackResult.success) {
+      // Return success but note the fallback in output for transparency
+      return {
+        ...fallbackResult,
+        command: `${packageManager.cmd} → ${packageManager.fallbackCmd} (lockfile fallback)`,
+      }
     }
-  } catch (error) {
-    const duration = Date.now() - startTime
-    const execError = error as { code?: number; stdout?: string; stderr?: string; message?: string }
-    const output = `${execError.stdout || ''}\n${execError.stderr || ''}\n${execError.message || ''}`.trim()
 
+    // Both failed — return the fallback error (more informative)
     return {
-      success: false,
-      command: packageManager.cmd,
-      exitCode: execError.code ?? 1,
-      output,
-      duration,
+      ...fallbackResult,
+      command: `${packageManager.cmd} → ${packageManager.fallbackCmd} (both failed)`,
+      output: `Strict install failed (lockfile desync):\n${strictResult.output.slice(0, 300)}\n\nFallback install also failed:\n${fallbackResult.output}`,
     }
   }
+
+  // Non-lockfile error — return original result as-is
+  return strictResult
 }
 
 /**

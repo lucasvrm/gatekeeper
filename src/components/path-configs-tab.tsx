@@ -33,27 +33,53 @@ type PathConfigsTabProps = {
   onUpdateConfig?: (id: string, values: Record<string, string | boolean>) => Promise<boolean>
 }
 
+type LegacyConfigApi = {
+  getTestPathConventions?: () => Promise<TestPathConvention[]>
+  getValidationConfigs?: () => Promise<ValidationConfigItem[]>
+  getPathConfigs?: () => Promise<ValidationConfigItem[]>
+  createTestPathConvention?: (payload: {
+    testType: string
+    pathPattern: string
+    description?: string
+    isActive?: boolean
+  }) => Promise<TestPathConvention>
+  updateTestPathConvention?: (testType: string, payload: Partial<{
+    pathPattern: string
+    description: string | null
+    isActive: boolean
+  }>) => Promise<TestPathConvention>
+  deleteTestPathConvention?: (testType: string) => Promise<void>
+  updateValidationConfig?: (id: string, payload: Partial<{
+    key: string
+    value: string
+    type: string
+    category: string
+    description: string | null
+  }>) => Promise<ValidationConfigItem>
+}
+
 const testPathCreateFields: ConfigModalField[] = [
-  { name: "testType", label: "Test Type", type: "text", required: true },
-  { name: "pathPattern", label: "Path Pattern", type: "text", required: true },
-  { name: "description", label: "Description", type: "textarea" },
-  { name: "isActive", label: "Active", type: "boolean" },
+  { name: "testType", label: "Tipo de Teste", type: "text", required: true },
+  { name: "pathPattern", label: "Padrão de Path", type: "text", required: true },
+  { name: "description", label: "Descrição", type: "textarea" },
+  { name: "isActive", label: "Ativo", type: "boolean" },
 ]
 
 const testPathEditFields: ConfigModalField[] = [
-  { name: "pathPattern", label: "Path Pattern", type: "text", required: true },
-  { name: "description", label: "Description", type: "textarea" },
-  { name: "isActive", label: "Active", type: "boolean" },
+  { name: "pathPattern", label: "Padrão de Path", type: "text", required: true },
+  { name: "description", label: "Descrição", type: "textarea" },
+  { name: "isActive", label: "Ativo", type: "boolean" },
 ]
 
 const systemPathEditFields: ConfigModalField[] = [
-  { name: "value", label: "Value", type: "text", required: true },
-  { name: "description", label: "Description", type: "textarea" },
+  { name: "value", label: "Valor", type: "text", required: true },
+  { name: "description", label: "Descrição", type: "textarea" },
 ]
 
 const validatorCategories = ["GATE0", "GATE1", "GATE2", "TIMEOUTS"]
 
 export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfigsTabProps) {
+  const legacyConfig = (api as unknown as { config?: LegacyConfigApi }).config
   const [loading, setLoading] = useState(true)
   const [testPaths, setTestPaths] = useState<TestPathConvention[]>([])
   const [systemPaths, setSystemPaths] = useState<ValidationConfigItem[]>([])
@@ -73,22 +99,24 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
     const loadData = async () => {
       setLoading(true)
       try {
-        const [testPathsData, validationConfigsData] = await Promise.all([
-          api.configTables.testPaths.list(),
-          api.configTables.validationConfigs.list(),
+        const [testPathsData, validationConfigsData, pathConfigsData] = await Promise.all([
+          api.configTables?.testPaths?.list?.() ?? legacyConfig?.getTestPathConventions?.() ?? [],
+          api.configTables?.validationConfigs?.list?.() ?? legacyConfig?.getValidationConfigs?.() ?? [],
+          legacyConfig?.getPathConfigs?.() ?? [],
         ])
 
         setTestPaths(testPathsData)
 
         // Filter path-related configs
-        const pathConfigs = validationConfigsData.filter((config: ValidationConfigItem) =>
+        const pathConfigsSource = pathConfigsData.length > 0 ? pathConfigsData : validationConfigsData
+        const pathConfigs = pathConfigsSource.filter((config: ValidationConfigItem) =>
           config.category === 'PATHS'
         )
         setSystemPaths(pathConfigs)
         setAllValidationConfigs(validationConfigsData)
       } catch (error) {
         console.error("Failed to load path configs:", error)
-        toast.error("Failed to load path configurations")
+        toast.error("Falha ao carregar configurações de path")
       } finally {
         setLoading(false)
       }
@@ -118,61 +146,97 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
   // Test Path Conventions handlers
   const handleCreateTestPath = async (values: Record<string, string | boolean>) => {
     try {
-      const created = await api.configTables.testPaths.create({
-        testType: String(values.testType ?? ""),
-        pathPattern: String(values.pathPattern ?? ""),
-        description: typeof values.description === "string" ? values.description : undefined,
-        isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
-      })
+      const created = api.configTables?.testPaths?.create
+        ? await api.configTables.testPaths.create({
+          testType: String(values.testType ?? ""),
+          pathPattern: String(values.pathPattern ?? ""),
+          description: typeof values.description === "string" ? values.description : undefined,
+          isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
+        })
+        : legacyConfig?.createTestPathConvention
+          ? await legacyConfig.createTestPathConvention({
+            testType: String(values.testType ?? ""),
+            pathPattern: String(values.pathPattern ?? ""),
+            description: typeof values.description === "string" ? values.description : undefined,
+            isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
+          })
+          : null
+      if (!created) {
+        throw new Error("Falha ao criar convenção de test path")
+      }
       setTestPaths((prev) => [created, ...prev])
-      toast.success("Test path convention created")
+      toast.success("Convenção de test path criada")
       return true
     } catch (error) {
       console.error("Failed to create test path convention:", error)
-      toast.error("Failed to create test path convention")
+      toast.error("Falha ao criar convenção de test path")
       return false
     }
   }
 
   const handleUpdateTestPath = async (testType: string, values: Record<string, string | boolean>) => {
     try {
-      const updated = await api.configTables.testPaths.update(testType, {
-        pathPattern: String(values.pathPattern ?? ""),
-        description: typeof values.description === "string" ? values.description : null,
-        isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
-      })
+      const updated = api.configTables?.testPaths?.update
+        ? await api.configTables.testPaths.update(testType, {
+          pathPattern: String(values.pathPattern ?? ""),
+          description: typeof values.description === "string" ? values.description : null,
+          isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
+        })
+        : legacyConfig?.updateTestPathConvention
+          ? await legacyConfig.updateTestPathConvention(testType, {
+            pathPattern: String(values.pathPattern ?? ""),
+            description: typeof values.description === "string" ? values.description : null,
+            isActive: typeof values.isActive === "boolean" ? values.isActive : undefined,
+          })
+          : null
+      if (!updated) {
+        throw new Error("Falha ao atualizar convenção de test path")
+      }
       setTestPaths((prev) => prev.map((item) => (item.testType === testType ? updated : item)))
-      toast.success("Test path convention updated")
+      toast.success("Convenção de test path atualizada")
       return true
     } catch (error) {
       console.error("Failed to update test path convention:", error)
-      toast.error("Failed to update test path convention")
+      toast.error("Falha ao atualizar convenção de test path")
       return false
     }
   }
 
   const handleDeleteTestPath = async (testType: string) => {
     try {
-      await api.configTables.testPaths.delete(testType)
+      if (api.configTables?.testPaths?.delete) {
+        await api.configTables.testPaths.delete(testType)
+      } else if (legacyConfig?.deleteTestPathConvention) {
+        await legacyConfig.deleteTestPathConvention(testType)
+      } else {
+        throw new Error("Falha ao excluir convenção de test path")
+      }
       setTestPaths((prev) => prev.filter((item) => item.testType !== testType))
-      toast.success("Test path convention deleted")
+      toast.success("Convenção de test path excluída")
       return true
     } catch (error) {
       console.error("Failed to delete test path convention:", error)
-      toast.error("Failed to delete test path convention")
+      toast.error("Falha ao excluir convenção de test path")
       return false
     }
   }
 
   const handleToggleTestPath = async (testType: string, isActive: boolean) => {
     try {
-      const updated = await api.configTables.testPaths.update(testType, { isActive })
+      const updated = api.configTables?.testPaths?.update
+        ? await api.configTables.testPaths.update(testType, { isActive })
+        : legacyConfig?.updateTestPathConvention
+          ? await legacyConfig.updateTestPathConvention(testType, { isActive })
+          : null
+      if (!updated) {
+        throw new Error("Falha ao atualizar convenção de test path")
+      }
       setTestPaths((prev) => prev.map((item) => (item.testType === testType ? updated : item)))
-      toast.success("Test path convention updated")
+      toast.success("Convenção de test path atualizada")
       return true
     } catch (error) {
       console.error("Failed to update test path convention:", error)
-      toast.error("Failed to update test path convention")
+      toast.error("Falha ao atualizar convenção de test path")
       return false
     }
   }
@@ -183,19 +247,32 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
       const item = systemPaths.find((p) => p.id === id)
       if (!item) return false
 
-      const updated = await api.configTables.validationConfigs.update(id, {
-        key: item.key,
-        value: String(values.value ?? ""),
-        type: item.type,
-        category: item.category,
-        description: typeof values.description === "string" ? values.description : null,
-      })
+      const updated = api.configTables?.validationConfigs?.update
+        ? await api.configTables.validationConfigs.update(id, {
+          key: item.key,
+          value: String(values.value ?? ""),
+          type: item.type,
+          category: item.category,
+          description: typeof values.description === "string" ? values.description : null,
+        })
+        : legacyConfig?.updateValidationConfig
+          ? await legacyConfig.updateValidationConfig(id, {
+            key: item.key,
+            value: String(values.value ?? ""),
+            type: item.type,
+            category: item.category,
+            description: typeof values.description === "string" ? values.description : null,
+          })
+          : null
+      if (!updated) {
+        throw new Error("Falha ao atualizar config de path do sistema")
+      }
       setSystemPaths((prev) => prev.map((item) => (item.id === id ? updated : item)))
-      toast.success("System path config updated")
+      toast.success("Config de path do sistema atualizado")
       return true
     } catch (error) {
       console.error("Failed to update system path config:", error)
-      toast.error("Failed to update system path config")
+      toast.error("Falha ao atualizar config de path do sistema")
       return false
     }
   }
@@ -214,24 +291,34 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
           value: String(values.value ?? item.value),
         }
       } else {
-        updated = await api.configTables.validationConfigs.update(id, {
-          key: item.key,
-          value: String(values.value ?? ""),
-          type: item.type,
-          category: item.category,
-          description: item.description ?? null,
-        })
+        if (api.configTables?.validationConfigs?.update) {
+          updated = await api.configTables.validationConfigs.update(id, {
+            key: item.key,
+            value: String(values.value ?? ""),
+            type: item.type,
+            category: item.category,
+            description: item.description ?? null,
+          })
+        } else if (legacyConfig?.updateValidationConfig) {
+          updated = await legacyConfig.updateValidationConfig(id, {
+            key: item.key,
+            value: String(values.value ?? ""),
+            type: item.type,
+            category: item.category,
+            description: item.description ?? null,
+          })
+        }
       }
 
       if (updated) {
         setAllValidationConfigs((prev) => prev.map((config) => (config.id === id ? updated! : config)))
         setSystemPaths((prev) => prev.map((config) => (config.id === id ? updated! : config)))
-        toast.success("Validator config updated")
+        toast.success("Config de validator atualizado")
         return true
       }
     } catch (error) {
       console.error("Failed to update validator config:", error)
-      toast.error("Failed to update validator config")
+      toast.error("Falha ao atualizar config de validator")
       return false
     }
     return false
@@ -248,34 +335,34 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return <div>Carregando...</div>
   }
 
   return (
     <Tabs defaultValue="test-conventions" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="test-conventions">Test Path Conventions</TabsTrigger>
-        <TabsTrigger value="system-paths">System Paths</TabsTrigger>
+        <TabsTrigger value="test-conventions">Convenções de Test Path</TabsTrigger>
+        <TabsTrigger value="system-paths">Paths do Sistema</TabsTrigger>
         <TabsTrigger value="validator-settings" data-testid="validator-settings-tab">
-          Validator Settings
+          Configurações de Validators
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="test-conventions">
         <ConfigSection
-          title="Test Path Conventions"
-          description="Define where test files should be created based on their type. Use {name} as a placeholder for the file name and {gate} for gate number."
+          title="Convenções de Test Path"
+          description="Defina onde os arquivos de teste devem ser criados com base no tipo. Use {name} como placeholder para o nome do arquivo e {gate} para o número do gate."
           items={testPaths}
           columns={[
-            { key: "testType", label: "Test Type" },
+            { key: "testType", label: "Tipo de Teste" },
             {
               key: "pathPattern",
-              label: "Path Pattern",
+              label: "Padrão de Path",
               render: (item) => <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.pathPattern}</code>
             },
             {
               key: "description",
-              label: "Description",
+              label: "Descrição",
               render: (item) => item.description ?? "-",
             },
             {
@@ -283,7 +370,7 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
               label: "Status",
               render: (item) => (
                 <Badge variant={item.isActive ? "default" : "secondary"}>
-                  {item.isActive ? "Active" : "Inactive"}
+                  {item.isActive ? "Ativo" : "Inativo"}
                 </Badge>
               ),
             },
@@ -323,9 +410,9 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
       <TabsContent value="system-paths">
         <Card>
           <CardHeader>
-            <CardTitle>System Path Configurations</CardTitle>
+            <CardTitle>Configurações de Path do Sistema</CardTitle>
             <CardDescription>
-              Core system paths used by Gatekeeper. These should match your project structure.
+              Paths do sistema utilizados pelo Gatekeeper. Eles devem corresponder à estrutura do seu projeto.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -334,19 +421,19 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
               description=""
               items={systemPaths}
               columns={[
-                { key: "key", label: "Config Key" },
+                { key: "key", label: "Chave" },
                 {
                   key: "value",
-                  label: "Path Value",
+                  label: "Valor do Path",
                   render: (item) => (
                     <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                      {item.value || <span className="text-muted-foreground">(empty)</span>}
+                      {item.value || <span className="text-muted-foreground">(vazio)</span>}
                     </code>
                   )
                 },
                 {
                   key: "description",
-                  label: "Description",
+                  label: "Descrição",
                   render: (item) => item.description ?? "-",
                 },
               ]}
@@ -365,9 +452,9 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
       <TabsContent value="validator-settings">
         <Card data-testid="validator-settings-content">
           <CardHeader>
-            <CardTitle>Validator Settings</CardTitle>
+            <CardTitle>Configurações de Validators</CardTitle>
             <CardDescription>
-              Configure validator behavior, keyword detection, ignore patterns, and timeouts.
+              Configure o comportamento dos validators, detecção de palavras-chave, padrões de ignorar e timeouts.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -380,15 +467,15 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
                   </CardHeader>
                   <CardContent>
                     {configs.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">No configs in this category.</div>
+                      <div className="text-sm text-muted-foreground">Nenhum config nesta categoria.</div>
                     ) : (
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Key</TableHead>
-                            <TableHead>Value</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead>Actions</TableHead>
+                            <TableHead>Chave</TableHead>
+                            <TableHead>Valor</TableHead>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead>Ações</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -411,7 +498,7 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
                                     </div>
                                   ) : (
                                     <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                                      {config.value || <span className="text-muted-foreground">(empty)</span>}
+                                      {config.value || <span className="text-muted-foreground">(vazio)</span>}
                                     </code>
                                   )}
                                 </TableCell>
@@ -428,7 +515,7 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
                                       setEditingConfig(config)
                                     }}
                                   >
-                                    Edit
+                                    Editar
                                   </Button>
                                 </TableCell>
                               </TableRow>
@@ -448,14 +535,14 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
       <Dialog open={Boolean(editingConfig)} onOpenChange={(open) => !open && setEditingConfig(null)}>
         <DialogContent data-testid="edit-config-modal">
           <DialogHeader>
-            <DialogTitle>Edit Validator Config</DialogTitle>
+            <DialogTitle>Editar Config do Validator</DialogTitle>
             <DialogDescription>
-              Update the value for {editingConfig?.key ?? "config"}.
+              Atualize o valor para {editingConfig?.key ?? "config"}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="validator-config-value">
-              Value
+              Valor
             </label>
             <Input
               id="validator-config-value"
@@ -470,7 +557,7 @@ export function PathConfigsTab({ validationConfigs, onUpdateConfig }: PathConfig
               onClick={handleSaveValidatorConfig}
               disabled={saving}
             >
-              Save
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>

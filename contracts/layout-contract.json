@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:996727872ab3ea4d95ecc4dac5693715b092792faf82ae0c222b3200e78ceeca",
-    "generatedAt": "2026-02-02T03:10:07.228Z"
+    "hash": "sha256:23a5e264b8f40337a95f479a86e045874746998d40f934201f040219e64df311",
+    "generatedAt": "2026-02-02T03:23:14.399Z"
   },
   "structure": {
     "regions": {
@@ -310,9 +310,10 @@
         }
       ],
       "order": [
+        "cta:cta-1770001676593",
         "search",
-        "ctas",
-        "icons"
+        "icons",
+        "cta:cta-1770001674670"
       ]
     }
   },

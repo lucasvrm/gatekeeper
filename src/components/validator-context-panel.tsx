@@ -32,14 +32,14 @@ export function ValidatorContextPanel({ context }: ValidatorContextPanelProps) {
         className="w-full text-left font-medium text-sm flex items-center justify-between"
         aria-expanded={isExpanded}
       >
-        <span>Context Details</span>
+        <span>Detalhes do Contexto</span>
         {isExpanded ? <CaretDown className="w-4 h-4" /> : <CaretRight className="w-4 h-4" />}
       </button>
 
       {isExpanded && (
         <div className="mt-3 space-y-3">
           <div data-testid="context-inputs-section">
-            <h4 className="font-semibold text-xs mb-1">Inputs</h4>
+            <h4 className="font-semibold text-xs mb-1">Entradas</h4>
             <ul className="text-xs space-y-1">
               {context.inputs.map((input, idx) => (
                 <li key={`${input.label}-${idx}`}>
@@ -55,7 +55,7 @@ export function ValidatorContextPanel({ context }: ValidatorContextPanelProps) {
           </div>
 
           <div data-testid="context-analyzed-section">
-            <h4 className="font-semibold text-xs mb-1">Analyzed</h4>
+            <h4 className="font-semibold text-xs mb-1">Analisados</h4>
             <div className="space-y-2 text-xs">
               {context.analyzed.map((group, idx) => (
                 <div key={`${group.label}-${idx}`}>
@@ -71,14 +71,14 @@ export function ValidatorContextPanel({ context }: ValidatorContextPanelProps) {
           </div>
 
           <div data-testid="context-findings-section">
-            <h4 className="font-semibold text-xs mb-1">Findings</h4>
+            <h4 className="font-semibold text-xs mb-1">Resultados</h4>
             <ul className="text-xs space-y-1">
               {context.findings.map((finding, idx) => (
                 <li key={`${finding.type}-${idx}`} data-testid={`finding-${finding.type}`}>
                   <span className="mr-1 inline-flex items-center">{getFindingIcon(finding.type)}</span>
                   <span>{finding.message}</span>
                   {finding.location && (
-                    <span className="text-muted-foreground ml-1">at {finding.location}</span>
+                    <span className="text-muted-foreground ml-1">em {finding.location}</span>
                   )}
                 </li>
               ))}
@@ -86,7 +86,7 @@ export function ValidatorContextPanel({ context }: ValidatorContextPanelProps) {
           </div>
 
           <div data-testid="context-reasoning-section">
-            <h4 className="font-semibold text-xs mb-1">Reasoning</h4>
+            <h4 className="font-semibold text-xs mb-1">Raciocínio</h4>
             <p className="text-xs text-muted-foreground">{context.reasoning}</p>
           </div>
         </div>

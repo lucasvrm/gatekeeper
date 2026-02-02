@@ -33,7 +33,7 @@ export function GitCommitModal({
   defaultMessage,
   onCommit,
   isCommitting,
-  loadingText = 'Commit & Push',
+  loadingText = 'Commit & Enviar',
   repoName,
 }: GitCommitModalProps) {
   const [commitMessage, setCommitMessage] = useState(defaultMessage)
@@ -53,8 +53,8 @@ export function GitCommitModal({
       <DialogContent data-testid="git-commit-modal" className="sm:max-w-lg max-h-[85vh] flex flex-col">
         {/* CL-UI-MODAL-005: Fixed header with flex-shrink-0 */}
         <DialogHeader data-testid="dialog-header" className="flex-shrink-0">
-          <DialogTitle>Commit Changes</DialogTitle>
-          <DialogDescription className="sr-only">Dialog to create a commit and optionally push to remote.</DialogDescription>
+          <DialogTitle>Commit de Alterações</DialogTitle>
+          <DialogDescription className="sr-only">Dialog para criar um commit e opcionalmente enviar para o remoto.</DialogDescription>
         </DialogHeader>
 
         {/* CL-UI-MODAL-002: Scrollable content wrapper */}
@@ -85,7 +85,7 @@ export function GitCommitModal({
                 className="flex items-center gap-1"
               >
                 <AlertCircle className="w-3 h-3" />
-                Protected branch
+                Branch protegida
               </Badge>
             )}
           </div>
@@ -100,18 +100,18 @@ export function GitCommitModal({
 
           {/* Commit Message Input */}
           <div className="space-y-2">
-            <Label htmlFor="commit-message">Commit Message</Label>
+            <Label htmlFor="commit-message">Mensagem do Commit</Label>
             <Input
               id="commit-message"
               data-testid="commit-message-input"
               type="text"
               value={commitMessage}
               onChange={(e) => setCommitMessage(e.target.value)}
-              placeholder="Enter commit message..."
+              placeholder="Digite a mensagem do commit..."
               disabled={isCommitting}
             />
             {commitMessage.trim().length < 10 && commitMessage.trim().length > 0 && (
-              <p className="text-sm text-red-500">Message must be at least 10 characters</p>
+              <p className="text-sm text-red-500">A mensagem deve ter pelo menos 10 caracteres</p>
             )}
           </div>
 
@@ -128,7 +128,7 @@ export function GitCommitModal({
               htmlFor="push-checkbox"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Push to remote after commit
+              Enviar para remoto após commit
             </label>
           </div>
           </div>
@@ -143,7 +143,7 @@ export function GitCommitModal({
             data-testid="btn-cancel"
             disabled={isCommitting}
           >
-            Cancel
+            Cancelar
           </Button>
           <Button
             type="button"
@@ -151,7 +151,7 @@ export function GitCommitModal({
             data-testid="btn-commit-push"
             disabled={!isMessageValid || isCommitting}
           >
-            {isCommitting ? loadingText : 'Commit & Push'}
+            {isCommitting ? loadingText : 'Commit & Enviar'}
           </Button>
         </DialogFooter>
       </DialogContent>

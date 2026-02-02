@@ -70,7 +70,7 @@ export function RunDetailsPage() {
         }
       } catch (error) {
         console.error("Failed to load run:", error)
-        toast.error("Failed to load run details")
+        toast.error("Falha ao carregar detalhes do run")
       } finally {
         setLoading(false)
       }
@@ -112,7 +112,7 @@ export function RunDetailsPage() {
 
     // Validate that contract run has projectId
     if (!primaryRun.projectId) {
-      toast.error("Contract run does not have a projectId. Cannot start execution.")
+      toast.error("O run de contrato não possui projectId. Não é possível iniciar a execução.")
       return
     }
 
@@ -131,14 +131,14 @@ export function RunDetailsPage() {
         projectId: primaryRun.projectId,
       })
 
-      toast.success("Execution run started")
+      toast.success("Run de execução iniciado")
 
       // Load the new execution run as secondary
       const executionData = await api.runs.getWithResults(response.runId)
       setSecondaryRun(executionData)
     } catch (error) {
       console.error("Failed to start execution run:", error)
-      toast.error("Failed to start execution run")
+      toast.error("Falha ao iniciar run de execução")
     } finally {
       setExecutionLoading(false)
     }
@@ -148,7 +148,7 @@ export function RunDetailsPage() {
     setActionLoading(true)
     try {
       await api.runs.abort(runId)
-      toast.success("Run aborted successfully")
+      toast.success("Run abortado com sucesso")
       const updated = await api.runs.getWithResults(runId)
       if (isPrimary) {
         setPrimaryRun(updated)
@@ -158,7 +158,7 @@ export function RunDetailsPage() {
       setShowAbortDialog(false)
     } catch (error) {
       console.error("Failed to abort run:", error)
-      toast.error("Failed to abort run")
+      toast.error("Falha ao abortar run")
     } finally {
       setActionLoading(false)
     }
@@ -171,7 +171,7 @@ export function RunDetailsPage() {
     setActionLoading(true)
     try {
       await api.runs.delete(targetRun.id)
-      toast.success("Run deleted successfully")
+      toast.success("Run excluído com sucesso")
 
       if (deleteTarget === 'primary') {
         navigate("/runs")
@@ -181,7 +181,7 @@ export function RunDetailsPage() {
       }
     } catch (error) {
       console.error("Failed to delete run:", error)
-      toast.error("Failed to delete run")
+      toast.error("Falha ao excluir run")
       setActionLoading(false)
     }
   }
@@ -190,7 +190,7 @@ export function RunDetailsPage() {
     setActionLoading(true)
     try {
       await api.runs.rerunGate(runId, gateNumber)
-      toast.success("Gate queued for re-execution")
+      toast.success("Gate enfileirado para reexecução")
 
       // Refresh the run data
       const updated = await api.runs.getWithResults(runId)
@@ -201,7 +201,7 @@ export function RunDetailsPage() {
       }
     } catch (error) {
       console.error("Failed to rerun gate:", error)
-      toast.error("Failed to rerun gate")
+      toast.error("Falha ao reexecutar gate")
     } finally {
       setActionLoading(false)
     }
@@ -231,7 +231,7 @@ export function RunDetailsPage() {
     return (
       <div className="p-8">
         <Card className="p-12 text-center">
-          <p className="text-muted-foreground">Run not found</p>
+          <p className="text-muted-foreground">Run não encontrado</p>
           <Button onClick={() => navigate("/runs")} className="mt-4">
             Voltar para Runs
           </Button>
@@ -332,13 +332,13 @@ export function RunDetailsPage() {
       <AlertDialog open={showAbortDialog} onOpenChange={setShowAbortDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Abort Validation Run?</AlertDialogTitle>
+            <AlertDialogTitle>Abortar Run de Validação?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will stop the current validation run. This action cannot be undone.
+              Isso irá interromper o run de validação atual. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
                 variant="destructive"
@@ -348,7 +348,7 @@ export function RunDetailsPage() {
                 }}
                 disabled={actionLoading}
               >
-                {actionLoading ? "Aborting..." : "Abort Run"}
+                {actionLoading ? "Abortando..." : "Abortar Run"}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -358,21 +358,21 @@ export function RunDetailsPage() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Validation Run?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Run de Validação?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this validation run and all its results. This
-              action cannot be undone.
+              Isso irá excluir permanentemente este run de validação e todos os seus resultados. Esta
+              ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
                 variant="destructive"
                 onClick={handleDelete}
                 disabled={actionLoading}
               >
-                {actionLoading ? "Deleting..." : "Delete Run"}
+                {actionLoading ? "Excluindo..." : "Excluir Run"}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

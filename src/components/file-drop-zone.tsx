@@ -57,7 +57,7 @@ export function FileDropZone({
 
   const processContent = useCallback((content: string, name: string) => {
     if (!isAllowedExtension(name, accept)) {
-      reportError(`File extension not allowed: ${name}`)
+      reportError(`Extensão de arquivo não permitida: ${name}`)
       return
     }
 
@@ -69,7 +69,7 @@ export function FileDropZone({
 
   const handleFile = useCallback((file: File) => {
     if (!isAllowedExtension(file.name, accept)) {
-      reportError(`File extension not allowed: ${file.name}`)
+      reportError(`Extensão de arquivo não permitida: ${file.name}`)
       return
     }
 
@@ -79,7 +79,7 @@ export function FileDropZone({
       processContent(content, file.name)
     }
     reader.onerror = () => {
-      reportError("Failed to read file")
+      reportError("Falha ao ler arquivo")
     }
     reader.readAsText(file)
   }, [accept, processContent, reportError])
@@ -106,7 +106,7 @@ export function FileDropZone({
 
     const file = event.dataTransfer.files?.[0]
     if (!file) {
-      reportError("No file detected")
+      reportError("Nenhum arquivo detectado")
       return
     }
 
@@ -154,7 +154,7 @@ export function FileDropZone({
       const extensions = parseAcceptList(accept)
       const fallbackExtension = extensions[0]
       if (!fallbackExtension) {
-        reportError("No acceptable extension configured for paste")
+        reportError("Nenhuma extensão aceitável configurada para colar")
         return
       }
 
@@ -210,7 +210,7 @@ export function FileDropZone({
       </div>
       {status === "error" && (
         <div className="text-xs text-destructive" aria-live="polite">
-          {errorMessage ?? "Upload failed. Click to try again."}
+          {errorMessage ?? "Upload falhou. Clique para tentar novamente."}
         </div>
       )}
     </div>

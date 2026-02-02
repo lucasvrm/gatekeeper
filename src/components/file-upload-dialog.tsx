@@ -42,11 +42,11 @@ export function FileUploadDialog({
 
   const validatePlanFile = useCallback(async (file: File): Promise<string | null> => {
     if (!file.name.endsWith('.json')) {
-      return 'File must be a JSON file'
+      return 'O arquivo deve ser um JSON'
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      return 'File size must be less than 5MB'
+      return 'O tamanho do arquivo deve ser menor que 5MB'
     }
 
     try {
@@ -54,17 +54,17 @@ export function FileUploadDialog({
       JSON.parse(content)
       return null
     } catch {
-      return 'Invalid JSON format'
+      return 'Formato JSON inválido'
     }
   }, [])
 
   const validateSpecFile = useCallback(async (file: File): Promise<string | null> => {
     if (!file.name.endsWith('.spec.tsx') && !file.name.endsWith('.spec.ts')) {
-      return 'File must be a .spec.tsx or .spec.ts file'
+      return 'O arquivo deve ser .spec.tsx ou .spec.ts'
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      return 'File size must be less than 5MB'
+      return 'O tamanho do arquivo deve ser menor que 5MB'
     }
 
     return null
@@ -134,7 +134,7 @@ export function FileUploadDialog({
 
   const handleUpload = async () => {
     if (!planFile && !specFile) {
-      toast.error("Please select at least one file to upload")
+      toast.error("Selecione pelo menos um arquivo para upload")
       return
     }
 
@@ -152,12 +152,12 @@ export function FileUploadDialog({
 
       await api.runs.uploadFiles(runId, formData)
 
-      toast.success("Files uploaded successfully. Run has been reset and queued for re-execution.")
+      toast.success("Arquivos enviados com sucesso. O run foi reiniciado e enfileirado para reexecução.")
       onUploadSuccess?.()
       handleClose()
     } catch (error) {
       console.error("Failed to upload files:", error)
-      toast.error("Failed to upload files")
+      toast.error("Falha ao enviar arquivos")
     } finally {
       setUploading(false)
     }
@@ -173,9 +173,9 @@ export function FileUploadDialog({
     <Dialog open={open} onOpenChange={(isOpen) => (!isOpen ? handleClose() : null)}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle>Upload Files</DialogTitle>
+          <DialogTitle>Upload de Arquivos</DialogTitle>
           <DialogDescription>
-            Upload plan.json or spec file to replace existing files. The run will be reset and re-executed.
+            Faça upload do plan.json ou arquivo spec para substituir os arquivos existentes. O run será reiniciado e reexecutado.
           </DialogDescription>
         </DialogHeader>
 
@@ -223,7 +223,7 @@ export function FileUploadDialog({
                 <div className="text-center">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground mb-2">
-                    Drag and drop plan.json here, or click to browse
+                    Arraste o plan.json aqui ou clique para procurar
                   </p>
                   <input
                     ref={planInputRef}
@@ -237,7 +237,7 @@ export function FileUploadDialog({
                     size="sm"
                     onClick={() => planInputRef.current?.click()}
                   >
-                    Browse Files
+                    Procurar Arquivos
                   </Button>
                 </div>
               )}
@@ -246,7 +246,7 @@ export function FileUploadDialog({
 
           {/* Spec File Upload */}
           <div>
-            <Label className="mb-2 block">Spec File (.spec.tsx or .spec.ts)</Label>
+            <Label className="mb-2 block">Arquivo Spec (.spec.tsx ou .spec.ts)</Label>
             <div
               className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
                 dragOverSpec ? 'border-primary bg-primary/5' : 'border-border'
@@ -287,7 +287,7 @@ export function FileUploadDialog({
                 <div className="text-center">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground mb-2">
-                    Drag and drop spec file here, or click to browse
+                    Arraste o arquivo spec aqui ou clique para procurar
                   </p>
                   <input
                     ref={specInputRef}
@@ -301,7 +301,7 @@ export function FileUploadDialog({
                     size="sm"
                     onClick={() => specInputRef.current?.click()}
                   >
-                    Browse Files
+                    Procurar Arquivos
                   </Button>
                 </div>
               )}
@@ -311,14 +311,14 @@ export function FileUploadDialog({
 
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={handleClose} disabled={uploading}>
-            Cancel
+            Cancelar
           </Button>
           <Button
             type="button"
             onClick={handleUpload}
             disabled={uploading || (!planFile && !specFile)}
           >
-            {uploading ? "Uploading..." : "Upload"}
+            {uploading ? "Enviando..." : "Enviar"}
           </Button>
         </DialogFooter>
       </DialogContent>

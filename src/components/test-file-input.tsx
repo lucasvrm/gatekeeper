@@ -72,7 +72,7 @@ export function TestFileInput({
       }
 
       if (!isAllowedTestPath(trimmed)) {
-        const message = "Invalid test file extension"
+        const message = "Extensão de arquivo de teste inválida"
         setErrorMessage(message)
         onError(message)
         return
@@ -116,8 +116,8 @@ export function TestFileInput({
         <div className="space-y-2">
           <FileDropZone
             accept={acceptList}
-            label="Upload test file"
-            placeholder="Drag & drop or click to select a test file"
+            label="Upload do arquivo de teste"
+            placeholder="Arraste ou clique para selecionar um arquivo de teste"
             onFileContent={handleDropZoneContent}
             onError={handleDropZoneError}
           />

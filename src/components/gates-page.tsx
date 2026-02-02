@@ -80,7 +80,7 @@ export function GatesPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Validation Gates</h1>
         <p className="text-muted-foreground mt-1">
-          Overview of all validation gates and their validators
+          Visão geral de todos os validation gates e seus validators
         </p>
       </div>
 
@@ -135,7 +135,7 @@ export function GatesPage() {
                     </div>
                   ) : gateValidators.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No validators found
+                      Nenhum validator encontrado
                     </p>
                   ) : (
                     <div className="space-y-3">

@@ -2335,11 +2335,11 @@ function LogoConfigEditor({ logo, onChange }) {
 const HEADER_ICON_OPTIONS = ["bell", "settings", "user", "mail", "help", "moon", "sun", "menu", "search", "grid", "download", "share"];
 const HEADER_ICON_PHOSPHOR: Record<string, string> = {
   bell: "bell", settings: "gear", user: "user", mail: "envelope", help: "question", moon: "moon",
-  sun: "sun", menu: "list", search: "magnifying-glass", grid: "squares-four", download: "arrow-square-down", share: "share-network",
+  sun: "sun", menu: "list", search: "magnifying-glass", grid: "squares-four", download: "arrow-square-down", share: "share-network", server: "hard-drives",
 };
 const HEADER_ICON_MAP = {
   bell: "🔔", settings: "⚙️", user: "👤", mail: "✉️", help: "❓", moon: "🌙",
-  sun: "☀️", menu: "☰", search: "🔍", grid: "⊞", download: "⬇", share: "↗",
+  sun: "☀️", menu: "☰", search: "🔍", grid: "⊞", download: "⬇", share: "↗", server: "🖥",
 };
 
 // Mini Phosphor icon for editor preview
@@ -2358,6 +2358,7 @@ function MiniPhosphorIcon({ name, size = 16, color = "currentColor" }: { name: s
     "arrow-square-down": "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V48H208V208Z",
     "share-network": "M176,160a39.89,39.89,0,0,0-28.62,12.09l-46.1-29.63a39.8,39.8,0,0,0,0-28.92l46.1-29.63a40,40,0,1,0-8.66-13.45l-46.1,29.63a40,40,0,1,0,0,55.82l46.1,29.63A40,40,0,1,0,176,160Z",
     "plus": "M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z",
+    "hard-drives": "M208,136H48a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136Zm0,56H48V152H208v40Zm0-160H48A16,16,0,0,0,32,48V88a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,56H48V48H208V88ZM188,172a12,12,0,1,1-12-12A12,12,0,0,1,188,172Zm-40,0a12,12,0,1,1-12-12A12,12,0,0,1,148,172ZM188,68a12,12,0,1,1-12-12A12,12,0,0,1,188,68Zm-40,0a12,12,0,1,1-12-12A12,12,0,0,1,148,68Z",
   };
   const d = PATHS[name];
   if (!d) return <span style={{ fontSize: size }}>?</span>;
@@ -2387,13 +2388,39 @@ function HeaderElementsEditor({ elements, onChange }) {
   const ctas = cfg.ctas || [];
   const addCta = () => {
     const newCta = { id: `cta-${Date.now()}`, label: "Ação", variant: "default", route: "" };
-    updateRoot("ctas", [...ctas, newCta]);
+    const newCtas = [...ctas, newCta];
+    // Add individual CTA entry to order
+    const curOrder = cfg.order || ["search", "icons"];
+    const newOrder = [...curOrder, `cta:${newCta.id}`];
+    onChange({ ...cfg, ctas: newCtas, order: newOrder });
   };
-  const removeCta = (id) => updateRoot("ctas", ctas.filter(c => c.id !== id));
+  const removeCta = (id) => {
+    const newCtas = ctas.filter(c => c.id !== id);
+    // Remove from order
+    const curOrder = cfg.order || ["search", "icons"];
+    const newOrder = curOrder.filter(k => k !== `cta:${id}`);
+    onChange({ ...cfg, ctas: newCtas, order: newOrder });
+  };
   const updateCta = (id, field, val) => updateRoot("ctas", ctas.map(c => c.id === id ? { ...c, [field]: val } : c));
 
-  // Order
-  const order = cfg.order || ["search", "icons", "ctas"];
+  // Order — expand legacy "ctas" group into individual cta: entries
+  const expandOrder = (rawOrder: string[]): string[] => {
+    const result: string[] = [];
+    for (const key of rawOrder) {
+      if (key === "ctas") {
+        // Legacy grouped → expand to individual
+        for (const c of ctas) result.push(`cta:${c.id}`);
+      } else {
+        result.push(key);
+      }
+    }
+    // Ensure any CTA not in order gets appended
+    for (const c of ctas) {
+      if (!result.includes(`cta:${c.id}`)) result.push(`cta:${c.id}`);
+    }
+    return result;
+  };
+  const order = expandOrder(cfg.order || ["search", "icons", "ctas"]);
   const moveOrder = (idx, dir) => {
     const newOrder = [...order];
     const target = idx + dir;
@@ -2402,7 +2429,16 @@ function HeaderElementsEditor({ elements, onChange }) {
     updateRoot("order", newOrder);
   };
 
-  const ELEMENT_LABELS = { search: "🔍 Pesquisa", icons: "🔔 Ícones", ctas: "🎯 CTAs" };
+  const getOrderLabel = (key: string) => {
+    if (key === "search") return "🔍 Pesquisa";
+    if (key === "icons") return "🔔 Ícones";
+    if (key.startsWith("cta:")) {
+      const ctaId = key.slice(4);
+      const cta = ctas.find(c => c.id === ctaId);
+      return `🎯 CTA: ${cta?.label || ctaId}`;
+    }
+    return key;
+  };
 
   // CTA variant style map for preview
   const CTA_VARIANT_STYLES = {
@@ -2431,22 +2467,22 @@ function HeaderElementsEditor({ elements, onChange }) {
         </span>
       ));
     }
-    if (key === "ctas") {
-      const allCtas = ctas.length > 0 ? ctas : (cfg.cta?.enabled ? [{ id: "legacy", label: cfg.cta.label || "Novo", variant: cfg.cta.variant }] : []);
-      return allCtas.map(cta => {
-        const vs = CTA_VARIANT_STYLES[cta.variant || "default"] || CTA_VARIANT_STYLES.default;
-        const phIcon = cta.icon?.startsWith("ph:") ? cta.icon.slice(3) : undefined;
-        return (
-          <button key={cta.id} style={{
-            fontSize: 11, padding: "5px 14px", borderRadius: 6, cursor: "default", fontWeight: 500,
-            background: vs.bg, color: vs.color, border: vs.border || "none",
-            display: "inline-flex", alignItems: "center", gap: 4,
-          }}>
-            {phIcon && <MiniPhosphorIcon name={phIcon} size={12} />}
-            {cta.label}
-          </button>
-        );
-      });
+    if (key.startsWith("cta:")) {
+      const ctaId = key.slice(4);
+      const cta = ctas.find(c => c.id === ctaId);
+      if (!cta) return null;
+      const vs = CTA_VARIANT_STYLES[cta.variant || "default"] || CTA_VARIANT_STYLES.default;
+      const phIcon = cta.icon?.startsWith("ph:") ? cta.icon.slice(3) : undefined;
+      return (
+        <button key={cta.id} style={{
+          fontSize: 11, padding: "5px 14px", borderRadius: 6, cursor: "default", fontWeight: 500,
+          background: vs.bg, color: vs.color, border: vs.border || "none",
+          display: "inline-flex", alignItems: "center", gap: 4,
+        }}>
+          {phIcon && <MiniPhosphorIcon name={phIcon} size={12} />}
+          {cta.label}
+        </button>
+      );
     }
     return null;
   };
@@ -2474,21 +2510,33 @@ function HeaderElementsEditor({ elements, onChange }) {
 
       {/* Order */}
       <Section title="📐 Ordem dos Elementos" defaultOpen={true} id="header-order">
-        <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 8 }}>Arraste para reordenar os blocos do header:</div>
-        {order.map((key, idx) => (
-          <div key={key} style={{
-            display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
-            background: COLORS.surface3, borderRadius: 6, marginBottom: 4,
-            border: `1px solid ${COLORS.border}`,
-          }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <button onClick={() => moveOrder(idx, -1)} disabled={idx === 0} style={{ ...s.btnSmall, padding: "1px 4px", fontSize: 10, opacity: idx === 0 ? 0.3 : 1 }}>▲</button>
-              <button onClick={() => moveOrder(idx, 1)} disabled={idx === order.length - 1} style={{ ...s.btnSmall, padding: "1px 4px", fontSize: 10, opacity: idx === order.length - 1 ? 0.3 : 1 }}>▼</button>
+        <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 8 }}>Reordene os elementos do header individualmente:</div>
+        {order.map((key, idx) => {
+          const isCta = key.startsWith("cta:");
+          const ctaObj = isCta ? ctas.find(c => c.id === key.slice(4)) : null;
+          return (
+            <div key={key} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
+              background: isCta ? `${COLORS.accent}11` : COLORS.surface3, borderRadius: 6, marginBottom: 4,
+              border: `1px solid ${isCta ? COLORS.accent + "33" : COLORS.border}`,
+            }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <button onClick={() => moveOrder(idx, -1)} disabled={idx === 0} style={{ ...s.btnSmall, padding: "1px 4px", fontSize: 10, opacity: idx === 0 ? 0.3 : 1 }}>▲</button>
+                <button onClick={() => moveOrder(idx, 1)} disabled={idx === order.length - 1} style={{ ...s.btnSmall, padding: "1px 4px", fontSize: 10, opacity: idx === order.length - 1 ? 0.3 : 1 }}>▼</button>
+              </div>
+              <span style={{ fontSize: 12, color: COLORS.text, fontWeight: 500, flex: 1 }}>{getOrderLabel(key)}</span>
+              {ctaObj && (
+                <span style={{ fontSize: 10, color: COLORS.textDim, background: COLORS.surface3, padding: "1px 6px", borderRadius: 3 }}>{ctaObj.variant || "default"}</span>
+              )}
+              <span style={{ fontSize: 10, color: COLORS.textDim, fontFamily: "monospace" }}>{key}</span>
             </div>
-            <span style={{ fontSize: 12, color: COLORS.text, fontWeight: 500 }}>{ELEMENT_LABELS[key] || key}</span>
-            <span style={{ fontSize: 10, color: COLORS.textDim, fontFamily: "monospace" }}>{key}</span>
+          );
+        })}
+        {ctas.length === 0 && (
+          <div style={{ fontSize: 11, color: COLORS.textDim, padding: 8, textAlign: "center" }}>
+            Adicione CTAs na seção abaixo — cada um aparecerá aqui individualmente.
           </div>
-        ))}
+        )}
       </Section>
 
       {/* Search */}

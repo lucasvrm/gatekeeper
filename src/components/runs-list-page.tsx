@@ -181,11 +181,11 @@ export function RunsListPage() {
     setActionLoading(true)
     try {
       await api.runs.abort(runId)
-      toast.success("Run aborted successfully")
+      toast.success("Run abortado com sucesso")
       await loadRuns()
     } catch (error) {
       console.error("Failed to abort run:", error)
-      toast.error("Failed to abort run")
+      toast.error("Falha ao abortar run")
     } finally {
       setActionLoading(false)
     }
@@ -195,11 +195,11 @@ export function RunsListPage() {
     setActionLoading(true)
     try {
       await api.runs.delete(runId)
-      toast.success("Run deleted successfully")
+      toast.success("Run excluído com sucesso")
       await loadRuns()
     } catch (error) {
       console.error("Failed to delete run:", error)
-      toast.error("Failed to delete run")
+      toast.error("Falha ao excluir run")
     } finally {
       setActionLoading(false)
     }
@@ -212,13 +212,13 @@ export function RunsListPage() {
     setActionLoading(true)
     try {
       await Promise.all(runIds.map((runId) => api.runs.delete(runId)))
-      toast.success("Selected runs deleted successfully")
+      toast.success("Runs selecionados excluídos com sucesso")
       setSelectedRunIds(new Set())
       setShowBulkDeleteDialog(false)
       await loadRuns()
     } catch (error) {
       console.error("Failed to delete runs:", error)
-      toast.error("Failed to delete selected runs")
+      toast.error("Falha ao excluir runs selecionados")
     } finally {
       setActionLoading(false)
     }
@@ -316,7 +316,7 @@ export function RunsListPage() {
             disabled={selectedCount === 0 || actionLoading}
           >
             <Trash className="w-4 h-4" />
-            Deletar Selecionados ({selectedCount})
+            Excluir Selecionados ({selectedCount})
           </Button>
         </div>
 
@@ -339,7 +339,7 @@ export function RunsListPage() {
                     <Checkbox
                       checked={allSelected}
                       onCheckedChange={toggleSelectAll}
-                      aria-label="Select all runs"
+                      aria-label="Selecionar todos os runs"
                     />
                   </TableHead>
                   <TableHead className="font-semibold text-xs uppercase tracking-wider">
@@ -389,7 +389,7 @@ export function RunsListPage() {
                         onCheckedChange={(checked) =>
                           toggleSelection(run.id, checked as boolean)
                         }
-                        aria-label={`Select run ${run.id}`}
+                        aria-label={`Selecionar run ${run.id}`}
                       />
                     </TableCell>
                     <TableCell className="font-mono text-sm">
@@ -458,7 +458,7 @@ export function RunsListPage() {
                             size="icon"
                             onClick={() => handleAbort(run.id)}
                             disabled={actionLoading}
-                            aria-label={`Abort run ${run.id}`}
+                            aria-label={`Abortar run ${run.id}`}
                             className="hover:bg-white hover:text-white hover:border-white"
                           >
                             <Stop className="w-4 h-4" />
@@ -469,7 +469,7 @@ export function RunsListPage() {
                           size="icon"
                           onClick={() => handleDelete(run.id)}
                           disabled={actionLoading}
-                          aria-label={`Delete run ${run.id}`}
+                          aria-label={`Excluir run ${run.id}`}
                           className="hover:bg-white hover:text-white hover:border-white"
                         >
                           <Trash className="w-4 h-4" />
@@ -483,7 +483,7 @@ export function RunsListPage() {
 
             <div className="flex items-center justify-between mt-6 pt-6 border-t border-border">
               <p className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
+                Página {page} de {totalPages}
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -556,21 +556,21 @@ export function RunsListPage() {
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete selected runs?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir runs selecionados?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {selectedCount} validation runs and all their
-              results. This action cannot be undone.
+              Isso irá excluir permanentemente {selectedCount} runs de validação e todos os seus
+              resultados. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
                 variant="destructive"
                 onClick={handleBulkDelete}
                 disabled={actionLoading}
               >
-                {actionLoading ? "Deleting..." : "Delete Selected"}
+                {actionLoading ? "Excluindo..." : "Excluir Selecionados"}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

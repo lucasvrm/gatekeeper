@@ -31,7 +31,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
   const [commitJustDone, setCommitJustDone] = useState(false)
   const [localGitStatus, setLocalGitStatus] = useState<GitStatusResponse | null>(null)
   const [loadingState, setLoadingState] = useState<'idle' | 'staging' | 'committing' | 'pushing'>('idle')
-  const [errorTitle, setErrorTitle] = useState('Git error')
+  const [errorTitle, setErrorTitle] = useState('Erro do Git')
   const [errorSummary, setErrorSummary] = useState('')
   const [errorDetails, setErrorDetails] = useState('')
 
@@ -40,8 +40,8 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
   const hasGitContext = Boolean(projectId || projectPath)
 
   const buildGitDetails = (debug: { fetchOutput: string; statusText: string } | null) => {
-    const fetchOutput = debug?.fetchOutput?.trim() || '(no output)'
-    const statusText = debug?.statusText?.trim() || '(no output)'
+    const fetchOutput = debug?.fetchOutput?.trim() || '(sem output)'
+    const statusText = debug?.statusText?.trim() || '(sem output)'
     return `git fetch:\n${fetchOutput}\n\ngit status:\n${statusText}`
   }
 
@@ -74,9 +74,9 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
     if (!projectId) {
       if (!projectPath) {
         showGitError(
-          'Git status failed',
-          'ProjectId missing for git operations.',
-          'projectId or projectPath is required to locate the repository.'
+          'Git status falhou',
+          'ProjectId necessário para operações git.',
+          'projectId ou projectPath é necessário para localizar o repositório.'
         )
         return
       }
@@ -89,19 +89,19 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
     } catch {
       const debug = await api.git.fetchStatus(projectId, projectPath).catch(() => null)
       const details = buildGitDetails(debug)
-      showGitError('Git status failed', 'Failed to check git status.', details)
+      showGitError('Git status falhou', 'Falha ao verificar git status.', details)
       return
     }
 
     // CL-GC-009: No changes
     if (!status.hasChanges) {
-      toast.info('No changes to commit')
+      toast.info('Nenhuma alteração para commit')
       return
     }
 
     // CL-GC-010: Has conflicts
     if (status.hasConflicts) {
-      toast.warning('Please resolve merge conflicts first')
+      toast.warning('Resolva os conflitos de merge primeiro')
       return
     }
 
@@ -113,9 +113,9 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
     if (!projectId) {
       if (!projectPath) {
         showGitError(
-          'Git commit failed',
-          'ProjectId missing for git operations.',
-          'projectId or projectPath is required to locate the repository.'
+          'Git commit falhou',
+          'ProjectId necessário para operações git.',
+          'projectId ou projectPath é necessário para localizar o repositório.'
         )
         return
       }
@@ -145,21 +145,21 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
       } else {
         // CL-GC-033: Local commit success
         toast.success(
-          `Commit created successfully - ${commitResult.commitHash.slice(0, 7)} - Local only (not pushed)`
+          `Commit criado com sucesso - ${commitResult.commitHash.slice(0, 7)} - Apenas local (não enviado)`
         )
       }
     } catch (error: unknown) {
       setShowCommitModal(false)
-      const message = error instanceof Error ? error.message : 'Unknown error'
+      const message = error instanceof Error ? error.message : 'Erro desconhecido'
       const debug = await api.git.fetchStatus(projectId, projectPath).catch(() => null)
       const details = buildGitDetails(debug)
 
       if (currentStep === 'staging') {
         // CL-GC-029: Add failure
-        showGitError('Git add failed', `Failed to stage changes: ${message}`, details)
+        showGitError('Git add falhou', `Falha ao preparar alterações: ${message}`, details)
       } else {
         // CL-GC-030: Commit failure
-        showGitError('Git commit failed', `Commit failed: ${message}`, details)
+        showGitError('Git commit falhou', `Commit falhou: ${message}`, details)
         console.error('Commit error details:', error)
       }
     } finally {
@@ -171,7 +171,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
     // CL-GC-027: Keep local
     setShowPushConfirmModal(false)
     if (localCommitHash) {
-      toast.success(`Commit ${localCommitHash.slice(0, 7)} created - Local only`)
+      toast.success(`Commit ${localCommitHash.slice(0, 7)} criado - Apenas local`)
     }
   }
 
@@ -179,9 +179,9 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
     if (!projectId) {
       if (!projectPath) {
         showGitError(
-          'Git push failed',
-          'ProjectId missing for git operations.',
-          'projectId or projectPath is required to locate the repository.'
+          'Git push falhou',
+          'ProjectId necessário para operações git.',
+          'projectId ou projectPath é necessário para localizar o repositório.'
         )
         return
       }
@@ -193,44 +193,44 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
       const pushResult = await api.git.push(projectId, projectPath)
       // CL-GC-034: Commit + push success
       toast.success(
-        `Changes committed and pushed to ${pushResult.branch} - ${pushResult.commitHash.slice(0, 7)}`
+        `Alterações commitadas e enviadas para ${pushResult.branch} - ${pushResult.commitHash.slice(0, 7)}`
       )
       setShowPushConfirmModal(false)
     } catch (error: unknown) {
       const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
-      const message = error instanceof Error ? error.message : 'Unknown error'
+      const message = error instanceof Error ? error.message : 'Erro desconhecido'
       const debug = await api.git.fetchStatus(projectId, projectPath).catch(() => null)
       const details = buildGitDetails(debug)
 
       // CL-GC-031: Remote ahead
       if (code === 'REMOTE_AHEAD') {
-        openGitErrorModal('Git push blocked', 'Remote has new commits.', details)
-        toast.warning('Remote has new commits', {
+        openGitErrorModal('Git push bloqueado', 'Remoto tem novos commits.', details)
+        toast.warning('Remoto tem novos commits', {
           action: [
             {
-              label: 'Pull & Retry',
+              label: 'Pull & Tentar Novamente',
               onClick: async () => {
                 try {
                   await api.git.pull(projectId, projectPath)
-                  toast.success('Pulled latest changes')
+                  toast.success('Últimas alterações puxadas')
                   await handlePushNow()
                 } catch (pullError: unknown) {
                   const pullDebug = await api.git.fetchStatus(projectId, projectPath).catch(() => null)
                   const pullDetails = buildGitDetails(pullDebug)
-                  const pullMessage = pullError instanceof Error ? pullError.message : 'Unknown error'
+                  const pullMessage = pullError instanceof Error ? pullError.message : 'Erro desconhecido'
                   showGitError(
-                    'Git pull failed',
-                    `Pull failed: ${pullMessage}`,
+                    'Git pull falhou',
+                    `Pull falhou: ${pullMessage}`,
                     pullDetails
                   )
                 }
               },
             },
             {
-              label: 'Keep Local',
+              label: 'Manter Local',
               onClick: () => {
                 setShowPushConfirmModal(false)
-                toast.info('Keeping commit local only')
+                toast.info('Mantendo commit apenas local')
               },
             },
           ],
@@ -239,12 +239,12 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
       // CL-GC-032: Permission denied
       else if (code === 'PERMISSION_DENIED') {
         showGitError(
-          'Git push failed',
-          `Permission denied: ${message}. Check your SSH keys or repository permissions.`,
+          'Git push falhou',
+          `Permissão negada: ${message}. Verifique suas chaves SSH ou permissões do repositório.`,
           details
         )
       } else {
-        showGitError('Git push failed', `Push failed: ${message}`, details)
+        showGitError('Git push falhou', `Push falhou: ${message}`, details)
       }
     }
     setLoadingState('idle')
@@ -264,9 +264,9 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
       case 'staging':
         return 'Staging...'
       case 'committing':
-        return 'Committing...'
+        return 'Commitando...'
       case 'pushing':
-        return 'Pushing...'
+        return 'Enviando...'
       default:
         return 'Git Commit'
     }
@@ -283,7 +283,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
               size="sm"
               data-testid="btn-git-commit"
               onClick={handleButtonClick}
-              aria-label="Commit validated changes to Git"
+              aria-label="Commit das alterações validadas no Git"
               aria-disabled={hasExistingCommit || commitJustDone || !hasGitContext || loadingState !== 'idle'}
               disabled={loadingState !== 'idle'}
               className={
@@ -297,7 +297,7 @@ export function GitCommitButton({ contractRun, executionRun, outputId }: GitComm
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Commit validated changes to Git</p>
+            <p>Commit das alterações validadas no Git</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

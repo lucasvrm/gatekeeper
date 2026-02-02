@@ -34,7 +34,7 @@ export function PushConfirmModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="push-confirm-modal">
         <DialogHeader>
-          <DialogTitle>Push to Remote?</DialogTitle>
+          <DialogTitle>Enviar para Remoto?</DialogTitle>
           <DialogDescription>
             {repoName && (
               <>
@@ -54,10 +54,10 @@ export function PushConfirmModal({
             >
               {shortHash}
             </code>{' '}
-            created successfully.
+            criado com sucesso.
           </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">Do you want to push to remote now?</p>
+        <p className="text-sm text-muted-foreground">Deseja enviar para o remoto agora?</p>
         <DialogFooter>
           <Button
             type="button"
@@ -66,7 +66,7 @@ export function PushConfirmModal({
             data-testid="btn-keep-local"
             disabled={isPushing}
           >
-            No, Keep Local
+            Não, Manter Local
           </Button>
           <Button
             type="button"
@@ -74,7 +74,7 @@ export function PushConfirmModal({
             data-testid="btn-push-now"
             disabled={isPushing}
           >
-            {isPushing ? 'Pushing...' : 'Yes, Push Now'}
+            {isPushing ? 'Enviando...' : 'Sim, Enviar Agora'}
           </Button>
         </DialogFooter>
       </DialogContent>

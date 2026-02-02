@@ -225,11 +225,11 @@ export function RunDetailsPageV2() {
       setPrimaryRun(primary)
       await loadSecondaryRun(primary)
     } catch (err) {
-      const nextError = err instanceof Error ? err : new Error("Failed to load run")
+      const nextError = err instanceof Error ? err : new Error("Falha ao carregar run")
       setError(nextError)
       setPrimaryRun(null)
       setSecondaryRun(null)
-      toast.error("Failed to load run")
+      toast.error("Falha ao carregar run")
     } finally {
       setIsLoading(false)
     }
@@ -247,7 +247,7 @@ export function RunDetailsPageV2() {
       await loadSecondaryRun(refreshed)
     } catch (err) {
       console.error("Failed to refresh primary run:", err)
-      toast.error("Failed to refresh run")
+      toast.error("Falha ao atualizar run")
     }
   }, [loadSecondaryRun, runId])
 
@@ -258,7 +258,7 @@ export function RunDetailsPageV2() {
       setSecondaryRun(refreshed)
     } catch (err) {
       console.error("Failed to refresh secondary run:", err)
-      toast.error("Failed to refresh run")
+      toast.error("Falha ao atualizar run")
     }
   }, [secondaryRun?.id])
 
@@ -402,21 +402,21 @@ export function RunDetailsPageV2() {
     if (!runIdForAction) return
     try {
       await api.runs.rerunGate(runIdForAction, gateNumber)
-      toast.success("Gate queued for re-execution")
+      toast.success("Gate enfileirado para reexecução")
     } catch (error) {
       console.error("Failed to rerun gate:", error)
-      toast.error("Failed to rerun gate")
+      toast.error("Falha ao reexecutar gate")
     }
   }
 
   const handleStartExecution = async () => {
     if (!contractRun) return
     if (!contractRun.projectId) {
-      toast.error("Contract run does not have a projectId. Cannot start execution.")
+      toast.error("O run de contrato não possui projectId. Não é possível iniciar a execução.")
       return
     }
     if (!contractRun.taskPrompt) {
-      toast.error("Contract run does not have a taskPrompt. Cannot start execution.")
+      toast.error("O run de contrato não possui taskPrompt. Não é possível iniciar a execução.")
       return
     }
 
@@ -433,12 +433,12 @@ export function RunDetailsPageV2() {
         projectId: contractRun.projectId,
       })
 
-      toast.success("Execution run started")
+      toast.success("Run de execução iniciado")
       const executionData = await api.runs.getWithResults(response.runId)
       setSecondaryRun(executionData)
     } catch (error) {
       console.error("Failed to start execution run:", error)
-      toast.error("Failed to start execution run")
+      toast.error("Falha ao iniciar run de execução")
     } finally {
       setExecutionLoading(false)
     }
@@ -449,11 +449,11 @@ export function RunDetailsPageV2() {
     setActionLoading(true)
     try {
       await api.runs.delete(primaryRun.id)
-      toast.success("Run deleted successfully")
+      toast.success("Run excluído com sucesso")
       navigate("/runs")
     } catch (error) {
       console.error("Failed to delete run:", error)
-      toast.error("Failed to delete run")
+      toast.error("Falha ao excluir run")
       setActionLoading(false)
     }
   }
@@ -461,20 +461,20 @@ export function RunDetailsPageV2() {
   const handleRerunGate = async (gate: UnifiedGate) => {
     try {
       await api.runs.rerunGate(gate.runId, gate.gateNumber)
-      toast.success("Gate queued for re-execution")
+      toast.success("Gate enfileirado para reexecução")
     } catch (error) {
       console.error("Failed to rerun gate:", error)
-      toast.error("Failed to rerun gate")
+      toast.error("Falha ao reexecutar gate")
     }
   }
 
   const handleBypassValidator = async (validator: UnifiedValidator) => {
     try {
       await api.runs.bypassValidator(validator.runId, validator.validatorCode)
-      toast.success("Validator bypassed")
+      toast.success("Validator by-passado")
     } catch (error) {
       console.error("Failed to bypass validator:", error)
-      toast.error("Failed to bypass validator")
+      toast.error("Falha ao by-passar validator")
     }
   }
 
@@ -503,7 +503,7 @@ export function RunDetailsPageV2() {
           </Button>
         </div>
         <Card className="p-8 text-center">
-          <p className="text-muted-foreground">Run not found</p>
+          <p className="text-muted-foreground">Run não encontrado</p>
         </Card>
       </div>
     )
@@ -635,7 +635,7 @@ export function RunDetailsPageV2() {
                   variant="outline"
                   size="sm"
                   data-testid="card-actions-rerun-g0"
-                  aria-label="Rerun gate 0"
+                  aria-label="Reexecutar gate 0"
                   onClick={() => handleGateRerun(0)}
                   disabled={!hasFailedInGate(0)}
                   className="px-2"
@@ -649,7 +649,7 @@ export function RunDetailsPageV2() {
                   onClick={() => setOpenBypassGate((prev) => (prev === 0 ? null : 0))}
                   disabled={!hasFailedInGate(0)}
                 >
-                  Bypass
+                  By-pass
                 </Button>
               </div>
               {openBypassGate === 0 && getBypassableValidators(0).length > 0 && (
@@ -701,7 +701,7 @@ export function RunDetailsPageV2() {
                   variant="outline"
                   size="sm"
                   data-testid="card-actions-rerun-g1"
-                  aria-label="Rerun gate 1"
+                  aria-label="Reexecutar gate 1"
                   onClick={() => handleGateRerun(1)}
                   disabled={!hasFailedInGate(1)}
                   className="px-2"
@@ -715,7 +715,7 @@ export function RunDetailsPageV2() {
                   onClick={() => setOpenBypassGate((prev) => (prev === 1 ? null : 1))}
                   disabled={!hasFailedInGate(1)}
                 >
-                  Bypass
+                  By-pass
                 </Button>
               </div>
               {openBypassGate === 1 && getBypassableValidators(1).length > 0 && (
@@ -779,7 +779,7 @@ export function RunDetailsPageV2() {
                   variant="outline"
                   size="sm"
                   data-testid="card-actions-rerun-g2"
-                  aria-label="Rerun gate 2"
+                  aria-label="Reexecutar gate 2"
                   onClick={() => handleGateRerun(2)}
                   disabled={!hasFailedInGate(2)}
                   className="px-2"
@@ -793,7 +793,7 @@ export function RunDetailsPageV2() {
                   onClick={() => setOpenBypassGate((prev) => (prev === 2 ? null : 2))}
                   disabled={!hasFailedInGate(2)}
                 >
-                  Bypass
+                  By-pass
                 </Button>
               </div>
               {openBypassGate === 2 && getBypassableValidators(2).length > 0 && (
@@ -815,7 +815,7 @@ export function RunDetailsPageV2() {
 
             <Card className="p-4 space-y-2" data-testid="overview-integrity">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Integrity</h3>
+              <h3 className="text-sm font-semibold">Integridade</h3>
                 <OverviewStatusBadge status={getGateOverviewStatus(3)} />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -845,7 +845,7 @@ export function RunDetailsPageV2() {
                   variant="outline"
                   size="sm"
                   data-testid="card-actions-rerun-g3"
-                  aria-label="Rerun gate 3"
+                  aria-label="Reexecutar gate 3"
                   onClick={() => handleGateRerun(3)}
                   disabled={!hasFailedInGate(3)}
                   className="px-2"
@@ -859,7 +859,7 @@ export function RunDetailsPageV2() {
                   onClick={() => setOpenBypassGate((prev) => (prev === 3 ? null : 3))}
                   disabled={!hasFailedInGate(3)}
                 >
-                  Bypass
+                  By-pass
                 </Button>
               </div>
               {openBypassGate === 3 && getBypassableValidators(3).length > 0 && (
@@ -982,7 +982,7 @@ export function RunDetailsPageV2() {
                       <Button
                         variant="outline"
                         size="sm"
-                        aria-label={`Rerun gate ${gate.gateNumber}`}
+                        aria-label={`Reexecutar gate ${gate.gateNumber}`}
                         onClick={(event) => {
                           event.stopPropagation()
                           handleRerunGate(gate)
@@ -1151,7 +1151,7 @@ export function RunDetailsPageV2() {
                                           handleBypassValidator(validator)
                                         }}
                                       >
-                                        Bypass
+                                        By-pass
                                       </Button>
                                     )}
                                   </div>
@@ -1194,21 +1194,21 @@ export function RunDetailsPageV2() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Validation Run?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Run de Validação?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this validation run and all its results. This
-              action cannot be undone.
+              Isso irá excluir permanentemente este run de validação e todos os seus resultados. Esta
+              ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
                 variant="destructive"
                 onClick={handleDeleteRun}
                 disabled={actionLoading}
               >
-                {actionLoading ? "Deleting..." : "Delete Run"}
+                {actionLoading ? "Excluindo..." : "Excluir Run"}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

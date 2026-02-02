@@ -140,7 +140,7 @@ export function ValidatorsTab({
   return (
     <Card className="p-6 bg-card border-border space-y-4">
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Validators</h2>
           <div className="flex flex-wrap items-center gap-3 justify-end">
             <div className="flex items-center gap-2 text-sm">
@@ -191,11 +191,11 @@ export function ValidatorsTab({
           </div>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
-          Toggle validator enforcement for Gatekeeper checks.
+          Alterne a aplicação dos validators nas verificações do Gatekeeper.
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-sm">
-          <Badge variant="default">Active {activeCount}</Badge>
-          <Badge variant="secondary">Inactive {inactiveCount}</Badge>
+          <Badge variant="default">Ativo {activeCount}</Badge>
+          <Badge variant="secondary">Inativos {inactiveCount}</Badge>
         </div>
       </div>
 
@@ -229,7 +229,7 @@ export function ValidatorsTab({
       )}
 
       {filteredValidators.length === 0 ? (
-        <div className="text-sm text-muted-foreground">No validators found.</div>
+        <div className="text-sm text-muted-foreground">Nenhum validator encontrado.</div>
       ) : (
         <Table>
           <TableHeader>
@@ -247,7 +247,7 @@ export function ValidatorsTab({
               <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Status</TableHead>
               <TableHead className="text-xs uppercase tracking-wide">Fail</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Actions</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -274,7 +274,7 @@ export function ValidatorsTab({
                   </TableCell>
                   <TableCell>
                     <Badge variant={isActive ? "default" : "secondary"}>
-                      {isActive ? "Active" : "Inactive"}
+                      {isActive ? "Ativo" : "Inativo"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -291,7 +291,7 @@ export function ValidatorsTab({
                       onClick={() => onToggle(validator.key, !isActive)}
                       disabled={actionId === validator.key}
                     >
-                      {isActive ? "Deactivate" : "Activate"}
+                      {isActive ? "Desativar" : "Ativar"}
                     </Button>
                   </TableCell>
                 </TableRow>

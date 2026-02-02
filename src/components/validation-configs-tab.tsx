@@ -28,11 +28,11 @@ interface ValidationConfigsTabProps {
 }
 
 const validationFields: ConfigModalField[] = [
-  { name: "key", label: "Key", type: "text", required: true },
-  { name: "value", label: "Value", type: "text", required: true },
-  { name: "type", label: "Type", type: "text", required: true },
-  { name: "category", label: "Category", type: "text", required: true },
-  { name: "description", label: "Description", type: "textarea" },
+  { name: "key", label: "Chave", type: "text", required: true },
+  { name: "value", label: "Valor", type: "text", required: true },
+  { name: "type", label: "Tipo", type: "text", required: true },
+  { name: "category", label: "Categoria", type: "text", required: true },
+  { name: "description", label: "Descrição", type: "textarea" },
 ]
 
 const validationDefaults = {
@@ -111,11 +111,11 @@ export function ValidationConfigsTab({
         <div>
           <h2 className="text-xl font-semibold">Validation Configs</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Config values used by validation checks.
+            Valores de config utilizados nas verificações de validation.
           </p>
         </div>
         {onCreate && (
-          <Button onClick={() => setCreateOpen(true)}>Add</Button>
+          <Button onClick={() => setCreateOpen(true)}>Adicionar</Button>
         )}
       </div>
 
@@ -123,7 +123,7 @@ export function ValidationConfigsTab({
         <input
           type="text"
           data-testid="key-filter"
-          placeholder="Filtrar por key..."
+          placeholder="Filtrar por chave..."
           className="h-9 w-64 rounded-md border border-input bg-background px-3 text-sm"
           value={keyFilter}
           onChange={(event) => setKeyFilter(event.target.value)}
@@ -134,7 +134,7 @@ export function ValidationConfigsTab({
           value={typeFilter}
           onChange={(event) => setTypeFilter(event.target.value)}
         >
-          <option value="ALL">Todos types</option>
+          <option value="ALL">Todos tipos</option>
           {uniqueTypes.map((type) => (
             <option key={type} value={type}>{type}</option>
           ))}
@@ -153,16 +153,16 @@ export function ValidationConfigsTab({
       </div>
 
       {filteredItems.length === 0 ? (
-        <div className="text-sm text-muted-foreground">No records found.</div>
+        <div className="text-sm text-muted-foreground">Nenhum registro encontrado.</div>
       ) : (
         <Table data-testid="validation-configs-table">
           <TableHeader>
             <TableRow>
-              <TableHead className="text-xs uppercase tracking-wide">Key</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Value</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Type</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Category</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Actions</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Chave</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Valor</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Tipo</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Categoria</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -175,7 +175,7 @@ export function ValidationConfigsTab({
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => setEditItem(item)}>
-                      Edit
+                      Editar
                     </Button>
                     {onDelete && (
                       <Button
@@ -184,7 +184,7 @@ export function ValidationConfigsTab({
                         onClick={() => handleDelete(item.id)}
                         disabled={actionId === item.id}
                       >
-                        Delete
+                        Excluir
                       </Button>
                     )}
                   </div>
@@ -198,11 +198,11 @@ export function ValidationConfigsTab({
       {onCreate && (
         <ConfigModal
           open={createOpen}
-          title="Add Validation Config"
-          description="Create a new validation config record."
+          title="Adicionar Validation Config"
+          description="Criar um novo registro de validation config."
           fields={validationFields}
           initialValues={validationDefaults}
-          submitLabel="Create"
+          submitLabel="Criar"
           onClose={() => setCreateOpen(false)}
           onSubmit={handleCreate}
           submitting={submitting}
@@ -212,8 +212,8 @@ export function ValidationConfigsTab({
       {editItem && (
         <ConfigModal
           open={Boolean(editItem)}
-          title="Edit Validation Config"
-          description="Update the selected validation config record."
+          title="Editar Validation Config"
+          description="Atualizar o registro de validation config selecionado."
           fields={validationFields}
           initialValues={{
             key: editItem.key,
@@ -222,7 +222,7 @@ export function ValidationConfigsTab({
             category: editItem.category,
             description: editItem.description ?? "",
           }}
-          submitLabel="Save"
+          submitLabel="Salvar"
           onClose={() => setEditItem(null)}
           onSubmit={handleEdit}
           submitting={submitting}

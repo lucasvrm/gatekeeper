@@ -94,12 +94,12 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
           {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
         </div>
         {!hideCreate && onCreate && (
-          <Button onClick={() => setCreateOpen(true)}>Add</Button>
+          <Button onClick={() => setCreateOpen(true)}>Adicionar</Button>
         )}
       </div>
 
       {items.length === 0 ? (
-        <div className="text-sm text-muted-foreground">No records found.</div>
+        <div className="text-sm text-muted-foreground">Nenhum registro encontrado.</div>
       ) : (
         <Table>
           <TableHeader>
@@ -109,7 +109,7 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
                   {column.label}
                 </TableHead>
               ))}
-              <TableHead className="text-xs uppercase tracking-wide">Actions</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -123,7 +123,7 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => setEditItem(item)}>
-                      Edit
+                      Editar
                     </Button>
                     {onToggle && item.isActive !== undefined && (
                       <Button
@@ -132,7 +132,7 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
                         onClick={() => handleToggle(item)}
                         disabled={actionId === item.id}
                       >
-                        {item.isActive ? "Deactivate" : "Activate"}
+                        {item.isActive ? "Desativar" : "Ativar"}
                       </Button>
                     )}
                     {onDelete && (
@@ -142,7 +142,7 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
                         onClick={() => handleDelete(item.id)}
                         disabled={actionId === item.id}
                       >
-                        Delete
+                        Excluir
                       </Button>
                     )}
                   </div>
@@ -156,11 +156,11 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
       {createFields && createDefaults && (
         <ConfigModal
           open={createOpen}
-          title={`Add ${title}`}
-          description={`Create a new ${title.toLowerCase()} record.`}
+          title={`Adicionar ${title}`}
+          description={`Criar um novo registro de ${title.toLowerCase()}.`}
           fields={createFields}
           initialValues={createDefaults}
-          submitLabel="Create"
+          submitLabel="Criar"
           onClose={() => setCreateOpen(false)}
           onSubmit={handleCreate}
           submitting={submitting}
@@ -170,11 +170,11 @@ export function ConfigSection<T extends { id: string; isActive?: boolean }>({
       {editItem && (
         <ConfigModal
           open={Boolean(editItem)}
-          title={`Edit ${title}`}
-          description={`Update the selected ${title.toLowerCase()} record.`}
+          title={`Editar ${title}`}
+          description={`Atualizar o registro de ${title.toLowerCase()} selecionado.`}
           fields={editFields}
           initialValues={getEditValues(editItem)}
-          submitLabel="Save"
+          submitLabel="Salvar"
           onClose={() => setEditItem(null)}
           onSubmit={handleEdit}
           submitting={submitting}
