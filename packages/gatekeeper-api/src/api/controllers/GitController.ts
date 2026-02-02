@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'path'
 import { prisma } from '../../db/client.js'
 import { GitOperationsService } from '../../services/GitOperationsService.js'
+import { RunEventService } from '../../services/RunEventService.js'
 
 export class GitController {
   private async resolveGitService(req: Request, res: Response): Promise<GitOperationsService | null> {
@@ -218,6 +219,7 @@ export class GitController {
             console.error('Failed to update run commit fields:', error)
           }
         }
+        RunEventService.emitRunStatus(runId, 'COMMITTED')
       }
       res.json(result)
     } catch (error) {
