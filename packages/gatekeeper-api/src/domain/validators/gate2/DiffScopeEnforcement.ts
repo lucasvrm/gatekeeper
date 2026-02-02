@@ -1,4 +1,5 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput, ValidatorContextFinding, ValidatorContextAnalyzedGroup } from '../../../types/index.js'
+import { minimatch } from 'minimatch'
 
 interface IncompleteFile {
   path: string
@@ -64,9 +65,12 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
     const manifestPaths = new Set(ctx.manifest.files.map((f) => f.path))
     const testFile = ctx.manifest.testFile
 
-    // CL-DSE-012, CL-DSE-041: Get ignored patterns from config
-    const ignoredPatternsStr = ctx.config.get('DIFF_SCOPE_IGNORED_PATTERNS') || 'package-lock.json,yarn.lock,pnpm-lock.yaml'
-    const ignoredPatterns = ignoredPatternsStr.split(',').map(p => p.trim())
+    // CL-DSE-012, CL-DSE-041, CL-DSE-042, CL-DSE-043: Get global exclusions from config with fallback
+    const globalExclusionsStr =
+      ctx.config.get('DIFF_SCOPE_GLOBAL_EXCLUSIONS') ??
+      ctx.config.get('DIFF_SCOPE_IGNORED_PATTERNS') ??
+      'package-lock.json,yarn.lock,pnpm-lock.yaml'
+    const globalExclusions = globalExclusionsStr.split(',').map(p => p.trim()).filter(Boolean)
 
     // CL-DSE-030, CL-DSE-031: Config for test-only diff
     const allowTestOnlyDiff = ctx.config.get('DIFF_SCOPE_ALLOW_TEST_ONLY_DIFF') !== 'false'
@@ -74,8 +78,14 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
     // CL-DSE-040: Config for incomplete fail mode
     const incompleteFailMode = ctx.config.get('DIFF_SCOPE_INCOMPLETE_FAIL_MODE') || 'HARD'
 
-    // Filter diff files (remove ignored patterns)
-    const filteredDiffFiles = diffFiles.filter(f => !ignoredPatterns.some(pattern => f.includes(pattern)))
+    // CL-DSE-042: Filter diff files using minimatch with fallback to includes for retrocompatibility
+    const isExcluded = (filePath: string): boolean =>
+      globalExclusions.some(pattern =>
+        minimatch(filePath, pattern, { dot: true }) || filePath.includes(pattern)
+      )
+
+    const excludedFiles = diffFiles.filter(f => isExcluded(f))
+    const filteredDiffFiles = diffFiles.filter(f => !isExcluded(f))
 
     // CL-DSE-030/031: Test-only diff handling
     if (filteredDiffFiles.length === 1 && filteredDiffFiles[0] === testFile) {
@@ -93,6 +103,7 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
             analyzed: [
               { label: 'Expected Files (from manifest)', items: ctx.manifest.files.map(f => `${f.action}: ${f.path}`) },
               { label: 'Actual Files (from diff)', items: filteredDiffFiles },
+              { label: 'Globally Excluded Files', items: excludedFiles },
               { label: 'Missing Implementation', items: [] },
               { label: 'Undeclared Changes (scope creep)', items: [] },
               { label: 'Successfully Implemented', items: [] },
@@ -117,6 +128,7 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
             analyzed: [
               { label: 'Expected Files (from manifest)', items: ctx.manifest.files.map(f => `${f.action}: ${f.path}`) },
               { label: 'Actual Files (from diff)', items: filteredDiffFiles },
+              { label: 'Globally Excluded Files', items: excludedFiles },
               { label: 'Missing Implementation', items: [] },
               { label: 'Undeclared Changes (scope creep)', items: [] },
               { label: 'Successfully Implemented', items: [] },
@@ -282,10 +294,11 @@ export const DiffScopeEnforcementValidator: ValidatorDefinition = {
       })
     }
 
-    // CL-DSE-070: Context analyzed sections (5 required)
+    // CL-DSE-070: Context analyzed sections (6 required, including Globally Excluded Files)
     const analyzed: ValidatorContextAnalyzedGroup[] = [
       { label: 'Expected Files (from manifest)', items: ctx.manifest.files.map(f => `${f.action}: ${f.path}`) },
       { label: 'Actual Files (from diff)', items: filteredDiffFiles },
+      { label: 'Globally Excluded Files', items: excludedFiles },
       { label: 'Missing Implementation', items: incompleteFiles.map(f => `${f.path} (${f.subtype})`) },
       { label: 'Undeclared Changes (scope creep)', items: scopeCreepFiles },
       { label: 'Successfully Implemented', items: implementedFiles },

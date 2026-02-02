@@ -2,8 +2,10 @@
   "$orqui": {
     "schema": "ui-registry-contract",
     "version": "1.0.0",
-    "hash": "sha256:b91982e592e4d297bf8b1048b212ed0fcd3f03716ad4a5fb59d7796312220c3d",
-    "generatedAt": "2026-02-02T16:43:27.754Z"
+    "preset": "gatekeeper-header-first",
+    "description": "Component registry — Gatekeeper Barricade theme (amber/gold dark)",
+    "hash": "",
+    "generatedAt": ""
   },
   "components": {
     "Accordion": {

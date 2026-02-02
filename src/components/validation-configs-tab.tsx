@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -10,6 +12,102 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ConfigModal, type ConfigModalField } from "@/components/config-modal"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+
+// Helper to detect pattern list configs
+const isPatternListConfig = (key: string): boolean =>
+  key.endsWith('_EXCLUSIONS') || key.endsWith('_PATTERNS')
+
+// PatternListEditor component for editing comma-separated pattern lists
+interface PatternListEditorProps {
+  value: string
+  onChange: (csv: string) => void
+}
+
+export function PatternListEditor({ value, onChange }: PatternListEditorProps) {
+  const [inputValue, setInputValue] = useState("")
+
+  const patterns = useMemo(() =>
+    value.split(',').map(p => p.trim()).filter(Boolean),
+    [value]
+  )
+
+  const handleAdd = () => {
+    const trimmed = inputValue.trim()
+    if (!trimmed) return
+    if (patterns.includes(trimmed)) {
+      setInputValue("")
+      return
+    }
+    const newPatterns = [...patterns, trimmed]
+    onChange(newPatterns.join(','))
+    setInputValue("")
+  }
+
+  const handleRemove = (index: number) => {
+    const newPatterns = patterns.filter((_, i) => i !== index)
+    onChange(newPatterns.join(','))
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleAdd()
+    }
+  }
+
+  return (
+    <div data-testid="pattern-list-editor" className="space-y-2">
+      <div className="flex flex-wrap gap-1">
+        {patterns.map((pattern, index) => (
+          <Badge
+            key={index}
+            variant="secondary"
+            data-testid={`pattern-badge-${index}`}
+            className="text-xs font-mono flex items-center gap-1"
+          >
+            {pattern}
+            <button
+              type="button"
+              data-testid={`pattern-remove-${index}`}
+              onClick={() => handleRemove(index)}
+              className="ml-1 hover:text-destructive"
+            >
+              ×
+            </button>
+          </Badge>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          data-testid="pattern-input"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Adicionar pattern..."
+          className="flex-1"
+        />
+        <Button
+          type="button"
+          data-testid="pattern-add-btn"
+          variant="outline"
+          size="sm"
+          onClick={handleAdd}
+        >
+          Adicionar
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 type ValidationConfigItem = {
   id: string
@@ -54,6 +152,8 @@ export function ValidationConfigsTab({
   const [categoryFilter, setCategoryFilter] = useState("ALL")
   const [createOpen, setCreateOpen] = useState(false)
   const [editItem, setEditItem] = useState<ValidationConfigItem | null>(null)
+  const [patternEditItem, setPatternEditItem] = useState<ValidationConfigItem | null>(null)
+  const [patternEditValue, setPatternEditValue] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [actionId, setActionId] = useState<string | null>(null)
 
@@ -169,12 +269,35 @@ export function ValidationConfigsTab({
             {filteredItems.map((item) => (
               <TableRow key={item.id} data-testid={`config-row-${item.id}`}>
                 <TableCell data-testid={`config-key-${item.id}`}>{item.key}</TableCell>
-                <TableCell>{item.value}</TableCell>
+                <TableCell>
+                  {isPatternListConfig(item.key) && !patternEditItem ? (
+                    <div className="flex flex-wrap gap-1">
+                      {item.value.split(',').map((p, i) => (
+                        <Badge key={i} variant="outline" className="text-xs font-mono">{p.trim()}</Badge>
+                      ))}
+                    </div>
+                  ) : isPatternListConfig(item.key) ? (
+                    <span className="text-muted-foreground text-xs">Editando...</span>
+                  ) : (
+                    item.value
+                  )}
+                </TableCell>
                 <TableCell data-testid={`config-type-${item.id}`}>{item.type}</TableCell>
                 <TableCell data-testid={`config-category-${item.id}`}>{item.category}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setEditItem(item)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (isPatternListConfig(item.key)) {
+                          setPatternEditItem(item)
+                          setPatternEditValue(item.value)
+                        } else {
+                          setEditItem(item)
+                        }
+                      }}
+                    >
                       Editar
                     </Button>
                     {onDelete && (
@@ -209,7 +332,7 @@ export function ValidationConfigsTab({
         />
       )}
 
-      {editItem && (
+      {editItem && !isPatternListConfig(editItem.key) && (
         <ConfigModal
           open={Boolean(editItem)}
           title="Editar Validation Config"
@@ -227,6 +350,62 @@ export function ValidationConfigsTab({
           onSubmit={handleEdit}
           submitting={submitting}
         />
+      )}
+
+      {patternEditItem && (
+        <Dialog open={Boolean(patternEditItem)} onOpenChange={(open) => !open && setPatternEditItem(null)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Editar Validation Config</DialogTitle>
+              <DialogDescription>
+                Editar patterns de exclusão para {patternEditItem.key}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Chave</Label>
+                <Input value={patternEditItem.key} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor</Label>
+                <PatternListEditor
+                  value={patternEditValue}
+                  onChange={setPatternEditValue}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Input value={patternEditItem.type} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Input value={patternEditItem.category} disabled />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPatternEditItem(null)}>
+                Cancelar
+              </Button>
+              <Button
+                disabled={submitting}
+                onClick={async () => {
+                  setSubmitting(true)
+                  const ok = await onUpdate(patternEditItem.id, {
+                    key: patternEditItem.key,
+                    value: patternEditValue,
+                    type: patternEditItem.type,
+                    category: patternEditItem.category,
+                    description: patternEditItem.description ?? "",
+                  })
+                  setSubmitting(false)
+                  if (ok) setPatternEditItem(null)
+                }}
+              >
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </Card>
   )

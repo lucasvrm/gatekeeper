@@ -2,8 +2,10 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:264b26990a47e1ad430d18fc85550c20dfc81c4d01cc76216c96cb29dd10976b",
-    "generatedAt": "2026-02-02T16:43:27.753Z"
+    "preset": "gatekeeper-header-first",
+    "description": "Gatekeeper — Header full-width com identidade Barricade (amber/gold dark theme)",
+    "hash": "",
+    "generatedAt": ""
   },
   "structure": {
     "regions": {
@@ -17,9 +19,9 @@
         },
         "padding": {
           "top": "$tokens.spacing.sm",
-          "right": "$tokens.spacing.sm",
-          "bottom": "$tokens.spacing.md",
-          "left": "$tokens.spacing.sm"
+          "right": "0",
+          "bottom": "0",
+          "left": "0"
         },
         "containers": [
           {
@@ -28,9 +30,9 @@
             "order": 0,
             "padding": {
               "top": "$tokens.spacing.md",
-              "right": "$tokens.spacing.sm",
+              "right": "$tokens.sizing.sidebar-pad",
               "bottom": "$tokens.spacing.md",
-              "left": "$tokens.spacing.md"
+              "left": "$tokens.sizing.sidebar-pad"
             }
           },
           {
@@ -39,10 +41,12 @@
             "order": 1,
             "padding": {
               "top": "$tokens.spacing.sm",
-              "right": "$tokens.spacing.xs",
+              "right": "calc($tokens.sizing.sidebar-pad - 6px)",
               "bottom": "$tokens.spacing.xs",
-              "left": "$tokens.spacing.sm"
-            }
+              "left": "calc($tokens.sizing.sidebar-pad - 6px)"
+            },
+            "navItemInternalPad": "6px",
+            "_alignNote": "container-pad + navItemInternalPad = sidebar-pad"
           },
           {
             "name": "sidebarFooter",
@@ -50,9 +54,9 @@
             "order": 2,
             "padding": {
               "top": "$tokens.spacing.xs",
-              "right": "$tokens.spacing.xs",
+              "right": "calc($tokens.sizing.sidebar-pad - 6px)",
               "bottom": "$tokens.spacing.xs",
-              "left": "$tokens.spacing.xs"
+              "left": "calc($tokens.sizing.sidebar-pad - 6px)"
             }
           }
         ],
@@ -60,7 +64,7 @@
           "fixed": true,
           "collapsible": true,
           "scrollable": false,
-          "collapsedDisplay": "icon-only"
+          "collapsedDisplay": "letter-only"
         },
         "navigation": {
           "icons": {
@@ -113,7 +117,23 @@
             "style": "solid"
           }
         },
-        "background": "$tokens.colors.sidebar-bg"
+        "background": "$tokens.colors.sidebar-bg",
+        "alignmentPad": "$tokens.sizing.sidebar-pad",
+        "collapsedTooltip": {
+          "mandatory": true,
+          "_note": "Always enabled when collapsed. Not user-configurable.",
+          "background": "$tokens.colors.surface-3",
+          "color": "$tokens.colors.text",
+          "borderColor": "$tokens.colors.border",
+          "borderRadius": "$tokens.borderRadius.sm",
+          "fontSize": "$tokens.fontSizes.xs",
+          "fontFamily": "$tokens.fontFamilies.mono",
+          "fontWeight": "$tokens.fontWeights.medium",
+          "padding": "5px 10px",
+          "shadow": "0 4px 12px rgba(0,0,0,0.4)",
+          "offset": "12px",
+          "arrow": true
+        }
       },
       "header": {
         "enabled": true,
@@ -122,31 +142,35 @@
           "height": "$tokens.sizing.header-height"
         },
         "padding": {
-          "top": "$tokens.spacing.sm",
-          "right": "$tokens.spacing.xl",
-          "bottom": "$tokens.spacing.sm",
-          "left": "$tokens.spacing.lg"
+          "top": "0",
+          "right": "0",
+          "bottom": "0",
+          "left": "0"
         },
         "containers": [
           {
             "name": "brand",
             "description": "Logo e identidade da aplicação",
-            "order": 0
+            "order": 0,
+            "zone": "sidebar"
           },
           {
             "name": "breadcrumb",
             "description": "Navegação hierárquica da página atual",
-            "order": 1
+            "order": 1,
+            "zone": "content"
           },
           {
             "name": "actions",
             "description": "Ações contextuais (busca, CTAs, ícones)",
-            "order": 2
+            "order": 2,
+            "zone": "content"
           },
           {
             "name": "userMenu",
             "description": "Avatar, notificações, menu do usuário",
-            "order": 3
+            "order": 3,
+            "zone": "content"
           }
         ],
         "behavior": {
@@ -162,7 +186,34 @@
             "style": "solid"
           }
         },
-        "background": "$tokens.colors.header-bg"
+        "background": "$tokens.colors.header-bg",
+        "zones": {
+          "sidebar": {
+            "description": "Left zone — matches sidebar width. Contains logo.",
+            "width": "$tokens.sizing.sidebar-width",
+            "collapsedWidth": "$tokens.sizing.sidebar-collapsed",
+            "paddingLeft": "$tokens.sizing.sidebar-pad",
+            "borderRight": {
+              "enabled": true,
+              "color": "$tokens.colors.border",
+              "width": "$tokens.borderWidth.thin"
+            },
+            "contains": [
+              "brand"
+            ]
+          },
+          "content": {
+            "description": "Right zone — flex:1, matches main content padding. Contains breadcrumbs + actions.",
+            "paddingLeft": "$tokens.sizing.main-pad",
+            "paddingRight": "$tokens.sizing.main-pad",
+            "contains": [
+              "breadcrumb",
+              "spacer",
+              "actions",
+              "userMenu"
+            ]
+          }
+        }
       },
       "main": {
         "enabled": true,
@@ -172,9 +223,9 @@
         },
         "padding": {
           "top": "$tokens.spacing.lg",
-          "right": "$tokens.spacing.xl",
+          "right": "$tokens.sizing.main-pad",
           "bottom": "$tokens.spacing.xl",
-          "left": "$tokens.spacing.xl"
+          "left": "$tokens.sizing.main-pad"
         },
         "containers": [
           {
@@ -197,10 +248,10 @@
           "height": "$tokens.sizing.footer-height"
         },
         "padding": {
-          "top": "$tokens.spacing.xs",
-          "right": "$tokens.spacing.xl",
-          "bottom": "$tokens.spacing.xs",
-          "left": "$tokens.spacing.xl"
+          "top": "0",
+          "right": "$tokens.sizing.main-pad",
+          "bottom": "0",
+          "left": "$tokens.sizing.main-pad"
         },
         "containers": [
           {
@@ -237,7 +288,7 @@
       "separator": "›",
       "clickable": true,
       "padding": {
-        "left": "$tokens.spacing.md"
+        "left": "0"
       },
       "typography": {
         "fontSize": "$tokens.fontSizes.xs",
@@ -249,7 +300,8 @@
       "arrows": false,
       "autoHide": false,
       "showHome": true,
-      "homeLabel": "Home"
+      "homeLabel": "Home",
+      "_alignNote": "Left edge controlled by header content-zone paddingLeft"
     },
     "logo": {
       "type": "icon-text",
@@ -260,12 +312,12 @@
       "position": "header",
       "headerSlot": "left",
       "sidebarAlign": "left",
-      "alignWithHeader": false,
+      "alignWithHeader": true,
       "padding": {
         "top": 0,
-        "right": 20,
+        "right": 0,
         "bottom": 0,
-        "left": 4
+        "left": 0
       },
       "iconGap": 8,
       "typography": {
@@ -275,7 +327,8 @@
         "color": "#e89c28",
         "letterSpacing": -0.02
       },
-      "iconSize": 26
+      "iconSize": 26,
+      "_alignNote": "Padding controlled by header sidebar-zone paddingLeft"
     },
     "favicon": {
       "type": "emoji",
@@ -394,9 +447,9 @@
       "enabled": true,
       "showTitle": true,
       "showSubtitle": true,
-      "showDivider": true,
+      "showDivider": false,
       "padding": {
-        "top": "$tokens.spacing.lg",
+        "top": "0",
         "right": "0",
         "bottom": "$tokens.spacing.lg",
         "left": "0"
@@ -448,6 +501,31 @@
       "headerColor": "$tokens.colors.accent-dim",
       "headerWidth": "2px",
       "headerStyle": "solid"
+    },
+    "alignmentGrid": {
+      "_doc": "Two master tokens control ALL horizontal alignment across the entire layout",
+      "sidebarPad": {
+        "token": "$tokens.sizing.sidebar-pad",
+        "controls": [
+          "header sidebar-zone paddingLeft",
+          "sidebar workspace left/right padding",
+          "sidebar nav left/right padding (via calc with navItemInternalPad)",
+          "sidebar footer left/right padding",
+          "logo left edge (via header sidebar-zone)"
+        ]
+      },
+      "mainPad": {
+        "token": "$tokens.sizing.main-pad",
+        "controls": [
+          "header content-zone paddingLeft/Right",
+          "breadcrumbs left edge",
+          "header actions right edge",
+          "main content paddingLeft/Right",
+          "page title left edge",
+          "cards/content left edge",
+          "footer paddingLeft/Right"
+        ]
+      }
     }
   },
   "tokens": {
@@ -577,6 +655,14 @@
       "input-height-lg": {
         "value": 42,
         "unit": "px"
+      },
+      "sidebar-pad": {
+        "value": "16px",
+        "description": "Master horizontal padding inside sidebar — controls alignment of logo, workspace, nav icons, user"
+      },
+      "main-pad": {
+        "value": "28px",
+        "description": "Master horizontal padding for main content area — controls alignment of breadcrumbs, title, cards, header actions"
       }
     },
     "fontFamilies": {

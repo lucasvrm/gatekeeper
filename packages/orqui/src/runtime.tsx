@@ -69,6 +69,7 @@ interface RegionConfig {
   position?: string;
   dimensions?: Record<string, string>;
   padding?: Record<string, string>;
+  background?: string;
   containers?: Container[];
   behavior?: { fixed: boolean; collapsible: boolean; scrollable: boolean; collapsedDisplay?: string };
   navigation?: NavigationConfig;
@@ -169,6 +170,8 @@ interface BreadcrumbsConfig {
   showHome?: boolean;
   homeLabel?: string;
   homeRoute?: string;
+  arrows?: boolean;
+  autoHide?: boolean;
   typography?: {
     fontSize?: string;
     fontWeight?: string;
@@ -1348,8 +1351,12 @@ function BreadcrumbRenderer({ config, pages, currentPage, navigate, resolveToken
   const alignment = config.alignment || "left";
   const justifyMap: Record<string, string> = { left: "flex-start", center: "center", right: "flex-end" };
 
-  // Resolve separator display
-  const sepChar = config.separator === ">" || config.separator === "chevron" ? "›"
+  // autoHide: skip rendering if only 1 segment (home counts as segment)
+  if (config.autoHide && items.length <= 1) return null;
+
+  // Resolve separator display — arrows override takes priority
+  const sepChar = config.arrows ? "›"
+    : config.separator === ">" || config.separator === "chevron" ? "›"
     : config.separator === "/" ? "/"
     : config.separator === "→" || config.separator === "arrow" ? "→"
     : config.separator || "/";
@@ -1819,7 +1826,7 @@ export function AppShell({
       top: layoutMode === "header-first" ? undefined : 0,
       display: "flex",
       flexDirection: "column",
-      background: "var(--sidebar)",
+      background: sidebar?.background ? String(resolve(sidebar.background) ?? "var(--sidebar)") : "var(--sidebar)",
       borderRight: "1px solid var(--sidebar-border)",
       transition: "width 0.2s ease, min-width 0.2s ease",
       overflow: "hidden",
@@ -1933,7 +1940,7 @@ export function AppShell({
       display: "flex",
       alignItems: "center",
       padding: resolvePadding(header.padding),
-      background: "var(--background)",
+      background: header?.background ? String(resolve(header.background) ?? "var(--background)") : "var(--background)",
       borderBottom: resolveSeparator(header?.separators?.bottom) ?? "1px solid var(--border)",
       position: header.behavior?.fixed ? "sticky" : undefined,
       top: header.behavior?.fixed ? 0 : undefined,
@@ -1983,6 +1990,7 @@ export function AppShell({
       flex: 1,
       padding: resolvePadding(regions.main?.padding),
       overflow: "auto",
+      background: regions.main?.background ? String(resolve(regions.main.background) ?? undefined) : undefined,
     }}>
       {/* Page Header */}
       {pageHeaderConfig?.enabled && (

@@ -1,0 +1,221 @@
+import React, { useState, useMemo } from "react";
+import { COLORS, s } from "../lib/constants";
+import { TabBar } from "../components/shared";
+import { usePersistentTab } from "../hooks/usePersistentState";
+
+export const COLOR_PRESETS = {
+  "Orqui Dark": {
+    "bg": { value: "#0a0a0b" },
+    "surface": { value: "#141417" },
+    "surface-2": { value: "#1c1c21" },
+    "surface-3": { value: "#24242b" },
+    "border": { value: "#2a2a33" },
+    "border-2": { value: "#3a3a45" },
+    "text": { value: "#e4e4e7" },
+    "text-muted": { value: "#8b8b96" },
+    "text-dim": { value: "#5b5b66" },
+    "accent": { value: "#6d9cff" },
+    "accent-dim": { value: "#4a7adf" },
+    "accent-fg": { value: "#ffffff" },
+    "danger": { value: "#ff6b6b" },
+    "danger-dim": { value: "#cc5555" },
+    "success": { value: "#4ade80" },
+    "success-dim": { value: "#22c55e" },
+    "warning": { value: "#fbbf24" },
+    "warning-dim": { value: "#d4a017" },
+    "sidebar-bg": { value: "#111114" },
+    "header-bg": { value: "#0a0a0b" },
+    "input-bg": { value: "#1c1c21" },
+    "input-border": { value: "#2a2a33" },
+    "card-bg": { value: "#141417" },
+    "card-border": { value: "#2a2a33" },
+    "ring": { value: "#6d9cff44" },
+  },
+};
+
+export const COLOR_GROUPS = [
+  { label: "Backgrounds", keys: ["bg", "surface", "surface-2", "surface-3", "sidebar-bg", "header-bg", "card-bg", "input-bg"] },
+  { label: "Text", keys: ["text", "text-muted", "text-dim"] },
+  { label: "Borders", keys: ["border", "border-2", "card-border", "input-border", "ring"] },
+  { label: "Accent", keys: ["accent", "accent-dim", "accent-fg"] },
+  { label: "Status", keys: ["danger", "danger-dim", "success", "success-dim", "warning", "warning-dim"] },
+];
+
+export function ColorTokenEditor({ colors, onChange }) {
+  const [newKey, setNewKey] = useState("");
+  const [activeGroup, setActiveGroup] = usePersistentTab("color-group", "Backgrounds");
+
+  const updateColor = (key, value) => {
+    onChange({ ...colors, [key]: { value } });
+  };
+
+  const removeColor = (key) => {
+    const updated = { ...colors };
+    delete updated[key];
+    onChange(updated);
+  };
+
+  const addColor = () => {
+    if (!newKey.trim()) return;
+    const key = newKey.trim().replace(/\s+/g, "-").toLowerCase();
+    onChange({ ...colors, [key]: { value: "#888888" } });
+    setNewKey("");
+  };
+
+  const loadPreset = (name) => {
+    onChange({ ...colors, ...COLOR_PRESETS[name] });
+  };
+
+  const grouped = COLOR_GROUPS.map((g) => ({
+    ...g,
+    entries: g.keys.filter((k) => colors[k]).map((k) => [k, colors[k]]),
+  }));
+
+  const allGroupedKeys = new Set(COLOR_GROUPS.flatMap((g) => g.keys));
+  const ungrouped = Object.entries(colors).filter(([k]) => !allGroupedKeys.has(k));
+
+  const renderColorRow = ([key, tok]) => (
+    <div key={key} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+      <input
+        type="color"
+        value={tok.value?.startsWith("#") && tok.value.length <= 7 ? tok.value : "#888888"}
+        onChange={(e) => updateColor(key, e.target.value)}
+        style={{ width: 32, height: 28, border: "none", borderRadius: 4, cursor: "pointer", background: "transparent", padding: 0 }}
+      />
+      <span style={{ fontSize: 12, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", minWidth: 120 }}>{key}</span>
+      <input
+        value={tok.value || ""}
+        onChange={(e) => updateColor(key, e.target.value)}
+        style={{ ...s.input, width: 120, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
+      />
+      <div style={{ width: 48, height: 24, borderRadius: 4, border: `1px solid ${COLORS.border}`, background: tok.value || "#888", flexShrink: 0 }} />
+      <button onClick={() => removeColor(key)} style={s.btnDanger}>✕</button>
+    </div>
+  );
+
+  // Build tabs from groups that have entries + Other
+  const availableTabs = [
+    ...grouped.filter(g => g.entries.length > 0).map(g => ({ id: g.label, label: `${g.label} (${g.entries.length})` })),
+    ...(ungrouped.length > 0 ? [{ id: "Other", label: `Other (${ungrouped.length})` }] : []),
+  ];
+
+  // If active group no longer exists, default to first
+  const safeActive = availableTabs.find(t => t.id === activeGroup) ? activeGroup : (availableTabs[0]?.id || "Backgrounds");
+
+  const activeEntries = safeActive === "Other"
+    ? ungrouped
+    : grouped.find(g => g.label === safeActive)?.entries || [];
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, margin: 0, marginBottom: 4 }}>Color Tokens</h3>
+        <p style={{ fontSize: 12, color: COLORS.textDim, margin: 0, marginBottom: 12 }}>
+          Cores do sistema. Altere aqui → todos os componentes atualizam automaticamente.
+        </p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          {Object.keys(COLOR_PRESETS).map((name) => (
+            <button key={name} onClick={() => loadPreset(name)} style={s.btnSmall}>
+              Preset: {name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {availableTabs.length > 0 && (
+        <TabBar tabs={availableTabs} active={safeActive} onChange={setActiveGroup} />
+      )}
+
+      {activeEntries.map(renderColorRow)}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="nova cor (ex: brand-primary)" style={s.input} onKeyDown={(e) => e.key === "Enter" && addColor()} />
+        <button onClick={addColor} style={s.btn}>+ Cor</button>
+      </div>
+    </div>
+  );
+}
+
+// Token Editor (shared by Layout Editor)
+// ============================================================================
+export function TokenEditor({ tokens, onChange }) {
+  const [newKey, setNewKey] = useState("");
+  const [activeCat, setActiveCat] = usePersistentTab("token-editor", "spacing");
+
+  const addToken = () => {
+    if (!newKey.trim()) return;
+    const key = newKey.trim().replace(/\s+/g, "-");
+    const updated = { ...tokens };
+    updated[activeCat] = { ...updated[activeCat], [key]: { value: 0, unit: "px" } };
+    onChange(updated);
+    setNewKey("");
+  };
+
+  const updateToken = (cat, key, field, val) => {
+    const updated = { ...tokens, [cat]: { ...tokens[cat], [key]: { ...tokens[cat][key], [field]: field === "value" ? Number(val) : val } } };
+    onChange(updated);
+  };
+
+  const removeToken = (cat, key) => {
+    const updated = { ...tokens, [cat]: { ...tokens[cat] } };
+    delete updated[cat][key];
+    onChange(updated);
+  };
+
+  return (
+    <div>
+      <TabBar
+        tabs={[
+          { id: "spacing", label: `Spacing (${Object.keys(tokens.spacing || {}).length})` },
+          { id: "sizing", label: `Sizing (${Object.keys(tokens.sizing || {}).length})` },
+          { id: "borderRadius", label: `Radius (${Object.keys(tokens.borderRadius || {}).length})` },
+          { id: "borderWidth", label: `Border W (${Object.keys(tokens.borderWidth || {}).length})` },
+        ]}
+        active={activeCat}
+        onChange={setActiveCat}
+      />
+
+      {Object.entries(tokens[activeCat] || {}).map(([key, tok]) => (
+        <div key={key} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 12, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", minWidth: 120 }}>{key}</span>
+          <input type="number" value={tok.value} onChange={(e) => updateToken(activeCat, key, "value", e.target.value)} style={{ ...s.input, width: 80 }} />
+          <select value={tok.unit} onChange={(e) => updateToken(activeCat, key, "unit", e.target.value)} style={{ ...s.select, width: 70 }}>
+            {["px", "rem", "%", "vh", "vw"].map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+          <button onClick={() => removeToken(activeCat, key)} style={s.btnDanger}>✕</button>
+        </div>
+      ))}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="nome do token" style={s.input} onKeyDown={(e) => e.key === "Enter" && addToken()} />
+        <button onClick={addToken} style={s.btn}>+ Token</button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Token Reference Selector
+// ============================================================================
+export function TokenRefSelect({ value, tokens, category, onChange }) {
+  const options = useMemo(() => {
+    const refs = [];
+    const cats = category ? [category] : ["spacing", "sizing"];
+    cats.forEach((cat) => {
+      Object.keys(tokens[cat] || {}).forEach((key) => {
+        refs.push(`$tokens.${cat}.${key}`);
+      });
+    });
+    return refs;
+  }, [tokens, category]);
+
+  return (
+    <select value={value || ""} onChange={(e) => onChange(e.target.value || undefined)} style={s.select}>
+      <option value="">— nenhum —</option>
+      {options.map((ref) => (
+        <option key={ref} value={ref}>{ref.replace("$tokens.", "")}</option>
+      ))}
+    </select>
+  );
+}
+
