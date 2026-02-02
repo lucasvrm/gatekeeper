@@ -92,7 +92,7 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="space-y-6">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
@@ -107,14 +107,9 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Visão geral de workspaces, projetos e validações
-          </p>
-        </div>
+        <div />
         <div className="flex items-center gap-3">
           <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
             <SelectTrigger className="w-48">

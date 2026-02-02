@@ -63,7 +63,7 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
   name: 'Import Reality Check',
   description: 'Verifica se imports do teste existem',
   gate: 1,
-  order: 8,
+  order: 9,
   isHardBlock: true,
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {

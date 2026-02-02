@@ -13,13 +13,7 @@ export function MCPSessionPage() {
   const [activeTab, setActiveTab] = useState<TabType>("config")
 
   return (
-    <div data-testid="mcp-session-page" className="p-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">MCP Session</h1>
-        <p className="text-muted-foreground mt-1">
-          Configure sua sessão MCP e visualize o status dos serviços.
-        </p>
-      </div>
+    <div data-testid="mcp-session-page" className="space-y-6">
 
       <div className="border-b border-border">
         <div role="tablist" className="flex gap-4">

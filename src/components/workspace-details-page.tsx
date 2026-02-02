@@ -61,7 +61,7 @@ export function WorkspaceDetailsPage() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64" />
       </div>
@@ -70,7 +70,7 @@ export function WorkspaceDetailsPage() {
 
   if (!workspace) {
     return (
-      <div className="p-8">
+      <div className="">
         <Card className="p-12 text-center">
           <p className="text-muted-foreground">Workspace não encontrado</p>
           <Button onClick={() => navigate("/workspaces")} className="mt-4">
@@ -82,7 +82,7 @@ export function WorkspaceDetailsPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/workspaces")}>
           <ArrowLeft className="w-4 h-4 mr-2" />

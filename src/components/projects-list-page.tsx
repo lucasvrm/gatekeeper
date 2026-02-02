@@ -153,7 +153,7 @@ export function ProjectsListPage() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64" />
       </div>
@@ -161,14 +161,8 @@ export function ProjectsListPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Projetos</h1>
-          <p className="text-muted-foreground mt-1">
-            Todos os projetos do sistema
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-3">
           <Button onClick={() => navigate("/projects/new")}>
             <Plus className="w-4 h-4 mr-2" />

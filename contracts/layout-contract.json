@@ -16,7 +16,7 @@
           "minWidth": "$tokens.sizing.sidebar-collapsed"
         },
         "padding": {
-          "top": "$tokens.spacing.md",
+          "top": "$tokens.spacing.sm",
           "right": "$tokens.spacing.sm",
           "bottom": "$tokens.spacing.md",
           "left": "$tokens.spacing.sm"
@@ -36,18 +36,18 @@
           {
             "name": "navigation",
             "description": "Links de navegação principal",
-            "order": 2,
+            "order": 1,
             "padding": {
-              "top": "$tokens.spacing.xs",
+              "top": "$tokens.spacing.2xl",
               "right": "$tokens.spacing.xs",
               "bottom": "$tokens.spacing.xs",
-              "left": "$tokens.spacing.xs"
+              "left": "$tokens.spacing.sm"
             }
           },
           {
             "name": "sidebarFooter",
             "description": "Perfil do usuário e ações de conta",
-            "order": 3,
+            "order": 2,
             "padding": {
               "top": "$tokens.spacing.xs",
               "right": "$tokens.spacing.xs",
@@ -160,10 +160,10 @@
           "maxWidth": "$tokens.sizing.content-max-width"
         },
         "padding": {
-          "top": "$tokens.spacing.xs",
-          "right": "$tokens.spacing.sm",
-          "bottom": "$tokens.spacing.sm",
-          "left": "$tokens.spacing.sm"
+          "top": "$tokens.spacing.lg",
+          "right": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.xl",
+          "left": "$tokens.spacing.xl"
         },
         "containers": [
           {
@@ -311,7 +311,118 @@
         "icons",
         "cta:cta-1770001674670"
       ]
-    }
+    },
+    "pages": {
+      "dashboard": {
+        "label": "Dashboard",
+        "route": "/",
+        "description": "Visão geral de workspaces, projetos e validações",
+        "browserTitle": "Dashboard — Gatekeeper"
+      },
+      "runs": {
+        "label": "Runs de Validação",
+        "route": "/runs",
+        "description": "Ver e gerenciar todas as runs de validação",
+        "browserTitle": "Runs de Validação — Gatekeeper"
+      },
+      "new-validation": {
+        "label": "Nova Validação",
+        "route": "/runs/new",
+        "description": "Carregue o plano e o teste",
+        "browserTitle": "Nova Validação — Gatekeeper"
+      },
+      "gates": {
+        "label": "Validation Gates",
+        "route": "/gates",
+        "description": "Visão geral de todos os validation gates e seus validators",
+        "browserTitle": "Validation Gates — Gatekeeper"
+      },
+      "workspaces": {
+        "label": "Workspaces",
+        "route": "/workspaces",
+        "description": "Gerenciar workspaces de validação",
+        "browserTitle": "Workspaces — Gatekeeper"
+      },
+      "projects": {
+        "label": "Projects",
+        "route": "/projects",
+        "description": "Gerenciar projetos de validação",
+        "browserTitle": "Projects — Gatekeeper"
+      },
+      "mcp": {
+        "label": "MCP",
+        "route": "/mcp",
+        "description": "Model Context Protocol — sessões e ferramentas",
+        "browserTitle": "MCP — Gatekeeper"
+      },
+      "config": {
+        "label": "Config",
+        "route": "/config",
+        "description": "Configurações gerais do Gatekeeper",
+        "browserTitle": "Config — Gatekeeper"
+      }
+    },
+    "contentLayout": {
+      "maxWidth": "$tokens.sizing.content-max-width",
+      "centering": true,
+      "grid": {
+        "enabled": false,
+        "columns": 1,
+        "minColumnWidth": "280px",
+        "gap": "$tokens.spacing.md"
+      }
+    },
+    "pageHeader": {
+      "enabled": true,
+      "showTitle": true,
+      "showSubtitle": true,
+      "showDivider": false,
+      "padding": {
+        "top": "$tokens.spacing.lg",
+        "right": "0",
+        "bottom": "$tokens.spacing.md",
+        "left": "0"
+      },
+      "typography": {
+        "title": {
+          "fontSize": "$tokens.fontSizes.3xl",
+          "fontWeight": "$tokens.fontWeights.bold",
+          "letterSpacing": "-0.02em"
+        },
+        "subtitle": {
+          "fontSize": "$tokens.fontSizes.sm",
+          "color": "$tokens.colors.text-muted"
+        }
+      }
+    },
+    "layoutMode": "sidebar-first",
+    "scrollbar": {
+      "width": "6px",
+      "thumbColor": "rgba(255,255,255,0.08)",
+      "thumbHoverColor": "rgba(255,255,255,0.15)",
+      "trackColor": "transparent",
+      "borderRadius": "3px"
+    },
+    "toast": {
+      "position": "bottom-right",
+      "maxVisible": 3,
+      "duration": 4000
+    },
+    "emptyState": {
+      "icon": "ph:magnifying-glass",
+      "title": "Nenhum item encontrado",
+      "description": "Tente ajustar seus filtros ou criar um novo item.",
+      "showAction": true,
+      "actionLabel": "Criar Novo"
+    },
+    "skeleton": {
+      "animation": "pulse",
+      "baseColor": "rgba(255,255,255,0.05)",
+      "highlightColor": "rgba(255,255,255,0.10)",
+      "borderRadius": "6px",
+      "duration": "1.5s"
+    },
+    "appTitle": "Gatekeeper"
   },
   "tokens": {
     "spacing": {
@@ -641,6 +752,15 @@
       },
       "ring": {
         "value": "#6d9cff44"
+      },
+      "success-fg": {
+        "value": "#ffffff"
+      },
+      "warning-fg": {
+        "value": "#000000"
+      },
+      "danger-fg": {
+        "value": "#ffffff"
       }
     },
     "borderRadius": {

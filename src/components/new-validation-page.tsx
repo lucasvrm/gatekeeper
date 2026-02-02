@@ -15,9 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { usePageShell } from "@/hooks/use-page-shell"
 
 export function NewValidationPage() {
   const navigate = useNavigate()
+  const headerPortals = usePageShell({ page: "new-validation" })
   const [planData, setPlanData] = useState<LLMPlanOutput | null>(null)
   const [planJsonContent, setPlanJsonContent] = useState<string | null>(null)
   const [specFileName, setSpecFileName] = useState<string | null>(null)
@@ -69,6 +71,19 @@ export function NewValidationPage() {
       return
     }
 
+    // Validate testFile extension before sending
+    const testFile = planData.manifest?.testFile?.trim()
+    if (!testFile) {
+      setError("manifest.testFile é obrigatório no plan.json")
+      return
+    }
+    const allowedExtensions = ['.spec.ts', '.spec.tsx', '.test.ts', '.test.tsx', '.spec.js', '.spec.jsx', '.test.js', '.test.jsx']
+    const hasValidExt = allowedExtensions.some(ext => testFile.toLowerCase().endsWith(ext))
+    if (!hasValidExt) {
+      setError(`Extensão inválida para testFile "${testFile}". Extensões aceitas: ${allowedExtensions.join(', ')}`)
+      return
+    }
+
     setIsSubmitting(true)
     try {
       if (!selectedProjectId) {
@@ -112,8 +127,9 @@ export function NewValidationPage() {
       navigate(`/runs/${response.runId}/v2`)
     } catch (error) {
       console.error("Failed to create run:", error)
-      setError("Falha ao iniciar validacao")
-      toast.error("Falha ao iniciar validacao")
+      const msg = error instanceof Error ? error.message : "Falha ao iniciar validacao"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -135,14 +151,8 @@ export function NewValidationPage() {
   const canUseArtifactsApi = typeof api.artifacts?.list === "function"
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Nova Validação</h1>
-          <p className="text-muted-foreground mt-1">Carregue o plano e o teste</p>
-        </div>
-        <div />
-      </div>
+    <div className="space-y-6">
+      {headerPortals}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card className="p-6 bg-card border-border">

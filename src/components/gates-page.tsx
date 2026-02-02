@@ -61,7 +61,7 @@ export function GatesPage() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="space-y-6">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
@@ -76,13 +76,7 @@ export function GatesPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Validation Gates</h1>
-        <p className="text-muted-foreground mt-1">
-          Visão geral de todos os validation gates e seus validators
-        </p>
-      </div>
+    <div className="space-y-6">
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {gates.map((gate) => {

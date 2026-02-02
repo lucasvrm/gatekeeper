@@ -146,7 +146,7 @@ export function WorkspacesListPage() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64" />
       </div>
@@ -154,14 +154,8 @@ export function WorkspacesListPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Workspaces</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerenciar workspaces e projetos
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-3">
           <Button onClick={() => navigate("/workspaces/new")}>
             <Plus className="w-4 h-4 mr-2" />

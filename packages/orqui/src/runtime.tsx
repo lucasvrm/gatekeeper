@@ -75,6 +75,30 @@ interface RegionConfig {
   collapseButton?: CollapseButtonConfig;
   separators?: Record<string, SeparatorConfig>;
 }
+interface ContentLayoutConfig {
+  maxWidth?: string;           // e.g. "1200px", "$tokens.sizing.content-max"
+  centering?: boolean;         // center content when maxWidth < viewport
+  grid?: {
+    enabled: boolean;
+    columns?: number | string;   // e.g. 2, 3, "auto-fit"
+    minColumnWidth?: string;     // for auto-fit: minmax(this, 1fr)
+    gap?: string;                // token ref or px
+    rowGap?: string;
+    columnGap?: string;
+  };
+}
+interface PageHeaderConfig {
+  enabled: boolean;
+  showTitle?: boolean;
+  showSubtitle?: boolean;
+  showDivider?: boolean;
+  padding?: Record<string, string>;
+  typography?: {
+    title?: { fontSize?: string; fontWeight?: string; fontFamily?: string; color?: string; letterSpacing?: string };
+    subtitle?: { fontSize?: string; fontWeight?: string; fontFamily?: string; color?: string };
+  };
+  background?: string;
+}
 interface TextStyleDef {
   description?: string;
   fontFamily: string;
@@ -115,9 +139,12 @@ interface PageConfig {
   label: string;
   route: string;
   description?: string;
+  browserTitle?: string;
   overrides: {
     [regionName: string]: any;
     headerElements?: Partial<HeaderElementsConfig>;
+    contentLayout?: Partial<ContentLayoutConfig>;
+    pageHeader?: Partial<PageHeaderConfig>;
   };
 }
 interface Tokens {
@@ -166,6 +193,8 @@ interface LayoutContract {
     logo?: LogoConfig;
     favicon?: FaviconConfig;
     headerElements?: HeaderElementsConfig;
+    contentLayout?: ContentLayoutConfig;
+    pageHeader?: PageHeaderConfig;
     tableSeparator?: {
       color?: string;
       width?: string;
@@ -173,6 +202,34 @@ interface LayoutContract {
       headerColor?: string;
       headerWidth?: string;
       headerStyle?: string;
+    };
+    layoutMode?: "sidebar-first" | "header-first";
+    appTitle?: string;
+    scrollbar?: {
+      width?: string;
+      thumbColor?: string;
+      thumbHoverColor?: string;
+      trackColor?: string;
+      borderRadius?: string;
+    };
+    toast?: {
+      position?: "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center" | "bottom-center";
+      maxVisible?: number;
+      duration?: number;
+    };
+    emptyState?: {
+      icon?: string;
+      title?: string;
+      description?: string;
+      showAction?: boolean;
+      actionLabel?: string;
+    };
+    skeleton?: {
+      animation?: "pulse" | "shimmer" | "none";
+      baseColor?: string;
+      highlightColor?: string;
+      borderRadius?: string;
+      duration?: string;
     };
     pages?: Record<string, PageConfig>;
   };
@@ -302,6 +359,14 @@ function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string {
 
   // Ring
   if (c("ring"))         lines.push(`  --ring: ${c("ring")}${imp};`);
+
+  // Semantic status colors (consumed by Tailwind utilities + page-level components)
+  if (c("success"))      lines.push(`  --success: ${c("success")}${imp};`);
+  if (c("success-dim"))  lines.push(`  --success-foreground: ${c("success-dim")}${imp};`);
+  if (c("warning"))      lines.push(`  --warning: ${c("warning")}${imp};`);
+  if (c("warning-dim"))  lines.push(`  --warning-foreground: ${c("warning-dim")}${imp};`);
+  if (c("danger"))       lines.push(`  --danger: ${c("danger")}${imp};`);
+  if (c("danger-dim"))   lines.push(`  --danger-foreground: ${c("danger-dim")}${imp};`);
 
   // Charts
   if (c("accent"))       lines.push(`  --chart-1: ${c("accent")}${imp};`);
@@ -610,6 +675,72 @@ function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string {
     }
   }
 
+  // --- Scrollbar styling ---
+  const sb = layout?.structure?.scrollbar;
+  if (sb) {
+    const sbW = sb.width || "6px";
+    const sbThumb = sb.thumbColor || "rgba(255,255,255,0.08)";
+    const sbThumbHover = sb.thumbHoverColor || "rgba(255,255,255,0.15)";
+    const sbTrack = sb.trackColor || "transparent";
+    const sbRadius = sb.borderRadius || "3px";
+    lines.push("");
+    lines.push("/* Orqui Contract → Scrollbar styling */");
+    lines.push(`::-webkit-scrollbar { width: ${sbW}${imp}; height: ${sbW}${imp}; }`);
+    lines.push(`::-webkit-scrollbar-track { background: ${sbTrack}${imp}; }`);
+    lines.push(`::-webkit-scrollbar-thumb { background: ${sbThumb}${imp}; border-radius: ${sbRadius}${imp}; }`);
+    lines.push(`::-webkit-scrollbar-thumb:hover { background: ${sbThumbHover}${imp}; }`);
+    lines.push(`* { scrollbar-width: thin; scrollbar-color: ${sbThumb} ${sbTrack}; }`);
+  }
+
+  // --- Skeleton animation ---
+  const sk = layout?.structure?.skeleton;
+  if (sk) {
+    const skBase = sk.baseColor || "rgba(255,255,255,0.05)";
+    const skHighlight = sk.highlightColor || "rgba(255,255,255,0.10)";
+    const skRadius = sk.borderRadius || "6px";
+    const skDuration = sk.duration || "1.5s";
+    const skAnim = sk.animation || "pulse";
+    lines.push("");
+    lines.push("/* Orqui Contract → Skeleton styling */");
+    lines.push(`:root { --orqui-skeleton-base: ${skBase}; --orqui-skeleton-highlight: ${skHighlight}; --orqui-skeleton-radius: ${skRadius}; --orqui-skeleton-duration: ${skDuration}; }`);
+    lines.push(`[data-orqui-skeleton] { background: var(--orqui-skeleton-base); border-radius: var(--orqui-skeleton-radius); }`);
+    if (skAnim === "pulse") {
+      lines.push(`@keyframes orqui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`);
+      lines.push(`[data-orqui-skeleton] { animation: orqui-pulse var(--orqui-skeleton-duration) ease-in-out infinite; }`);
+    } else if (skAnim === "shimmer") {
+      lines.push(`@keyframes orqui-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }`);
+      lines.push(`[data-orqui-skeleton] { background: linear-gradient(90deg, var(--orqui-skeleton-base) 25%, var(--orqui-skeleton-highlight) 50%, var(--orqui-skeleton-base) 75%); background-size: 200% 100%; animation: orqui-shimmer var(--orqui-skeleton-duration) ease-in-out infinite; }`);
+    }
+  }
+
+  // --- Toast positioning CSS variables ---
+  const tc = layout?.structure?.toast;
+  if (tc) {
+    const pos = tc.position || "bottom-right";
+    const posMap: Record<string, { top?: string; bottom?: string; left?: string; right?: string; transform?: string; align?: string }> = {
+      "top-right":     { top: "16px", right: "16px", align: "flex-end" },
+      "top-left":      { top: "16px", left: "16px", align: "flex-start" },
+      "bottom-right":  { bottom: "16px", right: "16px", align: "flex-end" },
+      "bottom-left":   { bottom: "16px", left: "16px", align: "flex-start" },
+      "top-center":    { top: "16px", left: "50%", transform: "translateX(-50%)", align: "center" },
+      "bottom-center": { bottom: "16px", left: "50%", transform: "translateX(-50%)", align: "center" },
+    };
+    const p = posMap[pos] || posMap["bottom-right"];
+    lines.push("");
+    lines.push("/* Orqui Contract → Toast positioning */");
+    lines.push(`:root { --orqui-toast-top: ${p.top || "auto"}; --orqui-toast-bottom: ${p.bottom || "auto"}; --orqui-toast-left: ${p.left || "auto"}; --orqui-toast-right: ${p.right || "auto"}; --orqui-toast-transform: ${p.transform || "none"}; --orqui-toast-align: ${p.align || "flex-end"}; }`);
+    // Override sonner/radix toast container if present
+    lines.push(`[data-sonner-toaster], [data-radix-toast-viewport] { position: fixed${imp}; top: var(--orqui-toast-top)${imp}; bottom: var(--orqui-toast-bottom)${imp}; left: var(--orqui-toast-left)${imp}; right: var(--orqui-toast-right)${imp}; transform: var(--orqui-toast-transform)${imp}; align-items: var(--orqui-toast-align)${imp}; z-index: 9999${imp}; }`);
+  }
+
+  // --- Empty state CSS variables ---
+  const es = layout?.structure?.emptyState;
+  if (es) {
+    lines.push("");
+    lines.push("/* Orqui Contract → Empty state defaults */");
+    lines.push(`:root { --orqui-empty-title: "${(es.title || "Nenhum item encontrado").replace(/"/g, '\\"')}"; --orqui-empty-description: "${(es.description || "").replace(/"/g, '\\"')}"; --orqui-empty-action-label: "${(es.actionLabel || "Criar Novo").replace(/"/g, '\\"')}"; }`);
+  }
+
   return lines.join("\n");
 }
 
@@ -738,6 +869,36 @@ export function useTextStyle(name: string): CSSProperties {
 export function useTokens(): Tokens { return useContract().tokens; }
 export function useColor(name: string): string { return useContract().color(name); }
 
+/** Access empty state defaults from contract */
+export function useEmptyState() {
+  const { layout } = useContract();
+  return layout.structure.emptyState ?? { icon: "ph:magnifying-glass", title: "Nenhum item encontrado", description: "", showAction: true, actionLabel: "Criar Novo" };
+}
+
+/** Access skeleton config from contract */
+export function useSkeletonConfig() {
+  const { layout } = useContract();
+  return layout.structure.skeleton ?? { animation: "pulse", baseColor: "rgba(255,255,255,0.05)", highlightColor: "rgba(255,255,255,0.10)", borderRadius: "6px", duration: "1.5s" };
+}
+
+/** Access toast config from contract */
+export function useToastConfig() {
+  const { layout } = useContract();
+  return layout.structure.toast ?? { position: "bottom-right" as const, maxVisible: 3, duration: 4000 };
+}
+
+/** Access scrollbar config from contract */
+export function useScrollbarConfig() {
+  const { layout } = useContract();
+  return layout.structure.scrollbar ?? { width: "6px", thumbColor: "rgba(255,255,255,0.08)", thumbHoverColor: "rgba(255,255,255,0.15)", trackColor: "transparent", borderRadius: "3px" };
+}
+
+/** Access layout mode from contract */
+export function useLayoutMode(): "sidebar-first" | "header-first" {
+  const { layout } = useContract();
+  return layout.structure.layoutMode || "sidebar-first";
+}
+
 export function useComponentDef(name: string) {
   const { registry } = useContract();
   return registry.components[name] ?? null;
@@ -775,12 +936,20 @@ function resolvePageLayout(layout: LayoutContract, page?: string): LayoutContrac
   const mergedHeaderElements = overrides.headerElements
     ? deepMerge(layout.structure.headerElements || {}, overrides.headerElements)
     : layout.structure.headerElements;
+  const mergedContentLayout = overrides.contentLayout
+    ? deepMerge(layout.structure.contentLayout || {}, overrides.contentLayout)
+    : layout.structure.contentLayout;
+  const mergedPageHeader = overrides.pageHeader
+    ? deepMerge(layout.structure.pageHeader || {}, overrides.pageHeader)
+    : layout.structure.pageHeader;
   return {
     ...layout,
     structure: {
       ...layout.structure,
       regions: mergedRegions,
       headerElements: mergedHeaderElements,
+      contentLayout: mergedContentLayout,
+      pageHeader: mergedPageHeader,
     },
   };
 }
@@ -1068,6 +1237,54 @@ function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, navigate
 // ============================================================================
 // Breadcrumb Renderer
 // ============================================================================
+// Page Header Slot
+// ============================================================================
+function PageHeaderSlot({ config, page, pages, resolve }: {
+  config: PageHeaderConfig;
+  page?: string;
+  pages?: Record<string, PageConfig>;
+  resolve: (ref?: string) => string | number | null;
+}) {
+  const pageConfig = page ? pages?.[page] : undefined;
+  const title = pageConfig?.label || (page ? page.charAt(0).toUpperCase() + page.slice(1) : "");
+  const subtitle = pageConfig?.description || "";
+
+  const titleTypo = config.typography?.title;
+  const subtitleTypo = config.typography?.subtitle;
+
+  return (
+    <>
+      {config.showTitle !== false && title && (
+        <h1 data-orqui-page-title="" style={{
+          margin: 0,
+          fontSize: resolve(titleTypo?.fontSize) as string ?? "28px",
+          fontWeight: (resolve(titleTypo?.fontWeight) as number) ?? 700,
+          fontFamily: resolve(titleTypo?.fontFamily) as string ?? undefined,
+          color: resolve(titleTypo?.color) as string ?? "var(--foreground)",
+          letterSpacing: resolve(titleTypo?.letterSpacing) as string ?? "-0.02em",
+          lineHeight: 1.2,
+        }}>
+          {title}
+        </h1>
+      )}
+      {config.showSubtitle !== false && subtitle && (
+        <p data-orqui-page-subtitle="" style={{
+          margin: "4px 0 0",
+          fontSize: resolve(subtitleTypo?.fontSize) as string ?? "14px",
+          fontWeight: (resolve(subtitleTypo?.fontWeight) as number) ?? 400,
+          fontFamily: resolve(subtitleTypo?.fontFamily) as string ?? undefined,
+          color: resolve(subtitleTypo?.color) as string ?? "var(--muted-foreground)",
+        }}>
+          {subtitle}
+        </p>
+      )}
+    </>
+  );
+}
+
+// ============================================================================
+// Breadcrumb Renderer
+// ============================================================================
 function BreadcrumbRenderer({ config, pages, currentPage, navigate, resolveToken }: {
   config?: BreadcrumbsConfig;
   pages?: Record<string, PageConfig>;
@@ -1139,8 +1356,10 @@ function BreadcrumbRenderer({ config, pages, currentPage, navigate, resolveToken
 
   // Typography config
   const typo = config.typography;
-  const baseFontSize = resolve(typo?.fontSize) ?? 13;
-  const baseFontWeight = resolve(typo?.fontWeight) ?? 400;
+  const rawFontSize = resolve(typo?.fontSize);
+  const baseFontSize = (typeof rawFontSize === "number" ? rawFontSize : Number(rawFontSize)) || 13;
+  const rawFontWeight = resolve(typo?.fontWeight);
+  const baseFontWeight = (typeof rawFontWeight === "number" ? rawFontWeight : Number(rawFontWeight)) || 400;
   const baseFontFamily = resolve(typo?.fontFamily) as string | undefined;
   const baseColor = resolve(typo?.color) ?? "var(--muted-foreground)";
   const activeColor = resolve(typo?.activeColor) ?? "var(--foreground)";
@@ -1418,7 +1637,30 @@ export function AppShell({
   const headerElements = layout.structure.headerElements;
   const faviconConfig = layout.structure.favicon;
   const breadcrumbsConfig = layout.structure.breadcrumbs;
+  const contentLayoutConfig = layout.structure.contentLayout;
+  const pageHeaderConfig = layout.structure.pageHeader;
   const pages = layout.structure.pages;
+  const layoutMode = layout.structure.layoutMode || "sidebar-first";
+  const scrollbarConfig = layout.structure.scrollbar;
+  const toastConfig = layout.structure.toast;
+  const emptyStateConfig = layout.structure.emptyState;
+  const skeletonConfig = layout.structure.skeleton;
+  const appTitle = layout.structure.appTitle || "";
+
+  // --- Update document.title based on current page ---
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const currentPage = page && pages ? pages[page] : null;
+    if (currentPage?.browserTitle) {
+      document.title = currentPage.browserTitle;
+    } else if (currentPage?.label && appTitle) {
+      document.title = `${currentPage.label} — ${appTitle}`;
+    } else if (currentPage?.label) {
+      document.title = currentPage.label;
+    } else if (appTitle) {
+      document.title = appTitle;
+    }
+  }, [page, pages, appTitle]);
 
   // Debug breadcrumbs — remove after confirming it works
   if (typeof window !== "undefined" && (window as any).__ORQUI_DEBUG !== false) {
@@ -1442,11 +1684,27 @@ export function AppShell({
   const sidebarPadL = sidebar?.padding?.left ? parseInt(String(resolve(sidebar.padding.left) ?? "0"), 10) || 0 : 0;
   const sidebarPadR = sidebar?.padding?.right ? parseInt(String(resolve(sidebar.padding.right) ?? "0"), 10) || 0 : 0;
   const sidebarPadBot = sidebar?.padding?.bottom ? parseInt(String(resolve(sidebar.padding.bottom) ?? "0"), 10) || 0 : 0;
+
+  // --- Container-specific padding: sidebar.containers[].padding overrides sidebar.padding ---
+  const sidebarContainers = sidebar?.containers || [];
+  const getContainerPad = (name: string): { top: number; right: number; bottom: number; left: number } => {
+    const container = sidebarContainers.find((c: any) => c.name === name);
+    if (!container?.padding) return { top: sidebarPadTop, right: sidebarPadR, bottom: sidebarPadBot, left: sidebarPadL };
+    return {
+      top:    container.padding.top    ? parseInt(String(resolve(container.padding.top)    ?? "0"), 10) || 0 : sidebarPadTop,
+      right:  container.padding.right  ? parseInt(String(resolve(container.padding.right)  ?? "0"), 10) || 0 : sidebarPadR,
+      bottom: container.padding.bottom ? parseInt(String(resolve(container.padding.bottom) ?? "0"), 10) || 0 : sidebarPadBot,
+      left:   container.padding.left   ? parseInt(String(resolve(container.padding.left)   ?? "0"), 10) || 0 : sidebarPadL,
+    };
+  };
+  const brandPad = getContainerPad("brand");
+  const navPad = getContainerPad("navigation");
+  const footerPad = getContainerPad("sidebarFooter");
   const shouldAlignLogo = logoConfig?.position === "sidebar" && logoConfig?.alignWithHeader && header?.enabled;
 
   // When aligned, the sidebar header container height = headerHeight - sidebar's own top padding
   // This makes the bottom border line up exactly with the main header's bottom border
-  const alignedSidebarHeaderH = Math.max(headerHeightNum - sidebarPadTop, 32);
+  const alignedSidebarHeaderH = Math.max(headerHeightNum - brandPad.top, 32);
 
   const resolvePadding = (p?: Record<string, string>) => {
     if (!p) return "0";
@@ -1549,6 +1807,251 @@ export function AppShell({
     />
   ) : null);
 
+  // ── Extracted JSX blocks for layoutMode switching ────────────────────────
+
+  const sidebarEl = sidebar?.enabled ? (
+    <aside data-orqui-sidebar="" style={{
+      width: String(sidebarWidth),
+      minWidth: String(sidebarWidth),
+      height: layoutMode === "header-first" ? undefined : "100vh",
+      flex: layoutMode === "header-first" ? "0 0 auto" : undefined,
+      position: layoutMode === "header-first" ? undefined : "sticky",
+      top: layoutMode === "header-first" ? undefined : 0,
+      display: "flex",
+      flexDirection: "column",
+      background: "var(--sidebar)",
+      borderRight: "1px solid var(--sidebar-border)",
+      transition: "width 0.2s ease, min-width 0.2s ease",
+      overflow: "hidden",
+      boxSizing: "border-box",
+    }}>
+      {/* Sidebar header — full-width, own padding */}
+      {layoutMode !== "header-first" && (
+        <div data-orqui-sidebar-header="" style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : (logoConfig?.sidebarAlign === "center" ? "center" : logoConfig?.sidebarAlign === "right" ? "flex-end" : "space-between"),
+          borderBottom: resolveSeparator(sidebar.separators?.header) ?? "1px solid var(--sidebar-border)",
+          paddingLeft: collapsed ? 0 : brandPad.left,
+          paddingRight: collapsed ? 0 : brandPad.right,
+          paddingTop: collapsed ? 0 : brandPad.top,
+          position: "relative",
+          ...(shouldAlignLogo ? {
+            height: `${headerHeightNum}px`,
+            minHeight: `${headerHeightNum}px`,
+            maxHeight: `${headerHeightNum}px`,
+            boxSizing: "border-box" as const,
+          } : {
+            paddingBottom: collapsed ? 0 : brandPad.bottom,
+          }),
+          flexShrink: 0,
+        }}>
+          {/* Logo in sidebar */}
+          {logoConfig?.position === "sidebar" ? (
+            <LogoRenderer config={logoConfig} collapsed={collapsed} />
+          ) : (
+            !collapsed && sidebarHeader
+          )}
+          {cbPosition === "header-end" && collapseButtonEl && (
+            collapsed ? (
+              <div style={{ position: "absolute", top: "50%", right: 4, transform: "translateY(-50%)" }}>
+                {collapseButtonEl}
+              </div>
+            ) : collapseButtonEl
+          )}
+        </div>
+      )}
+
+      {/* Nav area — own padding from sidebar config */}
+      <nav data-orqui-sidebar-nav="" style={{
+        flex: 1,
+        overflow: sidebar.behavior?.scrollable ? "auto" : "hidden",
+        display: "flex",
+        flexDirection: "column",
+        gap: String(resolve("$tokens.spacing.2xs") ?? "2px"),
+        padding: collapsed
+          ? `${String(resolve("$tokens.spacing.sm") ?? "8px")} 4px`
+          : `${navPad.top}px ${navPad.right}px ${navPad.bottom}px ${navPad.left}px`,
+        ...(collapsed ? { alignItems: "center" } : {}),
+      }}>
+        {collapsed ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "center", width: "100%" }}
+            data-orqui-collapsed="true"
+            data-orqui-collapsed-display={collapsedDisplay}
+          >
+            {effectiveNav}
+          </div>
+        ) : effectiveNav}
+      </nav>
+
+      {/* Collapse button at center position (inside sidebar) */}
+      {cbPosition === "center" && collapseButtonEl && (
+        <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
+          {collapseButtonEl}
+        </div>
+      )}
+
+      {/* Sidebar footer */}
+      {(sidebarFooter || cbPosition === "bottom") && (
+        <div style={{
+          paddingTop: footerPad.top,
+          borderTop: resolveSeparator(sidebar.separators?.footer) ?? "1px solid var(--sidebar-border)",
+          paddingLeft: collapsed ? 4 : footerPad.left,
+          paddingRight: collapsed ? 4 : footerPad.right,
+          paddingBottom: footerPad.bottom,
+          display: "flex",
+          alignItems: collapsed ? "center" : "stretch",
+          flexDirection: "column",
+          gap: 4,
+        }}>
+          {!collapsed && sidebarFooter}
+          {cbPosition === "bottom" && collapseButtonEl}
+        </div>
+      )}
+    </aside>
+  ) : null;
+
+  const edgeCenterCollapseEl = sidebar?.enabled && cbPosition === "edge-center" && collapseButtonEl ? (
+    <div style={{
+      position: "fixed",
+      left: `calc(${sidebarWidth} - 12px)`,
+      top: layoutMode === "header-first"
+        ? `calc(${headerHeightNum}px + (100vh - ${headerHeightNum}px) / 2)`
+        : `calc(${headerHeightNum}px + (100vh - ${headerHeightNum}px) / 2)`,
+      transform: "translateY(-50%)",
+      zIndex: 100,
+      transition: "left 0.2s ease",
+    }}>
+      {collapseButtonEl}
+    </div>
+  ) : null;
+
+  const headerEl = header?.enabled ? (
+    <header style={{
+      height: `${headerHeightNum}px`,
+      minHeight: `${headerHeightNum}px`,
+      display: "flex",
+      alignItems: "center",
+      padding: resolvePadding(header.padding),
+      background: "var(--background)",
+      borderBottom: resolveSeparator(header?.separators?.bottom) ?? "1px solid var(--border)",
+      position: header.behavior?.fixed ? "sticky" : undefined,
+      top: header.behavior?.fixed ? 0 : undefined,
+      zIndex: header.behavior?.fixed ? 10 : undefined,
+      gap: "16px",
+      boxSizing: "border-box",
+    }}>
+      {/* Left zone */}
+      <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: "12px" }}>
+        {logoConfig?.position === "header" && logoConfig?.headerSlot === "left" && (
+          <LogoRenderer config={logoConfig} />
+        )}
+        {/* In header-first mode, show sidebar logo in header left */}
+        {layoutMode === "header-first" && logoConfig?.position === "sidebar" && (
+          <LogoRenderer config={logoConfig} />
+        )}
+        {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && breadcrumbsConfig?.alignment !== "center" && breadcrumbsConfig?.alignment !== "right" && (
+          <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} />
+        )}
+        {headerLeft}
+        <div id="orqui-header-left" style={{ display: "contents" }} />
+      </div>
+      {/* Center zone */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "12px", justifyContent: (logoConfig?.position === "header" && logoConfig?.headerSlot === "center") || breadcrumbsConfig?.alignment === "center" ? "center" : undefined }}>
+        {logoConfig?.position === "header" && logoConfig?.headerSlot === "center" && (
+          <LogoRenderer config={logoConfig} />
+        )}
+        {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && breadcrumbsConfig?.alignment === "center" && (
+          <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} />
+        )}
+        {headerCenter}
+      </div>
+      {/* Right zone */}
+      <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: "8px" }}>
+        <HeaderElementsRenderer config={headerElements} onSearch={onSearch} onCTA={onCTA} onIconClick={onIconClick} navigate={navigate} />
+        {logoConfig?.position === "header" && logoConfig?.headerSlot === "right" && (
+          <LogoRenderer config={logoConfig} />
+        )}
+        {headerRight}
+        <div id="orqui-header-right" style={{ display: "contents" }} />
+      </div>
+    </header>
+  ) : null;
+
+  const mainEl = (
+    <main style={{
+      flex: 1,
+      padding: resolvePadding(regions.main?.padding),
+      overflow: "auto",
+    }}>
+      {/* Page Header */}
+      {pageHeaderConfig?.enabled && (
+        <div data-orqui-page-header="" style={{
+          padding: resolvePadding(pageHeaderConfig.padding),
+          background: pageHeaderConfig.background ? (resolve(pageHeaderConfig.background) as string ?? pageHeaderConfig.background) : undefined,
+          borderBottom: pageHeaderConfig.showDivider ? "1px solid var(--border)" : undefined,
+          marginBottom: pageHeaderConfig.showDivider ? 0 : undefined,
+        }}>
+          {pageHeaderConfig.showTitle !== false && (
+            <PageHeaderSlot config={pageHeaderConfig} page={page} pages={pages} resolve={resolve} />
+          )}
+        </div>
+      )}
+      {/* Content wrapper */}
+      {contentLayoutConfig ? (
+        <div data-orqui-content="" style={{
+          maxWidth: contentLayoutConfig.maxWidth ? (resolve(contentLayoutConfig.maxWidth) as string ?? contentLayoutConfig.maxWidth) : undefined,
+          margin: contentLayoutConfig.centering !== false && contentLayoutConfig.maxWidth ? "0 auto" : undefined,
+          ...(contentLayoutConfig.grid?.enabled ? {
+            display: "grid",
+            gridTemplateColumns: (() => {
+              const g = contentLayoutConfig.grid!;
+              if (typeof g.columns === "number") return `repeat(${g.columns}, 1fr)`;
+              if (g.columns === "auto-fit" || g.columns === "auto-fill") {
+                const minW = resolve(g.minColumnWidth) ?? g.minColumnWidth ?? "280px";
+                return `repeat(${g.columns}, minmax(${minW}, 1fr))`;
+              }
+              return g.columns as string ?? undefined;
+            })(),
+            gap: resolve(contentLayoutConfig.grid.gap ?? contentLayoutConfig.grid.rowGap) as string ?? undefined,
+            columnGap: contentLayoutConfig.grid.columnGap ? (resolve(contentLayoutConfig.grid.columnGap) as string ?? contentLayoutConfig.grid.columnGap) : undefined,
+            rowGap: contentLayoutConfig.grid.rowGap ? (resolve(contentLayoutConfig.grid.rowGap) as string ?? contentLayoutConfig.grid.rowGap) : undefined,
+          } : {}),
+        }}>
+          {children}
+        </div>
+      ) : children}
+    </main>
+  );
+
+  // ── Compose layout based on layoutMode ─────────────────────────────────
+
+  if (layoutMode === "header-first") {
+    // header-first: full-width header on top, sidebar + main below
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        overflow: "hidden",
+        background: "var(--background)",
+        color: "var(--foreground)",
+        fontFamily: "var(--font-sans, Inter, sans-serif)",
+        position: "relative",
+      }}>
+        {headerEl}
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+          {sidebarEl}
+          {edgeCenterCollapseEl}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "clip" }}>
+            {mainEl}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // sidebar-first (default): sidebar full-height, header in main column
   return (
     <div style={{
       display: "flex",
@@ -1559,176 +2062,12 @@ export function AppShell({
       fontFamily: "var(--font-sans, Inter, sans-serif)",
       position: "relative",
     }}>
-      {/* Sidebar */}
-      {sidebar?.enabled && (
-        <aside data-orqui-sidebar="" style={{
-          width: String(sidebarWidth),
-          minWidth: String(sidebarWidth),
-          height: "100vh",
-          position: "sticky",
-          top: 0,
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--sidebar)",
-          borderRight: "1px solid var(--sidebar-border)",
-          transition: "width 0.2s ease, min-width 0.2s ease",
-          overflow: "hidden",
-          boxSizing: "border-box",
-        }}>
-          {/* Sidebar header — full-width, own padding */}
-          <div data-orqui-sidebar-header="" style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: collapsed ? "center" : (logoConfig?.sidebarAlign === "center" ? "center" : logoConfig?.sidebarAlign === "right" ? "flex-end" : "space-between"),
-            borderBottom: resolveSeparator(sidebar.separators?.header) ?? "1px solid var(--sidebar-border)",
-            paddingLeft: collapsed ? 0 : sidebarPadL,
-            paddingRight: collapsed ? 0 : sidebarPadR,
-            paddingTop: collapsed ? 0 : sidebarPadTop,
-            position: "relative",
-            ...(shouldAlignLogo ? {
-              height: `${headerHeightNum}px`,
-              minHeight: `${headerHeightNum}px`,
-              maxHeight: `${headerHeightNum}px`,
-              boxSizing: "border-box" as const,
-            } : {
-              paddingBottom: collapsed ? 0 : String(resolve("$tokens.spacing.md") ?? "16px"),
-            }),
-            flexShrink: 0,
-          }}>
-            {/* Logo in sidebar */}
-            {logoConfig?.position === "sidebar" ? (
-              <LogoRenderer config={logoConfig} collapsed={collapsed} />
-            ) : (
-              !collapsed && sidebarHeader
-            )}
-            {cbPosition === "header-end" && collapseButtonEl && (
-              collapsed ? (
-                /* When collapsed, position button absolutely so it doesn't push logo off-center */
-                <div style={{ position: "absolute", top: "50%", right: 4, transform: "translateY(-50%)" }}>
-                  {collapseButtonEl}
-                </div>
-              ) : collapseButtonEl
-            )}
-          </div>
-
-          {/* Nav area — own padding from sidebar config */}
-          <nav data-orqui-sidebar-nav="" style={{
-            flex: 1,
-            overflow: sidebar.behavior?.scrollable ? "auto" : "hidden",
-            display: "flex",
-            flexDirection: "column",
-            gap: String(resolve("$tokens.spacing.2xs") ?? "2px"),
-            padding: collapsed
-              ? `${String(resolve("$tokens.spacing.sm") ?? "8px")} 4px`
-              : `${String(resolve("$tokens.spacing.sm") ?? "8px")} ${sidebarPadR}px ${String(resolve("$tokens.spacing.sm") ?? "8px")} ${sidebarPadL}px`,
-            ...(collapsed ? { alignItems: "center" } : {}),
-          }}>
-            {collapsed ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "center", width: "100%" }}
-                data-orqui-collapsed="true"
-                data-orqui-collapsed-display={collapsedDisplay}
-              >
-                {effectiveNav}
-              </div>
-            ) : effectiveNav}
-          </nav>
-
-          {/* Collapse button at center position (inside sidebar) */}
-          {cbPosition === "center" && collapseButtonEl && (
-            <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
-              {collapseButtonEl}
-            </div>
-          )}
-
-          {/* Sidebar footer */}
-          {(sidebarFooter || cbPosition === "bottom") && (
-            <div style={{
-              paddingTop: String(resolve("$tokens.spacing.sm") ?? "8px"),
-              borderTop: resolveSeparator(sidebar.separators?.footer) ?? "1px solid var(--sidebar-border)",
-              paddingLeft: collapsed ? 4 : sidebarPadL,
-              paddingRight: collapsed ? 4 : sidebarPadR,
-              paddingBottom: sidebarPadBot,
-              display: "flex",
-              alignItems: collapsed ? "center" : "stretch",
-              flexDirection: "column",
-              gap: 4,
-            }}>
-              {!collapsed && sidebarFooter}
-              {cbPosition === "bottom" && collapseButtonEl}
-            </div>
-          )}
-        </aside>
-      )}
-
-      {/* Edge-center collapse button: fixed position, centered in viewport below header */}
-      {sidebar?.enabled && cbPosition === "edge-center" && collapseButtonEl && (
-        <div style={{
-          position: "fixed",
-          left: `calc(${sidebarWidth} - 12px)`,
-          top: `calc(${headerHeightNum}px + (100vh - ${headerHeightNum}px) / 2)`,
-          transform: "translateY(-50%)",
-          zIndex: 100,
-          transition: "left 0.2s ease",
-        }}>
-          {collapseButtonEl}
-        </div>
-      )}
-
+      {sidebarEl}
+      {edgeCenterCollapseEl}
       {/* Main column */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "clip" }}>
-        {header?.enabled && (
-          <header style={{
-            height: `${headerHeightNum}px`,
-            minHeight: `${headerHeightNum}px`,
-            display: "flex",
-            alignItems: "center",
-            padding: resolvePadding(header.padding),
-            background: "var(--background)",
-            borderBottom: resolveSeparator(header?.separators?.bottom) ?? "1px solid var(--border)",
-            position: header.behavior?.fixed ? "sticky" : undefined,
-            top: header.behavior?.fixed ? 0 : undefined,
-            zIndex: header.behavior?.fixed ? 10 : undefined,
-            gap: "16px",
-            boxSizing: "border-box",
-          }}>
-            {/* Left zone: breadcrumbs + logo (if header position) + headerLeft */}
-            <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: "12px" }}>
-              {logoConfig?.position === "header" && logoConfig?.headerSlot === "left" && (
-                <LogoRenderer config={logoConfig} />
-              )}
-              {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && breadcrumbsConfig?.alignment !== "center" && breadcrumbsConfig?.alignment !== "right" && (
-                <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} />
-              )}
-              {headerLeft}
-            </div>
-            {/* Center zone: logo (if center) + breadcrumbs (if center) + headerCenter */}
-            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "12px", justifyContent: (logoConfig?.position === "header" && logoConfig?.headerSlot === "center") || breadcrumbsConfig?.alignment === "center" ? "center" : undefined }}>
-              {logoConfig?.position === "header" && logoConfig?.headerSlot === "center" && (
-                <LogoRenderer config={logoConfig} />
-              )}
-              {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && breadcrumbsConfig?.alignment === "center" && (
-                <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} />
-              )}
-              {headerCenter}
-            </div>
-            {/* Right zone: header elements + logo (if right) + headerRight */}
-            <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: "8px" }}>
-              <HeaderElementsRenderer config={headerElements} onSearch={onSearch} onCTA={onCTA} onIconClick={onIconClick} navigate={navigate} />
-              {logoConfig?.position === "header" && logoConfig?.headerSlot === "right" && (
-                <LogoRenderer config={logoConfig} />
-              )}
-              {headerRight}
-            </div>
-          </header>
-        )}
-
-        <main style={{
-          flex: 1,
-          padding: resolvePadding(regions.main?.padding),
-          overflow: "auto",
-        }}>
-          {children}
-        </main>
+        {headerEl}
+        {mainEl}
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ export const NoImplicitFilesValidator: ValidatorDefinition = {
   name: 'No Implicit Files',
   description: 'Bloqueia referências implícitas no prompt',
   gate: 1,
-  order: 7,
+  order: 8,
   isHardBlock: true,
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {

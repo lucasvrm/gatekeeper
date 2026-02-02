@@ -5,7 +5,7 @@ export const TestClauseMappingValidValidator: ValidatorDefinition = {
   name: 'Test Clause Mapping Valid',
   description: 'Valida mapeamento entre testes e cláusulas do contrato',
   gate: 1,
-  order: 10,
+  order: 11,
   isHardBlock: true,
 
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {

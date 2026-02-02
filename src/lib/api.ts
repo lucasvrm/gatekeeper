@@ -68,7 +68,10 @@ export const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
-      if (!response.ok) throw new Error("Failed to create run")
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.message || body?.error || `Failed to create run (${response.status})`)
+      }
       return response.json()
     },
 
@@ -82,7 +85,7 @@ export const api = {
       const response = await fetch(`${API_BASE}/runs/${id}/validators/${validatorCode}/bypass`, { method: "POST" })
       if (!response.ok) {
         const error = await response.json().catch(() => null)
-        throw new Error(error?.error || "Failed to bypass validator")
+        throw new Error(error?.message || error?.error || `Failed to bypass validator (${response.status})`)
       }
       return response.json()
     },

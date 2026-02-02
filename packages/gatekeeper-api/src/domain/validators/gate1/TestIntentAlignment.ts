@@ -5,7 +5,7 @@ export const TestIntentAlignmentValidator: ValidatorDefinition = {
   name: 'Test Intent Alignment',
   description: 'Verifica alinhamento entre prompt e teste',
   gate: 1,
-  order: 9,
+  order: 10,
   isHardBlock: false,
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {

@@ -147,6 +147,22 @@ const DEFAULT_LAYOUT = {
       },
       footer: { enabled: false },
     },
+    contentLayout: {
+      maxWidth: "",
+      centering: true,
+      grid: { enabled: false, columns: 1, minColumnWidth: "280px", gap: "$tokens.spacing.md" },
+    },
+    pageHeader: {
+      enabled: false,
+      showTitle: true,
+      showSubtitle: true,
+      showDivider: false,
+      padding: { top: "$tokens.spacing.lg", right: "0", bottom: "$tokens.spacing.md", left: "0" },
+      typography: {
+        title: { fontSize: "$tokens.fontSizes.3xl", fontWeight: "$tokens.fontWeights.bold", letterSpacing: "-0.02em" },
+        subtitle: { fontSize: "$tokens.fontSizes.sm", color: "$tokens.colors.text-muted" },
+      },
+    },
     breadcrumbs: {
       enabled: true,
       position: "header",
@@ -499,6 +515,41 @@ function EmptyState({ message, action }) {
     <div style={{ padding: 24, textAlign: "center", color: COLORS.textDim, fontSize: 13 }}>
       <div style={{ marginBottom: 8 }}>{message}</div>
       {action}
+    </div>
+  );
+}
+
+/** Color input with swatch picker + text field. Supports hex, rgba, CSS vars, token refs. */
+function ColorInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  // Convert value to a valid hex for the color picker (best-effort)
+  const toHex = (v: string): string => {
+    if (!v) return "#888888";
+    const s = v.trim();
+    if (s.startsWith("#") && (s.length === 4 || s.length === 7)) return s;
+    // Try to parse rgba
+    const rgbaMatch = s.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbaMatch) {
+      const [, r, g, b] = rgbaMatch;
+      return `#${[r, g, b].map(c => parseInt(c).toString(16).padStart(2, "0")).join("")}`;
+    }
+    if (s === "transparent") return "#000000";
+    return "#888888";
+  };
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center", width: "100%" }}>
+      <input
+        type="color"
+        value={toHex(value)}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ width: 32, height: 28, border: "none", borderRadius: 4, cursor: "pointer", background: "transparent", padding: 0, flexShrink: 0 }}
+      />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ flex: 1, background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}
+      />
     </div>
   );
 }
@@ -3057,6 +3108,157 @@ function TableSeparatorEditor({ config, tokens, onChange }) {
 }
 
 // ============================================================================
+// ============================================================================
+// Content Layout Editor
+// ============================================================================
+function ContentLayoutEditor({ config, onChange }: { config: any; onChange: (c: any) => void }) {
+  const cl = config || { maxWidth: "", centering: true, grid: { enabled: false, columns: 1, minColumnWidth: "280px", gap: "$tokens.spacing.md" } };
+  const update = (field: string, val: any) => onChange({ ...cl, [field]: val });
+  const updateGrid = (field: string, val: any) => onChange({ ...cl, grid: { ...(cl.grid || {}), [field]: val } });
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: COLORS.textDim, margin: "0 0 12px" }}>
+        Controla o layout da área de conteúdo dentro do <code style={{ color: COLORS.accent }}>&lt;main&gt;</code>: largura máxima, centralização e grid CSS.
+      </p>
+
+      <Row gap={8}>
+        <Field label="Max Width" style={{ flex: 1 }}>
+          <input value={cl.maxWidth || ""} onChange={(e) => update("maxWidth", e.target.value)} style={s.input} placeholder="ex: 1200px ou vazio = 100%" />
+        </Field>
+        <Field label="Centering" style={{ flex: 0 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginTop: 4 }}>
+            <input type="checkbox" checked={cl.centering !== false} onChange={(e) => update("centering", e.target.checked)} />
+            Auto center
+          </label>
+        </Field>
+      </Row>
+
+      <WBSub title="CSS Grid">
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginBottom: 10 }}>
+          <input type="checkbox" checked={cl.grid?.enabled || false} onChange={(e) => updateGrid("enabled", e.target.checked)} />
+          Ativar grid no conteúdo
+        </label>
+
+        {cl.grid?.enabled && (
+          <>
+            <Row gap={8}>
+              <Field label="Columns" style={{ flex: 1 }}>
+                <input value={cl.grid?.columns ?? 1} onChange={(e) => {
+                  const v = e.target.value;
+                  updateGrid("columns", v === "auto-fit" || v === "auto-fill" ? v : (parseInt(v) || 1));
+                }} style={s.input} placeholder="1, 2, 3, auto-fit" />
+              </Field>
+              <Field label="Min Column Width" style={{ flex: 1 }}>
+                <input value={cl.grid?.minColumnWidth || ""} onChange={(e) => updateGrid("minColumnWidth", e.target.value)} style={s.input} placeholder="280px" />
+              </Field>
+            </Row>
+            <Row gap={8}>
+              <Field label="Gap" style={{ flex: 1 }}>
+                <input value={cl.grid?.gap || ""} onChange={(e) => updateGrid("gap", e.target.value)} style={s.input} placeholder="$tokens.spacing.md" />
+              </Field>
+              <Field label="Row Gap (override)" style={{ flex: 1 }}>
+                <input value={cl.grid?.rowGap || ""} onChange={(e) => updateGrid("rowGap", e.target.value)} style={s.input} placeholder="opcional" />
+              </Field>
+              <Field label="Column Gap (override)" style={{ flex: 1 }}>
+                <input value={cl.grid?.columnGap || ""} onChange={(e) => updateGrid("columnGap", e.target.value)} style={s.input} placeholder="opcional" />
+              </Field>
+            </Row>
+          </>
+        )}
+      </WBSub>
+    </div>
+  );
+}
+
+// ============================================================================
+// Page Header Editor
+// ============================================================================
+function PageHeaderEditor({ config, onChange }: { config: any; onChange: (c: any) => void }) {
+  const ph = config || { enabled: false, showTitle: true, showSubtitle: true, showDivider: false, padding: {}, typography: {} };
+  const update = (field: string, val: any) => onChange({ ...ph, [field]: val });
+  const updateTypo = (group: string, field: string, val: string) => {
+    const typo = { ...(ph.typography || {}) };
+    typo[group] = { ...(typo[group] || {}), [field]: val };
+    update("typography", typo);
+  };
+  const updatePad = (side: string, val: string) => {
+    update("padding", { ...(ph.padding || {}), [side]: val });
+  };
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: COLORS.textDim, margin: "0 0 12px" }}>
+        Renderiza automaticamente título e subtítulo da página a partir do <code style={{ color: COLORS.accent }}>pages[pageKey]</code> do contrato.
+      </p>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginBottom: 12 }}>
+        <input type="checkbox" checked={ph.enabled || false} onChange={(e) => update("enabled", e.target.checked)} />
+        Ativar Page Header
+      </label>
+
+      {ph.enabled && (
+        <>
+          <Row gap={8}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer" }}>
+              <input type="checkbox" checked={ph.showTitle !== false} onChange={(e) => update("showTitle", e.target.checked)} />
+              Título
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer" }}>
+              <input type="checkbox" checked={ph.showSubtitle !== false} onChange={(e) => update("showSubtitle", e.target.checked)} />
+              Subtítulo
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer" }}>
+              <input type="checkbox" checked={ph.showDivider || false} onChange={(e) => update("showDivider", e.target.checked)} />
+              Divider
+            </label>
+          </Row>
+
+          <WBSub title="Typography — Título">
+            <Row gap={8}>
+              <Field label="Font Size" style={{ flex: 1 }}>
+                <input value={ph.typography?.title?.fontSize || ""} onChange={(e) => updateTypo("title", "fontSize", e.target.value)} style={s.input} placeholder="$tokens.fontSizes.3xl" />
+              </Field>
+              <Field label="Font Weight" style={{ flex: 1 }}>
+                <input value={ph.typography?.title?.fontWeight || ""} onChange={(e) => updateTypo("title", "fontWeight", e.target.value)} style={s.input} placeholder="$tokens.fontWeights.bold" />
+              </Field>
+              <Field label="Color" style={{ flex: 1 }}>
+                <ColorInput value={ph.typography?.title?.color || ""} onChange={(v) => updateTypo("title", "color", v)} placeholder="var(--foreground)" />
+              </Field>
+            </Row>
+          </WBSub>
+
+          <WBSub title="Typography — Subtítulo">
+            <Row gap={8}>
+              <Field label="Font Size" style={{ flex: 1 }}>
+                <input value={ph.typography?.subtitle?.fontSize || ""} onChange={(e) => updateTypo("subtitle", "fontSize", e.target.value)} style={s.input} placeholder="$tokens.fontSizes.sm" />
+              </Field>
+              <Field label="Color" style={{ flex: 1 }}>
+                <ColorInput value={ph.typography?.subtitle?.color || ""} onChange={(v) => updateTypo("subtitle", "color", v)} placeholder="$tokens.colors.text-muted" />
+              </Field>
+            </Row>
+          </WBSub>
+
+          <WBSub title="Padding">
+            <Row gap={8}>
+              {["top", "right", "bottom", "left"].map(side => (
+                <Field key={side} label={side} style={{ flex: 1 }}>
+                  <input value={ph.padding?.[side] || ""} onChange={(e) => updatePad(side, e.target.value)} style={s.input} placeholder="$tokens.spacing.md" />
+                </Field>
+              ))}
+            </Row>
+          </WBSub>
+
+          <Field label="Background">
+            <ColorInput value={ph.background || ""} onChange={(v) => update("background", v)} placeholder="var(--background) ou token ref" />
+          </Field>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Pages Editor (Multi-page layout support)
 // ============================================================================
 function PagesEditor({ layout, onChange }) {
@@ -3173,6 +3375,9 @@ function PagesEditor({ layout, onChange }) {
                 <Field label="Descrição">
                   <input value={selectedPage.description || ""} onChange={(e) => updatePage(selected, "description", e.target.value)} style={s.input} placeholder="Breve descrição da página" />
                 </Field>
+                <Field label="Título do Navegador">
+                  <input value={selectedPage.browserTitle || ""} onChange={(e) => updatePage(selected, "browserTitle", e.target.value)} style={s.input} placeholder={`${selectedPage.label || selected} — uso: document.title`} />
+                </Field>
               </div>
 
               <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Region Overrides</div>
@@ -3275,6 +3480,60 @@ function PagesEditor({ layout, onChange }) {
                   })}
                 </div>
               </div>
+
+              {/* Content Layout override */}
+              <div style={{ ...s.card, marginBottom: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Content Layout Override</div>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {["maxWidth", "grid"].map(field => {
+                    const overrideVal = selectedPage.overrides?.contentLayout?.[field];
+                    return (
+                      <label key={field} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer" }}>
+                        <input type="checkbox"
+                          checked={overrideVal !== undefined}
+                          onChange={(e) => {
+                            const cl = { ...(selectedPage.overrides?.contentLayout || {}) };
+                            if (e.target.checked) {
+                              if (field === "maxWidth") cl.maxWidth = "1200px";
+                              else cl.grid = { enabled: true, columns: 2, gap: "$tokens.spacing.md" };
+                            } else delete cl[field];
+                            if (Object.keys(cl).length === 0) {
+                              const ov = { ...selectedPage.overrides };
+                              delete ov.contentLayout;
+                              updatePage(selected, "overrides", ov);
+                            } else {
+                              updatePage(selected, "overrides", { ...selectedPage.overrides, contentLayout: cl });
+                            }
+                          }}
+                        />
+                        {field} {overrideVal !== undefined
+                          ? <span style={{ fontSize: 10, color: COLORS.accent }}>(override)</span>
+                          : <span style={{ fontSize: 10, color: COLORS.textDim }}>(herdar)</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Page Header override */}
+              <div style={{ ...s.card, marginBottom: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Page Header Override</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer" }}>
+                  <input type="checkbox"
+                    checked={selectedPage.overrides?.pageHeader !== undefined}
+                    onChange={(e) => {
+                      const ov = { ...selectedPage.overrides };
+                      if (e.target.checked) {
+                        ov.pageHeader = { enabled: !(layout.structure.pageHeader?.enabled ?? false) };
+                      } else delete ov.pageHeader;
+                      updatePage(selected, "overrides", ov);
+                    }}
+                  />
+                  Override pageHeader {selectedPage.overrides?.pageHeader !== undefined
+                    ? <span style={{ fontSize: 10, color: COLORS.accent }}>(override: {selectedPage.overrides.pageHeader.enabled ? "on" : "off"})</span>
+                    : <span style={{ fontSize: 10, color: COLORS.textDim }}>(herdar base)</span>}
+                </label>
+              </div>
             </div>
           )}
         </div>
@@ -3307,11 +3566,20 @@ function LayoutSections({ layout, registry, setLayout, setRegistry }: { layout: 
       {/* ================================================================ */}
       {/* §1 — MARCA (Logo + Favicon)                                     */}
       {/* ================================================================ */}
-      <WBSection title="Marca" dotColor={DOT.brand} tag="logo + favicon" id="sec-brand" defaultOpen={true}>
+      <WBSection title="Marca" dotColor={DOT.brand} tag="logo + favicon + título" id="sec-brand" defaultOpen={true}>
         <LogoConfigEditor
           logo={layout.structure?.logo}
           onChange={(logo) => onChange({ ...layout, structure: { ...layout.structure, logo } })}
         />
+        <WBSub title="App Title (navegador)">
+          <Field label="Título padrão do app (fallback para pages sem browserTitle)">
+            <input value={layout.structure?.appTitle || ""} onChange={(e) => onChange({ ...layout, structure: { ...layout.structure, appTitle: e.target.value } })} style={s.input} placeholder="Ex: Gatekeeper" />
+          </Field>
+          <p style={{ fontSize: 11, color: COLORS.textDim, marginTop: 6, lineHeight: 1.5, margin: "6px 0 0" }}>
+            Cada página pode definir seu <strong style={{ color: COLORS.text }}>browserTitle</strong> em Páginas.
+            Se não definido, usa: <code style={{ color: COLORS.accent }}>label — appTitle</code>.
+          </p>
+        </WBSub>
         <WBSub title="Favicon">
           <FaviconEditor
             favicon={layout.structure?.favicon}
@@ -3323,7 +3591,7 @@ function LayoutSections({ layout, registry, setLayout, setRegistry }: { layout: 
       {/* ================================================================ */}
       {/* §2 — LAYOUT & REGIÕES                                           */}
       {/* ================================================================ */}
-      <WBSection title="Layout & Regiões" dotColor={DOT.layout} tag="sidebar · header · main · footer" id="sec-layout" defaultOpen={true}>
+      <WBSection title="Layout & Regiões" dotColor={DOT.layout} tag="sidebar · header · main · footer · breadcrumbs" id="sec-layout" defaultOpen={true}>
         {(["sidebar", "header", "main", "footer"] as const).map(name => (
           <Section
             key={name}
@@ -3350,6 +3618,26 @@ function LayoutSections({ layout, registry, setLayout, setRegistry }: { layout: 
             onChange={(bc) => onChange({ ...layout, structure: { ...layout.structure, breadcrumbs: bc } })}
           />
         </Section>
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §2b — CONTENT LAYOUT                                            */}
+      {/* ================================================================ */}
+      <WBSection title="Content Layout" dotColor={DOT.layout} tag="grid · maxWidth · centering" id="sec-content-layout" defaultOpen={false}>
+        <ContentLayoutEditor
+          config={layout.structure?.contentLayout}
+          onChange={(cl) => onChange({ ...layout, structure: { ...layout.structure, contentLayout: cl } })}
+        />
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §2c — PAGE HEADER                                               */}
+      {/* ================================================================ */}
+      <WBSection title="Page Header" dotColor={DOT.layout} tag="título · subtítulo · divider" id="sec-page-header" defaultOpen={false}>
+        <PageHeaderEditor
+          config={layout.structure?.pageHeader}
+          onChange={(ph) => onChange({ ...layout, structure: { ...layout.structure, pageHeader: ph } })}
+        />
       </WBSection>
 
       {/* ================================================================ */}
@@ -3473,6 +3761,196 @@ function LayoutSections({ layout, registry, setLayout, setRegistry }: { layout: 
             setActiveTextStyle(keys[keys.length - 1] || "");
           }} />
         </WBSub>
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §5b — LAYOUT MODE                                               */}
+      {/* ================================================================ */}
+      <WBSection title="Layout Mode" dotColor={DOT.layout} tag="sidebar-first · header-first" id="sec-layout-mode" defaultOpen={false}>
+        <Row>
+          <Field label="Modo">
+            <select
+              value={layout.structure?.layoutMode || "sidebar-first"}
+              onChange={(e) => onChange({ ...layout, structure: { ...layout.structure, layoutMode: e.target.value } })}
+              style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
+            >
+              <option value="sidebar-first">Sidebar Full Height</option>
+              <option value="header-first">Header Full Width</option>
+            </select>
+          </Field>
+        </Row>
+        <p style={{ fontSize: 11, color: COLORS.textDim, marginTop: 8, lineHeight: 1.5 }}>
+          <strong style={{ color: COLORS.text }}>sidebar-first:</strong> Sidebar ocupa altura total, header fica na coluna principal.<br/>
+          <strong style={{ color: COLORS.text }}>header-first:</strong> Header ocupa largura total no topo, sidebar começa abaixo dele.
+        </p>
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §5c — SCROLLBAR                                                  */}
+      {/* ================================================================ */}
+      <WBSection title="Scrollbar" dotColor={"#64748b"} tag="width · thumb · track" id="sec-scrollbar" defaultOpen={false}>
+        {(() => {
+          const sb = layout.structure?.scrollbar || {};
+          const updateSb = (patch: any) => onChange({ ...layout, structure: { ...layout.structure, scrollbar: { ...sb, ...patch } } });
+          return (
+            <>
+              <Row>
+                <Field label="Width">
+                  <input type="text" value={sb.width || "6px"} onChange={(e) => updateSb({ width: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+                <Field label="Border Radius">
+                  <input type="text" value={sb.borderRadius || "3px"} onChange={(e) => updateSb({ borderRadius: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Thumb Color">
+                  <ColorInput value={sb.thumbColor || "rgba(255,255,255,0.08)"} onChange={(v) => updateSb({ thumbColor: v })} />
+                </Field>
+                <Field label="Thumb Hover">
+                  <ColorInput value={sb.thumbHoverColor || "rgba(255,255,255,0.15)"} onChange={(v) => updateSb({ thumbHoverColor: v })} />
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Track Color">
+                  <ColorInput value={sb.trackColor || "transparent"} onChange={(v) => updateSb({ trackColor: v })} />
+                </Field>
+              </Row>
+            </>
+          );
+        })()}
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §5d — TOAST                                                      */}
+      {/* ================================================================ */}
+      <WBSection title="Toast / Notificações" dotColor={"#f97316"} tag="posição · duração · limite" id="sec-toast" defaultOpen={false}>
+        {(() => {
+          const tc = layout.structure?.toast || {};
+          const updateTc = (patch: any) => onChange({ ...layout, structure: { ...layout.structure, toast: { ...tc, ...patch } } });
+          return (
+            <>
+              <Row>
+                <Field label="Posição">
+                  <select value={tc.position || "bottom-right"} onChange={(e) => updateTc({ position: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }}>
+                    <option value="top-right">Top Right</option>
+                    <option value="top-left">Top Left</option>
+                    <option value="top-center">Top Center</option>
+                    <option value="bottom-right">Bottom Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-center">Bottom Center</option>
+                  </select>
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Max Visible">
+                  <input type="number" min={1} max={10} value={tc.maxVisible || 3} onChange={(e) => updateTc({ maxVisible: parseInt(e.target.value) || 3 })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+                <Field label="Duration (ms)">
+                  <input type="number" min={1000} max={30000} step={500} value={tc.duration || 4000} onChange={(e) => updateTc({ duration: parseInt(e.target.value) || 4000 })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+              </Row>
+            </>
+          );
+        })()}
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §5e — EMPTY STATE                                                */}
+      {/* ================================================================ */}
+      <WBSection title="Empty State" dotColor={"#8b5cf6"} tag="ícone · título · ação" id="sec-empty-state" defaultOpen={false}>
+        {(() => {
+          const es = layout.structure?.emptyState || {};
+          const updateEs = (patch: any) => onChange({ ...layout, structure: { ...layout.structure, emptyState: { ...es, ...patch } } });
+          return (
+            <>
+              <Row>
+                <Field label="Ícone (Phosphor ID)">
+                  <input type="text" value={es.icon || "ph:magnifying-glass"} onChange={(e) => updateEs({ icon: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Título">
+                  <input type="text" value={es.title || "Nenhum item encontrado"} onChange={(e) => updateEs({ title: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Descrição">
+                  <input type="text" value={es.description || ""} onChange={(e) => updateEs({ description: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Mostrar Ação">
+                  <input type="checkbox" checked={es.showAction !== false} onChange={(e) => updateEs({ showAction: e.target.checked })} />
+                </Field>
+                <Field label="Label do Botão">
+                  <input type="text" value={es.actionLabel || "Criar Novo"} onChange={(e) => updateEs({ actionLabel: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+              </Row>
+            </>
+          );
+        })()}
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §5f — SKELETON / LOADING                                         */}
+      {/* ================================================================ */}
+      <WBSection title="Loading Skeleton" dotColor={"#06b6d4"} tag="animação · cores · duração" id="sec-skeleton" defaultOpen={false}>
+        {(() => {
+          const sk = layout.structure?.skeleton || {};
+          const updateSk = (patch: any) => onChange({ ...layout, structure: { ...layout.structure, skeleton: { ...sk, ...patch } } });
+          return (
+            <>
+              <Row>
+                <Field label="Animação">
+                  <select value={sk.animation || "pulse"} onChange={(e) => updateSk({ animation: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }}>
+                    <option value="pulse">Pulse</option>
+                    <option value="shimmer">Shimmer</option>
+                    <option value="none">None</option>
+                  </select>
+                </Field>
+                <Field label="Duração">
+                  <input type="text" value={sk.duration || "1.5s"} onChange={(e) => updateSk({ duration: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Base Color">
+                  <ColorInput value={sk.baseColor || "rgba(255,255,255,0.05)"} onChange={(v) => updateSk({ baseColor: v })} />
+                </Field>
+                <Field label="Highlight Color">
+                  <ColorInput value={sk.highlightColor || "rgba(255,255,255,0.10)"} onChange={(v) => updateSk({ highlightColor: v })} />
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Border Radius">
+                  <input type="text" value={sk.borderRadius || "6px"} onChange={(e) => updateSk({ borderRadius: e.target.value })}
+                    style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
+                </Field>
+              </Row>
+              {/* Live preview */}
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                <span style={{ fontSize: 10, color: COLORS.textDim, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Preview</span>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <div data-orqui-skeleton="" style={{ width: 40, height: 40, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)" }} />
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div data-orqui-skeleton="" style={{ height: 12, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)", width: "80%" }} />
+                    <div data-orqui-skeleton="" style={{ height: 10, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)", width: "60%" }} />
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </WBSection>
 
       {/* ================================================================ */}
@@ -5206,6 +5684,7 @@ interface CmdItem {
   hint?: string;
   icon?: string;
   action: () => void;
+  keywords?: string[];
 }
 
 function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () => void; items: CmdItem[] }) {
@@ -5231,13 +5710,16 @@ function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () =
     const terms = q.split(/\s+/);
     return items
       .map((item) => {
-        const haystack = `${item.label} ${item.category} ${item.hint || ""}`.toLowerCase();
+        const keywordsStr = item.keywords ? item.keywords.join(" ") : "";
+        const haystack = `${item.label} ${item.category} ${item.hint || ""} ${keywordsStr}`.toLowerCase();
         let score = 0;
         for (const t of terms) {
           if (!haystack.includes(t)) return null;
           // Boost exact prefix match on label
           if (item.label.toLowerCase().startsWith(t)) score += 10;
           else if (item.label.toLowerCase().includes(t)) score += 5;
+          // Boost keyword matches (user is searching for the property name)
+          else if (keywordsStr.toLowerCase().includes(t)) score += 7;
           else score += 1;
         }
         return { item, score };
@@ -5442,6 +5924,8 @@ function useCommandPaletteItems(
     const sections = [
       { id: "sec-brand", label: "Marca (Logo + Favicon)", icon: "🏷" },
       { id: "sec-layout", label: "Layout & Regiões", icon: "📐" },
+      { id: "sec-content-layout", label: "Content Layout (grid · maxWidth)", icon: "⊞" },
+      { id: "sec-page-header", label: "Page Header (título · subtítulo)", icon: "📄" },
       { id: "wb-breadcrumbs", label: "Breadcrumbs", icon: "🔗" },
       { id: "sec-header", label: "Header Elements", icon: "📌" },
       { id: "sec-table-sep", label: "Table Separator", icon: "📊" },
@@ -5454,6 +5938,11 @@ function useCommandPaletteItems(
       { id: "wb-font-weights", label: "Font Weights", icon: "🅱" },
       { id: "wb-line-heights", label: "Line Heights", icon: "↕" },
       { id: "wb-letter-spacings", label: "Letter Spacings", icon: "↔" },
+      { id: "sec-layout-mode", label: "Layout Mode (sidebar-first · header-first)", icon: "🔀" },
+      { id: "sec-scrollbar", label: "Scrollbar Styling", icon: "📜" },
+      { id: "sec-toast", label: "Toast / Notificações", icon: "🔔" },
+      { id: "sec-empty-state", label: "Empty State", icon: "📭" },
+      { id: "sec-skeleton", label: "Loading Skeleton", icon: "💀" },
       { id: "sec-pages", label: "Páginas", icon: "📄" },
       { id: "sec-io", label: "Import / Export", icon: "📦" },
     ];
@@ -5467,6 +5956,93 @@ function useCommandPaletteItems(
             scrollToSection(sec.id);
           }, 60);
         },
+      });
+    }
+
+    // ---- Property-level search: maps config properties to their editor sections ----
+    const propNav = (sectionId: string, subsection?: string) => () => {
+      setActiveTab("layout");
+      setTimeout(() => {
+        openAccordion(sectionId);
+        if (subsection) openAccordion(subsection);
+        scrollToSection(subsection || sectionId);
+      }, 60);
+    };
+
+    const propertyMap: Array<{ keywords: string[]; label: string; section: string; sub?: string; hint?: string }> = [
+      // Main region
+      { keywords: ["padding", "main padding", "padding main", "espaçamento interno"], label: "Main: Padding", section: "sec-layout", hint: "main.padding — top, right, bottom, left" },
+      { keywords: ["main background", "background main", "fundo principal"], label: "Main: Background", section: "sec-layout", hint: "main.background" },
+      // Sidebar region
+      { keywords: ["sidebar width", "largura sidebar", "sidebar largura"], label: "Sidebar: Width", section: "sec-layout", hint: "sidebar.dimensions.width" },
+      { keywords: ["sidebar min width", "sidebar minWidth"], label: "Sidebar: Min Width", section: "sec-layout", hint: "sidebar.dimensions.minWidth" },
+      { keywords: ["sidebar padding", "padding sidebar"], label: "Sidebar: Padding", section: "sec-layout", hint: "sidebar.padding — top, right, bottom, left" },
+      { keywords: ["sidebar background", "background sidebar", "cor sidebar"], label: "Sidebar: Background", section: "sec-layout", hint: "sidebar.background" },
+      { keywords: ["sidebar collapsible", "colapsar sidebar", "sidebar collapse"], label: "Sidebar: Collapsible", section: "sec-layout", hint: "sidebar.behavior.collapsible" },
+      { keywords: ["sidebar scrollable", "sidebar scroll"], label: "Sidebar: Scrollable", section: "sec-layout", hint: "sidebar.behavior.scrollable" },
+      { keywords: ["sidebar separator", "sidebar divider", "sidebar border"], label: "Sidebar: Separators", section: "sec-layout", hint: "sidebar.separators" },
+      { keywords: ["sidebar navigation typography", "nav font", "nav tipografia"], label: "Sidebar: Nav Typography", section: "sec-layout", hint: "sidebar.navigation.typography" },
+      // Header region
+      { keywords: ["header height", "altura header", "header altura"], label: "Header: Height", section: "sec-layout", hint: "header.dimensions.height" },
+      { keywords: ["header padding", "padding header"], label: "Header: Padding", section: "sec-layout", hint: "header.padding" },
+      { keywords: ["header background", "background header"], label: "Header: Background", section: "sec-layout", hint: "header.background" },
+      { keywords: ["header fixed", "header sticky", "header fixo"], label: "Header: Fixed", section: "sec-layout", hint: "header.behavior.fixed" },
+      // Logo
+      { keywords: ["logo", "logo type", "logo text", "logo image", "logo icon"], label: "Logo", section: "sec-brand", hint: "logo.type, position, text, icon" },
+      { keywords: ["logo position", "logo sidebar", "logo header"], label: "Logo: Position", section: "sec-brand", hint: "sidebar | header" },
+      { keywords: ["logo typography", "logo font", "logo cor"], label: "Logo: Typography", section: "sec-brand", hint: "logo.typography" },
+      // Favicon
+      { keywords: ["favicon", "favicon emoji", "favicon image", "ícone aba"], label: "Favicon", section: "sec-brand", hint: "favicon.type, emoji, url" },
+      // Breadcrumbs
+      { keywords: ["breadcrumbs", "migalhas", "breadcrumb separator", "breadcrumb position"], label: "Breadcrumbs", section: "sec-layout", sub: "wb-breadcrumbs", hint: "enabled, position, separator" },
+      // Header elements
+      { keywords: ["search", "busca", "command palette", "search icon"], label: "Header: Search", section: "sec-header", hint: "headerElements.search" },
+      { keywords: ["cta", "call to action", "header button", "header botão"], label: "Header: CTA", section: "sec-header", hint: "headerElements.cta/ctas" },
+      { keywords: ["header icons", "header ícones", "icon buttons"], label: "Header: Icons", section: "sec-header", hint: "headerElements.icons" },
+      // Content layout
+      { keywords: ["max width", "maxWidth", "largura máxima", "content width"], label: "Content: Max Width", section: "sec-content-layout", hint: "contentLayout.maxWidth" },
+      { keywords: ["centering", "centralizar", "content center"], label: "Content: Centering", section: "sec-content-layout", hint: "contentLayout.centering" },
+      { keywords: ["grid", "grid columns", "grid gap", "colunas"], label: "Content: Grid", section: "sec-content-layout", hint: "contentLayout.grid" },
+      // Page header
+      { keywords: ["page title", "título página", "page header title"], label: "Page Header: Title", section: "sec-page-header", hint: "pageHeader.showTitle, typography" },
+      { keywords: ["page description", "descrição página", "subtítulo"], label: "Page Header: Description", section: "sec-page-header", hint: "pageHeader.showDescription" },
+      { keywords: ["page header padding"], label: "Page Header: Padding", section: "sec-page-header", hint: "pageHeader.padding" },
+      { keywords: ["page divider", "page separator", "divisor página"], label: "Page Header: Divider", section: "sec-page-header", hint: "pageHeader.showDivider" },
+      // Table separator
+      { keywords: ["table border", "table separator", "tabela borda", "tabela separador", "row border"], label: "Table Separator", section: "sec-table-sep", hint: "tableSeparator.color, width, style" },
+      // Layout mode
+      { keywords: ["layout mode", "sidebar first", "header first", "modo layout"], label: "Layout Mode", section: "sec-layout-mode", hint: "sidebar-first | header-first" },
+      // Scrollbar
+      { keywords: ["scrollbar", "scroll bar", "scrollbar width", "scrollbar thumb", "barra rolagem"], label: "Scrollbar", section: "sec-scrollbar", hint: "width, thumb color, track color" },
+      // Toast
+      { keywords: ["toast", "notificação", "notification", "toast position", "snackbar"], label: "Toast Position", section: "sec-toast", hint: "position, maxVisible, duration" },
+      // Empty state
+      { keywords: ["empty state", "estado vazio", "nenhum item", "empty page", "sem resultados"], label: "Empty State", section: "sec-empty-state", hint: "icon, title, description, action" },
+      // Skeleton
+      { keywords: ["skeleton", "loading", "carregando", "shimmer", "pulse", "loading animation"], label: "Loading Skeleton", section: "sec-skeleton", hint: "animation, baseColor, duration" },
+      // Generic property terms
+      { keywords: ["border radius", "arredondamento", "rounded", "border-radius"], label: "Token: Border Radius", section: "sec-tokens", sub: "wb-spacing-sizing", hint: "$tokens.borderRadius" },
+      { keywords: ["border width", "espessura borda", "border-width"], label: "Token: Border Width", section: "sec-tokens", sub: "wb-spacing-sizing", hint: "$tokens.borderWidth" },
+      { keywords: ["spacing", "espaçamento", "gap"], label: "Token: Spacing", section: "sec-tokens", sub: "wb-spacing-sizing", hint: "$tokens.spacing" },
+      { keywords: ["color", "cor", "cores", "tema", "theme"], label: "Token: Colors", section: "sec-tokens", sub: "wb-colors", hint: "$tokens.colors" },
+      { keywords: ["font family", "fonte", "tipografia fonte"], label: "Font Family", section: "sec-typo", sub: "wb-font-families", hint: "$tokens.fontFamilies" },
+      { keywords: ["font size", "tamanho fonte"], label: "Font Size", section: "sec-typo", sub: "wb-font-sizes", hint: "$tokens.fontSizes" },
+      { keywords: ["font weight", "peso fonte", "bold", "negrito"], label: "Font Weight", section: "sec-typo", sub: "wb-font-weights", hint: "$tokens.fontWeights" },
+      { keywords: ["line height", "altura linha", "line-height"], label: "Line Height", section: "sec-typo", sub: "wb-line-heights", hint: "$tokens.lineHeights" },
+      { keywords: ["letter spacing", "espaçamento letras"], label: "Letter Spacing", section: "sec-typo", sub: "wb-letter-spacings", hint: "$tokens.letterSpacings" },
+    ];
+
+    for (const prop of propertyMap) {
+      items.push({
+        id: `prop:${prop.label}`,
+        label: prop.label,
+        category: "Propriedade",
+        icon: "⚙",
+        hint: prop.hint,
+        // Include all keywords as searchable metadata in the label alternative
+        action: propNav(prop.section, prop.sub),
+        // Extra searchable text: join all keywords for matching
+        keywords: prop.keywords,
       });
     }
 
@@ -5760,9 +6336,17 @@ export function OrquiEditor() {
   const sectionDots = [
     { id: "sec-brand", color: "#f59e0b", label: "Marca" },
     { id: "sec-layout", color: "#3b82f6", label: "Layout" },
+    { id: "sec-content-layout", color: "#3b82f6", label: "Content Layout" },
+    { id: "sec-page-header", color: "#3b82f6", label: "Page Header" },
     { id: "sec-header", color: "#22c55e", label: "Header" },
+    { id: "sec-table-sep", color: "#22c55e", label: "Table Sep" },
     { id: "sec-tokens", color: "#a855f7", label: "Tokens" },
     { id: "sec-typo", color: "#a1a1aa", label: "Tipografia" },
+    { id: "sec-layout-mode", color: "#3b82f6", label: "Layout Mode" },
+    { id: "sec-scrollbar", color: "#64748b", label: "Scrollbar" },
+    { id: "sec-toast", color: "#f97316", label: "Toast" },
+    { id: "sec-empty-state", color: "#8b5cf6", label: "Empty State" },
+    { id: "sec-skeleton", color: "#06b6d4", label: "Skeleton" },
     { id: "sec-pages", color: "#ef4444", label: "Páginas" },
     { id: "sec-io", color: "#6d9cff", label: "I/O" },
   ];
@@ -5824,16 +6408,28 @@ export function OrquiEditor() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const CONFIG_WIDTH = 460;
+  const CONFIG_WIDTH = "65%";
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div style={{
+    <div className="orqui-editor-root" style={{
       background: COLORS.bg, height: "100vh", color: COLORS.text,
       fontFamily: "'Inter', -apple-system, sans-serif",
       display: "flex", flexDirection: "column", overflow: "hidden",
     }}>
       {/* Google Fonts */}
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+      {/* Orqui editor scrollbar — discrete, thin, no arrows */}
+      <style>{`
+        .orqui-editor-root { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.05) transparent; }
+        .orqui-editor-root *::-webkit-scrollbar { width: 3px; height: 3px; }
+        .orqui-editor-root *::-webkit-scrollbar-track { background: transparent; }
+        .orqui-editor-root *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 99px; }
+        .orqui-editor-root *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+        .orqui-editor-root *::-webkit-scrollbar-button { display: none; }
+        .orqui-editor-root * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.05) transparent; }
+      `}</style>
 
       {/* ============================================================ */}
       {/* TOPBAR                                                        */}
@@ -5949,32 +6545,113 @@ export function OrquiEditor() {
       {/* ============================================================ */}
       {/* MAIN LAYOUT: config scroll (left) + preview (right)           */}
       {/* ============================================================ */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
 
-        {/* LEFT — scrollable config panel */}
+        {/* LEFT — scrollable config panel (collapsible) */}
         <div
           ref={configRef}
           style={{
-            width: CONFIG_WIDTH, flexShrink: 0,
+            width: sidebarCollapsed ? "auto" : CONFIG_WIDTH,
+            minWidth: sidebarCollapsed ? undefined : undefined,
+            flexShrink: 0,
             overflowY: "auto", overflowX: "hidden",
             borderRight: `1px solid ${COLORS.border}`,
             background: COLORS.surface,
             scrollBehavior: "smooth" as const,
+            transition: "width 0.2s ease",
           }}
         >
-          {activeTab === "layout" && (
-            <LayoutSections
-              layout={layout}
-              registry={registry}
-              setLayout={setLayout}
-              setRegistry={setRegistry}
-            />
-          )}
-          {activeTab === "components" && (
-            <div style={{ padding: 20 }}>
-              <UIRegistryEditor registry={registry} onChange={setRegistry} />
+          {sidebarCollapsed ? (
+            /* Collapsed: show section names as clickable list */
+            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+              {[
+                { id: "sec-brand", label: "Marca", color: "#f59e0b" },
+                { id: "sec-layout", label: "Layout & Regiões", color: "#3b82f6" },
+                { id: "sec-content-layout", label: "Content Layout", color: "#3b82f6" },
+                { id: "sec-page-header", label: "Page Header", color: "#3b82f6" },
+                { id: "sec-header", label: "Header Elements", color: "#22c55e" },
+                { id: "sec-table-sep", label: "Table Separator", color: "#22c55e" },
+                { id: "sec-tokens", label: "Design Tokens", color: "#a855f7" },
+                { id: "sec-typo", label: "Tipografia", color: "#a1a1aa" },
+                { id: "sec-layout-mode", label: "Layout Mode", color: "#3b82f6" },
+                { id: "sec-scrollbar", label: "Scrollbar", color: "#64748b" },
+                { id: "sec-toast", label: "Toast", color: "#f97316" },
+                { id: "sec-empty-state", label: "Empty State", color: "#8b5cf6" },
+                { id: "sec-skeleton", label: "Skeleton", color: "#06b6d4" },
+                { id: "sec-pages", label: "Páginas", color: "#ef4444" },
+                { id: "sec-io", label: "Import / Export", color: "#6d9cff" },
+              ].map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setSidebarCollapsed(false);
+                    setTimeout(() => {
+                      document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 250);
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                    background: "transparent", color: COLORS.textDim,
+                    fontSize: 12, fontWeight: 500, fontFamily: "'Inter', sans-serif",
+                    textAlign: "left", whiteSpace: "nowrap",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surface2; e.currentTarget.style.color = COLORS.text; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = COLORS.textDim; }}
+                >
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
+                  {s.label}
+                </button>
+              ))}
             </div>
+          ) : (
+            /* Expanded: full config panels */
+            <>
+              {activeTab === "layout" && (
+                <LayoutSections
+                  layout={layout}
+                  registry={registry}
+                  setLayout={setLayout}
+                  setRegistry={setRegistry}
+                />
+              )}
+              {activeTab === "components" && (
+                <div style={{ padding: 20 }}>
+                  <UIRegistryEditor registry={registry} onChange={setRegistry} />
+                </div>
+              )}
+            </>
           )}
+        </div>
+
+        {/* Collapse/expand chevron — centered vertically on the config panel border */}
+        <div style={{ position: "relative", flexShrink: 0, width: 0 }}>
+          <button
+            onClick={() => setSidebarCollapsed(prev => !prev)}
+            style={{
+              position: "absolute",
+              left: -12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 20,
+              width: 24, height: 24,
+              borderRadius: "50%",
+              border: `1px solid ${COLORS.border}`,
+              background: COLORS.surface2,
+              color: COLORS.textDim,
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 12,
+              transition: "all 0.2s",
+              boxShadow: "0 1px 4px #0003",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.text; e.currentTarget.style.borderColor = COLORS.accent; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.textDim; e.currentTarget.style.borderColor = COLORS.border; }}
+            title={sidebarCollapsed ? "Expandir painel" : "Colapsar painel"}
+          >
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
         </div>
 
         {/* RIGHT — preview pane */}
@@ -5995,7 +6672,7 @@ export function OrquiEditor() {
               { id: "components", label: "Componentes" },
             ].map(tab => (
               <button key={tab.id} onClick={() => setPreviewTab(tab.id)} style={{
-                padding: "12px 16px", fontSize: 11, fontWeight: 500,
+                padding: "16px 16px", fontSize: 13, fontWeight: 600,
                 border: "none", cursor: "pointer",
                 fontFamily: "'Inter', sans-serif",
                 borderBottom: previewTab === tab.id ? `2px solid ${COLORS.accent}` : "2px solid transparent",

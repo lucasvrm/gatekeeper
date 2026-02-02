@@ -509,7 +509,7 @@ export function ConfigPage() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="space-y-6">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
@@ -522,13 +522,7 @@ export function ConfigPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Configuração</h1>
-        <p className="text-muted-foreground mt-1">
-          Gerencie sensitive file rules, termos ambíguos e configurações de validation.
-        </p>
-      </div>
+    <div className="space-y-6">
 
       <Tabs defaultValue="validators" className="space-y-4">
         <TabsList>

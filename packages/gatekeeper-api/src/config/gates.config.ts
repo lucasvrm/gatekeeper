@@ -13,6 +13,7 @@ import { TestHasAssertionsValidator } from '../domain/validators/gate1/TestHasAs
 import { TestCoversHappyAndSadPathValidator } from '../domain/validators/gate1/TestCoversHappyAndSadPath.js'
 import { TestFailsBeforeImplementationValidator } from '../domain/validators/gate1/TestFailsBeforeImplementation.js'
 import { NoDecorativeTestsValidator } from '../domain/validators/gate1/NoDecorativeTests.js'
+import { TestResilienceCheckValidator } from '../domain/validators/gate1/TestResilienceCheck.js'
 import { ManifestFileLockValidator } from '../domain/validators/gate1/ManifestFileLock.js'
 import { NoImplicitFilesValidator } from '../domain/validators/gate1/NoImplicitFiles.js'
 import { ImportRealityCheckValidator } from '../domain/validators/gate1/ImportRealityCheck.js'
@@ -57,6 +58,7 @@ export const GATES_CONFIG: GateDefinition[] = [
       TestCoversHappyAndSadPathValidator,
       TestFailsBeforeImplementationValidator,
       NoDecorativeTestsValidator,
+      TestResilienceCheckValidator,
       ManifestFileLockValidator,
       NoImplicitFilesValidator,
       ImportRealityCheckValidator,

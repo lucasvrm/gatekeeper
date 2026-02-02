@@ -5,7 +5,7 @@ export const ManifestFileLockValidator: ValidatorDefinition = {
   name: 'Manifest File Lock',
   description: 'Verifica integridade do manifesto',
   gate: 1,
-  order: 6,
+  order: 7,
   isHardBlock: true,
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {

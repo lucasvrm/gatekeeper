@@ -80,7 +80,7 @@ export function WorkspaceFormPage() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-96" />
       </div>
@@ -88,7 +88,7 @@ export function WorkspaceFormPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
