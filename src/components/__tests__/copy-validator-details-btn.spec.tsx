@@ -92,7 +92,7 @@ vi.mock("@/components/diff-viewer-modal", () => ({
 }))
 
 // Component under test (REAL)
-import { RunPanel } from "@/components/run-panel"
+import { RunPanelLegacy } from "@/components/run-panel-legacy"
 
 // =============================================================================
 // FIXTURE BUILDERS
@@ -222,7 +222,7 @@ function renderRunPanel(validators: ValidatorResult[], runOverrides: Partial<Run
   const run = createRunWithResults(validators, runOverrides)
   return render(
     <MemoryRouter>
-      <RunPanel run={run} />
+      <RunPanelLegacy run={run} />
     </MemoryRouter>
   )
 }
@@ -617,7 +617,7 @@ describe("CL-COPY-008 — stopPropagation on click", () => {
       <MemoryRouter>
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
         <div onClick={parentClickHandler}>
-          <RunPanel run={run} />
+      <RunPanelLegacy run={run} />
         </div>
       </MemoryRouter>
     )
@@ -639,7 +639,7 @@ describe("CL-COPY-008 — stopPropagation on click", () => {
       <MemoryRouter>
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
         <div onClick={parentClickHandler}>
-          <RunPanel run={run} />
+      <RunPanelLegacy run={run} />
         </div>
       </MemoryRouter>
     )
@@ -660,7 +660,7 @@ describe("CL-COPY-008 — stopPropagation on click", () => {
       <MemoryRouter>
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
         <div onClick={parentClickHandler}>
-          <RunPanel run={run} />
+          <RunPanelLegacy run={run} />
         </div>
       </MemoryRouter>
     )

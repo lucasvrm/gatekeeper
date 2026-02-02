@@ -45,6 +45,7 @@ interface FaviconConfig {
   type: "none" | "emoji" | "image";
   url?: string;
   emoji?: string;
+  color?: string;
 }
 interface HeaderElementsConfig {
   search?: { enabled: boolean; placeholder?: string };
@@ -82,6 +83,21 @@ interface BreadcrumbsConfig {
   showHome?: boolean;
   homeLabel?: string;
   homeRoute?: string;
+  typography?: {
+    fontSize?: string;
+    fontWeight?: string;
+    fontFamily?: string;
+    color?: string;
+    activeColor?: string;
+    activeFontWeight?: string;
+    separatorColor?: string;
+  };
+  padding?: {
+    top?: string;
+    right?: string;
+    bottom?: string;
+    left?: string;
+  };
 }
 interface LayoutContract {
   $orqui?: any;
@@ -159,7 +175,7 @@ function resolveTextStyleCSS(style: TextStyleDef, tokens: Tokens): CSSProperties
 // so the contract ALWAYS wins over existing stylesheets.
 // ============================================================================
 
-function buildStyleSheet(tokens: Tokens): string {
+function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string {
   const colors = tokens.colors ?? {};
   const c = (name: string) => colors[name]?.value ?? "";
   const lines: string[] = [];
@@ -321,27 +337,61 @@ function buildStyleSheet(tokens: Tokens): string {
   }
 
   // --- Collapsed sidebar display modes ---
+  // Must override Tailwind classes (px-4, py-2.5, gap-3, space-y-1) on real app components
   lines.push("");
   lines.push("/* Orqui Contract → Collapsed sidebar nav styles */");
-  // When collapsed with letter-only mode, truncate text to first letter
-  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="letter-only"] a,`);
-  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="letter-only"] button {`);
-  lines.push(`  overflow: hidden; text-overflow: clip; white-space: nowrap;`);
-  lines.push(`  width: 36px; height: 36px; padding: 0${imp}; justify-content: center;`);
-  lines.push(`  display: flex; align-items: center; border-radius: 6px; font-size: 13px; font-weight: 600;`);
+
+  // Reset list containers: kill padding, margin, gaps from Tailwind (space-y-*, p-*, etc)
+  lines.push(`[data-orqui-collapsed="true"] ul,`);
+  lines.push(`[data-orqui-collapsed="true"] ol {`);
+  lines.push(`  padding: 0${imp}; margin: 0${imp}; list-style: none${imp};`);
+  lines.push(`  display: flex${imp}; flex-direction: column${imp}; align-items: center${imp};`);
+  lines.push(`  width: 100%${imp}; gap: 2px${imp};`);
   lines.push(`}`);
-  // Hide all text content, show only first letter via ::first-letter won't work,
-  // so we use a font-size trick: make text invisible and use a pseudo-element approach
-  // Actually the simplest: make text size 0 and use text-indent
-  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="letter-only"] a span,`);
-  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="letter-only"] button span {`);
-  lines.push(`  display: none;`);
+  // Reset Tailwind space-y-* (uses > :not(:first-child) margin-top)
+  lines.push(`[data-orqui-collapsed="true"] ul > *,`);
+  lines.push(`[data-orqui-collapsed="true"] ol > * {`);
+  lines.push(`  margin-top: 0${imp}; margin-bottom: 0${imp};`);
   lines.push(`}`);
-  // Icon-only: hide labels
-  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="icon-only"] a,`);
-  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="icon-only"] button {`);
-  lines.push(`  overflow: hidden; white-space: nowrap; width: 36px; height: 36px; padding: 0${imp};`);
-  lines.push(`  display: flex; align-items: center; justify-content: center; border-radius: 6px;`);
+
+  // Reset list items
+  lines.push(`[data-orqui-collapsed="true"] li {`);
+  lines.push(`  width: auto${imp}; display: flex${imp}; justify-content: center${imp};`);
+  lines.push(`}`);
+
+  // Force all link/button items to centered square boxes
+  // Override Tailwind: px-4 → padding:0, gap-3 → gap:0, py-2.5 → height:36px
+  lines.push(`[data-orqui-collapsed="true"] a,`);
+  lines.push(`[data-orqui-collapsed="true"] button:not([data-orqui-cb]) {`);
+  lines.push(`  width: 36px${imp}; height: 36px${imp};`);
+  lines.push(`  padding: 0${imp}; gap: 0${imp};`);
+  lines.push(`  display: flex${imp}; align-items: center${imp}; justify-content: center${imp};`);
+  lines.push(`  overflow: hidden${imp}; border-radius: 6px${imp};`);
+  lines.push(`  margin: 0 auto${imp}; min-width: 0${imp};`);
+  lines.push(`}`);
+
+  // Icon-only: hide everything except SVG (Phosphor React renders <svg>)
+  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="icon-only"] a > *:not(svg),`);
+  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="icon-only"] button:not([data-orqui-cb]) > *:not(svg) {`);
+  lines.push(`  display: none${imp};`);
+  lines.push(`}`);
+  // Ensure SVG icons stay visible and centered
+  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="icon-only"] a > svg,`);
+  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="icon-only"] button:not([data-orqui-cb]) > svg {`);
+  lines.push(`  display: block${imp}; flex-shrink: 0${imp}; width: 20px${imp}; height: 20px${imp};`);
+  lines.push(`}`);
+
+  // Letter-only: hide SVG icons, show first letter of text span
+  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="letter-only"] a > svg,`);
+  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="letter-only"] button:not([data-orqui-cb]) > svg {`);
+  lines.push(`  display: none${imp};`);
+  lines.push(`}`);
+  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="letter-only"] a > span,`);
+  lines.push(`[data-orqui-collapsed="true"][data-orqui-collapsed-display="letter-only"] button:not([data-orqui-cb]) > span {`);
+  lines.push(`  display: block${imp}; width: 1ch${imp}; overflow: hidden${imp};`);
+  lines.push(`  text-overflow: clip${imp}; white-space: nowrap${imp};`);
+  lines.push(`  font-size: 13px${imp}; font-weight: 600${imp}; line-height: 1${imp};`);
+  lines.push(`  text-align: center${imp};`);
   lines.push(`}`);
 
   // --- Sidebar structural integrity ---
@@ -363,6 +413,111 @@ function buildStyleSheet(tokens: Tokens): string {
   lines.push(`[data-orqui-sidebar-header] {`);
   lines.push(`  flex-shrink: 0${imp};`);
   lines.push(`}`);
+
+  // --- Sidebar navigation typography ---
+  const sidebarRegion = layout?.structure?.regions?.sidebar;
+  const navTypo = sidebarRegion?.navigation?.typography;
+  if (navTypo) {
+    lines.push("");
+    lines.push("/* Orqui Contract → Sidebar navigation typography */");
+    lines.push(`[data-orqui-sidebar-nav] a, [data-orqui-sidebar-nav] button {`);
+    if (navTypo.fontSize) {
+      const fs = resolveTokenRef(navTypo.fontSize, tokens);
+      if (fs) lines.push(`  font-size: ${fs}${imp};`);
+    }
+    if (navTypo.fontWeight) {
+      const fw = resolveTokenRef(navTypo.fontWeight, tokens);
+      if (fw) lines.push(`  font-weight: ${fw}${imp};`);
+    }
+    if (navTypo.fontFamily) {
+      const ff = resolveTokenRef(navTypo.fontFamily, tokens);
+      if (ff) lines.push(`  font-family: ${ff}${imp};`);
+    }
+    if (navTypo.color) {
+      const cl = resolveTokenRef(navTypo.color, tokens);
+      if (cl) lines.push(`  color: ${cl}${imp};`);
+    }
+    if (navTypo.letterSpacing) {
+      const ls = resolveTokenRef(navTypo.letterSpacing, tokens);
+      if (ls) lines.push(`  letter-spacing: ${ls}${imp};`);
+    }
+    if (navTypo.lineHeight) {
+      const lh = resolveTokenRef(navTypo.lineHeight, tokens);
+      if (lh) lines.push(`  line-height: ${lh}${imp};`);
+    }
+    lines.push(`}`);
+
+    // Nav item card styling
+    if (navTypo.cardEnabled) {
+      const sel = `[data-orqui-sidebar-nav] a, [data-orqui-sidebar-nav] button`;
+      lines.push(`${sel} {`);
+      if (navTypo.cardBorderRadius) {
+        const br = resolveTokenRef(navTypo.cardBorderRadius, tokens);
+        if (br) lines.push(`  border-radius: ${br}${imp};`);
+      }
+      if (navTypo.cardPadding) {
+        const cp = resolveTokenRef(navTypo.cardPadding, tokens);
+        if (cp) lines.push(`  padding: ${cp}${imp};`);
+      }
+      if (navTypo.cardBackground) {
+        const cb = resolveTokenRef(navTypo.cardBackground, tokens);
+        if (cb) lines.push(`  background: ${cb}${imp};`);
+      }
+      if (navTypo.cardBorderColor) {
+        const bw = navTypo.cardBorderWidth || "1";
+        const bc = resolveTokenRef(navTypo.cardBorderColor, tokens);
+        if (bc) lines.push(`  border: ${bw}px solid ${bc}${imp};`);
+      }
+      lines.push(`  transition: background 0.15s, border-color 0.15s, color 0.15s;`);
+      lines.push(`}`);
+    }
+
+    // Active item styling
+    if (navTypo.activeColor || navTypo.activeFontWeight || navTypo.activeBackground || navTypo.activeCardBorder) {
+      lines.push(`[data-orqui-sidebar-nav] a[data-active="true"], [data-orqui-sidebar-nav] button[data-active="true"],`);
+      lines.push(`[data-orqui-sidebar-nav] a.active, [data-orqui-sidebar-nav] button.active {`);
+      if (navTypo.activeColor) {
+        const ac = resolveTokenRef(navTypo.activeColor, tokens);
+        if (ac) lines.push(`  color: ${ac}${imp};`);
+      }
+      if (navTypo.activeFontWeight) {
+        const aw = resolveTokenRef(navTypo.activeFontWeight, tokens);
+        if (aw) lines.push(`  font-weight: ${aw}${imp};`);
+      }
+      if (navTypo.activeBackground) {
+        const ab = resolveTokenRef(navTypo.activeBackground, tokens);
+        if (ab) lines.push(`  background: ${ab}${imp};`);
+      }
+      if (navTypo.activeCardBorder) {
+        const acb = resolveTokenRef(navTypo.activeCardBorder, tokens);
+        const bw = navTypo.cardBorderWidth || "1";
+        if (acb) lines.push(`  border-color: ${acb}${imp};`);
+      }
+      lines.push(`}`);
+    }
+
+    // Hover item styling
+    if (navTypo.hoverColor || navTypo.hoverBackground || navTypo.hoverFontWeight || navTypo.hoverCardBorder) {
+      lines.push(`[data-orqui-sidebar-nav] a:hover, [data-orqui-sidebar-nav] button:hover {`);
+      if (navTypo.hoverColor) {
+        const hc = resolveTokenRef(navTypo.hoverColor, tokens);
+        if (hc) lines.push(`  color: ${hc}${imp};`);
+      }
+      if (navTypo.hoverBackground) {
+        const hb = resolveTokenRef(navTypo.hoverBackground, tokens);
+        if (hb) lines.push(`  background: ${hb}${imp};`);
+      }
+      if (navTypo.hoverFontWeight) {
+        const hw = resolveTokenRef(navTypo.hoverFontWeight, tokens);
+        if (hw) lines.push(`  font-weight: ${hw}${imp};`);
+      }
+      if (navTypo.hoverCardBorder) {
+        const hcb = resolveTokenRef(navTypo.hoverCardBorder, tokens);
+        if (hcb) lines.push(`  border-color: ${hcb}${imp};`);
+      }
+      lines.push(`}`);
+    }
+  }
 
   return lines.join("\n");
 }
@@ -404,9 +559,47 @@ export function ContractProvider({ layout, registry, children, injectCSS = true 
   }), [layout, registry]);
 
   const styleSheet = useMemo(
-    () => injectCSS ? buildStyleSheet(layout.tokens) : "",
+    () => injectCSS ? buildStyleSheet(layout.tokens, layout) : "",
     [layout.tokens, injectCSS]
   );
+
+  // Build component-specific CSS from registry styles
+  const componentCSS = useMemo(() => {
+    if (!injectCSS || !registry?.components) return "";
+    const lines: string[] = [];
+    const scrollArea = registry.components.ScrollArea ?? registry.components.scrollArea;
+    if (scrollArea?.styles) {
+      const st = scrollArea.styles;
+      if (st.preset === "hidden") {
+        lines.push(`/* ScrollArea: hidden */`);
+        lines.push(`::-webkit-scrollbar { width: 0 !important; height: 0 !important; }`);
+        lines.push(`* { scrollbar-width: none !important; }`);
+      } else if (st.preset !== "default" && (st.thumbWidth != null || st.thumbColor)) {
+        const tw = st.thumbWidth ?? 6;
+        const tc = st.thumbColor ?? "rgba(255,255,255,0.2)";
+        const trc = st.trackColor ?? "transparent";
+        const tr = st.thumbRadius ?? 99;
+        const htw = st.hoverThumbWidth ?? tw;
+        const htc = st.hoverThumbColor ?? tc;
+        lines.push(`/* ScrollArea: custom scrollbar */`);
+        lines.push(`* { scrollbar-width: thin; scrollbar-color: ${tc} ${trc}; }`);
+        lines.push(`::-webkit-scrollbar { width: ${tw}px; height: ${tw}px; }`);
+        lines.push(`::-webkit-scrollbar-track { background: ${trc}; }`);
+        lines.push(`::-webkit-scrollbar-thumb { background: ${tc}; border-radius: ${tr}px; }`);
+        lines.push(`::-webkit-scrollbar-thumb:hover { background: ${htc}; }`);
+        if (htw !== tw) {
+          lines.push(`:hover::-webkit-scrollbar { width: ${htw}px; }`);
+        }
+        if (!st.showArrows) {
+          lines.push(`::-webkit-scrollbar-button { display: none; }`);
+        }
+        if (st.autoHide) {
+          lines.push(`::-webkit-scrollbar-thumb { transition: background 0.3s; }`);
+        }
+      }
+    }
+    return lines.join("\n");
+  }, [registry, injectCSS]);
 
   // Dynamically load Google Fonts for all referenced font families
   useEffect(() => {
@@ -432,7 +625,7 @@ export function ContractProvider({ layout, registry, children, injectCSS = true 
 
   return (
     <ContractContext.Provider value={value}>
-      {injectCSS && <style dangerouslySetInnerHTML={{ __html: styleSheet }} />}
+      {injectCSS && <style dangerouslySetInnerHTML={{ __html: styleSheet + "\n" + componentCSS }} />}
       {children}
     </ContractContext.Provider>
   );
@@ -502,6 +695,63 @@ function resolvePageLayout(layout: LayoutContract, page?: string): LayoutContrac
 }
 
 // ============================================================================
+// Phosphor Icon SVG paths (for ph: prefix support in logos/favicons)
+// ============================================================================
+const PHOSPHOR_SVG_PATHS: Record<string, string> = {
+  "house": "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8H96a8,8,0,0,0,8-8V160h48v56a8,8,0,0,0,8,8h56a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H168V152a8,8,0,0,0-8-8H96a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z",
+  "gear": "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.68l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.67a73.68,73.68,0,0,1-8.68,0,8,8,0,0,0-5.68,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64l-22.58-2.51a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.66,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.68L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69l2.51-22.58a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.66,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.68-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z",
+  "magnifying-glass": "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z",
+  "bell": "M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z",
+  "user": "M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z",
+  "shield-check": "M208,40H48A16,16,0,0,0,32,56v58.77c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.52-80-30.69-80-109.18V56H208ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z",
+  "shield": "M208,40H48A16,16,0,0,0,32,56v58.77c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.52-80-30.69-80-109.18V56H208Z",
+  "lock": "M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208Zm-80-36V140a12,12,0,1,1,0-24h0a12,12,0,0,1,12,12v24a12,12,0,0,1-24,0Z",
+  "key": "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A80,80,0,0,0,216.57,39.43ZM224,100a63.08,63.08,0,0,1-17.39,43.52L126.34,168H104a8,8,0,0,0-8,8v16H80a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,2.11-7.34A63.93,63.93,0,0,1,160.05,36,64.08,64.08,0,0,1,224,100Zm-44-20a12,12,0,1,1-12-12A12,12,0,0,1,180,80Z",
+  "eye": "M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.29A169.47,169.47,0,0,1,24.7,128,169.47,169.47,0,0,1,48.07,97.29C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.29A169.47,169.47,0,0,1,231.3,128C223.94,141.44,192.22,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z",
+  "warning": "M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z",
+  "folder": "M216,72H131.31L104,44.69A15.86,15.86,0,0,0,92.69,40H40A16,16,0,0,0,24,56V200.62A15.4,15.4,0,0,0,39.38,216H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V56H92.69l29.65,29.66A8,8,0,0,0,128,88h88Z",
+  "file": "M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z",
+  "code": "M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.29Zm176,27.7-48-40a8,8,0,1,0-10.24,12.29L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z",
+  "rocket": "M152,224a8,8,0,0,1-8,8H112a8,8,0,0,1,0-16h32A8,8,0,0,1,152,224Zm-24-80a12,12,0,1,0-12-12A12,12,0,0,0,128,144Z",
+  "lightning": "M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7l-112,120a8,8,0,0,0,3,13l57.63,21.61L88.16,238.43a8,8,0,0,0,13.69,7l112-120A8,8,0,0,0,215.79,118.17ZM109.37,214l10.47-52.38a8,8,0,0,0-5.1-9.27L58.81,131.35l88.82-95.27L137.16,88.46a8,8,0,0,0,5.1,9.27l55.93,20.95Z",
+  "star": "M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.38,16.38,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.38,16.38,0,0,0,239.18,97.26Z",
+  "heart": "M178,32c-20.65,0-38.73,8.88-50,23.89C116.73,40.88,98.65,32,78,32A62.07,62.07,0,0,0,16,94c0,70,103.79,126.66,108.21,129a8,8,0,0,0,7.58,0C136.21,220.66,240,164,240,94A62.07,62.07,0,0,0,178,32Z",
+  "globe": "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Z",
+  "sparkle": "M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112.9,220.38,93.54,168.22a8,8,0,0,0-4.74-4.74L36.64,144,88.8,124.58a8,8,0,0,0,4.74-4.74L112.9,67.62l19.36,52.16a8,8,0,0,0,4.74,4.74L189.16,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z",
+  "robot": "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16Zm-36-60a12,12,0,1,1-12-12A12,12,0,0,1,180,132ZM88,132a12,12,0,1,1-12-12A12,12,0,0,1,88,132Z",
+  "chart-bar": "M224,200h-8V40a8,8,0,0,0-16,0V200H168V96a8,8,0,0,0-16,0V200H112V136a8,8,0,0,0-16,0v64H56V168a8,8,0,0,0-16,0v32H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16Z",
+  "flow-arrow": "M245.66,74.34l-32-32a8,8,0,0,0-11.32,11.32L220.69,72H208c-49.33,0-61.05,28.12-71.38,52.92-9.38,22.51-16.92,40.59-49.48,42.84a40,40,0,1,0,.1,16c43.26-2.65,54.34-29.15,64.14-52.69C161.41,107,169.33,88,208,88h12.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,74.34ZM48,200a24,24,0,1,1,24-24A24,24,0,0,1,48,200Z",
+  "chat-circle": "M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z",
+  "list": "M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z",
+  "squares-four": "M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48Z",
+  "clipboard": "M200,32H163.74a47.92,47.92,0,0,0-71.48,0H56A16,16,0,0,0,40,48V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Z",
+  "database": "M128,24C74.17,24,32,48.6,32,80v96c0,31.4,42.17,56,96,56s96-24.6,96-56V80C224,48.6,181.83,24,128,24Z",
+  "plus": "M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z",
+  "check": "M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z",
+  "x": "M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z",
+};
+
+/** Render inline SVG for a Phosphor icon name */
+function PhosphorIcon({ name, size = 20, color = "currentColor" }: { name: string; size?: number; color?: string }) {
+  const d = PHOSPHOR_SVG_PATHS[name];
+  if (!d) return <span style={{ fontSize: size }}>?</span>;
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 256 256" fill={color}>
+      <path d={d} />
+    </svg>
+  );
+}
+
+/** Render an icon value — supports emoji strings or "ph:icon-name" Phosphor refs */
+function IconValue({ icon, size = 20, color }: { icon?: string; size?: number; color?: string }) {
+  if (!icon) return null;
+  if (icon.startsWith("ph:")) {
+    return <PhosphorIcon name={icon.slice(3)} size={size} color={color} />;
+  }
+  return <span style={{ fontSize: size, lineHeight: 1 }}>{icon}</span>;
+}
+
+// ============================================================================
 // Logo Component
 // ============================================================================
 function LogoRenderer({ config, collapsed }: { config?: LogoConfig; collapsed?: boolean }) {
@@ -515,22 +765,24 @@ function LogoRenderer({ config, collapsed }: { config?: LogoConfig; collapsed?: 
     fontFamily: typo.fontFamily || "inherit",
     letterSpacing: typo.letterSpacing ? `${typo.letterSpacing}px` : undefined,
     whiteSpace: "nowrap",
+    lineHeight: 1,
   };
   const containerStyle: any = {
     padding: `${pad.top || 0}px ${pad.right || 0}px ${pad.bottom || 0}px ${pad.left || 0}px`,
   };
 
   const iconSz = config.iconSize || typo.fontSize || 20;
+  const iconColor = typo.color || "var(--foreground)";
 
   if (collapsed) {
     return (
-      <div style={{ ...containerStyle, display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: 0 }}>
         {config.type === "icon-text" && config.iconUrl ? (
-          <img src={config.iconUrl} alt="" style={{ height: iconSz, objectFit: "contain" }} />
+          <img src={config.iconUrl} alt="" style={{ height: iconSz, objectFit: "contain", display: "block" }} />
         ) : config.type === "icon-text" && config.icon ? (
-          <span style={{ fontSize: iconSz }}>{config.icon}</span>
+          <IconValue icon={config.icon} size={iconSz} color={iconColor} />
         ) : config.type === "image" && config.imageUrl ? (
-          <img src={config.imageUrl} alt="" style={{ height: 24, objectFit: "contain" }} />
+          <img src={config.imageUrl} alt="" style={{ height: 24, objectFit: "contain", display: "block" }} />
         ) : (
           <span style={{ ...textStyle, fontSize: Math.max((typo.fontSize || 16), 16) }}>
             {(config.text || "A").charAt(0)}
@@ -553,7 +805,7 @@ function LogoRenderer({ config, collapsed }: { config?: LogoConfig; collapsed?: 
         {config.iconUrl ? (
           <img src={config.iconUrl} alt="" style={{ height: iconSz, objectFit: "contain" }} />
         ) : config.icon ? (
-          <span style={{ fontSize: iconSz }}>{config.icon}</span>
+          <IconValue icon={config.icon} size={iconSz} color={iconColor} />
         ) : null}
         <span style={textStyle}>{config.text || "App"}</span>
       </div>
@@ -647,16 +899,23 @@ function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, navigate
 // ============================================================================
 // Breadcrumb Renderer
 // ============================================================================
-function BreadcrumbRenderer({ config, pages, currentPage, navigate }: {
+function BreadcrumbRenderer({ config, pages, currentPage, navigate, resolveToken }: {
   config?: BreadcrumbsConfig;
   pages?: Record<string, PageConfig>;
   currentPage?: string;
   navigate?: (route: string) => void;
+  resolveToken?: (ref: string) => string | number | null;
 }) {
-  if (!config?.enabled || !pages || !currentPage) return null;
-  const page = pages[currentPage];
-  if (!page) return null;
+  if (!config?.enabled) return null;
 
+  const resolve = (ref?: string) => ref ? (resolveToken?.(ref) ?? ref) : undefined;
+
+  // Derive current page from prop OR from URL pathname
+  const derivedPage = currentPage
+    || (typeof window !== "undefined" ? window.location.pathname.split("/").filter(Boolean)[0] : "");
+  if (!derivedPage) return null;
+
+  // Build breadcrumb items from URL segments
   const items: { label: string; route?: string }[] = [];
 
   // Home
@@ -664,44 +923,85 @@ function BreadcrumbRenderer({ config, pages, currentPage, navigate }: {
     items.push({ label: config.homeLabel || "Home", route: config.homeRoute || "/" });
   }
 
-  // Current page
-  items.push({ label: page.label || currentPage });
+  // Parse all URL segments for deep paths (e.g. /runs/abc123 → Runs > abc123)
+  const pathSegments = typeof window !== "undefined"
+    ? window.location.pathname.split("/").filter(Boolean)
+    : [derivedPage];
+
+  pathSegments.forEach((seg, i) => {
+    const pageConfig = pages?.[seg];
+    const label = pageConfig?.label || seg.charAt(0).toUpperCase() + seg.slice(1).replace(/[-_]/g, " ");
+    const isLast = i === pathSegments.length - 1;
+    const route = isLast ? undefined : "/" + pathSegments.slice(0, i + 1).join("/");
+    items.push({ label, route });
+  });
 
   const alignment = config.alignment || "left";
-  const justifyMap = { left: "flex-start", center: "center", right: "flex-end" };
+  const justifyMap: Record<string, string> = { left: "flex-start", center: "center", right: "flex-end" };
+
+  // Resolve separator display
+  const sepChar = config.separator === ">" || config.separator === "chevron" ? "›"
+    : config.separator === "/" ? "/"
+    : config.separator === "→" || config.separator === "arrow" ? "→"
+    : config.separator || "/";
+
+  // Typography config
+  const typo = config.typography;
+  const baseFontSize = resolve(typo?.fontSize) ?? 13;
+  const baseFontWeight = resolve(typo?.fontWeight) ?? 400;
+  const baseFontFamily = resolve(typo?.fontFamily) as string | undefined;
+  const baseColor = resolve(typo?.color) ?? "var(--muted-foreground)";
+  const activeColor = resolve(typo?.activeColor) ?? "var(--foreground)";
+  const activeWeight = resolve(typo?.activeFontWeight) ?? 600;
+  const sepColor = resolve(typo?.separatorColor) ?? "var(--muted-foreground)";
+
+  // Padding config
+  const pad = config.padding;
+  const padStyle = pad ? {
+    paddingTop: resolve(pad.top) ?? undefined,
+    paddingRight: resolve(pad.right) ?? undefined,
+    paddingBottom: resolve(pad.bottom) ?? undefined,
+    paddingLeft: resolve(pad.left) ?? undefined,
+  } : {};
 
   return (
-    <div style={{
+    <div data-orqui-breadcrumbs="" style={{
       display: "flex",
       alignItems: "center",
       justifyContent: justifyMap[alignment] || "flex-start",
+      fontFamily: baseFontFamily as string | undefined,
+      ...padStyle,
     }}>
-      {items.map((item, i) => (
-        <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
-          <span
-            onClick={() => {
-              if (i < items.length - 1 && config.clickable && item.route && navigate) {
-                navigate(item.route);
-              }
-            }}
-            style={{
-              fontSize: 13,
-              color: i < items.length - 1
-                ? (config.clickable ? "var(--primary, #6d9cff)" : "var(--muted-foreground)")
-                : "var(--foreground)",
-              cursor: i < items.length - 1 && config.clickable ? "pointer" : "default",
-              fontWeight: i === items.length - 1 ? 500 : 400,
-            }}
-          >
-            {item.label}
-          </span>
-          {i < items.length - 1 && (
-            <span style={{ color: "var(--muted-foreground)", margin: "0 6px", fontSize: 12, opacity: 0.6 }}>
-              {config.separator || "/"}
+      {items.map((item, i) => {
+        const isLast = i === items.length - 1;
+        const isClickable = !isLast && config.clickable && !!item.route;
+        return (
+          <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
+            <span
+              onClick={() => {
+                if (isClickable && navigate) navigate(item.route!);
+              }}
+              style={{
+                fontSize: baseFontSize as number,
+                fontWeight: (isLast ? activeWeight : baseFontWeight) as number,
+                color: isLast
+                  ? (activeColor as string)
+                  : isClickable
+                    ? "var(--primary, #6d9cff)"
+                    : (baseColor as string),
+                cursor: isClickable ? "pointer" : "default",
+              }}
+            >
+              {item.label}
             </span>
-          )}
-        </span>
-      ))}
+            {!isLast && (
+              <span style={{ color: sepColor as string, margin: "0 6px", fontSize: (baseFontSize as number) * 0.9, opacity: 0.6 }}>
+                {sepChar}
+              </span>
+            )}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -758,6 +1058,11 @@ export function AppShell({
   const faviconConfig = layout.structure.favicon;
   const breadcrumbsConfig = layout.structure.breadcrumbs;
   const pages = layout.structure.pages;
+
+  // Debug breadcrumbs — remove after confirming it works
+  if (typeof window !== "undefined" && (window as any).__ORQUI_DEBUG !== false) {
+    console.info("[Orqui] breadcrumbs config:", breadcrumbsConfig, "| page prop:", page);
+  }
 
   const sidebar = regions.sidebar;
   const header = regions.header;
@@ -820,6 +1125,7 @@ export function AppShell({
 
   const collapseButtonEl = isCollapsible ? (
     <button
+      data-orqui-cb=""
       onClick={() => setCollapsed(!collapsed)}
       style={{
         background: "var(--sidebar, #111114)",
@@ -852,11 +1158,47 @@ export function AppShell({
       link.href = faviconConfig.url;
       link.type = faviconConfig.url.startsWith("data:image/svg") ? "image/svg+xml" : "image/x-icon";
     } else if (faviconConfig.type === "emoji" && faviconConfig.emoji) {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${faviconConfig.emoji}</text></svg>`;
+      let svg: string;
+      const fillColor = faviconConfig.color || "white";
+      if (faviconConfig.emoji.startsWith("ph:")) {
+        const phPath = PHOSPHOR_SVG_PATHS[faviconConfig.emoji.slice(3)];
+        if (phPath) {
+          svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${fillColor}"><path d="${phPath}"/></svg>`;
+        } else {
+          svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">?</text></svg>`;
+        }
+      } else {
+        svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${faviconConfig.emoji}</text></svg>`;
+      }
       link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
       link.type = "image/svg+xml";
     }
   }, [faviconConfig]);
+
+  // Fallback nav items from contract when no sidebarNav prop provided
+  const contractNavItems = sidebar?.navigation?.items;
+  const effectiveNav = sidebarNav || (contractNavItems?.length ? (
+    contractNavItems.map((item: any, i: number) => (
+      <a
+        key={i}
+        href={item.route || "#"}
+        onClick={(e) => {
+          if (navigate && item.route) { e.preventDefault(); navigate(item.route); }
+        }}
+        data-active={page === item.route ? "true" : undefined}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 12px", borderRadius: 6,
+          textDecoration: "none",
+          color: "var(--sidebar-foreground, var(--foreground))",
+          fontSize: 14,
+        }}
+      >
+        {item.icon && <IconValue icon={item.icon} size={18} color="currentColor" />}
+        <span>{item.label}</span>
+      </a>
+    ))
+  ) : null);
 
   return (
     <div style={{
@@ -890,16 +1232,17 @@ export function AppShell({
             alignItems: "center",
             justifyContent: collapsed ? "center" : (logoConfig?.sidebarAlign === "center" ? "center" : logoConfig?.sidebarAlign === "right" ? "flex-end" : "space-between"),
             borderBottom: resolveSeparator(sidebar.separators?.header) ?? "1px solid var(--sidebar-border)",
-            paddingLeft: sidebarPadL,
-            paddingRight: sidebarPadR,
-            paddingTop: sidebarPadTop,
+            paddingLeft: collapsed ? 0 : sidebarPadL,
+            paddingRight: collapsed ? 0 : sidebarPadR,
+            paddingTop: collapsed ? 0 : sidebarPadTop,
+            position: "relative",
             ...(shouldAlignLogo ? {
               height: `${headerHeightNum}px`,
               minHeight: `${headerHeightNum}px`,
               maxHeight: `${headerHeightNum}px`,
               boxSizing: "border-box" as const,
             } : {
-              paddingBottom: String(resolve("$tokens.spacing.md") ?? "16px"),
+              paddingBottom: collapsed ? 0 : String(resolve("$tokens.spacing.md") ?? "16px"),
             }),
             flexShrink: 0,
           }}>
@@ -909,7 +1252,14 @@ export function AppShell({
             ) : (
               !collapsed && sidebarHeader
             )}
-            {cbPosition === "header-end" && collapseButtonEl}
+            {cbPosition === "header-end" && collapseButtonEl && (
+              collapsed ? (
+                /* When collapsed, position button absolutely so it doesn't push logo off-center */
+                <div style={{ position: "absolute", top: "50%", right: 4, transform: "translateY(-50%)" }}>
+                  {collapseButtonEl}
+                </div>
+              ) : collapseButtonEl
+            )}
           </div>
 
           {/* Nav area — own padding from sidebar config */}
@@ -919,7 +1269,9 @@ export function AppShell({
             display: "flex",
             flexDirection: "column",
             gap: String(resolve("$tokens.spacing.2xs") ?? "2px"),
-            padding: `${String(resolve("$tokens.spacing.sm") ?? "8px")} ${sidebarPadR}px ${String(resolve("$tokens.spacing.sm") ?? "8px")} ${sidebarPadL}px`,
+            padding: collapsed
+              ? `${String(resolve("$tokens.spacing.sm") ?? "8px")} 4px`
+              : `${String(resolve("$tokens.spacing.sm") ?? "8px")} ${sidebarPadR}px ${String(resolve("$tokens.spacing.sm") ?? "8px")} ${sidebarPadL}px`,
             ...(collapsed ? { alignItems: "center" } : {}),
           }}>
             {collapsed ? (
@@ -927,9 +1279,9 @@ export function AppShell({
                 data-orqui-collapsed="true"
                 data-orqui-collapsed-display={collapsedDisplay}
               >
-                {sidebarNav}
+                {effectiveNav}
               </div>
-            ) : sidebarNav}
+            ) : effectiveNav}
           </nav>
 
           {/* Collapse button at center position (inside sidebar) */}
@@ -944,8 +1296,8 @@ export function AppShell({
             <div style={{
               paddingTop: String(resolve("$tokens.spacing.sm") ?? "8px"),
               borderTop: resolveSeparator(sidebar.separators?.footer) ?? "1px solid var(--sidebar-border)",
-              paddingLeft: sidebarPadL,
-              paddingRight: sidebarPadR,
+              paddingLeft: collapsed ? 4 : sidebarPadL,
+              paddingRight: collapsed ? 4 : sidebarPadR,
               paddingBottom: sidebarPadBot,
               display: "flex",
               alignItems: collapsed ? "center" : "stretch",
@@ -984,7 +1336,6 @@ export function AppShell({
             padding: resolvePadding(header.padding),
             background: "var(--background)",
             borderBottom: resolveSeparator((header as any).separators?.bottom) ?? "1px solid var(--border)",
-            ...separatorExtendStyle((header as any).separators?.bottom, header.padding),
             position: header.behavior?.fixed ? "sticky" : undefined,
             top: header.behavior?.fixed ? 0 : undefined,
             zIndex: header.behavior?.fixed ? 10 : undefined,
@@ -997,7 +1348,7 @@ export function AppShell({
                 <LogoRenderer config={logoConfig} />
               )}
               {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && breadcrumbsConfig?.alignment !== "center" && breadcrumbsConfig?.alignment !== "right" && (
-                <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} />
+                <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} />
               )}
               {headerLeft}
             </div>
@@ -1007,7 +1358,7 @@ export function AppShell({
                 <LogoRenderer config={logoConfig} />
               )}
               {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && breadcrumbsConfig?.alignment === "center" && (
-                <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} />
+                <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} />
               )}
               {headerCenter}
             </div>

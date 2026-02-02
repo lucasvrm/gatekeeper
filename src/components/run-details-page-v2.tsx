@@ -25,12 +25,14 @@ import { FileUploadDialog } from "@/components/file-upload-dialog"
 import { GitCommitButton } from "@/components/git-commit-button"
 import { NovaValidacaoCtaButton } from "@/components/nova-validacao-cta-button"
 import { cn, getRepoNameFromPath } from "@/lib/utils"
+import { buildValidatorClipboardText, getClipboardWriteText, getDiffScopeViolations } from "@/lib/validator-clipboard"
 import {
   ArrowsClockwise,
   ArrowClockwise,
   ArrowLeft,
   CaretDown,
   CheckCircle,
+  Copy,
   Clock,
   Minus,
   Play,
@@ -39,6 +41,7 @@ import {
   Warning,
   XCircle,
 } from "@phosphor-icons/react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 type StatusFilter = "ALL" | "PASSED" | "FAILED" | "WARNING" | "SKIPPED"
 
@@ -182,6 +185,8 @@ export function RunDetailsPageV2() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [executionLoading, setExecutionLoading] = useState(false)
+  const shouldUseTooltip =
+    typeof globalThis !== "undefined" && "ResizeObserver" in globalThis
 
   const contractRun =
     primaryRun?.runType === "CONTRACT" ? primaryRun : secondaryRun?.runType === "CONTRACT" ? secondaryRun : null
@@ -1051,6 +1056,77 @@ export function RunDetailsPageV2() {
                                   </div>
                                   <div className="flex flex-col items-end gap-2">
                                     <div className="flex items-center gap-2">
+                                      {shouldUseTooltip ? (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              data-testid="validator-copy-btn"
+                                              type="button"
+                                              onClick={async (event) => {
+                                                event.stopPropagation()
+                                                const violations = getDiffScopeViolations(validator)
+                                                const text = buildValidatorClipboardText(
+                                                  validator,
+                                                  parsedContext,
+                                                  violations
+                                                )
+                                                const writeText = getClipboardWriteText()
+                                                if (!writeText) {
+                                                  toast.error("Falha ao copiar")
+                                                  return
+                                                }
+                                                try {
+                                                  await writeText(text)
+                                                  toast.success("Copiado!")
+                                                } catch (error) {
+                                                  console.error("Failed to copy validator details:", error)
+                                                  toast.error("Falha ao copiar")
+                                                }
+                                              }}
+                                              className="px-1.5 py-1 h-auto"
+                                            >
+                                              <Copy className="w-3 h-3" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Copiar detalhes do validator</TooltipContent>
+                                        </Tooltip>
+                                      ) : (
+                                        <>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            data-testid="validator-copy-btn"
+                                            type="button"
+                                            onClick={async (event) => {
+                                              event.stopPropagation()
+                                              const violations = getDiffScopeViolations(validator)
+                                              const text = buildValidatorClipboardText(
+                                                validator,
+                                                parsedContext,
+                                                violations
+                                              )
+                                              const writeText = getClipboardWriteText()
+                                              if (!writeText) {
+                                                toast.error("Falha ao copiar")
+                                                return
+                                              }
+                                              try {
+                                                await writeText(text)
+                                                toast.success("Copiado!")
+                                              } catch (error) {
+                                                console.error("Failed to copy validator details:", error)
+                                                toast.error("Falha ao copiar")
+                                              }
+                                            }}
+                                            className="px-1.5 py-1 h-auto"
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                          </Button>
+                                          <span className="sr-only">Copiar detalhes do validator</span>
+                                        </>
+                                      )}
                                       {validator.status === "FAILED" && (
                                         <Button
                                           variant="outline"

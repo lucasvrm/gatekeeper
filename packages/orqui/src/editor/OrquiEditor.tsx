@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 
 // ============================================================================
 // Types
@@ -317,6 +317,19 @@ function usePersistentState(key: string, defaultValue: any) {
     setValue(v);
     try { localStorage.setItem(`orqui-accordion-${key}`, JSON.stringify(v)); } catch {}
   }, [key]);
+
+  // Listen for force-open events from Command Palette
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      if (e.detail === key || e.detail === `wb-${key}`) {
+        setValue(true);
+        try { localStorage.setItem(`orqui-accordion-${key}`, "true"); } catch {}
+      }
+    };
+    window.addEventListener("orqui:open-accordion" as any, handler);
+    return () => window.removeEventListener("orqui:open-accordion" as any, handler);
+  }, [key]);
+
   return [value, set] as const;
 }
 
@@ -344,6 +357,55 @@ function Section({ title, children, actions, defaultOpen = false, id }: { title:
         <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>{actions}</div>
       </div>
       {open && children}
+    </div>
+  );
+}
+
+// ============================================================================
+// Wireframe B — Collapsible outer sections with colored dot and tag
+// ============================================================================
+function WBSection({ title, dotColor, tag, children, defaultOpen = false, id }: { title: string; dotColor: string; tag?: string; children: any; defaultOpen?: boolean; id?: string }) {
+  const [open, setOpen] = usePersistentState(`wb-${id || title}`, defaultOpen);
+  return (
+    <div id={id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          padding: "16px 24px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: "pointer", userSelect: "none" as const,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>{title}</span>
+          {tag && (
+            <span style={{
+              padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+              fontFamily: "'JetBrains Mono', monospace",
+              background: dotColor + "15", color: dotColor,
+            }}>{tag}</span>
+          )}
+        </div>
+        <span style={{
+          fontSize: 16, color: COLORS.textDim, lineHeight: "1",
+          transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "none",
+        }}>⌄</span>
+      </div>
+      {open && <div style={{ padding: "0 24px 20px" }}>{children}</div>}
+    </div>
+  );
+}
+
+// Wireframe B subsection divider
+function WBSub({ title, children }: { title: string; children: any }) {
+  return (
+    <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
+      <div style={{
+        fontSize: 11, fontWeight: 600, color: COLORS.textMuted, marginBottom: 10,
+        textTransform: "uppercase" as const, letterSpacing: "0.04em",
+      }}>{title}</div>
+      {children}
     </div>
   );
 }
@@ -1011,7 +1073,7 @@ const SPACING_PRESETS = { "2xs": 2, xs: 4, sm: 8, md: 16, lg: 24, xl: 32, "2xl":
 function SeparatorEditor({ separator, tokens, onChange }) {
   const update = (field, val) => onChange({ ...separator, [field]: val });
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", padding: 8, background: COLORS.surface2, borderRadius: 6 }}>
+    <div style={{ display: "flex", gap: 8, alignItems: "center", padding: 8, background: COLORS.surface2, borderRadius: 6, flexWrap: "wrap" }}>
       <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.textMuted, cursor: "pointer", minWidth: 60 }}>
         <input type="checkbox" checked={separator?.enabled ?? false} onChange={(e) => update("enabled", e.target.checked)} /> Visible
       </label>
@@ -1028,6 +1090,13 @@ function SeparatorEditor({ separator, tokens, onChange }) {
               {["solid", "dashed", "dotted", "none"].map(v => <option key={v}>{v}</option>)}
             </select>
           </Field>
+          <Field label="Extensão" style={{ width: 100 }}>
+            <select value={separator.extend || "full"} onChange={(e) => update("extend", e.target.value)} style={{ ...s.select, fontSize: 11, padding: "3px 6px" }}>
+              <option value="full">Total</option>
+              <option value="inset">Com margem</option>
+              <option value="none">Nenhuma</option>
+            </select>
+          </Field>
         </>
       )}
     </div>
@@ -1037,7 +1106,7 @@ function SeparatorEditor({ separator, tokens, onChange }) {
 // ============================================================================
 // Breadcrumb Config Editor
 // ============================================================================
-function BreadcrumbEditor({ breadcrumbs, onChange }) {
+function BreadcrumbEditor({ breadcrumbs, tokens, onChange }) {
   const bc = breadcrumbs || { enabled: false, position: "header", alignment: "left", separator: "/", clickable: true, showHome: true, homeLabel: "Home", homeRoute: "/" };
   const update = (field, val) => onChange({ ...bc, [field]: val });
 
@@ -1138,6 +1207,53 @@ function BreadcrumbEditor({ breadcrumbs, onChange }) {
             )}
           </Row>
 
+          {/* Typography */}
+          <div style={{ marginTop: 12, marginBottom: 4, fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Tipografia</div>
+          <Row gap={12}>
+            <Field label="Font Size" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.typography?.fontSize} category="fontSizes" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, fontSize: v } })} />
+            </Field>
+            <Field label="Font Weight" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.typography?.fontWeight} category="fontWeights" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, fontWeight: v } })} />
+            </Field>
+            <Field label="Font Family" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.typography?.fontFamily} category="fontFamilies" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, fontFamily: v } })} />
+            </Field>
+          </Row>
+          <Row gap={12}>
+            <Field label="Color (links)" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.typography?.color} category="colors" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, color: v } })} />
+            </Field>
+            <Field label="Color (ativo)" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.typography?.activeColor} category="colors" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, activeColor: v } })} />
+            </Field>
+            <Field label="Weight (ativo)" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.typography?.activeFontWeight} category="fontWeights" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, activeFontWeight: v } })} />
+            </Field>
+          </Row>
+          <Row gap={12}>
+            <Field label="Cor separador" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.typography?.separatorColor} category="colors" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, separatorColor: v } })} />
+            </Field>
+          </Row>
+
+          {/* Padding */}
+          <div style={{ marginTop: 12, marginBottom: 4, fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Padding</div>
+          <Row gap={12}>
+            <Field label="Top" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.padding?.top} category="spacing" onChange={(v) => onChange({ ...bc, padding: { ...bc.padding, top: v } })} />
+            </Field>
+            <Field label="Right" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.padding?.right} category="spacing" onChange={(v) => onChange({ ...bc, padding: { ...bc.padding, right: v } })} />
+            </Field>
+            <Field label="Bottom" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.padding?.bottom} category="spacing" onChange={(v) => onChange({ ...bc, padding: { ...bc.padding, bottom: v } })} />
+            </Field>
+            <Field label="Left" style={{ flex: 1 }}>
+              <TokenRefSelect tokens={tokens} value={bc.padding?.left} category="spacing" onChange={(v) => onChange({ ...bc, padding: { ...bc.padding, left: v } })} />
+            </Field>
+          </Row>
+
           <div style={{ marginTop: 8, padding: 8, background: COLORS.surface2, borderRadius: 4, fontSize: 11, color: COLORS.textDim }}>
             {bc.position === "header" && `Breadcrumbs renderizados no header, alinhados à ${bc.alignment === "right" ? "direita" : bc.alignment === "center" ? "centro" : "esquerda"}.`}
             {bc.position === "sidebar-top" && "Breadcrumbs renderizados no topo da sidebar, acima da logo."}
@@ -1151,23 +1267,134 @@ function BreadcrumbEditor({ breadcrumbs, onChange }) {
 }
 
 // ============================================================================
-// Sidebar Config Editor (icons, collapse, separators)
+// Sidebar Config Editor (icons, collapse, separators, typography, nav items)
 // ============================================================================
 function SidebarConfigEditor({ region, tokens, onChange }) {
   const nav = region.navigation || { icons: { enabled: true, size: "$tokens.sizing.icon-md", gap: "$tokens.spacing.sm" } };
+  const navTypo = nav.typography || {};
   const behavior = region.behavior || {};
   const cb = region.collapseButton || { icon: "chevron", position: "header-end" };
   const seps = region.separators || {};
+  const navItems = nav.items || [];
 
   const updateNav = (field, val) => onChange({ ...region, navigation: { ...nav, icons: { ...nav.icons, [field]: val } } });
+  const updateNavTypo = (field, val) => onChange({ ...region, navigation: { ...nav, typography: { ...navTypo, [field]: val } } });
+  const updateNavItems = (items) => onChange({ ...region, navigation: { ...nav, items } });
   const updateBehavior = (field, val) => onChange({ ...region, behavior: { ...behavior, [field]: val } });
   const updateCB = (field, val) => onChange({ ...region, collapseButton: { ...cb, [field]: val } });
   const updateSep = (name, val) => onChange({ ...region, separators: { ...seps, [name]: val } });
 
   return (
     <div>
+      {/* Navigation Typography */}
+      <div style={{ marginTop: 16, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Navigation Typography</div>
+      <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
+        <Row gap={8}>
+          <Field label="Font Size" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.fontSize || ""} tokens={tokens} category="fontSizes" onChange={(v) => updateNavTypo("fontSize", v)} />
+          </Field>
+          <Field label="Font Weight" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.fontWeight || ""} tokens={tokens} category="fontWeights" onChange={(v) => updateNavTypo("fontWeight", v)} />
+          </Field>
+        </Row>
+        <Row gap={8}>
+          <Field label="Color" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.color || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("color", v)} />
+          </Field>
+          <Field label="Font Family" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.fontFamily || ""} tokens={tokens} category="fontFamilies" onChange={(v) => updateNavTypo("fontFamily", v)} />
+          </Field>
+        </Row>
+        <Row gap={8}>
+          <Field label="Letter Spacing" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.letterSpacing || ""} tokens={tokens} category="letterSpacings" onChange={(v) => updateNavTypo("letterSpacing", v)} />
+          </Field>
+          <Field label="Line Height" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.lineHeight || ""} tokens={tokens} category="lineHeights" onChange={(v) => updateNavTypo("lineHeight", v)} />
+          </Field>
+        </Row>
+        <div style={{ marginTop: 8, borderTop: `1px solid ${COLORS.border}`, paddingTop: 8 }}>
+          <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 6, fontWeight: 600, textTransform: "uppercase" }}>Nav Item Card</div>
+          <Row gap={8}>
+            <Field label="Card enabled" style={{ flex: 0, minWidth: 90 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", paddingTop: 4 }}>
+                <input type="checkbox" checked={navTypo.cardEnabled ?? false} onChange={(e) => updateNavTypo("cardEnabled", e.target.checked)} />
+                Ativo
+              </label>
+            </Field>
+            <Field label="Border Radius" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.cardBorderRadius || ""} tokens={tokens} category="radii" onChange={(v) => updateNavTypo("cardBorderRadius", v)} />
+            </Field>
+            <Field label="Padding" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.cardPadding || ""} tokens={tokens} category="spacing" onChange={(v) => updateNavTypo("cardPadding", v)} />
+            </Field>
+          </Row>
+          {navTypo.cardEnabled && (
+            <>
+              <Row gap={8}>
+                <Field label="Background" style={{ flex: 1 }}>
+                  <TokenRefSelect value={navTypo.cardBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("cardBackground", v)} />
+                </Field>
+                <Field label="Border" style={{ flex: 1 }}>
+                  <TokenRefSelect value={navTypo.cardBorderColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("cardBorderColor", v)} />
+                </Field>
+                <Field label="Border Width" style={{ flex: 1 }}>
+                  <select value={navTypo.cardBorderWidth || "0"} onChange={(e) => updateNavTypo("cardBorderWidth", e.target.value)} style={s.select}>
+                    <option value="0">Nenhum</option>
+                    <option value="1">1px</option>
+                    <option value="2">2px</option>
+                  </select>
+                </Field>
+              </Row>
+            </>
+          )}
+        </div>
+        <div style={{ marginTop: 8, borderTop: `1px solid ${COLORS.border}`, paddingTop: 8 }}>
+          <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 6, fontWeight: 600, textTransform: "uppercase" }}>Active Item</div>
+          <Row gap={8}>
+            <Field label="Color" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.activeColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeColor", v)} />
+            </Field>
+            <Field label="Weight" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.activeFontWeight || ""} tokens={tokens} category="fontWeights" onChange={(v) => updateNavTypo("activeFontWeight", v)} />
+            </Field>
+            <Field label="Background" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.activeBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeBackground", v)} />
+            </Field>
+          </Row>
+          {navTypo.cardEnabled && (
+            <Row gap={8}>
+              <Field label="Card Border (active)" style={{ flex: 1 }}>
+                <TokenRefSelect value={navTypo.activeCardBorder || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeCardBorder", v)} />
+              </Field>
+            </Row>
+          )}
+        </div>
+        <div style={{ marginTop: 8, borderTop: `1px solid ${COLORS.border}`, paddingTop: 8 }}>
+          <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 6, fontWeight: 600, textTransform: "uppercase" }}>Hover</div>
+          <Row gap={8}>
+            <Field label="Color" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.hoverColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverColor", v)} />
+            </Field>
+            <Field label="Weight" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.hoverFontWeight || ""} tokens={tokens} category="fontWeights" onChange={(v) => updateNavTypo("hoverFontWeight", v)} />
+            </Field>
+            <Field label="Background" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.hoverBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverBackground", v)} />
+            </Field>
+          </Row>
+          {navTypo.cardEnabled && (
+            <Row gap={8}>
+              <Field label="Card Border (hover)" style={{ flex: 1 }}>
+                <TokenRefSelect value={navTypo.hoverCardBorder || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverCardBorder", v)} />
+              </Field>
+            </Row>
+          )}
+        </div>
+      </div>
+
       {/* Navigation Icons */}
-      <div style={{ marginTop: 16, marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Navigation Icons</div>
+      <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Navigation Icons</div>
       <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
         <Row gap={16}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer" }}>
@@ -1184,6 +1411,76 @@ function SidebarConfigEditor({ region, tokens, onChange }) {
             </Field>
           </Row>
         )}
+      </div>
+
+      {/* Navigation Items */}
+      <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        Navigation Items
+        <span style={{ fontSize: 10, color: COLORS.textDim, fontWeight: 400, textTransform: "none", marginLeft: 8 }}>
+          (rendered when no sidebarNav prop)
+        </span>
+      </div>
+      <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
+        {navItems.map((item, idx) => (
+          <div key={idx} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <div style={{ width: 36, flexShrink: 0 }}>
+              <button
+                onClick={() => {
+                  // Cycle: if has icon, show picker (via prompt for now)
+                  const val = prompt("Ícone (emoji, ex: 🏠 ou ph:house)", item.icon || "");
+                  if (val !== null) {
+                    const updated = [...navItems];
+                    updated[idx] = { ...item, icon: val };
+                    updateNavItems(updated);
+                  }
+                }}
+                style={{ ...s.btnSmall, width: 36, height: 32, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                title="Escolher ícone"
+              >
+                {item.icon?.startsWith("ph:") ? (
+                  <PhosphorSvg d={getPhosphorPath(item.icon.slice(3)) || ""} size={16} />
+                ) : (
+                  <span style={{ fontSize: 14 }}>{item.icon || "—"}</span>
+                )}
+              </button>
+            </div>
+            <input
+              value={item.label || ""}
+              onChange={(e) => {
+                const updated = [...navItems];
+                updated[idx] = { ...item, label: e.target.value };
+                updateNavItems(updated);
+              }}
+              style={{ ...s.input, flex: 1, fontSize: 12 }}
+              placeholder="Label"
+            />
+            <input
+              value={item.route || ""}
+              onChange={(e) => {
+                const updated = [...navItems];
+                updated[idx] = { ...item, route: e.target.value };
+                updateNavItems(updated);
+              }}
+              style={{ ...s.input, width: 80, fontSize: 11 }}
+              placeholder="/route"
+            />
+            <button
+              onClick={() => updateNavItems(navItems.filter((_, i) => i !== idx))}
+              style={{ ...s.btnSmall, padding: "4px 8px", fontSize: 12, color: COLORS.error }}
+              title="Remover"
+            >✕</button>
+          </div>
+        ))}
+        <button
+          onClick={() => updateNavItems([...navItems, { icon: "ph:house", label: "New Item", route: "/" }])}
+          style={{ ...s.btnSmall, width: "100%", padding: "6px 0", marginTop: 4, fontSize: 11, color: COLORS.accent }}
+        >
+          + Adicionar item
+        </button>
+        <div style={{ marginTop: 8, fontSize: 10, color: COLORS.textDim }}>
+          Estes itens são renderizados como fallback quando o app não passa sidebarNav via props.
+          Ícones suportam emoji (🏠) ou Phosphor (ph:house, ph:gear, ph:shield-check, etc).
+        </div>
       </div>
 
       {/* Collapsed Display */}
@@ -1443,17 +1740,21 @@ function FaviconEditor({ favicon, onChange }) {
 
       {cfg.type === "emoji" && (
         <Field label="Emoji">
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
             <input value={cfg.emoji || ""} onChange={(e) => update("emoji", e.target.value)} style={{ ...s.input, width: 60, textAlign: "center", fontSize: 18 }} />
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {ICON_PRESETS.map(ic => (
-                <button key={ic} onClick={() => update("emoji", ic)} style={{
-                  ...s.btnSmall, fontSize: 16, padding: "4px 8px",
-                  background: cfg.emoji === ic ? COLORS.accent + "30" : COLORS.surface3,
-                  border: cfg.emoji === ic ? `1px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
-                }}>{ic}</button>
-              ))}
-            </div>
+            <IconPicker value={cfg.emoji || ""} onSelect={(ic) => update("emoji", ic)} />
+          </div>
+        </Field>
+      )}
+
+      {cfg.type === "emoji" && cfg.emoji?.startsWith("ph:") && (
+        <Field label="Cor do ícone">
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="color" value={cfg.color || "#ffffff"} onChange={(e) => update("color", e.target.value)} style={{ width: 32, height: 28, border: "none", background: "none", cursor: "pointer", padding: 0 }} />
+            <input value={cfg.color || "white"} onChange={(e) => update("color", e.target.value)} style={{ ...s.input, flex: 1, fontSize: 11 }} placeholder="white, #6d9cff, etc." />
+            {cfg.color && cfg.color !== "white" && (
+              <button onClick={() => update("color", "white")} style={{ ...s.btnSmall, fontSize: 10 }}>Reset</button>
+            )}
           </div>
         </Field>
       )}
@@ -1496,7 +1797,189 @@ function FaviconEditor({ favicon, onChange }) {
 // ============================================================================
 // Logo Configuration Editor
 // ============================================================================
-const ICON_PRESETS = ["⬡", "◆", "●", "★", "⚡", "🔷", "🏠", "📊", "🎯", "🚀", "💡", "🔮"];
+const ICON_CATEGORIES: Record<string, string[]> = {
+  "Geometric": ["⬡", "◆", "●", "■", "▲", "◇", "⬢", "◉", "◈", "⬟"],
+  "Stars": ["★", "✦", "✧", "✶", "✴", "✹", "⭐", "🌟", "💫", "⚝"],
+  "Symbols": ["⚡", "⟐", "⊚", "⊛", "⊕", "⊗", "⏣", "⎔", "◎", "☰"],
+  "Tech": ["🔷", "🔶", "🔹", "🔸", "💎", "🧊", "⚙️", "🔧", "🛠️", "💻"],
+  "Business": ["📊", "📈", "📋", "📁", "📂", "🗂️", "📑", "📌", "📎", "🏢"],
+  "Creative": ["💡", "🎯", "🚀", "🔮", "🎨", "✏️", "🖊️", "🧩", "🔬", "🧪"],
+  "Nature": ["🌊", "🔥", "🌱", "🍃", "☁️", "🌙", "🏔️", "🌀", "♾️", "🪐"],
+  "Comms": ["💬", "🏠", "🔔", "📡", "🌐", "🔗", "📮", "✉️", "📢", "🎙️"],
+  "Security": ["🛡️", "🔒", "🔑", "🏷️", "✅", "❌", "⚠️", "🚫", "🔐", "👁️"],
+  "Animals": ["🐙", "🦊", "🐝", "🦋", "🐬", "🦄", "🐺", "🦅", "🐢", "🎪"],
+};
+const ICON_PRESETS = Object.values(ICON_CATEGORIES).flat();
+
+// Phosphor Icons — SVG paths (256x256 viewBox, regular weight)
+// Stored as { name: label, d: SVG path data }
+const PHOSPHOR_CATEGORIES: Record<string, { name: string; d: string }[]> = {
+  "Interface": [
+    { name: "flow-arrow", d: "M245.66,74.34l-32-32a8,8,0,0,0-11.32,11.32L220.69,72H208c-49.33,0-61.05,28.12-71.38,52.92-9.38,22.51-16.92,40.59-49.48,42.84a40,40,0,1,0,.1,16c43.26-2.65,54.34-29.15,64.14-52.69C161.41,107,169.33,88,208,88h12.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,74.34ZM48,200a24,24,0,1,1,24-24A24,24,0,0,1,48,200Z" },
+    { name: "house", d: "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8H96a8,8,0,0,0,8-8V160h48v56a8,8,0,0,0,8,8h56a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H168V152a8,8,0,0,0-8-8H96a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" },
+    { name: "gear", d: "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.68l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.67a73.68,73.68,0,0,1-8.68,0,8,8,0,0,0-5.68,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64l-22.58-2.51a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.66,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.68L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69l2.51-22.58a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.66,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.68-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z" },
+    { name: "magnifying-glass", d: "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" },
+    { name: "bell", d: "M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" },
+    { name: "user", d: "M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z" },
+    { name: "list", d: "M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z" },
+    { name: "squares-four", d: "M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48Z" },
+    { name: "sliders", d: "M40,88H73.4a28,28,0,0,0,53.2,0H216a8,8,0,0,0,0-16H126.6a28,28,0,0,0-53.2,0H40a8,8,0,0,0,0,16Zm60-20A12,12,0,1,1,88,80,12,12,0,0,1,100,68ZM216,168H182.6a28,28,0,0,0-53.2,0H40a8,8,0,0,0,0,16h89.4a28,28,0,0,0,53.2,0H216a8,8,0,0,0,0-16Zm-60,20a12,12,0,1,1,12-12A12,12,0,0,1,156,188Z" },
+    { name: "x", d: "M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" },
+    { name: "check", d: "M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" },
+    { name: "plus", d: "M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z" },
+  ],
+  "Security": [
+    { name: "shield-check", d: "M208,40H48A16,16,0,0,0,32,56v58.77c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.52-80-30.69-80-109.18V56H208ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z" },
+    { name: "shield", d: "M208,40H48A16,16,0,0,0,32,56v58.77c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.52-80-30.69-80-109.18V56H208Z" },
+    { name: "lock", d: "M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208Zm-80-36V140a12,12,0,1,1,0-24h0a12,12,0,0,1,12,12v24a12,12,0,0,1-24,0Z" },
+    { name: "key", d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A80,80,0,0,0,216.57,39.43ZM224,100a63.08,63.08,0,0,1-17.39,43.52L126.34,168H104a8,8,0,0,0-8,8v16H80a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,2.11-7.34A63.93,63.93,0,0,1,160.05,36,64.08,64.08,0,0,1,224,100Zm-44-20a12,12,0,1,1-12-12A12,12,0,0,1,180,80Z" },
+    { name: "eye", d: "M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.29A169.47,169.47,0,0,1,24.7,128,169.47,169.47,0,0,1,48.07,97.29C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.29A169.47,169.47,0,0,1,231.3,128C223.94,141.44,192.22,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z" },
+    { name: "warning", d: "M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z" },
+  ],
+  "Files": [
+    { name: "folder", d: "M216,72H131.31L104,44.69A15.86,15.86,0,0,0,92.69,40H40A16,16,0,0,0,24,56V200.62A15.4,15.4,0,0,0,39.38,216H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V56H92.69l29.65,29.66A8,8,0,0,0,128,88h88Z" },
+    { name: "file", d: "M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z" },
+    { name: "clipboard", d: "M200,32H163.74a47.92,47.92,0,0,0-71.48,0H56A16,16,0,0,0,40,48V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm-72,0a32,32,0,0,1,32,32H96A32,32,0,0,1,128,32Zm72,184H56V48H82.75A47.93,47.93,0,0,0,80,64v8a8,8,0,0,0,8,8h80a8,8,0,0,0,8-8V64a47.93,47.93,0,0,0-2.75-16H200Z" },
+    { name: "database", d: "M128,24C74.17,24,32,48.6,32,80v96c0,31.4,42.17,56,96,56s96-24.6,96-56V80C224,48.6,181.83,24,128,24Zm80,104c0,9.62-7.88,19.43-21.61,26.92C170.93,163.35,150.19,168,128,168s-42.93-4.65-58.39-13.08C55.88,147.43,48,137.62,48,128V111.36c17.06,15,46.23,24.64,80,24.64s62.94-9.68,80-24.64ZM69.61,62.92C85.07,54.65,105.81,50,128,50s42.93,4.65,58.39,13.08C200.12,70.57,208,80.38,208,90s-7.88,19.43-21.61,26.92C170.93,125.35,150.19,130,128,130s-42.93-4.65-58.39-13.08C55.88,109.43,48,99.62,48,90S55.88,70.57,69.61,62.92ZM186.39,204.08C170.93,212.35,150.19,217,128,217s-42.93-4.65-58.39-13.08C55.88,196.43,48,186.62,48,177V160.36c17.06,15,46.23,24.64,80,24.64s62.94-9.68,80-24.64V177C208,186.62,200.12,196.43,186.39,204.08Z" },
+    { name: "code", d: "M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.29Zm176,27.7-48-40a8,8,0,1,0-10.24,12.29L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z" },
+  ],
+  "Arrows": [
+    { name: "arrow-right", d: "M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z" },
+    { name: "arrow-left", d: "M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z" },
+    { name: "caret-right", d: "M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z" },
+    { name: "arrow-up", d: "M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" },
+    { name: "arrow-down", d: "M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" },
+  ],
+  "Brand": [
+    { name: "rocket", d: "M152,224a8,8,0,0,1-8,8H112a8,8,0,0,1,0-16h32A8,8,0,0,1,152,224Zm-24-80a12,12,0,1,0-12-12A12,12,0,0,0,128,144Zm95.62-30.23-16.37-92.48A16,16,0,0,0,193.68,8.87,224.06,224.06,0,0,0,128,0h0A224.06,224.06,0,0,0,62.32,8.87a16,16,0,0,0-13.57,12.42L32.38,113.77A16,16,0,0,0,37.1,128l43.33,37.16A36.05,36.05,0,0,0,76,184v40a16,16,0,0,0,16,16h72a16,16,0,0,0,16-16V184a36.05,36.05,0,0,0-4.43-18.84L219,128A16,16,0,0,0,223.62,113.77ZM128,16a207.06,207.06,0,0,1,57.38,8.07L175.42,71.85A32,32,0,0,0,128,56h0a32,32,0,0,0-47.42,15.85L70.62,24.07A207.06,207.06,0,0,1,128,16Zm36,168v40H92V184a20,20,0,0,1,20-20h32A20,20,0,0,1,164,184Z" },
+    { name: "lightning", d: "M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7l-112,120a8,8,0,0,0,3,13l57.63,21.61L88.16,238.43a8,8,0,0,0,13.69,7l112-120A8,8,0,0,0,215.79,118.17ZM109.37,214l10.47-52.38a8,8,0,0,0-5.1-9.27L58.81,131.35l88.82-95.27L137.16,88.46a8,8,0,0,0,5.1,9.27l55.93,20.95Z" },
+    { name: "star", d: "M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.38,16.38,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.38,16.38,0,0,0,239.18,97.26Zm-15.34,12.15-45,38.83a16,16,0,0,0-5.12,15.86L187.5,222.17,137,191.09a16,16,0,0,0-17.92,0L68.5,222.17l13.76-58.07a16,16,0,0,0-5.12-15.86l-45-38.83L91.09,105a16,16,0,0,0,13.38-10.14L128,38.26l23.53,56.64A16,16,0,0,0,164.91,105Z" },
+    { name: "heart", d: "M178,32c-20.65,0-38.73,8.88-50,23.89C116.73,40.88,98.65,32,78,32A62.07,62.07,0,0,0,16,94c0,70,103.79,126.66,108.21,129a8,8,0,0,0,7.58,0C136.21,220.66,240,164,240,94A62.07,62.07,0,0,0,178,32ZM128,206.8C109.74,196.16,32,147.69,32,94A46.06,46.06,0,0,1,78,48c19.45,0,35.78,10.36,42.6,27a8,8,0,0,0,14.8,0c6.82-16.67,23.15-27,42.6-27a46.06,46.06,0,0,1,46,46C224,147.61,146.24,196.15,128,206.8Z" },
+    { name: "globe", d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-26.37,144h52.74C149.48,186.34,140,200.28,128,208.67,116,200.28,106.52,186.34,101.63,168ZM98,152a145.72,145.72,0,0,1,0-48h60a145.72,145.72,0,0,1,0,48ZM40,128a87.61,87.61,0,0,1,3.33-24H81.79a161.79,161.79,0,0,0,0,48H43.33A87.61,87.61,0,0,1,40,128Zm114.37-40H101.63C106.52,69.66,116,55.72,128,47.33,140,55.72,149.48,69.66,154.37,88Zm19.84,0h38.46a88.15,88.15,0,0,1,0,80H174.21a161.79,161.79,0,0,0,0-48h0Z" },
+    { name: "chat-circle", d: "M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" },
+    { name: "sparkle", d: "M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112.9,220.38,93.54,168.22a8,8,0,0,0-4.74-4.74L36.64,144,88.8,124.58a8,8,0,0,0,4.74-4.74L112.9,67.62l19.36,52.16a8,8,0,0,0,4.74,4.74L189.16,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z" },
+    { name: "robot", d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16Zm-36-60a12,12,0,1,1-12-12A12,12,0,0,1,180,132ZM88,132a12,12,0,1,1-12-12A12,12,0,0,1,88,132Zm16,36a8,8,0,0,1-8,8H80a8,8,0,0,1,0-16H96A8,8,0,0,1,104,168Zm72,0a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h16A8,8,0,0,1,176,168Zm-40,0a8,8,0,0,1-8,8H120a8,8,0,0,1,0-16h8A8,8,0,0,1,136,168Z" },
+    { name: "chart-bar", d: "M224,200h-8V40a8,8,0,0,0-16,0V200H168V96a8,8,0,0,0-16,0V200H112V136a8,8,0,0,0-16,0v64H56V168a8,8,0,0,0-16,0v32H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16Z" },
+  ],
+};
+const PHOSPHOR_ICONS_FLAT = Object.values(PHOSPHOR_CATEGORIES).flat();
+
+// Helper: render a Phosphor icon as inline SVG
+function PhosphorSvg({ d, size = 20, color = "currentColor" }: { d: string; size?: number; color?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 256 256" fill={color} style={{ display: "block" }}>
+      <path d={d} />
+    </svg>
+  );
+}
+
+// Lookup Phosphor icon path by name (for runtime)
+function getPhosphorPath(name: string): string | null {
+  for (const icons of Object.values(PHOSPHOR_CATEGORIES)) {
+    const found = icons.find(i => i.name === name);
+    if (found) return found.d;
+  }
+  return null;
+}
+
+function IconPicker({ value, onSelect }: { value: string; onSelect: (icon: string) => void }) {
+  const [tab, setTab] = useState<"emoji" | "phosphor">(value?.startsWith("ph:") ? "phosphor" : "emoji");
+  const [expanded, setExpanded] = useState(false);
+  const [search, setSearch] = useState("");
+  const emojiCategories = Object.entries(ICON_CATEGORIES);
+  const phCategories = Object.entries(PHOSPHOR_CATEGORIES);
+
+  const quickIcons = [...emojiCategories[0][1], ...emojiCategories[1][1]];
+
+  const filteredPhCategories = search
+    ? phCategories.map(([cat, icons]) => [cat, icons.filter(i => i.name.includes(search.toLowerCase()))] as const).filter(([, icons]) => icons.length > 0)
+    : phCategories;
+
+  return (
+    <div style={{ flex: 1, minWidth: 200 }}>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 2, marginBottom: 8 }}>
+        {(["emoji", "phosphor"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            ...s.btnSmall, padding: "4px 12px", fontSize: 11, fontWeight: tab === t ? 600 : 400,
+            background: tab === t ? COLORS.accent : COLORS.surface3,
+            color: tab === t ? "#fff" : COLORS.textMuted,
+            borderRadius: 4,
+          }}>
+            {t === "emoji" ? "Emoji" : "Phosphor"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "emoji" && (
+        <>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {(expanded ? [] : quickIcons).map(ic => (
+              <button key={ic} onClick={() => onSelect(ic)} style={{
+                ...s.btnSmall, fontSize: 16, padding: "4px 8px",
+                background: value === ic ? COLORS.accent + "30" : COLORS.surface3,
+                border: value === ic ? `1px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
+              }}>{ic}</button>
+            ))}
+          </div>
+          {expanded && emojiCategories.map(([cat, icons]) => (
+            <div key={cat} style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{cat}</div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {icons.map(ic => (
+                  <button key={ic} onClick={() => onSelect(ic)} style={{
+                    ...s.btnSmall, fontSize: 16, padding: "4px 8px",
+                    background: value === ic ? COLORS.accent + "30" : COLORS.surface3,
+                    border: value === ic ? `1px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
+                  }}>{ic}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button onClick={() => setExpanded(!expanded)} style={{ ...s.btnSmall, marginTop: 8, fontSize: 11, color: COLORS.accent, background: "transparent", border: "none", padding: "4px 0", cursor: "pointer" }}>
+            {expanded ? "▲ Menos ícones" : "▼ Mais ícones (100+)"}
+          </button>
+        </>
+      )}
+
+      {tab === "phosphor" && (
+        <>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar ícone..."
+            style={{ ...s.input, fontSize: 11, marginBottom: 8, width: "100%" }}
+          />
+          {filteredPhCategories.map(([cat, icons]) => (
+            <div key={cat} style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{cat}</div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {icons.map(ic => {
+                  const phKey = `ph:${ic.name}`;
+                  const isSelected = value === phKey;
+                  return (
+                    <button key={ic.name} onClick={() => onSelect(phKey)} title={ic.name} style={{
+                      ...s.btnSmall, padding: "6px",
+                      background: isSelected ? COLORS.accent + "30" : COLORS.surface3,
+                      border: isSelected ? `1px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: isSelected ? COLORS.accent : COLORS.textMuted,
+                    }}>
+                      <PhosphorSvg d={ic.d} size={18} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {filteredPhCategories.length === 0 && (
+            <div style={{ fontSize: 12, color: COLORS.textDim, padding: 16, textAlign: "center" }}>Nenhum ícone encontrado</div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function LogoConfigEditor({ logo, onChange }) {
   const cfg = logo || {
@@ -1607,15 +2090,7 @@ function LogoConfigEditor({ logo, onChange }) {
           <Field label="Ícone (emoji ou upload)">
             <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
               <input value={cfg.icon || ""} onChange={(e) => update("icon", e.target.value)} style={{ ...s.input, width: 60, textAlign: "center", fontSize: 18 }} />
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {ICON_PRESETS.map(ic => (
-                  <button key={ic} onClick={() => { update("icon", ic); update("iconUrl", ""); }} style={{
-                    ...s.btnSmall, fontSize: 16, padding: "4px 8px",
-                    background: cfg.icon === ic && !cfg.iconUrl ? COLORS.accent + "30" : COLORS.surface3,
-                    border: cfg.icon === ic && !cfg.iconUrl ? `1px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
-                  }}>{ic}</button>
-                ))}
-              </div>
+              <IconPicker value={(!cfg.iconUrl && cfg.icon) || ""} onSelect={(ic) => onChange({ ...cfg, icon: ic, iconUrl: "" })} />
             </div>
           </Field>
           <Field label="Ou upload de ícone (imagem)">
@@ -2193,131 +2668,118 @@ function PagesEditor({ layout, onChange }) {
 }
 
 // ============================================================================
-// Layout Editor
+// Layout Sections (Wireframe B — scrollable left panel)
 // ============================================================================
-function LayoutEditor({ layout, onChange }) {
-  const [section, setSection] = usePersistentTab("layout-section", "regions");
-  const [activeRegion, setActiveRegion] = usePersistentTab("layout-region", "sidebar");
-  const [typoTab, setTypoTab] = usePersistentTab("layout-typo", "families");
+function LayoutSections({ layout, registry, setLayout, setRegistry }: { layout: any; registry: any; setLayout: (l: any) => void; setRegistry: (r: any) => void }) {
+  const onChange = setLayout;
   const [activeTextStyle, setActiveTextStyle] = usePersistentTab("layout-textstyle", "");
 
-  const updateRegion = (name, region) => {
+  const updateRegion = (name: string, region: any) => {
     onChange({ ...layout, structure: { ...layout.structure, regions: { ...layout.structure.regions, [name]: region } } });
   };
-  const updateTokenCat = (cat, val) => {
+  const updateTokenCat = (cat: string, val: any) => {
     onChange({ ...layout, tokens: { ...layout.tokens, [cat]: val } });
   };
 
   const textStyleKeys = Object.keys(layout.textStyles || {});
   const safeActiveTS = textStyleKeys.includes(activeTextStyle) ? activeTextStyle : (textStyleKeys[0] || "");
 
+  const DOT = { brand: "#f59e0b", layout: "#3b82f6", header: "#22c55e", tokens: "#a855f7", typo: "#a1a1aa", pages: "#ef4444", io: "#6d9cff" };
+
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, margin: 0, marginBottom: 4 }}>Layout Contract Editor</h2>
-        <p style={{ fontSize: 12, color: COLORS.textDim, margin: 0 }}>Edite regiões, containers, tokens e tipografia</p>
-      </div>
-
-      <TabBar
-        tabs={[
-          { id: "regions", label: "Regions" },
-          { id: "logo", label: "Logo" },
-          { id: "favicon", label: "Favicon" },
-          { id: "headerElements", label: "Header Elems" },
-          { id: "colors", label: "Colors" },
-          { id: "tokens", label: "Spacing / Sizing" },
-          { id: "typography", label: "Typography" },
-          { id: "textStyles", label: "Text Styles" },
-          { id: "pages", label: `Pages (${Object.keys(layout.structure?.pages || {}).length})` },
-        ]}
-        active={section}
-        onChange={setSection}
-      />
-
-      {/* REGIONS — sub-tabs instead of accordeons */}
-      {section === "regions" && (
-        <>
-          <TabBar
-            tabs={[
-              ...["sidebar", "header", "main", "footer"].map(n => ({
-                id: n,
-                label: `${n.charAt(0).toUpperCase() + n.slice(1)} ${layout.structure.regions[n]?.enabled ? "●" : "○"}`,
-              })),
-              { id: "breadcrumbs", label: `Breadcrumbs ${layout.structure.breadcrumbs?.enabled ? "●" : "○"}` },
-            ]}
-            active={activeRegion}
-            onChange={setActiveRegion}
-          />
-          {activeRegion === "breadcrumbs" ? (
-            <BreadcrumbEditor
-              breadcrumbs={layout.structure.breadcrumbs}
-              onChange={(bc) => onChange({ ...layout, structure: { ...layout.structure, breadcrumbs: bc } })}
-            />
-          ) : (
-            <RegionEditor
-              name={activeRegion}
-              region={layout.structure.regions[activeRegion]}
-              tokens={layout.tokens}
-              onChange={(r) => updateRegion(activeRegion, r)}
-            />
-          )}
-        </>
-      )}
-
-      {section === "logo" && (
+      {/* ================================================================ */}
+      {/* §1 — MARCA (Logo + Favicon)                                     */}
+      {/* ================================================================ */}
+      <WBSection title="Marca" dotColor={DOT.brand} tag="logo + favicon" id="sec-brand" defaultOpen={true}>
         <LogoConfigEditor
           logo={layout.structure?.logo}
           onChange={(logo) => onChange({ ...layout, structure: { ...layout.structure, logo } })}
         />
-      )}
+        <WBSub title="Favicon">
+          <FaviconEditor
+            favicon={layout.structure?.favicon}
+            onChange={(fav) => onChange({ ...layout, structure: { ...layout.structure, favicon: fav } })}
+          />
+        </WBSub>
+      </WBSection>
 
-      {section === "favicon" && (
-        <FaviconEditor
-          favicon={layout.structure?.favicon}
-          onChange={(fav) => onChange({ ...layout, structure: { ...layout.structure, favicon: fav } })}
-        />
-      )}
+      {/* ================================================================ */}
+      {/* §2 — LAYOUT & REGIÕES                                           */}
+      {/* ================================================================ */}
+      <WBSection title="Layout & Regiões" dotColor={DOT.layout} tag="sidebar · header · main · footer" id="sec-layout" defaultOpen={true}>
+        {(["sidebar", "header", "main", "footer"] as const).map(name => (
+          <Section
+            key={name}
+            title={<span>{name.charAt(0).toUpperCase() + name.slice(1)} <span style={{ color: layout.structure.regions[name]?.enabled ? COLORS.success : COLORS.textDim }}>{layout.structure.regions[name]?.enabled ? "●" : "○"}</span></span>}
+            defaultOpen={name === "sidebar"}
+            id={`wb-region-${name}`}
+          >
+            <RegionEditor
+              name={name}
+              region={layout.structure.regions[name]}
+              tokens={layout.tokens}
+              onChange={(r) => updateRegion(name, r)}
+            />
+          </Section>
+        ))}
+        <Section
+          title={<span>Breadcrumbs <span style={{ color: layout.structure.breadcrumbs?.enabled ? COLORS.success : COLORS.textDim }}>{layout.structure.breadcrumbs?.enabled ? "●" : "○"}</span></span>}
+          defaultOpen={layout.structure.breadcrumbs?.enabled}
+          id="wb-breadcrumbs"
+        >
+          <BreadcrumbEditor
+            breadcrumbs={layout.structure.breadcrumbs}
+            tokens={layout.tokens}
+            onChange={(bc) => onChange({ ...layout, structure: { ...layout.structure, breadcrumbs: bc } })}
+          />
+        </Section>
+      </WBSection>
 
-      {section === "headerElements" && (
+      {/* ================================================================ */}
+      {/* §3 — HEADER ELEMENTS                                            */}
+      {/* ================================================================ */}
+      <WBSection title="Header Elements" dotColor={DOT.header} tag="busca · cta · ícones" id="sec-header" defaultOpen={false}>
         <HeaderElementsEditor
           elements={layout.structure?.headerElements}
           onChange={(he) => onChange({ ...layout, structure: { ...layout.structure, headerElements: he } })}
         />
-      )}
+      </WBSection>
 
-      {section === "colors" && (
-        <ColorTokenEditor colors={layout.tokens.colors || {}} onChange={(v) => updateTokenCat("colors", v)} />
-      )}
+      {/* ================================================================ */}
+      {/* §4 — DESIGN TOKENS                                              */}
+      {/* ================================================================ */}
+      <WBSection title="Design Tokens" dotColor={DOT.tokens} tag="cores · spacing · sizing" id="sec-tokens" defaultOpen={false}>
+        <Section title={`Cores (${Object.keys(layout.tokens.colors || {}).length})`} defaultOpen={true} id="wb-colors">
+          <ColorTokenEditor colors={layout.tokens.colors || {}} onChange={(v) => updateTokenCat("colors", v)} />
+        </Section>
+        <Section title="Spacing / Sizing / Border" defaultOpen={false} id="wb-spacing-sizing">
+          <TokenEditor tokens={layout.tokens} onChange={(t) => onChange({ ...layout, tokens: t })} />
+        </Section>
+      </WBSection>
 
-      {section === "tokens" && (
-        <TokenEditor tokens={layout.tokens} onChange={(t) => onChange({ ...layout, tokens: t })} />
-      )}
+      {/* ================================================================ */}
+      {/* §5 — TIPOGRAFIA & TEXT STYLES                                    */}
+      {/* ================================================================ */}
+      <WBSection title="Tipografia & Text Styles" dotColor={DOT.typo} id="sec-typo" defaultOpen={false}>
+        <Section title={`Font Families (${Object.keys(layout.tokens.fontFamilies || {}).length})`} defaultOpen={false} id="wb-font-families">
+          <FontFamilyEditor families={layout.tokens.fontFamilies || {}} onChange={(v) => updateTokenCat("fontFamilies", v)} />
+        </Section>
+        <Section title={`Font Sizes (${Object.keys(layout.tokens.fontSizes || {}).length})`} defaultOpen={false} id="wb-font-sizes">
+          <FontSizeEditor sizes={layout.tokens.fontSizes || {}} onChange={(v) => updateTokenCat("fontSizes", v)} />
+        </Section>
+        <Section title={`Font Weights (${Object.keys(layout.tokens.fontWeights || {}).length})`} defaultOpen={false} id="wb-font-weights">
+          <FontWeightEditor weights={layout.tokens.fontWeights || {}} onChange={(v) => updateTokenCat("fontWeights", v)} />
+        </Section>
+        <Section title={`Line Heights (${Object.keys(layout.tokens.lineHeights || {}).length})`} defaultOpen={false} id="wb-line-heights">
+          <LineHeightEditor lineHeights={layout.tokens.lineHeights || {}} onChange={(v) => updateTokenCat("lineHeights", v)} />
+        </Section>
+        <Section title={`Letter Spacings (${Object.keys(layout.tokens.letterSpacings || {}).length})`} defaultOpen={false} id="wb-letter-spacings">
+          <LetterSpacingEditor spacings={layout.tokens.letterSpacings || {}} onChange={(v) => updateTokenCat("letterSpacings", v)} />
+        </Section>
 
-      {/* TYPOGRAPHY — sub-tabs */}
-      {section === "typography" && (
-        <>
-          <TabBar
-            tabs={[
-              { id: "families", label: `Families (${Object.keys(layout.tokens.fontFamilies || {}).length})` },
-              { id: "sizes", label: `Sizes (${Object.keys(layout.tokens.fontSizes || {}).length})` },
-              { id: "weights", label: `Weights (${Object.keys(layout.tokens.fontWeights || {}).length})` },
-              { id: "lineHeights", label: `Line Heights (${Object.keys(layout.tokens.lineHeights || {}).length})` },
-              { id: "spacings", label: `Letter Sp. (${Object.keys(layout.tokens.letterSpacings || {}).length})` },
-            ]}
-            active={typoTab}
-            onChange={setTypoTab}
-          />
-          {typoTab === "families" && <FontFamilyEditor families={layout.tokens.fontFamilies || {}} onChange={(v) => updateTokenCat("fontFamilies", v)} />}
-          {typoTab === "sizes" && <FontSizeEditor sizes={layout.tokens.fontSizes || {}} onChange={(v) => updateTokenCat("fontSizes", v)} />}
-          {typoTab === "weights" && <FontWeightEditor weights={layout.tokens.fontWeights || {}} onChange={(v) => updateTokenCat("fontWeights", v)} />}
-          {typoTab === "lineHeights" && <LineHeightEditor lineHeights={layout.tokens.lineHeights || {}} onChange={(v) => updateTokenCat("lineHeights", v)} />}
-          {typoTab === "spacings" && <LetterSpacingEditor spacings={layout.tokens.letterSpacings || {}} onChange={(v) => updateTokenCat("letterSpacings", v)} />}
-        </>
-      )}
-
-      {/* TEXT STYLES — sub-tabs per style */}
-      {section === "textStyles" && (
-        <div>
+        {/* Text Styles */}
+        <WBSub title="Text Styles">
           <div style={{ marginBottom: 12 }}>
             <p style={{ fontSize: 12, color: COLORS.textDim, margin: 0 }}>Composições tipográficas nomeadas. Cada text style combina referências a tokens de tipografia.</p>
           </div>
@@ -2334,7 +2796,7 @@ function LayoutEditor({ layout, onChange }) {
             const key = safeActiveTS;
             const style = layout.textStyles[key];
             const css = resolveTextStyleCSS(style, layout.tokens);
-            const update = (field, val) => {
+            const update = (field: string, val: any) => {
               onChange({ ...layout, textStyles: { ...layout.textStyles, [key]: { ...layout.textStyles[key], [field]: val } } });
             };
             const remove = () => {
@@ -2383,12 +2845,25 @@ function LayoutEditor({ layout, onChange }) {
             const keys = Object.keys(ts);
             setActiveTextStyle(keys[keys.length - 1] || "");
           }} />
-        </div>
-      )}
+        </WBSub>
+      </WBSection>
 
-      {section === "pages" && (
+      {/* ================================================================ */}
+      {/* §6 — PÁGINAS                                                     */}
+      {/* ================================================================ */}
+      <WBSection title="Páginas" dotColor={DOT.pages} tag={`${Object.keys(layout.structure?.pages || {}).length} pages`} id="sec-pages" defaultOpen={false}>
         <PagesEditor layout={layout} onChange={onChange} />
-      )}
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §7 — IMPORT / EXPORT                                             */}
+      {/* ================================================================ */}
+      <WBSection title="Import / Export" dotColor={DOT.io} tag="JSON" id="sec-io" defaultOpen={false}>
+        <ImportPanel onImportLayout={setLayout} onImportRegistry={setRegistry} />
+        <WBSub title="Export">
+          <ExportPanel layout={layout} registry={registry} />
+        </WBSub>
+      </WBSection>
     </div>
   );
 }
@@ -2622,7 +3097,170 @@ function ComponentEditor({ comp, onChange }) {
         ))}
         <button onClick={addExample} style={s.btnSmall}>+ Example</button>
       </Section>
+
+      {/* Component-specific Style Editor */}
+      {comp.name === "ScrollArea" && (
+        <ScrollAreaStyleEditor styles={comp.styles || {}} onChange={(st) => update("styles", st)} />
+      )}
     </div>
+  );
+}
+
+// ============================================================================
+// ScrollArea Style Editor
+// ============================================================================
+function ScrollAreaStyleEditor({ styles, onChange }) {
+  const st = styles || {};
+  const upd = (field, val) => onChange({ ...st, [field]: val });
+
+  const PRESETS = [
+    { value: "minimal", label: "Minimal — fino, sem setas, discreto" },
+    { value: "default", label: "Default — scrollbar padrão do OS" },
+    { value: "overlay", label: "Overlay — aparece só no hover" },
+    { value: "hidden", label: "Hidden — sem scrollbar visível" },
+    { value: "custom", label: "Custom — configuração manual" },
+  ];
+
+  const applyPreset = (preset) => {
+    switch (preset) {
+      case "minimal":
+        onChange({ preset: "minimal", thumbWidth: 4, thumbColor: "rgba(255,255,255,0.15)", trackColor: "transparent", thumbRadius: 99, showArrows: false, hoverThumbWidth: 6, hoverThumbColor: "rgba(255,255,255,0.3)" });
+        break;
+      case "overlay":
+        onChange({ preset: "overlay", thumbWidth: 6, thumbColor: "rgba(255,255,255,0.2)", trackColor: "transparent", thumbRadius: 99, showArrows: false, autoHide: true, hoverThumbWidth: 8, hoverThumbColor: "rgba(255,255,255,0.4)" });
+        break;
+      case "hidden":
+        onChange({ preset: "hidden", thumbWidth: 0, thumbColor: "transparent", trackColor: "transparent", showArrows: false });
+        break;
+      case "default":
+        onChange({ preset: "default" });
+        break;
+      default:
+        onChange({ ...st, preset: "custom" });
+    }
+  };
+
+  const isCustom = st.preset === "custom" || (!st.preset && (st.thumbWidth || st.thumbColor));
+  const showCustom = st.preset === "custom" || st.preset === "minimal" || st.preset === "overlay" || isCustom;
+
+  // Live preview
+  const previewThumbW = st.thumbWidth ?? 6;
+  const previewThumbC = st.thumbColor ?? "rgba(255,255,255,0.2)";
+  const previewTrackC = st.trackColor ?? "transparent";
+  const previewRadius = st.thumbRadius ?? 99;
+
+  return (
+    <Section title="Styles — Scrollbar" defaultOpen={true}>
+      <div style={{ ...s.card, marginBottom: 12 }}>
+        {/* Live preview */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+          <div style={{
+            width: 180, height: 120, border: `1px solid ${COLORS.border}`, borderRadius: 8,
+            overflow: "hidden", position: "relative", background: COLORS.surface2,
+          }}>
+            <div style={{ padding: 10, fontSize: 11, color: COLORS.textMuted, lineHeight: 1.8 }}>
+              {Array.from({ length: 8 }, (_, i) => <div key={i} style={{ padding: "2px 0", borderBottom: `1px solid ${COLORS.border}30` }}>Item {i + 1}</div>)}
+            </div>
+            {/* Fake scrollbar thumb */}
+            {st.preset !== "hidden" && (
+              <div style={{
+                position: "absolute", right: 1, top: 8,
+                width: previewThumbW, height: 40,
+                borderRadius: previewRadius,
+                background: previewThumbC,
+                transition: "all 0.15s",
+              }} />
+            )}
+            {/* Track */}
+            {previewTrackC !== "transparent" && st.preset !== "hidden" && (
+              <div style={{
+                position: "absolute", right: 0, top: 0, bottom: 0,
+                width: Math.max(previewThumbW + 2, 8),
+                background: previewTrackC,
+              }} />
+            )}
+          </div>
+          <div style={{ flex: 1, fontSize: 11, color: COLORS.textDim, lineHeight: 1.6 }}>
+            {st.preset === "minimal" && "Scrollbar ultra-discreto: 4px, sem setas, quase invisível até o hover."}
+            {st.preset === "overlay" && "Scrollbar aparece com opacity ao passar o mouse na área de scroll."}
+            {st.preset === "hidden" && "Scrollbar completamente oculto. O conteúdo ainda é scrollável."}
+            {st.preset === "default" && "Scrollbar nativo do navegador/OS."}
+            {st.preset === "custom" && "Configuração manual de cada propriedade do scrollbar."}
+            {!st.preset && "Selecione um preset ou customize manualmente."}
+          </div>
+        </div>
+
+        {/* Preset selector */}
+        <Field label="Preset">
+          <select value={st.preset || ""} onChange={(e) => applyPreset(e.target.value)} style={s.select}>
+            <option value="">— selecionar —</option>
+            {PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </Field>
+
+        {/* Custom controls */}
+        {showCustom && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ marginBottom: 4, fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Thumb</div>
+            <Row gap={12}>
+              <Field label="Largura (px)" style={{ flex: 1 }}>
+                <input type="number" min={0} max={20} value={st.thumbWidth ?? 6} onChange={(e) => upd("thumbWidth", Number(e.target.value))} style={s.input} />
+              </Field>
+              <Field label="Cor" style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input type="color" value={st.thumbColor?.startsWith("rgba") ? "#ffffff" : (st.thumbColor || "#666666")} onChange={(e) => upd("thumbColor", e.target.value)} style={{ width: 28, height: 24, border: "none", background: "none", cursor: "pointer" }} />
+                  <input value={st.thumbColor || ""} onChange={(e) => upd("thumbColor", e.target.value)} placeholder="rgba(255,255,255,0.15)" style={{ ...s.input, flex: 1, fontSize: 10 }} />
+                </div>
+              </Field>
+              <Field label="Radius" style={{ flex: 0, minWidth: 60 }}>
+                <input type="number" min={0} max={99} value={st.thumbRadius ?? 99} onChange={(e) => upd("thumbRadius", Number(e.target.value))} style={s.input} />
+              </Field>
+            </Row>
+
+            <div style={{ marginTop: 8, marginBottom: 4, fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Hover</div>
+            <Row gap={12}>
+              <Field label="Largura hover (px)" style={{ flex: 1 }}>
+                <input type="number" min={0} max={20} value={st.hoverThumbWidth ?? st.thumbWidth ?? 6} onChange={(e) => upd("hoverThumbWidth", Number(e.target.value))} style={s.input} />
+              </Field>
+              <Field label="Cor hover" style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input type="color" value={st.hoverThumbColor?.startsWith("rgba") ? "#ffffff" : (st.hoverThumbColor || "#999999")} onChange={(e) => upd("hoverThumbColor", e.target.value)} style={{ width: 28, height: 24, border: "none", background: "none", cursor: "pointer" }} />
+                  <input value={st.hoverThumbColor || ""} onChange={(e) => upd("hoverThumbColor", e.target.value)} placeholder="rgba(255,255,255,0.3)" style={{ ...s.input, flex: 1, fontSize: 10 }} />
+                </div>
+              </Field>
+            </Row>
+
+            <div style={{ marginTop: 8, marginBottom: 4, fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Track</div>
+            <Row gap={12}>
+              <Field label="Cor do track" style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input type="color" value={st.trackColor?.startsWith("rgba") || st.trackColor === "transparent" ? "#111111" : (st.trackColor || "#111111")} onChange={(e) => upd("trackColor", e.target.value)} style={{ width: 28, height: 24, border: "none", background: "none", cursor: "pointer" }} />
+                  <input value={st.trackColor || ""} onChange={(e) => upd("trackColor", e.target.value)} placeholder="transparent" style={{ ...s.input, flex: 1, fontSize: 10 }} />
+                </div>
+              </Field>
+              <Field label="Setas" style={{ flex: 0, minWidth: 80 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", paddingTop: 4 }}>
+                  <input type="checkbox" checked={st.showArrows ?? false} onChange={(e) => upd("showArrows", e.target.checked)} />
+                  Exibir
+                </label>
+              </Field>
+            </Row>
+
+            {st.preset === "overlay" && (
+              <>
+                <div style={{ marginTop: 8, marginBottom: 4, fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Comportamento</div>
+                <Field label="Auto-hide">
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer" }}>
+                    <input type="checkbox" checked={st.autoHide ?? true} onChange={(e) => upd("autoHide", e.target.checked)} />
+                    Ocultar quando parado
+                  </label>
+                </Field>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 
@@ -3931,6 +4569,395 @@ function ImportPanel({ onImportLayout, onImportRegistry }) {
 // ============================================================================
 // Main App
 // ============================================================================
+// Command Palette (Ctrl+K / Cmd+K)
+// ============================================================================
+interface CmdItem {
+  id: string;
+  label: string;
+  category: string;
+  hint?: string;
+  icon?: string;
+  action: () => void;
+}
+
+function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () => void; items: CmdItem[] }) {
+  const [query, setQuery] = useState("");
+  const [activeIdx, setActiveIdx] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Reset on open
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setActiveIdx(0);
+      setTimeout(() => inputRef.current?.focus(), 30);
+    }
+  }, [open]);
+
+  // Filter items
+  const filtered = useMemo(() => {
+    if (!query.trim()) return items.slice(0, 30);
+    const q = query.toLowerCase().trim();
+    const terms = q.split(/\s+/);
+    return items
+      .map((item) => {
+        const haystack = `${item.label} ${item.category} ${item.hint || ""}`.toLowerCase();
+        let score = 0;
+        for (const t of terms) {
+          if (!haystack.includes(t)) return null;
+          // Boost exact prefix match on label
+          if (item.label.toLowerCase().startsWith(t)) score += 10;
+          else if (item.label.toLowerCase().includes(t)) score += 5;
+          else score += 1;
+        }
+        return { item, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b!.score - a!.score)
+      .slice(0, 20)
+      .map((r) => r!.item);
+  }, [items, query]);
+
+  // Clamp active index
+  useEffect(() => {
+    if (activeIdx >= filtered.length) setActiveIdx(Math.max(0, filtered.length - 1));
+  }, [filtered.length]);
+
+  // Scroll active into view
+  useEffect(() => {
+    const el = listRef.current?.children[activeIdx] as HTMLElement;
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }, [activeIdx]);
+
+  const execute = (item: CmdItem) => {
+    onClose();
+    // Small delay so the palette closes before action (e.g. scroll)
+    setTimeout(() => item.action(), 50);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter" && filtered[activeIdx]) {
+      e.preventDefault();
+      execute(filtered[activeIdx]);
+    } else if (e.key === "Escape") {
+      onClose();
+    }
+  };
+
+  if (!open) return null;
+
+  // Group by category
+  const groups: { cat: string; items: CmdItem[] }[] = [];
+  const seen = new Set<string>();
+  for (const item of filtered) {
+    if (!seen.has(item.category)) {
+      seen.add(item.category);
+      groups.push({ cat: item.category, items: [] });
+    }
+    groups.find((g) => g.cat === item.category)!.items.push(item);
+  }
+
+  const CAT_COLORS: Record<string, string> = {
+    "Seção": "#6d9cff",
+    "Token": "#f0a040",
+    "Cor": "#e06090",
+    "Componente": "#50d080",
+    "Ação": "#c080ff",
+    "Tipografia": "#60c0e0",
+    "Página": "#e0c040",
+  };
+
+  let globalIdx = 0;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+        display: "flex", justifyContent: "center", paddingTop: "12vh",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 560, maxHeight: "60vh",
+          background: COLORS.surface, border: `1px solid ${COLORS.border}`,
+          borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+          display: "flex", flexDirection: "column", overflow: "hidden",
+        }}
+      >
+        {/* Input */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "14px 18px", borderBottom: `1px solid ${COLORS.border}`,
+        }}>
+          <span style={{ fontSize: 16, color: COLORS.textDim, flexShrink: 0 }}>⌘</span>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setActiveIdx(0); }}
+            onKeyDown={handleKeyDown}
+            placeholder="Buscar seções, tokens, cores, componentes, ações…"
+            style={{
+              flex: 1, background: "none", border: "none", outline: "none",
+              color: COLORS.text, fontSize: 15, fontFamily: "'Inter', sans-serif",
+            }}
+          />
+          <kbd style={{
+            fontSize: 10, color: COLORS.textDim, background: COLORS.surface2,
+            padding: "2px 6px", borderRadius: 4, border: `1px solid ${COLORS.border}`,
+          }}>ESC</kbd>
+        </div>
+
+        {/* Results */}
+        <div ref={listRef} style={{ flex: 1, overflow: "auto", padding: "6px 0" }}>
+          {filtered.length === 0 && (
+            <div style={{ padding: "24px 18px", textAlign: "center", color: COLORS.textDim, fontSize: 13 }}>
+              Nenhum resultado para "{query}"
+            </div>
+          )}
+          {groups.map((group) => (
+            <div key={group.cat}>
+              <div style={{
+                fontSize: 10, fontWeight: 700, color: COLORS.textDim,
+                textTransform: "uppercase", letterSpacing: "0.8px",
+                padding: "8px 18px 4px",
+              }}>{group.cat}</div>
+              {group.items.map((item) => {
+                const idx = globalIdx++;
+                const isActive = idx === activeIdx;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => execute(item)}
+                    onMouseEnter={() => setActiveIdx(idx)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 18px", cursor: "pointer",
+                      background: isActive ? COLORS.surface3 : "transparent",
+                      transition: "background 0.08s",
+                    }}
+                  >
+                    {/* Color swatch for color tokens */}
+                    {item.icon === "swatch" && item.hint ? (
+                      <div style={{
+                        width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                        background: item.hint, border: `1px solid ${COLORS.border}`,
+                      }} />
+                    ) : (
+                      <span style={{ fontSize: 13, width: 18, textAlign: "center", flexShrink: 0, color: COLORS.textDim }}>
+                        {item.icon || "→"}
+                      </span>
+                    )}
+                    <span style={{ flex: 1, fontSize: 13, color: isActive ? COLORS.text : COLORS.textMuted }}>
+                      {item.label}
+                    </span>
+                    {item.hint && item.icon !== "swatch" && (
+                      <span style={{
+                        fontSize: 11, color: COLORS.textDim, fontFamily: "'JetBrains Mono', monospace",
+                        maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>{item.hint}</span>
+                    )}
+                    <span style={{
+                      fontSize: 9, padding: "1px 6px", borderRadius: 3,
+                      background: (CAT_COLORS[item.category] || COLORS.textDim) + "18",
+                      color: CAT_COLORS[item.category] || COLORS.textDim,
+                      fontWeight: 600, flexShrink: 0,
+                    }}>{item.category}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer hint */}
+        <div style={{
+          padding: "8px 18px", borderTop: `1px solid ${COLORS.border}`,
+          display: "flex", gap: 16, fontSize: 10, color: COLORS.textDim,
+        }}>
+          <span>↑↓ navegar</span>
+          <span>↵ selecionar</span>
+          <span>esc fechar</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function useCommandPaletteItems(
+  layout: any,
+  registry: any,
+  setActiveTab: (t: string) => void,
+  scrollToSection: (id: string) => void,
+  openAccordion: (id: string) => void,
+): CmdItem[] {
+  return useMemo(() => {
+    const items: CmdItem[] = [];
+
+    // ---- Seções ----
+    const sections = [
+      { id: "sec-brand", label: "Marca (Logo + Favicon)", icon: "🏷" },
+      { id: "sec-layout", label: "Layout & Regiões", icon: "📐" },
+      { id: "wb-breadcrumbs", label: "Breadcrumbs", icon: "🔗" },
+      { id: "sec-header", label: "Header Elements", icon: "📌" },
+      { id: "sec-tokens", label: "Design Tokens", icon: "🎨" },
+      { id: "wb-colors", label: "Cores (tokens)", icon: "🎨" },
+      { id: "wb-spacing-sizing", label: "Spacing / Sizing / Border", icon: "📏" },
+      { id: "sec-typo", label: "Tipografia & Text Styles", icon: "✏️" },
+      { id: "wb-font-families", label: "Font Families", icon: "🔤" },
+      { id: "wb-font-sizes", label: "Font Sizes", icon: "🔠" },
+      { id: "wb-font-weights", label: "Font Weights", icon: "🅱" },
+      { id: "wb-line-heights", label: "Line Heights", icon: "↕" },
+      { id: "wb-letter-spacings", label: "Letter Spacings", icon: "↔" },
+      { id: "sec-pages", label: "Páginas", icon: "📄" },
+      { id: "sec-io", label: "Import / Export", icon: "📦" },
+    ];
+    for (const sec of sections) {
+      items.push({
+        id: `nav:${sec.id}`, label: sec.label, category: "Seção", icon: sec.icon,
+        action: () => {
+          setActiveTab("layout");
+          setTimeout(() => {
+            openAccordion(sec.id);
+            scrollToSection(sec.id);
+          }, 60);
+        },
+      });
+    }
+
+    // ---- Cores ----
+    const colors = layout.tokens?.colors || {};
+    for (const [key, tok] of Object.entries(colors)) {
+      const val = (tok as any).value;
+      items.push({
+        id: `color:${key}`, label: key, category: "Cor", icon: "swatch", hint: val,
+        action: () => {
+          setActiveTab("layout");
+          setTimeout(() => { openAccordion("wb-colors"); scrollToSection("wb-colors"); }, 60);
+        },
+      });
+    }
+
+    // ---- Tokens (spacing, sizing, radii, fontSizes, fontWeights) ----
+    const tokenCats = [
+      { cat: "spacing", label: "Spacing" },
+      { cat: "sizing", label: "Sizing" },
+      { cat: "radii", label: "Border Radius" },
+      { cat: "fontSizes", label: "Font Size" },
+      { cat: "fontWeights", label: "Font Weight" },
+      { cat: "lineHeights", label: "Line Height" },
+      { cat: "letterSpacings", label: "Letter Spacing" },
+    ];
+    for (const tc of tokenCats) {
+      const toks = layout.tokens?.[tc.cat] || {};
+      for (const [key, tok] of Object.entries(toks)) {
+        const v = tok as any;
+        const display = v.value != null ? (v.unit ? `${v.value}${v.unit}` : `${v.value}`) : (v.family || "");
+        items.push({
+          id: `token:${tc.cat}.${key}`, label: `${tc.label}: ${key}`, category: "Token", icon: "◆", hint: display,
+          action: () => {
+            setActiveTab("layout");
+            const sectionId = tc.cat === "spacing" || tc.cat === "sizing" || tc.cat === "radii" ? "wb-spacing-sizing"
+              : tc.cat === "fontSizes" ? "wb-font-sizes"
+              : tc.cat === "fontWeights" ? "wb-font-weights"
+              : tc.cat === "lineHeights" ? "wb-line-heights"
+              : tc.cat === "letterSpacings" ? "wb-letter-spacings"
+              : "sec-tokens";
+            setTimeout(() => { openAccordion(sectionId); scrollToSection(sectionId); }, 60);
+          },
+        });
+      }
+    }
+
+    // ---- Font Families ----
+    const fontFamilies = layout.tokens?.fontFamilies || {};
+    for (const [key, tok] of Object.entries(fontFamilies)) {
+      const fam = (tok as any).family || key;
+      items.push({
+        id: `font:${key}`, label: `Font: ${fam}`, category: "Tipografia", icon: "🔤", hint: key,
+        action: () => {
+          setActiveTab("layout");
+          setTimeout(() => { openAccordion("wb-font-families"); scrollToSection("wb-font-families"); }, 60);
+        },
+      });
+    }
+
+    // ---- Text Styles ----
+    const textStyles = layout.textStyles || {};
+    for (const key of Object.keys(textStyles)) {
+      items.push({
+        id: `ts:${key}`, label: `Text Style: ${key}`, category: "Tipografia", icon: "✏️",
+        action: () => {
+          setActiveTab("layout");
+          setTimeout(() => { openAccordion("sec-typo"); scrollToSection("sec-typo"); }, 60);
+        },
+      });
+    }
+
+    // ---- Componentes ----
+    const comps = registry.components || {};
+    for (const [name, comp] of Object.entries(comps)) {
+      const c = comp as any;
+      items.push({
+        id: `comp:${name}`, label: name, category: "Componente", icon: "◻",
+        hint: c.category || "",
+        action: () => {
+          setActiveTab("components");
+        },
+      });
+    }
+
+    // ---- Páginas ----
+    const pages = layout.structure?.pages || {};
+    for (const [key, pg] of Object.entries(pages)) {
+      const p = pg as any;
+      items.push({
+        id: `page:${key}`, label: `Página: ${p.label || key}`, category: "Página", icon: "📄",
+        hint: key,
+        action: () => {
+          setActiveTab("layout");
+          setTimeout(() => { openAccordion("sec-pages"); scrollToSection("sec-pages"); }, 60);
+        },
+      });
+    }
+
+    // ---- Ações ----
+    items.push({
+      id: "act:save", label: "Salvar no projeto", category: "Ação", icon: "💾",
+      action: () => {
+        document.querySelector<HTMLButtonElement>('button[class*="save"], button')?.click();
+      },
+    });
+    items.push({
+      id: "act:export-layout", label: "Export Layout JSON", category: "Ação", icon: "📦",
+      action: () => {
+        setActiveTab("layout");
+        setTimeout(() => { openAccordion("sec-io"); scrollToSection("sec-io"); }, 60);
+      },
+    });
+    items.push({
+      id: "act:tab-layout", label: "Ir para Layout", category: "Ação", icon: "📐",
+      action: () => setActiveTab("layout"),
+    });
+    items.push({
+      id: "act:tab-components", label: "Ir para Componentes", category: "Ação", icon: "◻",
+      action: () => setActiveTab("components"),
+    });
+
+    return items;
+  }, [layout, registry, setActiveTab, scrollToSection, openAccordion]);
+}
+
+// ============================================================================
 // Persistence: IndexedDB for auto-save, API for filesystem save
 // ============================================================================
 const DB_NAME = "orqui-editor";
@@ -4021,8 +5048,7 @@ export function OrquiEditor() {
   const setRegistry = useCallback((r: any) => setRegistryRaw(normalizeRegistry(r)), [normalizeRegistry]);
   const [hasApi, setHasApi] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
-  const [sidebarOpen, setSidebarOpen] = usePersistentState("editor-sidebar", true);
-  const [sidebarTab, setSidebarTab] = useState("preview");
+  const [previewTab, setPreviewTab] = useState("layout");
 
   // Snapshot for undo: stores state at last save
   const [savedSnapshot, setSavedSnapshot] = useState<{ layout: any; registry: any } | null>(null);
@@ -4092,139 +5118,281 @@ export function OrquiEditor() {
     setTimeout(() => setSaveStatus(null), 2000);
   }, [layout, registry, hasApi]);
 
-  const mainTabs = [
-    { id: "layout", label: "Layout" },
-    { id: "registry", label: "Registry" },
-    { id: "export", label: "Export" },
+  // Scroll spy for section indicator dots
+  const configRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState("sec-brand");
+  const sectionDots = [
+    { id: "sec-brand", color: "#f59e0b", label: "Marca" },
+    { id: "sec-layout", color: "#3b82f6", label: "Layout" },
+    { id: "sec-header", color: "#22c55e", label: "Header" },
+    { id: "sec-tokens", color: "#a855f7", label: "Tokens" },
+    { id: "sec-typo", color: "#a1a1aa", label: "Tipografia" },
+    { id: "sec-pages", color: "#ef4444", label: "Páginas" },
+    { id: "sec-io", color: "#6d9cff", label: "I/O" },
   ];
 
-  const sidebarTabs = [
-    { id: "preview", label: "Preview" },
-    { id: "import", label: "Import" },
-  ];
+  useEffect(() => {
+    const el = configRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const ids = sectionDots.map(d => d.id);
+      let active = ids[0];
+      ids.forEach(id => {
+        const sec = document.getElementById(id);
+        if (sec && sec.offsetTop - el.offsetTop - 120 <= el.scrollTop) active = id;
+      });
+      setActiveSection(active);
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [activeTab]);
 
-  const SIDEBAR_WIDTH = 525;
+  const scrollToSection = (id: string) => {
+    const sec = document.getElementById(id);
+    const el = configRef.current;
+    if (sec && el) {
+      el.scrollTo({ top: sec.offsetTop - el.offsetTop, behavior: "smooth" });
+    }
+  };
+
+  // Command Palette
+  const [cmdOpen, setCmdOpen] = useState(false);
+
+  const openAccordion = useCallback((sectionId: string) => {
+    // Dispatch custom event that usePersistentState hooks listen for
+    window.dispatchEvent(new CustomEvent("orqui:open-accordion", { detail: sectionId }));
+    window.dispatchEvent(new CustomEvent("orqui:open-accordion", { detail: `wb-${sectionId}` }));
+  }, []);
+
+  const cmdItems = useCommandPaletteItems(layout, registry, setActiveTab, scrollToSection, openAccordion);
+
+  // Ctrl+K / Cmd+K handler
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const CONFIG_WIDTH = 460;
 
   return (
-    <div style={{ background: COLORS.bg, height: "100vh", color: COLORS.text, fontFamily: "'Inter', -apple-system, sans-serif", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* Inter and JetBrains Mono loaded as base editor fonts */}
+    <div style={{
+      background: COLORS.bg, height: "100vh", color: COLORS.text,
+      fontFamily: "'Inter', -apple-system, sans-serif",
+      display: "flex", flexDirection: "column", overflow: "hidden",
+    }}>
+      {/* Google Fonts */}
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
-      {/* Header */}
-      <div style={{ padding: "12px 24px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: COLORS.accent }}>Orqui</span>
-          <span style={{ fontSize: 12, color: COLORS.textDim }}>Contract Editor</span>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ ...s.tag, background: `${COLORS.success}15`, color: COLORS.success, border: `1px solid ${COLORS.success}30` }}>
-            {Object.values(layout.structure.regions).filter((r) => r.enabled).length} regions
-          </span>
-          <span style={{ ...s.tag, background: `${COLORS.accent}15`, color: COLORS.accent, border: `1px solid ${COLORS.accent}30` }}>
-            {Object.keys(registry.components).length} components
-          </span>
-          <span style={{ ...s.tag, fontSize: 10 }}>IndexedDB ✓</span>
-          {hasApi && hasUnsavedChanges && (
-            <button onClick={undoChanges} style={{
-              ...s.btnGhost,
-              fontSize: 12,
-              padding: "6px 12px",
-              color: COLORS.danger,
-              border: `1px solid ${COLORS.danger}40`,
-            }}>
-              ↩ Desfazer
-            </button>
-          )}
-          {hasApi && (
-            <button onClick={saveToFilesystem} disabled={saveStatus === "saving"} style={{
-              ...s.btn,
-              fontSize: 12,
-              padding: "6px 12px",
-              background: saveStatus === "saved" ? COLORS.success : saveStatus === "error" ? COLORS.danger : COLORS.accent,
-              opacity: saveStatus === "saving" ? 0.6 : 1,
-            }}>
-              {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : saveStatus === "error" ? "✕ Error" : "Save to Project"}
-            </button>
-          )}
-        </div>
-      </div>
+      {/* ============================================================ */}
+      {/* TOPBAR                                                        */}
+      {/* ============================================================ */}
+      <div style={{
+        height: 52, flexShrink: 0, background: COLORS.surface,
+        borderBottom: `1px solid ${COLORS.border}`,
+        display: "flex", alignItems: "center", padding: "0 20px", gap: 12,
+      }}>
+        {/* Brand */}
+        <span style={{
+          fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+          fontSize: 16, color: COLORS.accent, letterSpacing: "-0.5px",
+        }}>orqui</span>
 
-      {/* Body: Main + Sidebar */}
-      <div style={{ flex: 1, display: "flex", position: "relative", overflow: "hidden" }}>
+        {/* Dot separator */}
+        <div style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.border }} />
 
-        {/* Main content area */}
+        {/* Tab pills */}
         <div style={{
-          flex: 1,
-          minWidth: 0,
-          overflowY: "auto",
-          overflowX: "hidden",
-          padding: 24,
-          marginLeft: sidebarOpen ? SIDEBAR_WIDTH : 0,
-          transition: "margin-left 0.25s ease",
+          display: "flex", gap: 2, background: COLORS.surface2,
+          padding: 3, borderRadius: 8,
         }}>
-          <TabBar tabs={mainTabs} active={activeTab} onChange={setActiveTab} />
-
-          {activeTab === "layout" && <LayoutEditor layout={layout} onChange={setLayout} />}
-          {activeTab === "registry" && <UIRegistryEditor registry={registry} onChange={setRegistry} />}
-          {activeTab === "export" && <ExportPanel layout={layout} registry={registry} />}
+          {[
+            { id: "layout", label: "Layout" },
+            { id: "components", label: "Componentes" },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+              padding: "6px 16px", borderRadius: 6, fontSize: 12, fontWeight: 500,
+              border: "none", cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              background: activeTab === tab.id ? COLORS.surface3 : "transparent",
+              color: activeTab === tab.id ? COLORS.text : COLORS.textDim,
+              boxShadow: activeTab === tab.id ? "0 1px 3px #0003" : "none",
+              transition: "all 0.15s",
+            }}>{tab.label}</button>
+          ))}
         </div>
 
-        {/* Collapse toggle — centered vertically on the divider line */}
+        {/* Search trigger */}
         <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
+          onClick={() => setCmdOpen(true)}
           style={{
-            position: "absolute",
-            left: sidebarOpen ? SIDEBAR_WIDTH - 1 : -1,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 20,
-            height: 48,
-            background: COLORS.surface2,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: sidebarOpen ? "0 6px 6px 0" : "6px 0 0 6px",
-            color: COLORS.textMuted,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            zIndex: 20,
-            transition: "left 0.25s ease",
-            padding: 0,
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "6px 14px", borderRadius: 8, fontSize: 12,
+            border: `1px solid ${COLORS.border}`, cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+            background: COLORS.surface2, color: COLORS.textDim,
+            transition: "all 0.15s", minWidth: 180,
           }}
-          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
-          {sidebarOpen ? "◂" : "▸"}
+          <span style={{ fontSize: 13 }}>⌘</span>
+          <span style={{ flex: 1, textAlign: "left" }}>Buscar…</span>
+          <kbd style={{
+            fontSize: 9, padding: "1px 5px", borderRadius: 3,
+            background: COLORS.surface3, border: `1px solid ${COLORS.border}`,
+            color: COLORS.textDim,
+          }}>⌘K</kbd>
         </button>
 
-        {/* Left sidebar */}
-        <div style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: SIDEBAR_WIDTH,
-          background: COLORS.surface,
-          borderRight: `1px solid ${COLORS.border}`,
-          display: "flex",
-          flexDirection: "column",
-          transform: sidebarOpen ? "translateX(0)" : `translateX(-${SIDEBAR_WIDTH}px)`,
-          transition: "transform 0.25s ease",
-          zIndex: 10,
-        }}>
-          {/* Sidebar tabs */}
-          <div style={{ padding: "12px 16px 0 16px", flexShrink: 0 }}>
-            <TabBar tabs={sidebarTabs} active={sidebarTab} onChange={setSidebarTab} />
-          </div>
+        <div style={{ flex: 1 }} />
 
-          {/* Sidebar content */}
-          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: 16 }}>
-            {sidebarTab === "preview" && <PreviewPanel layout={layout} registry={registry} />}
-            {sidebarTab === "import" && <ImportPanel onImportLayout={setLayout} onImportRegistry={setRegistry} />}
-          </div>
+        {/* Status badges */}
+        <span style={{
+          ...s.tag, fontSize: 10,
+          background: `${COLORS.success}15`, color: COLORS.success,
+          border: `1px solid ${COLORS.success}30`,
+        }}>
+          {Object.values(layout.structure.regions).filter((r: any) => r.enabled).length} regions
+        </span>
+        <span style={{
+          ...s.tag, fontSize: 10,
+          background: `${COLORS.accent}15`, color: COLORS.accent,
+          border: `1px solid ${COLORS.accent}30`,
+        }}>
+          {Object.keys(registry.components).length} components
+        </span>
+        <span style={{ ...s.tag, fontSize: 10 }}>IndexedDB ✓</span>
+
+        {/* Undo */}
+        {hasApi && hasUnsavedChanges && (
+          <button onClick={undoChanges} style={{
+            padding: "7px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+            border: `1px solid ${COLORS.danger}30`, cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+            background: "transparent", color: COLORS.danger,
+          }}>
+            ↩ Desfazer
+          </button>
+        )}
+
+        {/* Save */}
+        {hasApi && (
+          <button onClick={saveToFilesystem} disabled={saveStatus === "saving"} style={{
+            padding: "7px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+            border: "none", cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+            background: saveStatus === "saved" ? COLORS.success : saveStatus === "error" ? COLORS.danger : COLORS.accent,
+            color: "#fff",
+            opacity: saveStatus === "saving" ? 0.6 : 1,
+            transition: "all 0.15s",
+          }}>
+            {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : saveStatus === "error" ? "✕ Error" : "Save to Project"}
+          </button>
+        )}
+      </div>
+
+      {/* ============================================================ */}
+      {/* MAIN LAYOUT: config scroll (left) + preview (right)           */}
+      {/* ============================================================ */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+        {/* LEFT — scrollable config panel */}
+        <div
+          ref={configRef}
+          style={{
+            width: CONFIG_WIDTH, flexShrink: 0,
+            overflowY: "auto", overflowX: "hidden",
+            borderRight: `1px solid ${COLORS.border}`,
+            background: COLORS.surface,
+            scrollBehavior: "smooth" as const,
+          }}
+        >
+          {activeTab === "layout" && (
+            <LayoutSections
+              layout={layout}
+              registry={registry}
+              setLayout={setLayout}
+              setRegistry={setRegistry}
+            />
+          )}
+          {activeTab === "components" && (
+            <div style={{ padding: 20 }}>
+              <UIRegistryEditor registry={registry} onChange={setRegistry} />
+            </div>
+          )}
         </div>
 
+        {/* RIGHT — preview pane */}
+        <div style={{
+          flex: 1, display: "flex", flexDirection: "column",
+          background: COLORS.bg, position: "relative",
+        }}>
+          {/* Preview tab bar */}
+          <div style={{
+            padding: "0 24px", display: "flex", gap: 0,
+            borderBottom: `1px solid ${COLORS.border}`,
+            background: COLORS.surface,
+            flexShrink: 0,
+          }}>
+            {[
+              { id: "layout", label: "Layout" },
+              { id: "typography", label: "Tipografia" },
+              { id: "components", label: "Componentes" },
+            ].map(tab => (
+              <button key={tab.id} onClick={() => setPreviewTab(tab.id)} style={{
+                padding: "12px 16px", fontSize: 11, fontWeight: 500,
+                border: "none", cursor: "pointer",
+                fontFamily: "'Inter', sans-serif",
+                borderBottom: previewTab === tab.id ? `2px solid ${COLORS.accent}` : "2px solid transparent",
+                background: "transparent",
+                color: previewTab === tab.id ? COLORS.text : COLORS.textDim,
+                transition: "color 0.15s",
+              }}>{tab.label}</button>
+            ))}
+          </div>
+
+          {/* Preview content */}
+          <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
+            {previewTab === "layout" && <LayoutPreview layout={layout} />}
+            {previewTab === "typography" && <TypographyPreview layout={layout} />}
+            {previewTab === "components" && <ComponentPreview registry={registry} />}
+          </div>
+
+          {/* Scroll spy dots — only in layout tab */}
+          {activeTab === "layout" && (
+            <div style={{
+              position: "absolute", right: 16, top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex", flexDirection: "column", gap: 6,
+              zIndex: 10,
+            }}>
+              {sectionDots.map(dot => (
+                <div
+                  key={dot.id}
+                  onClick={() => scrollToSection(dot.id)}
+                  title={dot.label}
+                  style={{
+                    width: activeSection === dot.id ? 10 : 7,
+                    height: activeSection === dot.id ? 10 : 7,
+                    borderRadius: "50%",
+                    background: dot.color,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    opacity: activeSection === dot.id ? 1 : 0.4,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Command Palette overlay */}
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} items={cmdItems} />
     </div>
   );
 }

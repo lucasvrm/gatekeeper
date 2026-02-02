@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:23b43a270ffce421e957191c46c49b4890c6c1a55cac5b296f5a560c5964ba97",
-    "generatedAt": "2026-02-02T01:45:39.335Z"
+    "hash": "sha256:ddc2d0c413d8098f864a585f8920d1011d7e2e77a2c801991a5adb1177e2e2f4",
+    "generatedAt": "2026-02-02T00:23:19.950Z"
   },
   "structure": {
     "regions": {
@@ -60,22 +60,13 @@
           "fixed": true,
           "collapsible": true,
           "scrollable": false,
-          "collapsedDisplay": "letter-only"
+          "collapsedDisplay": "icon-only"
         },
         "navigation": {
           "icons": {
             "enabled": true,
             "size": "$tokens.sizing.icon-md",
             "gap": "$tokens.spacing.sm"
-          },
-          "typography": {
-            "fontSize": "$tokens.fontSizes.sm",
-            "activeFontWeight": "$tokens.fontWeights.bold",
-            "activeColor": "$tokens.colors.accent",
-            "fontFamily": "$tokens.fontFamilies.mono",
-            "hoverColor": "$tokens.colors.danger-dim",
-            "cardEnabled": true,
-            "activeBackground": "$tokens.colors.card-bg"
           }
         },
         "collapseButton": {
@@ -159,10 +150,10 @@
           "maxWidth": "$tokens.sizing.content-max-width"
         },
         "padding": {
-          "top": "$tokens.spacing.sm",
-          "right": "$tokens.spacing.sm",
-          "bottom": "$tokens.spacing.sm",
-          "left": "$tokens.spacing.sm"
+          "top": "$tokens.spacing.xl",
+          "right": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.2xl",
+          "left": "$tokens.spacing.xl"
         },
         "containers": [
           {
@@ -226,17 +217,7 @@
       "position": "header",
       "alignment": "left",
       "separator": "/",
-      "clickable": true,
-      "padding": {
-        "left": "$tokens.spacing.lg"
-      },
-      "typography": {
-        "fontSize": "$tokens.fontSizes.xs",
-        "fontWeight": "$tokens.fontWeights.regular",
-        "fontFamily": "$tokens.fontFamilies.mono",
-        "activeColor": "$tokens.colors.warning"
-      },
-      "homeRoute": "/"
+      "clickable": true
     },
     "logo": {
       "type": "icon-text",
@@ -251,40 +232,23 @@
       "padding": {
         "top": 0,
         "right": 0,
-        "bottom": 15,
+        "bottom": 10,
         "left": 7
       },
       "iconGap": 4,
       "typography": {
         "fontFamily": "JetBrains Mono",
-        "fontSize": 22,
+        "fontSize": 18,
         "fontWeight": 700,
-        "color": "#7aa4ff",
+        "color": "",
         "letterSpacing": 0
       },
-      "iconSize": 30
+      "iconSize": 25
     },
     "favicon": {
       "type": "emoji",
       "url": "",
-      "emoji": "ph:shield-check",
-      "color": "#7aa4ff"
-    },
-    "headerElements": {
-      "search": {
-        "enabled": true,
-        "placeholder": "Buscar..."
-      },
-      "cta": {
-        "enabled": true,
-        "label": "Nova Validação",
-        "variant": "default",
-        "route": "/runs/new"
-      },
-      "icons": {
-        "enabled": false,
-        "items": []
-      }
+      "emoji": "ph:shield-check"
     }
   },
   "tokens": {
@@ -336,7 +300,7 @@
         "unit": "px"
       },
       "header-height": {
-        "value": 70,
+        "value": 56,
         "unit": "px"
       },
       "footer-height": {
@@ -542,7 +506,7 @@
     },
     "colors": {
       "bg": {
-        "value": "#1c1c21"
+        "value": "#0a0a0b"
       },
       "surface": {
         "value": "#141417"
@@ -596,10 +560,10 @@
         "value": "#d4a017"
       },
       "sidebar-bg": {
-        "value": "#1c1c21"
+        "value": "#111114"
       },
       "header-bg": {
-        "value": "#141417"
+        "value": "#0a0a0b"
       },
       "input-bg": {
         "value": "#1c1c21"

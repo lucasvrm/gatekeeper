@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { api } from "@/lib/api"
 import type { RunWithResults } from "@/lib/types"
 import { useRunEvents } from "@/hooks/useRunEvents"
-import { RunPanel } from "@/components/run-panel"
+import { RunPanelLegacy } from "@/components/run-panel-legacy"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -286,7 +286,7 @@ export function RunDetailsPage() {
       <div className={hasSplitView ? "grid grid-cols-2 gap-6" : ""}>
         {/* Contract Run Panel */}
         {contractRun && (
-          <RunPanel
+          <RunPanelLegacy
             run={contractRun}
             compact={hasSplitView}
             onStartExecution={
@@ -310,7 +310,7 @@ export function RunDetailsPage() {
 
         {/* Execution Run Panel */}
         {executionRun && (
-          <RunPanel
+          <RunPanelLegacy
             run={executionRun}
             compact={hasSplitView}
             onAbort={
