@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 
 // ============================================================================
 // Types
@@ -177,9 +177,19 @@ const DEFAULT_LAYOUT = {
       emoji: "⬡",
     },
     headerElements: {
-      search: { enabled: false, placeholder: "Buscar..." },
+      search: { enabled: false, placeholder: "Buscar...", showIcon: true, icon: "ph:magnifying-glass" },
       cta: { enabled: false, label: "Novo", variant: "default" },
-      icons: { enabled: true, items: ["bell", "settings"] },
+      ctas: [],
+      icons: { enabled: true, items: [{ id: "bell", route: "/notifications" }, { id: "settings", route: "/settings" }] },
+      order: ["search", "icons", "ctas"],
+    },
+    tableSeparator: {
+      color: "$tokens.colors.border",
+      width: "1px",
+      style: "solid",
+      headerColor: "",
+      headerWidth: "2px",
+      headerStyle: "solid",
     },
     pages: {},
   },
@@ -226,6 +236,46 @@ const DEFAULT_LAYOUT = {
       tight: { value: -0.02, unit: "em" },
       normal: { value: 0, unit: "em" },
       wide: { value: 0.05, unit: "em" },
+    },
+    colors: {
+      "bg": { value: "#0a0a0b" },
+      "surface": { value: "#141417" },
+      "surface-2": { value: "#1c1c21" },
+      "surface-3": { value: "#24242b" },
+      "border": { value: "#2a2a33" },
+      "border-2": { value: "#3a3a45" },
+      "text": { value: "#e4e4e7" },
+      "text-muted": { value: "#8b8b96" },
+      "text-dim": { value: "#5b5b66" },
+      "accent": { value: "#6d9cff" },
+      "accent-dim": { value: "#4a7adf" },
+      "accent-fg": { value: "#ffffff" },
+      "danger": { value: "#ff6b6b" },
+      "danger-dim": { value: "#cc5555" },
+      "success": { value: "#4ade80" },
+      "success-dim": { value: "#22c55e" },
+      "warning": { value: "#fbbf24" },
+      "warning-dim": { value: "#d4a017" },
+      "sidebar-bg": { value: "#111114" },
+      "header-bg": { value: "#0a0a0b" },
+      "input-bg": { value: "#1c1c21" },
+      "input-border": { value: "#2a2a33" },
+      "card-bg": { value: "#141417" },
+      "card-border": { value: "#2a2a33" },
+      "ring": { value: "#6d9cff44" },
+    },
+    borderRadius: {
+      none: { value: 0, unit: "px" },
+      sm: { value: 4, unit: "px" },
+      md: { value: 6, unit: "px" },
+      lg: { value: 8, unit: "px" },
+      xl: { value: 12, unit: "px" },
+      full: { value: 9999, unit: "px" },
+    },
+    borderWidth: {
+      thin: { value: 1, unit: "px" },
+      medium: { value: 2, unit: "px" },
+      thick: { value: 3, unit: "px" },
     },
   },
   textStyles: {
@@ -633,6 +683,8 @@ function TokenEditor({ tokens, onChange }) {
         tabs={[
           { id: "spacing", label: `Spacing (${Object.keys(tokens.spacing || {}).length})` },
           { id: "sizing", label: `Sizing (${Object.keys(tokens.sizing || {}).length})` },
+          { id: "borderRadius", label: `Radius (${Object.keys(tokens.borderRadius || {}).length})` },
+          { id: "borderWidth", label: `Border W (${Object.keys(tokens.borderWidth || {}).length})` },
         ]}
         active={activeCat}
         onChange={setActiveCat}
@@ -1323,7 +1375,7 @@ function SidebarConfigEditor({ region, tokens, onChange }) {
               </label>
             </Field>
             <Field label="Border Radius" style={{ flex: 1 }}>
-              <TokenRefSelect value={navTypo.cardBorderRadius || ""} tokens={tokens} category="radii" onChange={(v) => updateNavTypo("cardBorderRadius", v)} />
+              <TokenRefSelect value={navTypo.cardBorderRadius || ""} tokens={tokens} category="borderRadius" onChange={(v) => updateNavTypo("cardBorderRadius", v)} />
             </Field>
             <Field label="Padding" style={{ flex: 1 }}>
               <TokenRefSelect value={navTypo.cardPadding || ""} tokens={tokens} category="spacing" onChange={(v) => updateNavTypo("cardPadding", v)} />
@@ -1636,18 +1688,18 @@ function RegionEditor({ name, region, tokens, onChange }) {
               {name === "header" && (
                 <Field label="Bottom separator">
                   <SeparatorEditor
-                    separator={(region as any).separators?.bottom || { enabled: true, color: "$tokens.colors.border", width: "$tokens.borderWidth.thin", style: "solid" }}
+                    separator={region.separators?.bottom || { enabled: true, color: "$tokens.colors.border", width: "$tokens.borderWidth.thin", style: "solid" }}
                     tokens={tokens}
-                    onChange={(v) => onChange({ ...region, separators: { ...(region as any).separators, bottom: v } })}
+                    onChange={(v) => onChange({ ...region, separators: { ...region.separators, bottom: v } })}
                   />
                 </Field>
               )}
               {name === "footer" && (
                 <Field label="Top separator">
                   <SeparatorEditor
-                    separator={(region as any).separators?.top || { enabled: true, color: "$tokens.colors.border", width: "$tokens.borderWidth.thin", style: "solid" }}
+                    separator={region.separators?.top || { enabled: true, color: "$tokens.colors.border", width: "$tokens.borderWidth.thin", style: "solid" }}
                     tokens={tokens}
-                    onChange={(v) => onChange({ ...region, separators: { ...(region as any).separators, top: v } })}
+                    onChange={(v) => onChange({ ...region, separators: { ...region.separators, top: v } })}
                   />
                 </Field>
               )}
@@ -1832,6 +1884,9 @@ const PHOSPHOR_CATEGORIES: Record<string, { name: string; d: string }[]> = {
     { name: "shield-check", d: "M208,40H48A16,16,0,0,0,32,56v58.77c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.52-80-30.69-80-109.18V56H208ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z" },
     { name: "shield", d: "M208,40H48A16,16,0,0,0,32,56v58.77c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.52-80-30.69-80-109.18V56H208Z" },
     { name: "lock", d: "M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208Zm-80-36V140a12,12,0,1,1,0-24h0a12,12,0,0,1,12,12v24a12,12,0,0,1-24,0Z" },
+    { name: "barricade", d: "M224,64H32A16,16,0,0,0,16,80v72a16,16,0,0,0,16,16H56v32a8,8,0,0,0,16,0V168H184v32a8,8,0,0,0,16,0V168h24a16,16,0,0,0,16-16V80A16,16,0,0,0,224,64Zm0,64.69L175.31,80H224ZM80.69,80l72,72H103.31L32,80.69V80ZM32,103.31,80.69,152H32ZM224,152H175.31l-72-72h49.38L224,151.32V152Z" },
+    { name: "door", d: "M232,216H208V40a16,16,0,0,0-16-16H64A16,16,0,0,0,48,40V216H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16ZM64,40H192V216H64Zm104,92a12,12,0,1,1-12-12A12,12,0,0,1,168,132Z" },
+    { name: "door-open", d: "M232,216H208V40a16,16,0,0,0-16-16H64A16,16,0,0,0,48,40V216H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16Zm-40,0H176V40h16ZM64,40h96V216H64Zm80,92a12,12,0,1,1-12-12A12,12,0,0,1,144,132Z" },
     { name: "key", d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A80,80,0,0,0,216.57,39.43ZM224,100a63.08,63.08,0,0,1-17.39,43.52L126.34,168H104a8,8,0,0,0-8,8v16H80a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,2.11-7.34A63.93,63.93,0,0,1,160.05,36,64.08,64.08,0,0,1,224,100Zm-44-20a12,12,0,1,1-12-12A12,12,0,0,1,180,80Z" },
     { name: "eye", d: "M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.29A169.47,169.47,0,0,1,24.7,128,169.47,169.47,0,0,1,48.07,97.29C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.29A169.47,169.47,0,0,1,231.3,128C223.94,141.44,192.22,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z" },
     { name: "warning", d: "M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z" },
@@ -2278,27 +2333,76 @@ function LogoConfigEditor({ logo, onChange }) {
 // Header Elements Editor
 // ============================================================================
 const HEADER_ICON_OPTIONS = ["bell", "settings", "user", "mail", "help", "moon", "sun", "menu", "search", "grid", "download", "share"];
+const HEADER_ICON_PHOSPHOR: Record<string, string> = {
+  bell: "bell", settings: "gear", user: "user", mail: "envelope", help: "question", moon: "moon",
+  sun: "sun", menu: "list", search: "magnifying-glass", grid: "squares-four", download: "arrow-square-down", share: "share-network",
+};
 const HEADER_ICON_MAP = {
   bell: "🔔", settings: "⚙️", user: "👤", mail: "✉️", help: "❓", moon: "🌙",
   sun: "☀️", menu: "☰", search: "🔍", grid: "⊞", download: "⬇", share: "↗",
 };
 
+// Mini Phosphor icon for editor preview
+function MiniPhosphorIcon({ name, size = 16, color = "currentColor" }: { name: string; size?: number; color?: string }) {
+  const PATHS: Record<string, string> = {
+    "bell": "M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z",
+    "gear": "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06ZM199.87,123.66Z",
+    "user": "M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z",
+    "envelope": "M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48Zm-96,85.15L52.57,64H203.43ZM98.71,128,40,181.81V74.19Zm11.84,10.85,12,11.05a8,8,0,0,0,10.82,0l12-11.05,58,53.15H52.57ZM157.29,128,216,74.18V181.82Z",
+    "question": "M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180ZM128,72c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Zm104,56A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z",
+    "moon": "M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23Z",
+    "sun": "M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128Z",
+    "list": "M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z",
+    "magnifying-glass": "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z",
+    "squares-four": "M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48Z",
+    "arrow-square-down": "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V48H208V208Z",
+    "share-network": "M176,160a39.89,39.89,0,0,0-28.62,12.09l-46.1-29.63a39.8,39.8,0,0,0,0-28.92l46.1-29.63a40,40,0,1,0-8.66-13.45l-46.1,29.63a40,40,0,1,0,0,55.82l46.1,29.63A40,40,0,1,0,176,160Z",
+    "plus": "M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z",
+  };
+  const d = PATHS[name];
+  if (!d) return <span style={{ fontSize: size }}>?</span>;
+  return (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 256 256" fill={color}><path d={d} /></svg>);
+}
+
 function HeaderElementsEditor({ elements, onChange }) {
   const cfg = elements || {
-    search: { enabled: false, placeholder: "Buscar..." },
-    cta: { enabled: false, label: "Novo", variant: "default", route: "/new" },
+    search: { enabled: false, placeholder: "Buscar...", showIcon: true, icon: "ph:magnifying-glass" },
+    cta: { enabled: false, label: "Novo", variant: "default" },
+    ctas: [],
     icons: { enabled: true, items: [{ id: "bell", route: "/notifications" }, { id: "settings", route: "/settings" }] },
+    order: ["search", "icons", "ctas"],
   };
   const update = (key, field, val) => onChange({ ...cfg, [key]: { ...cfg[key], [field]: val } });
+  const updateRoot = (field, val) => onChange({ ...cfg, [field]: val });
 
-  // Normalize icons: support both string[] (old) and {id,route}[] (new) formats
+  // Normalize icons
   const normalizeIcons = (items) => {
     if (!items) return [];
     return items.map(it => typeof it === "string" ? { id: it, route: "" } : it);
   };
   const iconItems = normalizeIcons(cfg.icons?.items);
-
   const updateIconItems = (newItems) => update("icons", "items", newItems);
+
+  // Multi-CTA helpers
+  const ctas = cfg.ctas || [];
+  const addCta = () => {
+    const newCta = { id: `cta-${Date.now()}`, label: "Ação", variant: "default", route: "" };
+    updateRoot("ctas", [...ctas, newCta]);
+  };
+  const removeCta = (id) => updateRoot("ctas", ctas.filter(c => c.id !== id));
+  const updateCta = (id, field, val) => updateRoot("ctas", ctas.map(c => c.id === id ? { ...c, [field]: val } : c));
+
+  // Order
+  const order = cfg.order || ["search", "icons", "ctas"];
+  const moveOrder = (idx, dir) => {
+    const newOrder = [...order];
+    const target = idx + dir;
+    if (target < 0 || target >= newOrder.length) return;
+    [newOrder[idx], newOrder[target]] = [newOrder[target], newOrder[idx]];
+    updateRoot("order", newOrder);
+  };
+
+  const ELEMENT_LABELS = { search: "🔍 Pesquisa", icons: "🔔 Ícones", ctas: "🎯 CTAs" };
 
   // CTA variant style map for preview
   const CTA_VARIANT_STYLES = {
@@ -2310,43 +2414,82 @@ function HeaderElementsEditor({ elements, onChange }) {
   };
 
   // Preview
-  const renderPreview = () => {
-    const ctaStyle = CTA_VARIANT_STYLES[cfg.cta?.variant || "default"] || CTA_VARIANT_STYLES.default;
-    return (
-      <div style={{
-        background: COLORS.surface2, borderRadius: 8, padding: "10px 16px", marginBottom: 16,
-        display: "flex", alignItems: "center", gap: 12, border: `1px solid ${COLORS.border}`,
-        minHeight: 44,
-      }}>
-        <span style={{ fontSize: 12, color: COLORS.textDim, flex: "0 0 auto" }}>Header →</span>
-        <div style={{ flex: 1 }} />
-        {cfg.search?.enabled && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: COLORS.surface3, borderRadius: 6, padding: "4px 10px", border: `1px solid ${COLORS.border}` }}>
-            <span style={{ fontSize: 12 }}>🔍</span>
-            <span style={{ fontSize: 12, color: COLORS.textDim }}>{cfg.search.placeholder || "Buscar..."}</span>
-          </div>
-        )}
-        {cfg.icons?.enabled && iconItems.map(ic => (
-          <span key={ic.id} style={{ fontSize: 16, cursor: "pointer", opacity: 0.7 }} title={ic.route || ic.id}>{HEADER_ICON_MAP[ic.id] || ic.id}</span>
-        ))}
-        {cfg.cta?.enabled && (
-          <button style={{
-            fontSize: 11, padding: "5px 14px", borderRadius: 6, cursor: "pointer", fontWeight: 500,
-            background: ctaStyle.bg, color: ctaStyle.color, border: ctaStyle.border || "none",
-          }}>{cfg.cta.label || "Novo"}</button>
-        )}
-      </div>
-    );
+  const renderPreviewElement = (key) => {
+    if (key === "search" && cfg.search?.enabled) {
+      const searchPhosphor = HEADER_ICON_PHOSPHOR[cfg.search?.icon?.replace("ph:", "")] || cfg.search?.icon?.replace("ph:", "") || "magnifying-glass";
+      return (
+        <div key="search" style={{ display: "flex", alignItems: "center", gap: 6, background: COLORS.surface3, borderRadius: 6, padding: "4px 10px", border: `1px solid ${COLORS.border}` }}>
+          {(cfg.search.showIcon !== false) && <MiniPhosphorIcon name={searchPhosphor} size={12} color={COLORS.textDim} />}
+          <span style={{ fontSize: 12, color: COLORS.textDim }}>{cfg.search.placeholder || "Buscar..."}</span>
+        </div>
+      );
+    }
+    if (key === "icons" && cfg.icons?.enabled) {
+      return iconItems.map(ic => (
+        <span key={ic.id} style={{ display: "inline-flex", opacity: 0.7 }} title={ic.route || ic.id}>
+          <MiniPhosphorIcon name={HEADER_ICON_PHOSPHOR[ic.id] || ic.id} size={16} color={COLORS.textMuted} />
+        </span>
+      ));
+    }
+    if (key === "ctas") {
+      const allCtas = ctas.length > 0 ? ctas : (cfg.cta?.enabled ? [{ id: "legacy", label: cfg.cta.label || "Novo", variant: cfg.cta.variant }] : []);
+      return allCtas.map(cta => {
+        const vs = CTA_VARIANT_STYLES[cta.variant || "default"] || CTA_VARIANT_STYLES.default;
+        const phIcon = cta.icon?.startsWith("ph:") ? cta.icon.slice(3) : undefined;
+        return (
+          <button key={cta.id} style={{
+            fontSize: 11, padding: "5px 14px", borderRadius: 6, cursor: "default", fontWeight: 500,
+            background: vs.bg, color: vs.color, border: vs.border || "none",
+            display: "inline-flex", alignItems: "center", gap: 4,
+          }}>
+            {phIcon && <MiniPhosphorIcon name={phIcon} size={12} />}
+            {cta.label}
+          </button>
+        );
+      });
+    }
+    return null;
   };
+
+  const renderPreview = () => (
+    <div style={{
+      background: COLORS.surface2, borderRadius: 8, padding: "10px 16px", marginBottom: 16,
+      display: "flex", alignItems: "center", gap: 12, border: `1px solid ${COLORS.border}`,
+      minHeight: 44,
+    }}>
+      <span style={{ fontSize: 12, color: COLORS.textDim, flex: "0 0 auto" }}>Header →</span>
+      <div style={{ flex: 1 }} />
+      {order.map(key => <React.Fragment key={key}>{renderPreviewElement(key)}</React.Fragment>)}
+    </div>
+  );
 
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, margin: 0, marginBottom: 4 }}>Header Elements</h3>
-        <p style={{ fontSize: 12, color: COLORS.textDim, margin: 0 }}>Configure quais elementos aparecem no header</p>
+        <p style={{ fontSize: 12, color: COLORS.textDim, margin: 0 }}>Configure quais elementos aparecem no header e sua ordem</p>
       </div>
 
       {renderPreview()}
+
+      {/* Order */}
+      <Section title="📐 Ordem dos Elementos" defaultOpen={true} id="header-order">
+        <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 8 }}>Arraste para reordenar os blocos do header:</div>
+        {order.map((key, idx) => (
+          <div key={key} style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
+            background: COLORS.surface3, borderRadius: 6, marginBottom: 4,
+            border: `1px solid ${COLORS.border}`,
+          }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <button onClick={() => moveOrder(idx, -1)} disabled={idx === 0} style={{ ...s.btnSmall, padding: "1px 4px", fontSize: 10, opacity: idx === 0 ? 0.3 : 1 }}>▲</button>
+              <button onClick={() => moveOrder(idx, 1)} disabled={idx === order.length - 1} style={{ ...s.btnSmall, padding: "1px 4px", fontSize: 10, opacity: idx === order.length - 1 ? 0.3 : 1 }}>▼</button>
+            </div>
+            <span style={{ fontSize: 12, color: COLORS.text, fontWeight: 500 }}>{ELEMENT_LABELS[key] || key}</span>
+            <span style={{ fontSize: 10, color: COLORS.textDim, fontFamily: "monospace" }}>{key}</span>
+          </div>
+        ))}
+      </Section>
 
       {/* Search */}
       <Section title="🔍 Pesquisa" defaultOpen={cfg.search?.enabled} id="header-search">
@@ -2355,19 +2498,152 @@ function HeaderElementsEditor({ elements, onChange }) {
           Habilitar campo de pesquisa
         </label>
         {cfg.search?.enabled && (
-          <Field label="Placeholder">
-            <input value={cfg.search?.placeholder || ""} onChange={(e) => update("search", "placeholder", e.target.value)} style={s.input} />
-          </Field>
+          <>
+            <Field label="Placeholder">
+              <input value={cfg.search?.placeholder || ""} onChange={(e) => update("search", "placeholder", e.target.value)} style={s.input} />
+            </Field>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginBottom: 10 }}>
+              <input type="checkbox" checked={cfg.search?.showIcon !== false} onChange={(e) => update("search", "showIcon", e.target.checked)} />
+              Mostrar ícone na caixa de pesquisa
+            </label>
+            {(cfg.search?.showIcon !== false) && (
+              <Field label="Ícone da pesquisa">
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {["magnifying-glass", "eye", "list", "sparkle"].map(icName => (
+                    <button key={icName} onClick={() => update("search", "icon", `ph:${icName}`)} style={{
+                      ...s.btnSmall, padding: "6px 8px",
+                      background: (cfg.search?.icon === `ph:${icName}` || (!cfg.search?.icon && icName === "magnifying-glass")) ? COLORS.accent + "20" : COLORS.surface3,
+                      border: (cfg.search?.icon === `ph:${icName}` || (!cfg.search?.icon && icName === "magnifying-glass")) ? `1px solid ${COLORS.accent}50` : `1px solid ${COLORS.border}`,
+                      display: "inline-flex", alignItems: "center",
+                    }} title={icName}>
+                      <MiniPhosphorIcon name={icName} size={14} color={COLORS.text} />
+                    </button>
+                  ))}
+                  <input value={cfg.search?.icon || "ph:magnifying-glass"} onChange={(e) => update("search", "icon", e.target.value)} style={{ ...s.input, width: 150, fontSize: 11, fontFamily: "monospace" }} placeholder="ph:icon-name" />
+                </div>
+              </Field>
+            )}
+          </>
         )}
       </Section>
 
-      {/* CTA */}
-      <Section title="🎯 CTA (Call to Action)" defaultOpen={cfg.cta?.enabled} id="header-cta">
+      {/* Icons */}
+      <Section title="🔔 Ícones de Ação" defaultOpen={cfg.icons?.enabled} id="header-icons">
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginBottom: 10 }}>
-          <input type="checkbox" checked={cfg.cta?.enabled ?? false} onChange={(e) => update("cta", "enabled", e.target.checked)} />
-          Habilitar botão CTA
+          <input type="checkbox" checked={cfg.icons?.enabled ?? false} onChange={(e) => update("icons", "enabled", e.target.checked)} />
+          Habilitar ícones no header
         </label>
-        {cfg.cta?.enabled && (
+        {cfg.icons?.enabled && (
+          <div>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 8 }}>Clique para adicionar/remover ícones (Phosphor):</div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
+              {HEADER_ICON_OPTIONS.map(icId => {
+                const active = iconItems.some(i => i.id === icId);
+                const phName = HEADER_ICON_PHOSPHOR[icId] || icId;
+                return (
+                  <button key={icId} onClick={() => {
+                    if (active) updateIconItems(iconItems.filter(i => i.id !== icId));
+                    else updateIconItems([...iconItems, { id: icId, route: `/${icId}` }]);
+                  }} style={{
+                    ...s.btnSmall, padding: "6px 8px", display: "inline-flex", alignItems: "center", gap: 4,
+                    background: active ? COLORS.accent + "20" : COLORS.surface3,
+                    border: active ? `1px solid ${COLORS.accent}50` : `1px solid ${COLORS.border}`,
+                    opacity: active ? 1 : 0.5,
+                  }} title={icId}>
+                    <MiniPhosphorIcon name={phName} size={14} color={active ? COLORS.accent : COLORS.textMuted} />
+                    <span style={{ fontSize: 10, color: COLORS.textDim }}>{icId}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Routes for each icon */}
+            {iconItems.length > 0 && (
+              <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Rotas dos ícones</div>
+            )}
+            {iconItems.map((ic, idx) => (
+              <Row key={ic.id} gap={8} style={{ marginBottom: 4 }}>
+                <span style={{ display: "inline-flex", width: 24, justifyContent: "center" }}>
+                  <MiniPhosphorIcon name={HEADER_ICON_PHOSPHOR[ic.id] || ic.id} size={16} color={COLORS.textMuted} />
+                </span>
+                <span style={{ fontSize: 12, color: COLORS.textMuted, width: 70 }}>{ic.id}</span>
+                <input
+                  value={ic.route || ""}
+                  onChange={(e) => {
+                    const updated = [...iconItems];
+                    updated[idx] = { ...ic, route: e.target.value };
+                    updateIconItems(updated);
+                  }}
+                  style={{ ...s.input, flex: 1, fontFamily: "monospace", fontSize: 12 }}
+                  placeholder={`/${ic.id}`}
+                />
+              </Row>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* CTAs (Multi) */}
+      <Section title="🎯 CTAs (Call to Action)" defaultOpen={cfg.cta?.enabled || ctas.length > 0} id="header-cta">
+        {/* Legacy single CTA migration hint */}
+        {cfg.cta?.enabled && ctas.length === 0 && (
+          <div style={{ padding: 8, background: COLORS.surface3, borderRadius: 6, marginBottom: 10, fontSize: 11, color: COLORS.textDim }}>
+            CTA legado detectado. <button onClick={() => {
+              const legacy = { id: `cta-${Date.now()}`, label: cfg.cta?.label || "Novo", variant: cfg.cta?.variant || "default", route: cfg.cta?.route || "" };
+              onChange({ ...cfg, ctas: [legacy], cta: { ...cfg.cta, enabled: false } });
+            }} style={{ ...s.btnSmall, fontSize: 11, color: COLORS.accent }}>Migrar para multi-CTA →</button>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 10 }}>
+          <button onClick={addCta} style={{ ...s.btnSmall, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <MiniPhosphorIcon name="plus" size={12} /> Adicionar CTA
+          </button>
+        </div>
+
+        {ctas.map((cta, idx) => {
+          const vs = CTA_VARIANT_STYLES[cta.variant || "default"] || CTA_VARIANT_STYLES.default;
+          return (
+            <div key={cta.id} style={{ padding: 10, background: COLORS.surface2, borderRadius: 6, marginBottom: 8, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.text }}>CTA #{idx + 1}</span>
+                <button onClick={() => removeCta(cta.id)} style={{ ...s.btnSmall, fontSize: 10, color: COLORS.danger }}>✕ Remover</button>
+              </div>
+              <Row gap={8}>
+                <Field label="Label" style={{ flex: 1 }}>
+                  <input value={cta.label || ""} onChange={(e) => updateCta(cta.id, "label", e.target.value)} style={s.input} />
+                </Field>
+                <Field label="Variant" style={{ width: 120 }}>
+                  <select value={cta.variant || "default"} onChange={(e) => updateCta(cta.id, "variant", e.target.value)} style={s.select}>
+                    {["default", "destructive", "outline", "secondary", "ghost"].map(v => <option key={v}>{v}</option>)}
+                  </select>
+                </Field>
+              </Row>
+              <Row gap={8}>
+                <Field label="Rota (link)" style={{ flex: 1 }}>
+                  <input value={cta.route || ""} onChange={(e) => updateCta(cta.id, "route", e.target.value)} style={{ ...s.input, fontFamily: "monospace" }} placeholder="/nova-acao" />
+                </Field>
+                <Field label="Ícone (ph:name)" style={{ width: 150 }}>
+                  <input value={cta.icon || ""} onChange={(e) => updateCta(cta.id, "icon", e.target.value)} style={{ ...s.input, fontFamily: "monospace", fontSize: 11 }} placeholder="ph:plus" />
+                </Field>
+              </Row>
+              {/* Preview */}
+              <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
+                <span style={{ fontSize: 11, color: COLORS.textDim }}>Preview:</span>
+                <button style={{
+                  fontSize: 11, padding: "4px 12px", borderRadius: 6, cursor: "default", fontWeight: 500,
+                  background: vs.bg, color: vs.color, border: vs.border || "none",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}>
+                  {cta.icon?.startsWith("ph:") && <MiniPhosphorIcon name={cta.icon.slice(3)} size={12} />}
+                  {cta.label || "CTA"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Legacy single CTA (backward compat) */}
+        {cfg.cta?.enabled && ctas.length === 0 && (
           <>
             <Row gap={8}>
               <Field label="Label" style={{ flex: 1 }}>
@@ -2385,56 +2661,113 @@ function HeaderElementsEditor({ elements, onChange }) {
           </>
         )}
       </Section>
+    </div>
+  );
+}
 
-      {/* Icons */}
-      <Section title="🔔 Ícones de Ação" defaultOpen={cfg.icons?.enabled} id="header-icons">
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginBottom: 10 }}>
-          <input type="checkbox" checked={cfg.icons?.enabled ?? false} onChange={(e) => update("icons", "enabled", e.target.checked)} />
-          Habilitar ícones no header
-        </label>
-        {cfg.icons?.enabled && (
-          <div>
-            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 8 }}>Clique para adicionar/remover ícones:</div>
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
-              {HEADER_ICON_OPTIONS.map(icId => {
-                const active = iconItems.some(i => i.id === icId);
-                return (
-                  <button key={icId} onClick={() => {
-                    if (active) updateIconItems(iconItems.filter(i => i.id !== icId));
-                    else updateIconItems([...iconItems, { id: icId, route: `/${icId}` }]);
-                  }} style={{
-                    ...s.btnSmall, fontSize: 14, padding: "6px 10px",
-                    background: active ? COLORS.accent + "20" : COLORS.surface3,
-                    border: active ? `1px solid ${COLORS.accent}50` : `1px solid ${COLORS.border}`,
-                    opacity: active ? 1 : 0.5,
-                  }} title={icId}>
-                    {HEADER_ICON_MAP[icId] || icId}
-                  </button>
-                );
-              })}
-            </div>
-            {/* Routes for each icon */}
-            {iconItems.length > 0 && (
-              <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Rotas dos ícones</div>
-            )}
-            {iconItems.map((ic, idx) => (
-              <Row key={ic.id} gap={8} style={{ marginBottom: 4 }}>
-                <span style={{ fontSize: 16, width: 30, textAlign: "center" }}>{HEADER_ICON_MAP[ic.id] || ic.id}</span>
-                <span style={{ fontSize: 12, color: COLORS.textMuted, width: 70 }}>{ic.id}</span>
-                <input
-                  value={ic.route || ""}
-                  onChange={(e) => {
-                    const updated = [...iconItems];
-                    updated[idx] = { ...ic, route: e.target.value };
-                    updateIconItems(updated);
-                  }}
-                  style={{ ...s.input, flex: 1, fontFamily: "monospace", fontSize: 12 }}
-                  placeholder={`/${ic.id}`}
-                />
-              </Row>
+// ============================================================================
+// Table Separator Editor
+// ============================================================================
+function TableSeparatorEditor({ config, tokens, onChange }) {
+  const cfg = config || { color: "$tokens.colors.border", width: "1px", style: "solid", headerColor: "", headerWidth: "2px", headerStyle: "solid" };
+  const update = (field, val) => onChange({ ...cfg, [field]: val });
+
+  const colorKeys = Object.keys(tokens?.colors || {});
+
+  // Preview table
+  const resolveColor = (ref) => {
+    if (!ref) return COLORS.border;
+    const m = ref.match(/^\$tokens\.colors\.(.+)$/);
+    if (m && tokens?.colors?.[m[1]]) return tokens.colors[m[1]].value;
+    return ref;
+  };
+
+  const sepColor = resolveColor(cfg.color);
+  const hdrColor = resolveColor(cfg.headerColor) || sepColor;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, margin: 0, marginBottom: 4 }}>Table Separator</h3>
+        <p style={{ fontSize: 12, color: COLORS.textDim, margin: 0 }}>Configuração das linhas separadoras em tabelas</p>
+      </div>
+
+      {/* Preview */}
+      <div style={{ background: COLORS.surface2, borderRadius: 8, padding: 12, marginBottom: 16, border: `1px solid ${COLORS.border}` }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <thead>
+            <tr style={{ borderBottom: `${cfg.headerWidth || cfg.width || "1px"} ${cfg.headerStyle || cfg.style || "solid"} ${hdrColor}` }}>
+              <th style={{ textAlign: "left", padding: "6px 8px", color: COLORS.textMuted, fontWeight: 600 }}>ID</th>
+              <th style={{ textAlign: "left", padding: "6px 8px", color: COLORS.textMuted, fontWeight: 600 }}>Status</th>
+              <th style={{ textAlign: "right", padding: "6px 8px", color: COLORS.textMuted, fontWeight: 600 }}>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[["RUN-001", "Passed", "Gate 3"], ["RUN-002", "Failed", "Gate 1"], ["RUN-003", "Passed", "Gate 3"]].map(([id, st, gate], i) => (
+              <tr key={i} style={{ borderBottom: `${cfg.width || "1px"} ${cfg.style || "solid"} ${sepColor}` }}>
+                <td style={{ padding: "6px 8px", color: COLORS.text, fontFamily: "monospace", fontSize: 10 }}>{id}</td>
+                <td style={{ padding: "6px 8px" }}>
+                  <span style={{ padding: "1px 6px", borderRadius: 8, fontSize: 9, background: st === "Passed" ? "#22c55e20" : "#ef444420", color: st === "Passed" ? "#22c55e" : "#ef4444" }}>{st}</span>
+                </td>
+                <td style={{ padding: "6px 8px", color: COLORS.text, textAlign: "right", fontSize: 10 }}>{gate}</td>
+              </tr>
             ))}
-          </div>
-        )}
+          </tbody>
+        </table>
+      </div>
+
+      <Section title="Row Separator" defaultOpen={true} id="table-row-sep">
+        <Field label="Cor">
+          <Row gap={6}>
+            <select value={cfg.color?.startsWith("$tokens.colors.") ? cfg.color : "__custom"} onChange={(e) => update("color", e.target.value === "__custom" ? (sepColor || COLORS.border) : e.target.value)} style={{ ...s.select, flex: 1 }}>
+              <option value="__custom">Custom</option>
+              {colorKeys.map(k => <option key={k} value={`$tokens.colors.${k}`}>{k}</option>)}
+            </select>
+            {!cfg.color?.startsWith("$tokens.colors.") && (
+              <input type="color" value={cfg.color || COLORS.border} onChange={(e) => update("color", e.target.value)} style={{ width: 32, height: 28, border: "none", background: "none", cursor: "pointer" }} />
+            )}
+          </Row>
+        </Field>
+        <Row gap={8}>
+          <Field label="Espessura" style={{ flex: 1 }}>
+            <select value={cfg.width || "1px"} onChange={(e) => update("width", e.target.value)} style={s.select}>
+              {["0px", "1px", "2px", "3px"].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Field>
+          <Field label="Estilo" style={{ flex: 1 }}>
+            <select value={cfg.style || "solid"} onChange={(e) => update("style", e.target.value)} style={s.select}>
+              {["solid", "dashed", "dotted", "none"].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Field>
+        </Row>
+      </Section>
+
+      <Section title="Header Separator" defaultOpen={false} id="table-header-sep">
+        <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 8 }}>Separador entre header e body (se vazio, usa o mesmo das rows)</div>
+        <Field label="Cor do Header">
+          <Row gap={6}>
+            <select value={cfg.headerColor?.startsWith("$tokens.colors.") ? cfg.headerColor : (cfg.headerColor ? "__custom" : "")} onChange={(e) => update("headerColor", e.target.value === "__custom" ? (hdrColor || COLORS.border) : e.target.value)} style={{ ...s.select, flex: 1 }}>
+              <option value="">Mesma das rows</option>
+              <option value="__custom">Custom</option>
+              {colorKeys.map(k => <option key={k} value={`$tokens.colors.${k}`}>{k}</option>)}
+            </select>
+            {cfg.headerColor && !cfg.headerColor.startsWith("$tokens.colors.") && (
+              <input type="color" value={cfg.headerColor || COLORS.border} onChange={(e) => update("headerColor", e.target.value)} style={{ width: 32, height: 28, border: "none", background: "none", cursor: "pointer" }} />
+            )}
+          </Row>
+        </Field>
+        <Row gap={8}>
+          <Field label="Espessura" style={{ flex: 1 }}>
+            <select value={cfg.headerWidth || "2px"} onChange={(e) => update("headerWidth", e.target.value)} style={s.select}>
+              {["1px", "2px", "3px", "4px"].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Field>
+          <Field label="Estilo" style={{ flex: 1 }}>
+            <select value={cfg.headerStyle || "solid"} onChange={(e) => update("headerStyle", e.target.value)} style={s.select}>
+              {["solid", "dashed", "dotted", "double"].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Field>
+        </Row>
       </Section>
     </div>
   );
@@ -2739,10 +3072,21 @@ function LayoutSections({ layout, registry, setLayout, setRegistry }: { layout: 
       {/* ================================================================ */}
       {/* §3 — HEADER ELEMENTS                                            */}
       {/* ================================================================ */}
-      <WBSection title="Header Elements" dotColor={DOT.header} tag="busca · cta · ícones" id="sec-header" defaultOpen={false}>
+      <WBSection title="Header Elements" dotColor={DOT.header} tag="busca · cta · ícones · ordem" id="sec-header" defaultOpen={false}>
         <HeaderElementsEditor
           elements={layout.structure?.headerElements}
           onChange={(he) => onChange({ ...layout, structure: { ...layout.structure, headerElements: he } })}
+        />
+      </WBSection>
+
+      {/* ================================================================ */}
+      {/* §3b — TABLE SEPARATOR                                           */}
+      {/* ================================================================ */}
+      <WBSection title="Table Separator" dotColor={DOT.header} tag="linhas · cor · espessura" id="sec-table-sep" defaultOpen={false}>
+        <TableSeparatorEditor
+          config={layout.structure?.tableSeparator}
+          tokens={layout.tokens}
+          onChange={(ts) => onChange({ ...layout, structure: { ...layout.structure, tableSeparator: ts } })}
         />
       </WBSection>
 
@@ -3523,14 +3867,15 @@ function LayoutPreview({ layout }) {
                 <div style={{ flex: 1 }} />
                 {/* Header elements preview */}
                 {layout.structure?.headerElements?.search?.enabled && (
-                  <div style={{ fontSize: 8, padding: "2px 6px", borderRadius: 3, background: `${regionColors.header.text}15`, color: regionColors.header.text, border: `1px solid ${regionColors.header.text}25` }}>🔍</div>
+                  <div style={{ fontSize: 8, padding: "2px 4px", borderRadius: 3, background: `${regionColors.header.text}15`, color: regionColors.header.text, border: `1px solid ${regionColors.header.text}25`, display: "inline-flex" }}><MiniPhosphorIcon name="magnifying-glass" size={8} /></div>
                 )}
                 {layout.structure?.headerElements?.icons?.enabled && (layout.structure.headerElements.icons.items || []).slice(0, 3).map((raw, i) => {
                   const ic = typeof raw === "string" ? raw : raw.id;
-                  return <div key={i} style={{ fontSize: 8, padding: "2px 4px", borderRadius: 3, background: `${regionColors.header.text}10`, color: regionColors.header.text }}>{ic === "bell" ? "🔔" : ic === "settings" ? "⚙" : "•"}</div>;
+                  const phName = HEADER_ICON_PHOSPHOR[ic] || ic;
+                  return <div key={i} style={{ display: "inline-flex", padding: "2px 3px", borderRadius: 3, background: `${regionColors.header.text}10`, color: regionColors.header.text }}><MiniPhosphorIcon name={phName} size={8} /></div>;
                 })}
-                {layout.structure?.headerElements?.cta?.enabled && (
-                  <div style={{ fontSize: 8, padding: "2px 8px", borderRadius: 3, background: COLORS.accent, color: "#fff" }}>{layout.structure.headerElements.cta.label || "CTA"}</div>
+                {((layout.structure?.headerElements?.ctas?.length > 0) || layout.structure?.headerElements?.cta?.enabled) && (
+                  <div style={{ fontSize: 8, padding: "2px 8px", borderRadius: 3, background: COLORS.accent, color: "#fff" }}>{layout.structure.headerElements.ctas?.[0]?.label || layout.structure.headerElements.cta?.label || "CTA"}</div>
                 )}
               </div>
             </div>
@@ -4585,6 +4930,7 @@ function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () =
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const scrollOnNav = useRef(false); // only scroll into view on keyboard nav
 
   // Reset on open
   useEffect(() => {
@@ -4624,9 +4970,12 @@ function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () =
     if (activeIdx >= filtered.length) setActiveIdx(Math.max(0, filtered.length - 1));
   }, [filtered.length]);
 
-  // Scroll active into view
+  // Scroll active into view — only on keyboard nav
   useEffect(() => {
-    const el = listRef.current?.children[activeIdx] as HTMLElement;
+    if (!scrollOnNav.current) return;
+    scrollOnNav.current = false;
+    const items = listRef.current?.querySelectorAll("[data-cmd-item]");
+    const el = items?.[activeIdx] as HTMLElement;
     if (el) el.scrollIntoView({ block: "nearest" });
   }, [activeIdx]);
 
@@ -4639,9 +4988,11 @@ function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () =
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      scrollOnNav.current = true;
       setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      scrollOnNav.current = true;
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && filtered[activeIdx]) {
       e.preventDefault();
@@ -4737,6 +5088,7 @@ function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () =
                 return (
                   <div
                     key={item.id}
+                    data-cmd-item=""
                     onClick={() => execute(item)}
                     onMouseEnter={() => setActiveIdx(idx)}
                     style={{
@@ -4809,6 +5161,7 @@ function useCommandPaletteItems(
       { id: "sec-layout", label: "Layout & Regiões", icon: "📐" },
       { id: "wb-breadcrumbs", label: "Breadcrumbs", icon: "🔗" },
       { id: "sec-header", label: "Header Elements", icon: "📌" },
+      { id: "sec-table-sep", label: "Table Separator", icon: "📊" },
       { id: "sec-tokens", label: "Design Tokens", icon: "🎨" },
       { id: "wb-colors", label: "Cores (tokens)", icon: "🎨" },
       { id: "wb-spacing-sizing", label: "Spacing / Sizing / Border", icon: "📏" },
@@ -4851,7 +5204,7 @@ function useCommandPaletteItems(
     const tokenCats = [
       { cat: "spacing", label: "Spacing" },
       { cat: "sizing", label: "Sizing" },
-      { cat: "radii", label: "Border Radius" },
+      { cat: "borderRadius", label: "Border Radius" },
       { cat: "fontSizes", label: "Font Size" },
       { cat: "fontWeights", label: "Font Weight" },
       { cat: "lineHeights", label: "Line Height" },
@@ -4866,7 +5219,7 @@ function useCommandPaletteItems(
           id: `token:${tc.cat}.${key}`, label: `${tc.label}: ${key}`, category: "Token", icon: "◆", hint: display,
           action: () => {
             setActiveTab("layout");
-            const sectionId = tc.cat === "spacing" || tc.cat === "sizing" || tc.cat === "radii" ? "wb-spacing-sizing"
+            const sectionId = tc.cat === "spacing" || tc.cat === "sizing" || tc.cat === "borderRadius" || tc.cat === "borderWidth" ? "wb-spacing-sizing"
               : tc.cat === "fontSizes" ? "wb-font-sizes"
               : tc.cat === "fontWeights" ? "wb-font-weights"
               : tc.cat === "lineHeights" ? "wb-line-heights"
@@ -5158,6 +5511,16 @@ export function OrquiEditor() {
   // Command Palette
   const [cmdOpen, setCmdOpen] = useState(false);
 
+  // Orqui favicon
+  useEffect(() => {
+    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+    if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${COLORS.accent}"><path d="M245.66,74.34l-32-32a8,8,0,0,0-11.32,11.32L220.69,72H208c-49.33,0-61.05,28.12-71.38,52.92-9.38,22.51-16.92,40.59-49.48,42.84a40,40,0,1,0,.1,16c43.26-2.65,54.34-29.15,64.14-52.69C161.41,107,169.33,88,208,88h12.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,74.34ZM48,200a24,24,0,1,1,24-24A24,24,0,0,1,48,200Z"/></svg>`;
+    link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    link.type = "image/svg+xml";
+    document.title = "orqui — contract editor";
+  }, []);
+
   const openAccordion = useCallback((sectionId: string) => {
     // Dispatch custom event that usePersistentState hooks listen for
     window.dispatchEvent(new CustomEvent("orqui:open-accordion", { detail: sectionId }));
@@ -5198,10 +5561,15 @@ export function OrquiEditor() {
         display: "flex", alignItems: "center", padding: "0 20px", gap: 12,
       }}>
         {/* Brand */}
-        <span style={{
-          fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-          fontSize: 16, color: COLORS.accent, letterSpacing: "-0.5px",
-        }}>orqui</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 256 256" fill={COLORS.accent}>
+            <path d="M245.66,74.34l-32-32a8,8,0,0,0-11.32,11.32L220.69,72H208c-49.33,0-61.05,28.12-71.38,52.92-9.38,22.51-16.92,40.59-49.48,42.84a40,40,0,1,0,.1,16c43.26-2.65,54.34-29.15,64.14-52.69C161.41,107,169.33,88,208,88h12.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,74.34ZM48,200a24,24,0,1,1,24-24A24,24,0,0,1,48,200Z" />
+          </svg>
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+            fontSize: 16, color: COLORS.accent, letterSpacing: "-0.5px",
+          }}>orqui</span>
+        </div>
 
         {/* Dot separator */}
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.border }} />

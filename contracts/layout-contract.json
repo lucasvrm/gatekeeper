@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:23b43a270ffce421e957191c46c49b4890c6c1a55cac5b296f5a560c5964ba97",
-    "generatedAt": "2026-02-02T01:45:39.335Z"
+    "hash": "sha256:f94ed8ed22a3825615793f28097e662ff4caa32ba412a057f40eb45cfe2cd088",
+    "generatedAt": "2026-02-02T02:34:49.162Z"
   },
   "structure": {
     "regions": {
@@ -228,7 +228,7 @@
       "separator": "/",
       "clickable": true,
       "padding": {
-        "left": "$tokens.spacing.lg"
+        "left": "$tokens.spacing.sm"
       },
       "typography": {
         "fontSize": "$tokens.fontSizes.xs",
@@ -241,7 +241,7 @@
     "logo": {
       "type": "icon-text",
       "text": "Gatekeeper",
-      "icon": "ph:shield-check",
+      "icon": "ph:barricade",
       "iconUrl": "",
       "imageUrl": "",
       "position": "sidebar",
@@ -267,7 +267,7 @@
     "favicon": {
       "type": "emoji",
       "url": "",
-      "emoji": "ph:shield-check",
+      "emoji": "ph:barricade",
       "color": "#7aa4ff"
     },
     "headerElements": {
@@ -282,8 +282,17 @@
         "route": "/runs/new"
       },
       "icons": {
-        "enabled": false,
-        "items": []
+        "enabled": true,
+        "items": [
+          {
+            "id": "bell",
+            "route": "/bell"
+          },
+          {
+            "id": "settings",
+            "route": "/settings"
+          }
+        ]
       }
     }
   },
