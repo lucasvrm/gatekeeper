@@ -652,6 +652,105 @@ async function main() {
 
   console.log('✓ Initialized MCP session config singleton')
 
+  // =============================================================================
+  // AGENT RUNNER SEED DATA
+  // =============================================================================
+
+  const agentPhaseConfigs = [
+    {
+      step: 1,
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5-20250929',
+      maxTokens: 16384,
+      maxIterations: 40,
+      temperature: 0.3,
+      fallbackProvider: 'openai',
+      fallbackModel: 'gpt-4.1',
+    },
+    {
+      step: 2,
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5-20250929',
+      maxTokens: 16384,
+      maxIterations: 35,
+      temperature: 0.2,
+      fallbackProvider: 'mistral',
+      fallbackModel: 'mistral-large-latest',
+    },
+    {
+      step: 4,
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5-20250929',
+      maxTokens: 16384,
+      maxIterations: 60,
+      temperature: 0.1,
+      fallbackProvider: 'openai',
+      fallbackModel: 'gpt-4.1',
+    },
+  ]
+
+  for (const config of agentPhaseConfigs) {
+    await prisma.agentPhaseConfig.upsert({
+      where: { step: config.step },
+      create: config,
+      update: {
+        provider: config.provider,
+        model: config.model,
+        maxTokens: config.maxTokens,
+        maxIterations: config.maxIterations,
+        temperature: config.temperature,
+        fallbackProvider: config.fallbackProvider,
+        fallbackModel: config.fallbackModel,
+      },
+    })
+  }
+
+  console.log(`✓ Seeded ${agentPhaseConfigs.length} agent phase configs`)
+
+  // Default orchestrator content (system prompt building blocks)
+  const orchestratorContents = [
+    {
+      step: 1,
+      kind: 'instruction',
+      name: 'planner-core',
+      content: 'You are a TDD Planner for the Gatekeeper system. Analyze the codebase and produce a structured plan.',
+      order: 1,
+    },
+    {
+      step: 2,
+      kind: 'instruction',
+      name: 'specwriter-core',
+      content: 'You are a TDD Spec Writer. Take plan artifacts and produce runnable test files.',
+      order: 1,
+    },
+    {
+      step: 4,
+      kind: 'instruction',
+      name: 'coder-core',
+      content: 'You are a TDD Coder. Implement code to make all tests pass using the provided tools.',
+      order: 1,
+    },
+  ]
+
+  for (const content of orchestratorContents) {
+    await prisma.orchestratorContent.upsert({
+      where: {
+        step_kind_name: {
+          step: content.step,
+          kind: content.kind,
+          name: content.name,
+        },
+      },
+      create: content,
+      update: {
+        content: content.content,
+        order: content.order,
+      },
+    })
+  }
+
+  console.log(`✓ Seeded ${orchestratorContents.length} orchestrator content entries`)
+
   console.log('✓ Seed completed successfully')
 }
 

@@ -347,22 +347,39 @@ model SessionProfilePrompt {
 }
 
 // =============================================================================
-// ORCHESTRATOR CONTENT (Instructions, Docs, Prompts per step)
+// AGENT RUNNER MODELS
 // =============================================================================
-// Add this block to the END of your schema.prisma file
 
+/// Content used to assemble system prompts for each pipeline step.
+/// The AgentPromptAssembler queries this model to build prompts.
 model OrchestratorContent {
   id        String   @id @default(cuid())
-  kind      String   // 'instruction' | 'doc' | 'prompt'
-  step      Int      // 0=tarefa, 1=plano, 2=testes, 3=fix, 4=execução
+  step      Int               // 0-4 (pipeline step)
+  kind      String            // 'instruction' | 'doc' | 'prompt'
   name      String
-  content   String
+  content   String            // full text content
   order     Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([kind, step, name])
-  @@index([kind, step])
-  @@index([isActive])
+  @@unique([step, kind, name])
+  @@index([step, kind, isActive])
+}
+
+/// Per-phase LLM configuration: which provider/model to use, limits, fallbacks.
+/// Queried by AgentRunnerService to build PhaseConfig for each pipeline step.
+model AgentPhaseConfig {
+  id                String   @id @default(cuid())
+  step              Int      @unique         // 1, 2, 4
+  provider          String   @default("anthropic")  // 'anthropic' | 'openai' | 'mistral'
+  model             String   @default("claude-sonnet-4-5-20250929")
+  maxTokens         Int      @default(8192)
+  maxIterations     Int      @default(30)
+  temperature       Float?
+  fallbackProvider  String?  // fallback provider if primary fails
+  fallbackModel     String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }

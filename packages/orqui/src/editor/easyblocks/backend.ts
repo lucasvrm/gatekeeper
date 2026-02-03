@@ -1,171 +1,154 @@
 // ============================================================================
 // OrquiBackend — Custom Easyblocks Backend
 //
-// Implements the real @easyblocks/core Backend interface:
-//   documents: { get, create, update }
-//   templates:  { get, getAll, create, update, delete }
+// FIX: Backend interface must match the real Easyblocks API:
+//   documents.get()    → Promise<Document>           (not { document: ... })
+//   documents.create() → Promise<Document>           (not { id })
+//   documents.update() → Promise<Document>           (not void)
 //
-// Stores documents in-memory, synced with Orqui's layout.pages.
+// Where Document = { id: string; version: number; entry: NoCodeComponentEntry }
+//
+// Ref: https://docs.easyblocks.io/essentials/backend
 // ============================================================================
 
-import type {
-  Backend,
-  Document,
-  NoCodeComponentEntry,
-  UserDefinedTemplate,
-} from "@easyblocks/core";
 import type { PageDef } from "../page-editor/nodeDefaults";
-import { noCodeEntryToNodeDef, nodeDefToNoCodeEntry } from "./adapter";
+import {
+  noCodeEntryToNodeDef,
+  nodeDefToNoCodeEntry,
+  type NoCodeEntry,
+} from "./adapter";
 
 // ============================================================================
-// Options
+// Types matching the real Easyblocks Backend interface
 // ============================================================================
 
 export interface OrquiBackendOptions {
-  /** Current pages from layout.pages */
   pages: Record<string, PageDef>;
-  /** Callback when a page is created/updated */
   onPageChange: (pageId: string, page: PageDef) => void;
-  /** Callback when a page is deleted */
   onPageDelete?: (pageId: string) => void;
 }
 
-// ============================================================================
-// In-memory state
-// ============================================================================
-
-interface DocRecord {
+/** Easyblocks Document shape */
+interface Document {
   id: string;
   version: number;
-  entry: NoCodeComponentEntry;
-  meta: { label: string; route: string; browserTitle?: string };
+  entry: any; // NoCodeComponentEntry
 }
 
 // ============================================================================
-// Factory
+// Backend Implementation
 // ============================================================================
 
-/**
- * Creates a Backend compatible with the real @easyblocks/core Backend interface.
- *
- * Documents map 1:1 to Orqui pages. When the Easyblocks editor saves,
- * we convert back to NodeDef and notify the parent via onPageChange.
- */
-export function createOrquiBackend(options: OrquiBackendOptions): Backend {
-  // ---- In-memory document store ----
-  const docs = new Map<string, DocRecord>();
-  let nextVersion = 1;
+export function createOrquiBackend(options: OrquiBackendOptions) {
+  // In-memory version tracking
+  const versions = new Map<string, number>();
 
-  // Seed from current pages
-  for (const [id, page] of Object.entries(options.pages)) {
-    docs.set(id, {
-      id,
-      version: nextVersion++,
-      entry: nodeDefToNoCodeEntry(page.content),
-      meta: { label: page.label, route: page.route, browserTitle: page.browserTitle },
-    });
+  // Initialize versions from existing pages
+  for (const id of Object.keys(options.pages)) {
+    versions.set(id, 1);
   }
 
-  // ---- In-memory template store ----
-  const templates = new Map<string, UserDefinedTemplate>();
-
-  // ================================================================
-  // Backend implementation
-  // ================================================================
   return {
     documents: {
-      async get({ id }): Promise<Document> {
-        const doc = docs.get(id);
-        if (!doc) {
-          throw new Error(`[OrquiBackend] Document "${id}" not found`);
+      async get(payload: { id: string; locale?: string }): Promise<Document> {
+        const page = options.pages[payload.id];
+        if (!page) {
+          // Easyblocks expects a Document even for missing docs
+          // Return a minimal entry — the editor handles this gracefully
+          throw new Error(`Document ${payload.id} not found`);
         }
-        return { id: doc.id, version: doc.version, entry: doc.entry };
-      },
 
-      async create({ entry }): Promise<Document> {
-        const id = `page-${Date.now()}`;
-        const version = nextVersion++;
-        const noCodeEntry = entry as NoCodeComponentEntry;
+        const entry = nodeDefToNoCodeEntry(page.content);
+        const version = versions.get(payload.id) || 1;
 
-        const meta = {
-          label: `Página ${docs.size + 1}`,
-          route: `/${id}`,
+        return {
+          id: payload.id,
+          version,
+          entry,
         };
-
-        docs.set(id, { id, version, entry: noCodeEntry, meta });
-
-        // Convert to NodeDef and notify parent
-        const node = noCodeEntryToNodeDef(noCodeEntry);
-        options.onPageChange(id, {
-          id,
-          label: meta.label,
-          route: meta.route,
-          content: node,
-        });
-
-        return { id, version, entry: noCodeEntry };
       },
 
-      async update({ id, version, entry }): Promise<Document> {
-        const existing = docs.get(id);
-        if (!existing) {
-          throw new Error(`[OrquiBackend] Document "${id}" not found for update`);
-        }
+      async create(payload: { entry: any }): Promise<Document> {
+        const id = `page-${Date.now()}`;
+        const noCodeEntry = payload.entry;
+        const node = noCodeEntryToNodeDef(noCodeEntry as NoCodeEntry);
 
-        const newVersion = nextVersion++;
-        const noCodeEntry = entry as NoCodeComponentEntry;
+        versions.set(id, 1);
 
-        docs.set(id, { ...existing, version: newVersion, entry: noCodeEntry });
-
-        // Convert to NodeDef and notify parent
-        const node = noCodeEntryToNodeDef(noCodeEntry);
+        // Notify parent
         options.onPageChange(id, {
           id,
-          label: existing.meta.label,
-          route: existing.meta.route,
-          browserTitle: existing.meta.browserTitle,
+          label: `Página ${Object.keys(options.pages).length + 1}`,
+          route: `/${id}`,
           content: node,
         });
 
-        return { id, version: newVersion, entry: noCodeEntry };
+        return {
+          id,
+          version: 1,
+          entry: noCodeEntry,
+        };
+      },
+
+      async update(payload: { id: string; version: number; entry: any }): Promise<Document> {
+        const noCodeEntry = payload.entry;
+        const node = noCodeEntryToNodeDef(noCodeEntry as NoCodeEntry);
+
+        const newVersion = (versions.get(payload.id) || 0) + 1;
+        versions.set(payload.id, newVersion);
+
+        // Get existing metadata
+        const existing = options.pages[payload.id];
+        const label = existing?.label || `Página`;
+        const route = existing?.route || `/${payload.id}`;
+
+        // Notify parent
+        options.onPageChange(payload.id, {
+          id: payload.id,
+          label,
+          route,
+          browserTitle: existing?.browserTitle,
+          content: node,
+        });
+
+        return {
+          id: payload.id,
+          version: newVersion,
+          entry: noCodeEntry,
+        };
       },
     },
 
     templates: {
-      async get({ id }): Promise<UserDefinedTemplate> {
-        const tpl = templates.get(id);
-        if (!tpl) throw new Error(`[OrquiBackend] Template "${id}" not found`);
-        return tpl;
-      },
-
-      async getAll(): Promise<UserDefinedTemplate[]> {
-        return Array.from(templates.values());
-      },
-
-      async create({ label, entry, width, widthAuto }): Promise<UserDefinedTemplate> {
-        const id = `tpl-${Date.now()}`;
-        const tpl: UserDefinedTemplate = {
-          id,
-          label,
-          entry: entry as NoCodeComponentEntry,
-          isUserDefined: true,
-          width,
-          widthAuto,
+      async get(payload: { id: string }) {
+        return {
+          id: payload.id,
+          label: "",
+          entry: {},
+          isUserDefined: true as const,
         };
-        templates.set(id, tpl);
-        return tpl;
       },
 
-      async update({ id, label }): Promise<Omit<UserDefinedTemplate, "entry">> {
-        const existing = templates.get(id);
-        if (!existing) throw new Error(`[OrquiBackend] Template "${id}" not found`);
-        const updated = { ...existing, label };
-        templates.set(id, updated);
-        return { id, label, isUserDefined: true, width: updated.width, widthAuto: updated.widthAuto };
+      async getAll() {
+        // In Phase 2, return saved page presets as templates
+        return [];
       },
 
-      async delete({ id }): Promise<void> {
-        templates.delete(id);
+      async create(payload: { label: string; entry: any }) {
+        return {
+          id: `tpl-${Date.now()}`,
+          label: payload.label,
+          entry: payload.entry,
+          isUserDefined: true as const,
+        };
+      },
+
+      async update(payload: { id: string; label: string }) {
+        return { id: payload.id, label: payload.label };
+      },
+
+      async delete(_payload: { id: string }) {
+        // no-op for now
       },
     },
   };

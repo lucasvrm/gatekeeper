@@ -1,30 +1,47 @@
 // ============================================================================
 // Data Component Definitions — StatCard, Card, Table, List, KeyValue
+//
+// FIX: select → params: { options: [...] }
+// FIX: orqui-template → string (fallback until Phase 5)
+// FIX: space doesn't need responsive: true
 // ============================================================================
 
-import type { NoCodeComponentDefinition } from "@easyblocks/core";
+import type { NoCodeComponentDefinition } from "../types";
 import { ALL_COMPONENT_IDS } from "../types";
 
 export const statCardDefinition: NoCodeComponentDefinition = {
   id: "OrquiStatCard",
   label: "Stat Card",
   type: "item",
+  paletteLabel: "Dados",
   schema: [
-    { prop: "label", type: "orqui-template", label: "Label", defaultValue: "Métrica" },
-    { prop: "value", type: "orqui-template", label: "Valor", defaultValue: "0" },
+    { prop: "label", type: "string", label: "Label", defaultValue: "Métrica" },
+    { prop: "value", type: "string", label: "Valor", defaultValue: "0" },
     { prop: "icon", type: "string", label: "Ícone (Phosphor)", defaultValue: "TrendUp" },
+    { prop: "trend", type: "string", label: "Trend", group: "Avançado" },
+    {
+      prop: "trendDirection",
+      type: "select",
+      label: "Direção do trend",
+      params: {
+        options: [
+          { value: "up", label: "↑ Subindo" },
+          { value: "down", label: "↓ Descendo" },
+          { value: "neutral", label: "→ Neutro" },
+        ],
+      },
+      defaultValue: "up",
+      group: "Avançado",
+    },
   ],
   styles: () => ({
     styled: {
       Root: {
-        background: "var(--orqui-surface, #141417)",
-        border: "1px solid var(--orqui-border, #2a2a33)",
-        borderRadius: "8px", padding: "16px",
-        display: "flex", flexDirection: "column", gap: "8px",
+        background: "var(--orqui-card-bg, #141417)",
+        border: "1px solid var(--orqui-card-border, #2a2a33)",
+        borderRadius: "8px",
+        padding: "16px",
       },
-      Label: { fontSize: "11px", color: "var(--orqui-text-muted, #8b8b96)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em" },
-      Value: { fontSize: "24px", fontWeight: 700, color: "var(--orqui-text, #e4e4e7)", lineHeight: 1.2 },
-      IconWrapper: { width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "6px", background: "rgba(109,156,255,0.1)" },
     },
   }),
 };
@@ -33,8 +50,9 @@ export const cardDefinition: NoCodeComponentDefinition = {
   id: "OrquiCard",
   label: "Card",
   type: "item",
+  paletteLabel: "Dados",
   schema: [
-    { prop: "title", type: "orqui-template", label: "Título", defaultValue: "Card" },
+    { prop: "title", type: "string", label: "Título", defaultValue: "Card" },
     { prop: "padding", type: "space", label: "Padding" },
     {
       prop: "Children",
@@ -45,9 +63,13 @@ export const cardDefinition: NoCodeComponentDefinition = {
   ],
   styles: ({ values }) => ({
     styled: {
-      Root: { background: "var(--orqui-surface, #141417)", border: "1px solid var(--orqui-border, #2a2a33)", borderRadius: "8px", overflow: "hidden" },
-      Header: { padding: "12px 16px", borderBottom: "1px solid var(--orqui-border, #2a2a33)", fontSize: "13px", fontWeight: 600, color: "var(--orqui-text, #e4e4e7)" },
-      Body: { padding: values.padding },
+      Root: {
+        background: "var(--orqui-card-bg, #141417)",
+        border: "1px solid var(--orqui-card-border, #2a2a33)",
+        borderRadius: "8px",
+        overflow: "hidden",
+        padding: values.padding,
+      },
     },
   }),
 };
@@ -56,17 +78,29 @@ export const tableDefinition: NoCodeComponentDefinition = {
   id: "OrquiTable",
   label: "Tabela",
   type: "item",
+  paletteLabel: "Dados",
   schema: [
     { prop: "dataSource", type: "string", label: "Data source", defaultValue: "items" },
-    { prop: "columnsJson", type: "string", label: "Colunas (JSON)", defaultValue: JSON.stringify([{ key: "col1", label: "Coluna 1", width: "50%" }, { key: "col2", label: "Coluna 2", width: "50%" }]) },
+    {
+      prop: "columnsJson",
+      type: "string",
+      label: "Colunas (JSON)",
+      defaultValue: JSON.stringify([
+        { key: "col1", label: "Coluna 1", width: "50%" },
+        { key: "col2", label: "Coluna 2", width: "50%" },
+      ]),
+    },
     { prop: "striped", type: "boolean", label: "Linhas alternadas", defaultValue: false, group: "Estilo" },
     { prop: "compact", type: "boolean", label: "Compacto", defaultValue: false, group: "Estilo" },
   ],
-  styles: ({ values }) => ({
+  styles: () => ({
     styled: {
-      Root: { width: "100%", borderCollapse: "collapse", fontSize: "13px", border: "1px solid var(--orqui-border, #2a2a33)", borderRadius: "8px", overflow: "hidden" },
-      HeaderCell: { padding: values.compact ? "6px 10px" : "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--orqui-text-muted, #8b8b96)", borderBottom: "2px solid var(--orqui-border, #2a2a33)", background: "var(--orqui-surface-2, #1c1c21)" },
-      Cell: { padding: values.compact ? "6px 10px" : "10px 14px", borderBottom: "1px solid var(--orqui-border, #2a2a33)", color: "var(--orqui-text, #e4e4e7)" },
+      Root: {
+        width: "100%",
+        border: "1px solid var(--orqui-border, #2a2a33)",
+        borderRadius: "8px",
+        overflow: "hidden",
+      },
     },
   }),
 };
@@ -75,12 +109,13 @@ export const listDefinition: NoCodeComponentDefinition = {
   id: "OrquiList",
   label: "Lista",
   type: "item",
+  paletteLabel: "Dados",
   schema: [
     { prop: "dataSource", type: "string", label: "Data source", defaultValue: "items" },
     {
       prop: "maxItems",
       type: "select",
-      label: "Máx itens",
+      label: "Máximo de itens",
       params: {
         options: [
           { value: "5", label: "5" },
@@ -94,8 +129,14 @@ export const listDefinition: NoCodeComponentDefinition = {
   ],
   styles: () => ({
     styled: {
-      Root: { display: "flex", flexDirection: "column", gap: "1px", background: "var(--orqui-border, #2a2a33)", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--orqui-border, #2a2a33)" },
-      Item: { padding: "10px 14px", background: "var(--orqui-surface, #141417)", fontSize: "13px", color: "var(--orqui-text, #e4e4e7)" },
+      Root: {
+        display: "flex",
+        flexDirection: "column" as const,
+        gap: "1px",
+        borderRadius: "8px",
+        overflow: "hidden",
+        border: "1px solid var(--orqui-border, #2a2a33)",
+      },
     },
   }),
 };
@@ -104,6 +145,7 @@ export const keyValueDefinition: NoCodeComponentDefinition = {
   id: "OrquiKeyValue",
   label: "Key-Value",
   type: "item",
+  paletteLabel: "Dados",
   schema: [
     {
       prop: "layout",
@@ -117,17 +159,20 @@ export const keyValueDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "horizontal",
     },
-    { prop: "itemsJson", type: "string", label: "Items (JSON)", defaultValue: JSON.stringify([{ label: "Chave", value: "Valor" }]) },
+    {
+      prop: "itemsJson",
+      type: "string",
+      label: "Items (JSON)",
+      defaultValue: JSON.stringify([{ label: "Chave", value: "Valor" }]),
+    },
   ],
-  styles: ({ values }) => {
-    const h = values.layout === "horizontal";
-    return {
-      styled: {
-        Root: { display: "flex", flexDirection: "column", gap: "4px" },
-        Pair: { display: "flex", flexDirection: h ? "row" : "column", gap: h ? "12px" : "2px", padding: "6px 0", borderBottom: "1px solid var(--orqui-border, #2a2a33)", alignItems: h ? "center" : "flex-start" },
-        Label: { fontSize: "12px", color: "var(--orqui-text-muted, #8b8b96)", fontWeight: 500, minWidth: h ? "120px" : undefined, flexShrink: 0 },
-        Value: { fontSize: "13px", color: "var(--orqui-text, #e4e4e7)" },
+  styles: () => ({
+    styled: {
+      Root: {
+        display: "flex",
+        flexDirection: "column" as const,
+        gap: "4px",
       },
-    };
-  },
+    },
+  }),
 };

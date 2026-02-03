@@ -1,23 +1,18 @@
 // ============================================================================
 // Layout Component Definitions — Stack, Row, Grid, Container
-// Uses real SchemaProp types from @easyblocks/core:
-//   select → params: { options: [...] }
-//   space  → always responsive (no responsive flag needed)
-//   color  → always responsive (no responsive flag needed)
-//   component-collection → accepts: string[] (top-level)
+//
+// FIX: select type uses params: { options: [...] } (not top-level options)
+// FIX: space and color are inherently responsive, removed redundant flag
 // ============================================================================
 
-import type { NoCodeComponentDefinition } from "@easyblocks/core";
+import type { NoCodeComponentDefinition } from "../types";
 import { ALL_COMPONENT_IDS } from "../types";
-
-// ============================================================================
-// OrquiStack
-// ============================================================================
 
 export const stackDefinition: NoCodeComponentDefinition = {
   id: "OrquiStack",
   label: "Stack",
   type: "section",
+  paletteLabel: "Layout",
   schema: [
     {
       prop: "gap",
@@ -35,7 +30,7 @@ export const stackDefinition: NoCodeComponentDefinition = {
     styled: {
       Root: {
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "column" as const,
         gap: values.gap,
         width: "100%",
       },
@@ -43,14 +38,11 @@ export const stackDefinition: NoCodeComponentDefinition = {
   }),
 };
 
-// ============================================================================
-// OrquiRow
-// ============================================================================
-
 export const rowDefinition: NoCodeComponentDefinition = {
   id: "OrquiRow",
   label: "Row",
   type: "section",
+  paletteLabel: "Layout",
   schema: [
     {
       prop: "gap",
@@ -108,25 +100,22 @@ export const rowDefinition: NoCodeComponentDefinition = {
     styled: {
       Root: {
         display: "flex",
-        flexDirection: "row",
+        flexDirection: "row" as const,
         gap: values.gap,
         alignItems: values.align,
         justifyContent: values.justify,
-        flexWrap: values.wrap ? "wrap" : "nowrap",
+        flexWrap: values.wrap ? ("wrap" as const) : ("nowrap" as const),
         width: "100%",
       },
     },
   }),
 };
 
-// ============================================================================
-// OrquiGrid
-// ============================================================================
-
 export const gridDefinition: NoCodeComponentDefinition = {
   id: "OrquiGrid",
   label: "Grid",
   type: "section",
+  paletteLabel: "Layout",
   schema: [
     {
       prop: "columns",
@@ -169,14 +158,11 @@ export const gridDefinition: NoCodeComponentDefinition = {
   }),
 };
 
-// ============================================================================
-// OrquiContainer
-// ============================================================================
-
 export const containerDefinition: NoCodeComponentDefinition = {
   id: "OrquiContainer",
   label: "Container",
   type: "section",
+  paletteLabel: "Layout",
   schema: [
     {
       prop: "padding",
@@ -195,10 +181,10 @@ export const containerDefinition: NoCodeComponentDefinition = {
       params: {
         options: [
           { value: "0", label: "Nenhum" },
-          { value: "4px", label: "sm" },
-          { value: "6px", label: "md" },
-          { value: "8px", label: "lg" },
-          { value: "12px", label: "xl" },
+          { value: "4px", label: "sm (4px)" },
+          { value: "6px", label: "md (6px)" },
+          { value: "8px", label: "lg (8px)" },
+          { value: "12px", label: "xl (12px)" },
         ],
       },
       defaultValue: "0",

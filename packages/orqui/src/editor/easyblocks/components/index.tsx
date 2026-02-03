@@ -1,45 +1,51 @@
 // ============================================================================
 // Orqui React Components for Easyblocks Canvas
 //
-// Each NoCode Component Definition needs a corresponding React component.
-// In Easyblocks, the styles function creates styled components (Root, etc.)
-// which are passed as props to the React component.
+// FIX: Easyblocks passes styled components as ReactElement, NOT ComponentType.
+// The correct pattern is: <Root.type {...Root.props}>{children}</Root.type>
 //
-// These components are used ONLY in the Easyblocks editor canvas.
-// The production runtime continues to use NodeRenderer from runtime/.
+// Sub-component slots (Children from component-collection) are ReactElement[].
+// Single-component slots (component) are ReactElement.
 //
-// Convention: Each component receives:
-//   - Styled components from styles() as props (Root, Wrapper, etc.)
-//   - Schema prop values as props
-//   - Subcomponent slots as props (Children, etc.)
+// Ref: https://docs.easyblocks.io/essentials/no-code-components/styles-function
 // ============================================================================
 
-import React, { type ReactNode, type ComponentType } from "react";
-
-// ============================================================================
-// Utility types
-// ============================================================================
-
-type StyledComponent = ComponentType<{ children?: ReactNode; [key: string]: any }>;
+import React, { type ReactElement, type ComponentType } from "react";
 
 // ============================================================================
 // Layout Components
 // ============================================================================
 
-export function OrquiStack({ Root, Children }: { Root: StyledComponent; Children: ReactNode }) {
-  return <Root>{Children}</Root>;
+export function OrquiStack({ Root, Children }: { Root: ReactElement; Children: ReactElement[] }) {
+  return (
+    <Root.type {...Root.props}>
+      {Children}
+    </Root.type>
+  );
 }
 
-export function OrquiRow({ Root, Children }: { Root: StyledComponent; Children: ReactNode }) {
-  return <Root>{Children}</Root>;
+export function OrquiRow({ Root, Children }: { Root: ReactElement; Children: ReactElement[] }) {
+  return (
+    <Root.type {...Root.props}>
+      {Children}
+    </Root.type>
+  );
 }
 
-export function OrquiGrid({ Root, Children }: { Root: StyledComponent; Children: ReactNode }) {
-  return <Root>{Children}</Root>;
+export function OrquiGrid({ Root, Children }: { Root: ReactElement; Children: ReactElement[] }) {
+  return (
+    <Root.type {...Root.props}>
+      {Children}
+    </Root.type>
+  );
 }
 
-export function OrquiContainer({ Root, Children }: { Root: StyledComponent; Children: ReactNode }) {
-  return <Root>{Children}</Root>;
+export function OrquiContainer({ Root, Children }: { Root: ReactElement; Children: ReactElement[] }) {
+  return (
+    <Root.type {...Root.props}>
+      {Children}
+    </Root.type>
+  );
 }
 
 // ============================================================================
@@ -47,55 +53,67 @@ export function OrquiContainer({ Root, Children }: { Root: StyledComponent; Chil
 // ============================================================================
 
 export function OrquiHeading({ Root, content, as: Tag = "h2" }: {
-  Root: StyledComponent; content: string; as?: string;
+  Root: ReactElement; content: string; as?: string;
 }) {
   const Element = Tag as any;
-  return <Root><Element style={{ margin: 0, fontSize: "inherit", fontWeight: "inherit" }}>{content}</Element></Root>;
-}
-
-export function OrquiText({ Root, content }: { Root: StyledComponent; content: string }) {
-  return <Root><p style={{ margin: 0 }}>{content}</p></Root>;
-}
-
-export function OrquiButton({ Root, label, icon }: {
-  Root: StyledComponent; label: string; icon?: string;
-}) {
   return (
-    <Root>
-      {icon && <span style={{ fontSize: "1em" }}>{icon}</span>}
-      <span>{label}</span>
-    </Root>
+    <Root.type {...Root.props}>
+      <Element style={{ margin: 0, fontSize: "inherit", fontWeight: "inherit", color: "inherit" }}>
+        {content || "Título"}
+      </Element>
+    </Root.type>
   );
 }
 
-export function OrquiBadge({ Root, content }: { Root: StyledComponent; content: string }) {
-  return <Root>{content}</Root>;
+export function OrquiText({ Root, content }: { Root: ReactElement; content: string }) {
+  return (
+    <Root.type {...Root.props}>
+      <p style={{ margin: 0 }}>{content || "Texto"}</p>
+    </Root.type>
+  );
+}
+
+export function OrquiButton({ Root, label, icon }: {
+  Root: ReactElement; label: string; icon?: string;
+}) {
+  return (
+    <Root.type {...Root.props}>
+      {icon && <span style={{ fontSize: "1em" }}>{icon}</span>}
+      <span>{label || "Botão"}</span>
+    </Root.type>
+  );
+}
+
+export function OrquiBadge({ Root, content }: { Root: ReactElement; content: string }) {
+  return (
+    <Root.type {...Root.props}>
+      {content || "Badge"}
+    </Root.type>
+  );
 }
 
 export function OrquiIcon({ Root, name, size }: {
-  Root: StyledComponent; name: string; size: string;
+  Root: ReactElement; name: string; size: string;
 }) {
-  // In the editor, show the icon name as placeholder
-  // In Phase 2, use @phosphor-icons/react for actual rendering
   return (
-    <Root>
+    <Root.type {...Root.props}>
       <span style={{
         fontSize: `${Math.max(parseInt(size) * 0.5, 10)}px`,
         opacity: 0.5,
         fontFamily: "'JetBrains Mono', monospace",
       }}>
-        {name}
+        {name || "icon"}
       </span>
-    </Root>
+    </Root.type>
   );
 }
 
 export function OrquiImage({ Root, src, alt, size, rounded }: {
-  Root: StyledComponent; src: string; alt: string; size: string; rounded: boolean;
+  Root: ReactElement; src: string; alt: string; size: string; rounded: boolean;
 }) {
   if (!src) {
     return (
-      <Root>
+      <Root.type {...Root.props}>
         <div style={{
           width: `${size}px`, height: `${size}px`,
           background: "#1c1c21", border: "1px dashed #3a3a45",
@@ -105,131 +123,140 @@ export function OrquiImage({ Root, src, alt, size, rounded }: {
         }}>
           IMG
         </div>
-      </Root>
+      </Root.type>
     );
   }
   return (
-    <Root>
+    <Root.type {...Root.props}>
       <img src={src} alt={alt} style={{
         width: `${size}px`, height: `${size}px`,
         objectFit: "cover",
         borderRadius: rounded ? "9999px" : "4px",
       }} />
-    </Root>
+    </Root.type>
   );
 }
 
-export function OrquiDivider({ Root }: { Root: StyledComponent }) {
-  return <Root />;
+export function OrquiDivider({ Root }: { Root: ReactElement }) {
+  return <Root.type {...Root.props} />;
 }
 
-export function OrquiSpacer({ Root }: { Root: StyledComponent }) {
-  return <Root />;
+export function OrquiSpacer({ Root }: { Root: ReactElement }) {
+  return <Root.type {...Root.props} />;
 }
 
 // ============================================================================
 // Data Components
 // ============================================================================
 
-export function OrquiStatCard({ Root, Label, Value, IconWrapper, label, value, icon }: {
-  Root: StyledComponent; Label: StyledComponent; Value: StyledComponent; IconWrapper: StyledComponent;
-  label: string; value: string; icon: string;
+export function OrquiStatCard({ Root, label, value, icon }: {
+  Root: ReactElement; label: string; value: string; icon: string;
 }) {
   return (
-    <Root>
+    <Root.type {...Root.props}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <Label>{label}</Label>
-          <Value>{value}</Value>
+          <div style={{ fontSize: 12, color: "#8b8b96", marginBottom: 4 }}>{label || "Label"}</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{value || "0"}</div>
         </div>
-        <IconWrapper>
-          <span style={{ fontSize: 16 }}>{icon}</span>
-        </IconWrapper>
+        <span style={{ fontSize: 16, opacity: 0.6 }}>{icon || "📊"}</span>
       </div>
-    </Root>
+    </Root.type>
   );
 }
 
-export function OrquiCard({ Root, Header, Body, title, Children }: {
-  Root: StyledComponent; Header: StyledComponent; Body: StyledComponent;
-  title: string; Children: ReactNode;
+export function OrquiCard({ Root, title, Children }: {
+  Root: ReactElement; title: string; Children: ReactElement[];
 }) {
   return (
-    <Root>
-      {title && <Header>{title}</Header>}
-      <Body>{Children}</Body>
-    </Root>
+    <Root.type {...Root.props}>
+      {title && (
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #2a2a33" }}>
+          {title}
+        </div>
+      )}
+      <div>{Children}</div>
+    </Root.type>
   );
 }
 
-export function OrquiTable({ Root, HeaderCell, Cell, dataSource, columnsJson }: {
-  Root: StyledComponent; HeaderCell: StyledComponent; Cell: StyledComponent;
-  dataSource: string; columnsJson: string;
+export function OrquiTable({ Root, dataSource, columnsJson }: {
+  Root: ReactElement; dataSource: string; columnsJson: string;
 }) {
   let columns: Array<{ key: string; label: string; width?: string }> = [];
-  try { columns = JSON.parse(columnsJson); } catch { /* ignore */ }
+  try { columns = JSON.parse(columnsJson || "[]"); } catch { /* ignore */ }
 
   return (
-    <Root>
+    <Root.type {...Root.props}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
             {columns.map(col => (
-              <HeaderCell key={col.key} as="th" style={{ width: col.width }}>
+              <th key={col.key} style={{
+                textAlign: "left", padding: "6px 10px", fontSize: 11,
+                color: "#8b8b96", fontWeight: 600,
+                borderBottom: "1px solid #2a2a33",
+                width: col.width,
+              }}>
                 {col.label}
-              </HeaderCell>
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {/* Mock rows in editor */}
           {[1, 2, 3].map(row => (
             <tr key={row}>
               {columns.map(col => (
-                <Cell key={col.key} as="td">
+                <td key={col.key} style={{
+                  padding: "6px 10px", fontSize: 12,
+                  borderBottom: "1px solid #1a1a1f",
+                }}>
                   <span style={{ opacity: 0.4 }}>{`{${dataSource}[${row}].${col.key}}`}</span>
-                </Cell>
+                </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-    </Root>
+    </Root.type>
   );
 }
 
-export function OrquiList({ Root, Item, dataSource, maxItems }: {
-  Root: StyledComponent; Item: StyledComponent;
-  dataSource: string; maxItems: string;
+export function OrquiList({ Root, dataSource, maxItems }: {
+  Root: ReactElement; dataSource: string; maxItems: string;
 }) {
   const count = Math.min(parseInt(maxItems) || 3, 5);
   return (
-    <Root>
+    <Root.type {...Root.props}>
       {Array.from({ length: count }, (_, i) => (
-        <Item key={i}>
+        <div key={i} style={{ padding: "6px 0", borderBottom: "1px solid #1a1a1f", fontSize: 12 }}>
           <span style={{ opacity: 0.4 }}>{`{${dataSource}[${i}]}`}</span>
-        </Item>
+        </div>
       ))}
-    </Root>
+    </Root.type>
   );
 }
 
-export function OrquiKeyValue({ Root, Pair, Label, Value, layout, itemsJson }: {
-  Root: StyledComponent; Pair: StyledComponent; Label: StyledComponent; Value: StyledComponent;
-  layout: string; itemsJson: string;
+export function OrquiKeyValue({ Root, layout, itemsJson }: {
+  Root: ReactElement; layout: string; itemsJson: string;
 }) {
   let items: Array<{ label: string; value: string }> = [];
-  try { items = JSON.parse(itemsJson); } catch { /* ignore */ }
+  try { items = JSON.parse(itemsJson || "[]"); } catch { /* ignore */ }
 
   return (
-    <Root>
+    <Root.type {...Root.props}>
       {items.map((item, i) => (
-        <Pair key={i}>
-          <Label>{item.label}</Label>
-          <Value>{item.value}</Value>
-        </Pair>
+        <div key={i} style={{
+          display: "flex",
+          flexDirection: layout === "stacked" ? "column" : "row",
+          gap: layout === "stacked" ? 2 : 8,
+          padding: "4px 0",
+        }}>
+          <span style={{ fontSize: 11, color: "#8b8b96", minWidth: 80 }}>{item.label}</span>
+          <span style={{ fontSize: 12 }}>{item.value}</span>
+        </div>
       ))}
-    </Root>
+    </Root.type>
   );
 }
 
@@ -237,65 +264,59 @@ export function OrquiKeyValue({ Root, Pair, Label, Value, layout, itemsJson }: {
 // Navigation, Input & Special Components
 // ============================================================================
 
-export function OrquiTabs({ Root, TabBar, Tab, TabActive, Content, tabsJson, defaultTab }: {
-  Root: StyledComponent; TabBar: StyledComponent; Tab: StyledComponent;
-  TabActive: StyledComponent; Content: StyledComponent;
-  tabsJson: string; defaultTab: string;
+export function OrquiTabs({ Root, tabsJson, defaultTab }: {
+  Root: ReactElement; tabsJson: string; defaultTab: string;
 }) {
   let tabs: Array<{ id: string; label: string }> = [];
-  try { tabs = JSON.parse(tabsJson); } catch { /* ignore */ }
+  try { tabs = JSON.parse(tabsJson || "[]"); } catch { /* ignore */ }
 
   return (
-    <Root>
-      <TabBar>
-        {tabs.map(tab => {
-          const isActive = tab.id === defaultTab;
-          const Comp = isActive ? TabActive : Tab;
-          return <Comp key={tab.id}>{tab.label}</Comp>;
-        })}
-      </TabBar>
-      <Content>
-        <span style={{ fontSize: 12, color: "#5b5b66" }}>
-          Conteúdo da tab: {defaultTab}
-        </span>
-      </Content>
-    </Root>
+    <Root.type {...Root.props}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #2a2a33", marginBottom: 8 }}>
+        {tabs.map(tab => (
+          <div key={tab.id} style={{
+            padding: "6px 12px", fontSize: 12, fontWeight: tab.id === defaultTab ? 600 : 400,
+            color: tab.id === defaultTab ? "#6d9cff" : "#8b8b96",
+            borderBottom: tab.id === defaultTab ? "2px solid #6d9cff" : "2px solid transparent",
+          }}>
+            {tab.label}
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: "#5b5b66" }}>
+        Conteúdo: {defaultTab}
+      </div>
+    </Root.type>
   );
 }
 
-export function OrquiSearch({ Root, Icon, Input, placeholder }: {
-  Root: StyledComponent; Icon: StyledComponent; Input: StyledComponent;
-  placeholder: string;
+export function OrquiSearch({ Root, placeholder }: {
+  Root: ReactElement; placeholder: string;
 }) {
   return (
-    <Root>
-      <Icon>🔍</Icon>
-      <Input as="input" readOnly placeholder={placeholder} />
-    </Root>
+    <Root.type {...Root.props}>
+      <span style={{ marginRight: 6 }}>🔍</span>
+      <span style={{ opacity: 0.4, fontSize: 13 }}>{placeholder || "Buscar..."}</span>
+    </Root.type>
   );
 }
 
 export function OrquiSelect({ Root, placeholder, optionsJson }: {
-  Root: StyledComponent; placeholder: string; optionsJson: string;
+  Root: ReactElement; placeholder: string; optionsJson: string;
 }) {
-  let options: Array<{ value: string; label: string }> = [];
-  try { options = JSON.parse(optionsJson); } catch { /* ignore */ }
-
   return (
-    <Root as="select" disabled>
-      <option value="">{placeholder}</option>
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </Root>
+    <Root.type {...Root.props}>
+      <span style={{ opacity: 0.4, fontSize: 13 }}>{placeholder || "Selecionar..."}</span>
+      <span style={{ marginLeft: "auto" }}>▾</span>
+    </Root.type>
   );
 }
 
-export function OrquiSlot({ Root, name }: { Root: StyledComponent; name: string }) {
+export function OrquiSlot({ Root, name }: { Root: ReactElement; name: string }) {
   return (
-    <Root>
-      <span>⧉ Slot: {name}</span>
-    </Root>
+    <Root.type {...Root.props}>
+      <span>⧉ Slot: {name || "default"}</span>
+    </Root.type>
   );
 }
 

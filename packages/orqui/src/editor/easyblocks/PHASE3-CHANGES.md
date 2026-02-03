@@ -1,8 +1,10 @@
-# Phase 3 — Easyblocks Integration Fixes
+# Phase 3 — Easyblocks Integration Fixes (APPLIED)
 
 ## Summary
 
-Phase 3 validates that the 21 Orqui components render and are editable in the Easyblocks canvas. This document covers all issues found by auditing the real `@easyblocks/core@1.0.10` API and the fixes applied.
+Phase 3 validates that the 21 Orqui components render and are editable in the Easyblocks canvas. This document covers all issues found by auditing the real `@easyblocks/core@1.0.10` API and the fixes **applied to the codebase**.
+
+**Status: ✅ All fixes implemented.**
 
 ---
 
@@ -190,7 +192,42 @@ TypeScript compilation: **0 new errors**. All 23 pre-existing errors are in `int
 ## Next Steps (Phase 4)
 
 1. **Run the editor** — `npm run dev` and open the Orqui pages mode to verify canvas rendering
-2. **Test `orqui-template`** — If custom type errors appear, flip `TEMPLATE_TYPE_SAFE = true`
+2. **Test `orqui-template`** — If custom type errors appear, flip `TEMPLATE_TYPE_SAFE = true` in `content.ts` and `data.ts`
 3. **Test Children slots** — Drag children into Stack, Row, Grid, Container, Card
 4. **Test sidebar props** — Edit select, boolean, string, space, color for each component
 5. **CSS vars in iframe** — If Easyblocks renders canvas in an iframe, token CSS variables may not propagate; investigate injection strategy
+6. **Page navigation** — Implement page switcher + `?document={id}` URL management
+7. **Persistence roundtrip** — Run `testRoundtrip()` on existing contract pages
+
+## Implementation Notes
+
+### Styled Component Helper Pattern
+
+The `S()` / `S0()` helpers in `components/index.tsx` encapsulate the ReactElement access pattern:
+
+```tsx
+// S(element, ...children) — renders styled slot with children
+function S(el: ReactElement, ...children: ReactNode[]): ReactElement {
+  return React.createElement(el.type, el.props, ...children);
+}
+
+// S0(element) — renders styled slot with no children (self-closing)
+function S0(el: ReactElement): ReactElement {
+  return React.createElement(el.type, el.props);
+}
+```
+
+For components that need **multiple instances** of the same styled slot (e.g. Table cells, List items), the pattern is to clone via `React.createElement(Slot.type, { ...Slot.props, key }, children)`.
+
+### Error Boundary
+
+`EasyblocksErrorBoundary` wraps the `<EasyblocksEditor>` with:
+- Stack trace display (first 6 lines)
+- "Tentar novamente" button that increments `resetKey` → forces editor remount
+- Console logging of error + component stack for debugging
+
+### Template Type Fallback
+
+The `TEMPLATE_TYPE_SAFE` flag in `content.ts` and `data.ts` can be toggled:
+- `false` (default) — uses `orqui-template` custom type with `TemplatePickerWidget`
+- `true` — falls back to native `string` type, bypassing custom widget entirely

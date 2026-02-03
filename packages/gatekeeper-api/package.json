@@ -30,7 +30,9 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.1",
     "@babel/parser": "^7.26.0",
+    "@mistralai/mistralai": "^1.13.0",
     "@prisma/client": "^6.2.0",
     "@types/multer": "^2.0.0",
     "acorn": "^8.14.0",
@@ -54,6 +56,7 @@
     "minimatch": "^10.0.1",
     "multer": "^2.0.2",
     "nanoid": "^5.0.9",
+    "openai": "^6.17.0",
     "ora": "^9.0.0",
     "p-queue": "^8.0.1",
     "pino": "^9.6.0",
