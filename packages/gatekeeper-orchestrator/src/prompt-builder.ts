@@ -9,217 +9,308 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import type { SessionContext, FixTarget } from './types.js'
+import type { FixTarget } from './types.js'
+import type { SessionContext } from './session-context.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Docs Reader (same as MCP's LocalDocsReader)
+// Docs reader (same as MCP's LocalDocsReader)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function readDocsFolder(docsDir: string, subfolder: string): string {
-  const dir = path.join(docsDir, subfolder)
-  try {
-    const files = fs.readdirSync(dir).filter(f => !f.startsWith('.'))
-    if (files.length === 0) return '[No reference docs found]'
+interface DocsResult {
+  [folder: string]: { [file: string]: string }
+}
 
-    return files
-      .map(file => {
-        const content = fs.readFileSync(path.join(dir, file), 'utf-8')
-        return `### ${file}\n${content}`
-      })
-      .join('\n\n')
-  } catch {
-    return `[Docs folder not found: ${subfolder}]`
+/**
+ * Read all markdown/text files from DOCS_DIR subfolders.
+ * Returns { folderName: { fileName: content } }
+ */
+function readDocsFolder(docsDir: string): DocsResult {
+  const result: DocsResult = {}
+
+  if (!fs.existsSync(docsDir)) return result
+
+  const folders = fs.readdirSync(docsDir, { withFileTypes: true })
+    .filter(d => d.isDirectory())
+
+  for (const folder of folders) {
+    const folderPath = path.join(docsDir, folder.name)
+    const files = fs.readdirSync(folderPath)
+      .filter(f => /\.(md|txt|json)$/.test(f))
+
+    if (files.length > 0) {
+      result[folder.name] = {}
+      for (const file of files) {
+        result[folder.name][file] = fs.readFileSync(path.join(folderPath, file), 'utf-8')
+      }
+    }
   }
+
+  return result
+}
+
+/**
+ * Format docs into a single string block for prompt injection.
+ */
+function formatDocs(docs: DocsResult): string {
+  const sections: string[] = []
+
+  for (const [folder, files] of Object.entries(docs)) {
+    for (const [file, content] of Object.entries(files)) {
+      sections.push(`### ${folder}/${file}\n\n${content}`)
+    }
+  }
+
+  return sections.length > 0
+    ? `\n## Documentação de Referência\n\n${sections.join('\n\n---\n\n')}`
+    : ''
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 1: Create Plan
+// Prompt Builders
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Step 1: Build prompt for plan generation.
+ *
+ * Called by pipeline.ts as:
+ *   buildPlanPrompt(taskDescription, outputId, docsDir, session, taskType?)
+ */
 export function buildPlanPrompt(
   taskDescription: string,
   outputId: string,
   docsDir: string,
-  session: SessionContext,
+  sessionContext: SessionContext,
   taskType?: string
 ): string {
-  const docs = readDocsFolder(docsDir, 'create_plan')
+  const docs = formatDocs(readDocsFolder(docsDir))
+  const { gitStrategy, customInstructions } = sessionContext
 
-  let prompt = `# Create Plan (Step 1/3)\n\n`
-  prompt += `## Task\n${taskDescription}\n\n`
-  prompt += `## OutputId\n${outputId}\n\n`
+  return `# Gatekeeper — Gerar Plano de Implementação
 
-  if (taskType) {
-    prompt += `## Task Type\n${taskType}\n\n`
-  }
+## Sua Tarefa
+Você é um arquiteto de software. Analise a tarefa abaixo e produza os artefatos de planejamento.
 
-  prompt += `## Reference Documents\n${docs}\n\n`
-  prompt += session.gitStrategy
-  prompt += session.customInstructions
+## Descrição da Tarefa
+${taskDescription}
+${taskType ? `\n**Tipo:** ${taskType}\n` : ''}
+**Output ID:** ${outputId}
+${gitStrategy}
+${customInstructions}
+${docs}
 
-  prompt += `
-## Output Required
+## Artefatos Esperados
 
-Generate EXACTLY 3 artifacts as named code blocks:
+Produza EXATAMENTE estes 3 arquivos como blocos de código nomeados:
 
-1. **plan.json** — Structured task plan with fields:
-   - outputId, taskPrompt, taskType
-   - manifest (files to create/modify with descriptions)
-   - baseRef, targetRef (git refs if applicable)
+### 1. \`plan.json\`
+JSON com a estrutura:
+\`\`\`json
+{
+  "taskTitle": "Título curto da tarefa",
+  "taskType": "feature|bugfix|refactor",
+  "scope": "Descrição do escopo",
+  "approach": "Abordagem técnica",
+  "files": [
+    { "path": "src/...", "action": "CREATE|MODIFY|DELETE", "reason": "..." }
+  ],
+  "testFile": "caminho/do/arquivo.spec.ts",
+  "risks": ["..."],
+  "acceptanceCriteria": ["..."]
+}
+\`\`\`
 
-2. **contract.md** — Validation contract with:
-   - Clause IDs (CL-001, CL-002, ...)
-   - Each clause maps to a testable requirement
-   - Acceptance criteria per clause
+### 2. \`contract.md\`
+Contrato de mudança com cláusulas no formato:
+\`\`\`markdown
+# Contrato: {título}
 
-3. **task.spec.md** — Human-readable test specification:
-   - Describes what each test should verify
-   - Maps tests to clause IDs
-   - Includes edge cases and expected behaviors
+## Metadata
+- slug: nome-kebab
+- changeType: feature|bugfix|refactor
+- criticality: low|medium|high
 
-Do NOT generate test code or implementation code.
-`
+## Cláusulas
 
-  return prompt
+### MUST-001: {descrição curta}
+- **kind:** behavior|error|invariant|ui|constraint
+- **when:** {condição}
+- **then:** {resultado esperado}
+
+### SHOULD-001: {descrição curta}
+...
+\`\`\`
+
+### 3. \`task.spec.md\`
+Especificação técnica detalhada descrevendo O QUE implementar (não COMO).
+
+## Regras
+- Use nomes de arquivo EXATOS como label do bloco de código
+- Não inclua explicações fora dos blocos de código
+- Paths devem ser relativos à raiz do projeto`
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Step 2: Generate Spec Test
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * Step 2: Build prompt for spec/test generation.
+ *
+ * Called by pipeline.ts as:
+ *   buildSpecPrompt(outputId, planContent, contractContent, specContent, docsDir, session)
+ */
 export function buildSpecPrompt(
   outputId: string,
-  planContent: string,
-  contractContent: string,
-  specContent: string,
+  plan: string,
+  contract: string,
+  taskSpec: string,
   docsDir: string,
-  session: SessionContext
+  sessionContext: SessionContext
 ): string {
-  const docs = readDocsFolder(docsDir, 'generate_spec')
+  const docs = formatDocs(readDocsFolder(docsDir))
+  const { customInstructions } = sessionContext
 
-  let prompt = `# Generate Spec Test (Step 2/3)\n\n`
-  prompt += `## OutputId\n${outputId}\n\n`
-  prompt += `## Plan (plan.json)\n\`\`\`json\n${planContent}\n\`\`\`\n\n`
-  prompt += `## Contract (contract.md)\n${contractContent}\n\n`
-  prompt += `## Task Spec (task.spec.md)\n${specContent}\n\n`
-  prompt += `## Reference Documents\n${docs}\n\n`
-  prompt += session.gitStrategy
-  prompt += session.customInstructions
+  // Extract testFile path from plan.json
+  let testFilePath = `${outputId}.spec.ts`
+  try {
+    const planObj = JSON.parse(plan)
+    if (planObj.testFile) testFilePath = planObj.testFile
+  } catch {
+    // Use default
+  }
 
-  prompt += `
-## Output Required
+  return `# Gatekeeper — Gerar Arquivo de Testes
 
-Generate a test code file as a single named code block. The filename should follow
-the project's convention (e.g. \`feature-name.spec.ts\` or \`feature-name.test.ts\`).
+## Sua Tarefa
+Você é um engenheiro de testes. Crie o arquivo de testes baseado nos artefatos de planejamento.
 
-Requirements:
-- Implement EVERY test case described in task.spec.md
-- Tag each test with its clause ID using \`// @clause CL-XXX\` comments
-- Tests must be runnable (proper imports, setup, teardown)
-- Use the testing framework indicated in the reference docs (or vitest/jest by default)
+## Output ID: ${outputId}
 
-Do NOT implement production code. Only generate the test file.
-`
+## Artefatos de Entrada
 
-  return prompt
+### plan.json
+\`\`\`json
+${plan}
+\`\`\`
+
+### contract.md
+${contract}
+
+### task.spec.md
+${taskSpec}
+${customInstructions}
+${docs}
+
+## Arquivo de Saída
+
+Produza EXATAMENTE 1 arquivo como bloco de código nomeado:
+
+### \`${testFilePath}\`
+
+O arquivo de testes deve:
+- Ter um \`describe\` principal com o título da tarefa
+- Mapear CADA cláusula do contrato para pelo menos 1 teste
+- Usar comentários \`// @clause MUST-001\` antes de cada \`it()\` para rastreabilidade
+- Testar comportamentos, não implementação
+- Incluir testes de erro/edge cases para cláusulas de tipo \`error\`
+- Usar mocks/stubs conforme necessário
+- Ser executável com vitest
+
+## Regras
+- Use o nome de arquivo EXATO como label do bloco de código
+- Não inclua explicações fora do bloco de código
+- Imports devem usar paths relativos à raiz do projeto`
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fix: Correction after Gatekeeper rejection
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * Fix: Build prompt for artifact correction after Gatekeeper rejection.
+ *
+ * Called by pipeline.ts as:
+ *   buildFixPrompt(target, outputId, artifacts, rejectionReport, failedValidators, docsDir, session)
+ */
 export function buildFixPrompt(
   target: FixTarget,
   outputId: string,
-  artifacts: Record<string, string>,
+  currentArtifacts: Record<string, string>,
   rejectionReport: string,
   failedValidators: string[],
   docsDir: string,
-  session: SessionContext
+  sessionContext: SessionContext
 ): string {
-  const subfolder = target === 'plan' ? 'create_plan' : 'generate_spec'
-  const docs = readDocsFolder(docsDir, subfolder)
+  const docs = formatDocs(readDocsFolder(docsDir))
+  const { customInstructions } = sessionContext
 
-  let prompt = `# Fix ${target === 'plan' ? 'Plan' : 'Spec'} — Correction after Gatekeeper Rejection\n\n`
-  prompt += `## OutputId\n${outputId}\n\n`
+  const artifactBlocks = Object.entries(currentArtifacts)
+    .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
+    .join('\n\n')
 
-  // Include all current artifacts
-  for (const [filename, content] of Object.entries(artifacts)) {
-    const lang = filename.endsWith('.json') ? 'json' : ''
-    prompt += `## Current: ${filename}\n\`\`\`${lang}\n${content}\n\`\`\`\n\n`
-  }
+  const targetDescription = target === 'plan'
+    ? 'Corrija os artefatos de planejamento (plan.json, contract.md, task.spec.md)'
+    : 'Corrija o arquivo de testes'
 
-  prompt += `## Gatekeeper Rejection Report\n${rejectionReport}\n\n`
-  prompt += `## Failed Validators\n${failedValidators.map(v => `- ${v}`).join('\n')}\n\n`
-  prompt += `## Reference Documents\n${docs}\n\n`
-  prompt += session.gitStrategy
-  prompt += session.customInstructions
+  return `# Gatekeeper — Correção de Artefatos
 
-  if (target === 'plan') {
-    prompt += `
-## Task
+## Sua Tarefa
+${targetDescription} para resolver os problemas apontados pelo Gatekeeper.
 
-The Gatekeeper rejected the plan artifacts. Fix the issues described in the rejection report.
+## Output ID: ${outputId}
 
-Output the CORRECTED versions of the affected artifacts as named code blocks:
-- \`plan.json\` (if plan issues)
-- \`contract.md\` (if contract issues)
-- \`task.spec.md\` (if spec issues)
+## Validadores que Falharam
+${failedValidators.map(v => `- \`${v}\``).join('\n')}
 
-Only output files that need changes. Explain what you corrected before the code blocks.
-`
-  } else {
-    prompt += `
-## Task
+## Relatório de Rejeição
 
-The Gatekeeper rejected the test specification. Fix the issues described in the rejection report.
+${rejectionReport}
 
-Output the CORRECTED test file as a named code block (same filename as the original).
+## Artefatos Atuais
 
-Only output the test file. Explain what you corrected before the code block.
-`
-  }
+${artifactBlocks}
+${customInstructions}
+${docs}
 
-  return prompt
+## Regras
+- Produza APENAS os arquivos que precisam ser corrigidos
+- Use os nomes de arquivo EXATOS como labels dos blocos de código
+- Corrija TODOS os problemas apontados no relatório
+- Mantenha consistência entre plan.json, contract.md e task.spec.md
+- Não inclua explicações fora dos blocos de código`
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Step 4: Execute — Build prompt for Claude Agent SDK
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * Step 4: Build prompt for implementation execution.
+ *
+ * Called by pipeline.ts as:
+ *   buildExecutionPrompt(outputId, artifacts, docsDir, session)
+ */
 export function buildExecutionPrompt(
   outputId: string,
   artifacts: Record<string, string>,
   docsDir: string,
-  session: SessionContext
+  sessionContext: SessionContext
 ): string {
-  const docs = readDocsFolder(docsDir, 'implement_code')
+  const docs = formatDocs(readDocsFolder(docsDir))
+  const { gitStrategy, customInstructions } = sessionContext
 
-  let prompt = `# Implement Code (Step 3/3)\n\n`
-  prompt += `## OutputId\n${outputId}\n\n`
+  const artifactBlocks = Object.entries(artifacts)
+    .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
+    .join('\n\n')
 
-  // Include all artifacts
-  for (const [filename, content] of Object.entries(artifacts)) {
-    const lang = filename.endsWith('.json') ? 'json' : filename.endsWith('.ts') || filename.endsWith('.tsx') ? 'typescript' : ''
-    prompt += `## ${filename}\n\`\`\`${lang}\n${content}\n\`\`\`\n\n`
-  }
+  return `# Gatekeeper — Implementação
 
-  prompt += `## Reference Documents\n${docs}\n\n`
-  prompt += session.gitStrategy
-  prompt += session.customInstructions
+## Contexto
+Você está implementando a tarefa ${outputId}, validada pelo Gatekeeper.
+Todos os artefatos abaixo foram aprovados. Siga-os à risca.
+${gitStrategy}
+${customInstructions}
+${docs}
 
-  prompt += `
-## Task
+## Artefatos Aprovados
 
-Implement the production code so that ALL spec tests pass.
+${artifactBlocks}
 
-Rules:
-- Do NOT modify any test file
-- Do NOT modify task.spec.md, contract.md, or plan.json
-- If a test seems incorrect, flag it but implement to pass it
-- Run the tests after implementing to verify they pass
-- Commit with a descriptive message referencing the outputId
-`
-
-  return prompt
+## Regras de Implementação
+1. Leia o plan.json para entender o escopo e os arquivos a modificar
+2. Leia o contract.md para entender os requisitos
+3. Leia o task.spec.md para entender a especificação técnica
+4. Leia o arquivo de testes para entender os comportamentos esperados
+5. Implemente APENAS o que está descrito nos artefatos
+6. Execute os testes após implementar para verificar que passam
+7. Não modifique os arquivos de teste
+8. Faça commit das mudanças com uma mensagem descritiva`
 }

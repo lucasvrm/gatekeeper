@@ -416,10 +416,26 @@ export class ValidationOrchestrator {
 
     const gitService = new GitService(run.projectPath)
     const astService = new ASTService()
-    const testRunnerService = new TestRunnerService(run.projectPath)
-    const compilerService = new CompilerService(run.projectPath)
-    const lintService = new LintService(run.projectPath)
-    const buildService = new BuildService(run.projectPath)
+    const testRunnerService = new TestRunnerService(run.projectPath, {
+      timeout: configMap.has('TEST_EXECUTION_TIMEOUT_MS')
+        ? parseInt(configMap.get('TEST_EXECUTION_TIMEOUT_MS')!)
+        : undefined,
+    })
+    const compilerService = new CompilerService(run.projectPath, {
+      timeout: configMap.has('COMPILATION_TIMEOUT_MS')
+        ? parseInt(configMap.get('COMPILATION_TIMEOUT_MS')!)
+        : undefined,
+    })
+    const lintService = new LintService(run.projectPath, {
+      timeout: configMap.has('LINT_TIMEOUT_MS')
+        ? parseInt(configMap.get('LINT_TIMEOUT_MS')!)
+        : undefined,
+    })
+    const buildService = new BuildService(run.projectPath, {
+      timeout: configMap.has('BUILD_TIMEOUT_MS')
+        ? parseInt(configMap.get('BUILD_TIMEOUT_MS')!)
+        : undefined,
+    })
     const tokenCounterService = new TokenCounterService()
     const logService = new LogService(run.id)
 

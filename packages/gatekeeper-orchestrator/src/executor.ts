@@ -30,7 +30,8 @@ export async function executeWithSDK(
   callbacks.onEvent?.({ type: 'execute:start', mode: 'sdk' })
 
   try {
-    // Dynamic import — only loads if the package is installed
+    // Dynamic import — optional dependency, falls back to CLI if not installed
+    // @ts-expect-error — @anthropic-ai/claude-agent-sdk is an optional dependency
     const { query } = await import('@anthropic-ai/claude-agent-sdk')
 
     let sessionId: string | undefined
@@ -52,7 +53,7 @@ export async function executeWithSDK(
 
       // Stream assistant messages
       if (message.type === 'assistant') {
-        const content = (message as Record<string, unknown>).message as { content: Array<{ type: string; text?: string; name?: string }> }
+        const content = (message as Record<string, unknown>).message as { content: Array<{ type: string; text?: string; name?: string }> } | undefined
         for (const block of content?.content || []) {
           if (block.type === 'text' && block.text) {
             callbacks.onEvent?.({ type: 'execute:message', text: block.text })
@@ -79,7 +80,7 @@ export async function executeWithSDK(
 
     return { mode: 'sdk', sessionId }
   } catch (error) {
-    const err = error as Error
+    const err = error as Error & { code?: string }
 
     // If the SDK is not installed, fall back to CLI mode
     if (err.message?.includes('Cannot find module') || err.code === 'ERR_MODULE_NOT_FOUND') {
