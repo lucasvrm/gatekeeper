@@ -6,6 +6,7 @@ import { MCPSessionConfigController } from '../controllers/MCPSessionConfigContr
 import { MCPSessionHistoryController } from '../controllers/MCPSessionHistoryController.js'
 import { MCPStatusController } from '../controllers/MCPStatusController.js'
 import { MCPPromptController } from '../controllers/MCPPromptController.js'
+import { MCPProfileController } from '../controllers/MCPProfileController.js'
 
 const router = Router()
 
@@ -16,6 +17,7 @@ const sessionConfigController = new MCPSessionConfigController()
 const historyController = new MCPSessionHistoryController()
 const statusController = new MCPStatusController()
 const promptController = new MCPPromptController()
+const profileController = new MCPProfileController()
 
 // Snippets CRUD
 router.get('/mcp/snippets', (req, res, next) => {
@@ -122,6 +124,31 @@ router.put('/mcp/prompts/:id', (req, res, next) => {
 
 router.delete('/mcp/prompts/:id', (req, res, next) => {
   promptController.delete(req, res).catch(next)
+})
+
+// Session Profiles CRUD
+router.get('/mcp/profiles', (req, res, next) => {
+  profileController.list(req, res).catch(next)
+})
+
+router.post('/mcp/profiles', (req, res, next) => {
+  profileController.create(req, res).catch(next)
+})
+
+router.get('/mcp/profiles/:id', (req, res, next) => {
+  profileController.get(req, res).catch(next)
+})
+
+router.put('/mcp/profiles/:id', (req, res, next) => {
+  profileController.update(req, res).catch(next)
+})
+
+router.delete('/mcp/profiles/:id', (req, res, next) => {
+  profileController.delete(req, res).catch(next)
+})
+
+router.put('/mcp/profiles/:id/prompts', (req, res, next) => {
+  profileController.setPrompts(req, res).catch(next)
 })
 
 export { router as mcpRoutes }

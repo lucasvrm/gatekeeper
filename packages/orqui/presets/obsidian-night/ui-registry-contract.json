@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "ui-registry-contract",
     "version": "1.0.0",
-    "hash": "sha256:1ac35728df20ead3038a2c1403aa785fddfe316b8dd7d42f9b8f0a3879dd9101",
-    "generatedAt": "2026-02-03T06:54:22.098Z"
+    "hash": "sha256:d31e74fdbacbf830effd8be84535a739c753199860ffd2bda1a2a066260152d0",
+    "generatedAt": "2026-02-03T05:41:12.166093+00:00"
   },
   "components": {
     "Accordion": {
@@ -2780,14 +2780,14 @@
       ],
       "styles": {
         "preset": "custom",
-        "thumbWidth": 7,
-        "thumbColor": "rgba(92,127,168,0.12)",
+        "thumbWidth": 5,
+        "thumbColor": "rgba(108,140,255,0.15)",
         "trackColor": "transparent",
-        "thumbRadius": 4,
-        "hoverThumbColor": "rgba(92,127,168,0.25)",
-        "hoverThumbWidth": 8,
+        "thumbRadius": 3,
+        "hoverThumbColor": "rgba(108,140,255,0.30)",
+        "hoverThumbWidth": 6,
         "showArrows": false,
-        "autoHide": false
+        "autoHide": true
       }
     },
     "Select": {

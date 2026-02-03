@@ -36,8 +36,8 @@ const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
   display: "block",
   padding: "8px 12px",
   borderRadius: 6,
-  color: isActive ? "var(--uild-colors-text)" : "var(--uild-colors-text-muted)",
-  background: isActive ? "var(--uild-colors-surface-3)" : "transparent",
+  color: isActive ? "var(--orqui-colors-text)" : "var(--orqui-colors-text-muted)",
+  background: isActive ? "var(--orqui-colors-surface-3)" : "transparent",
   textDecoration: "none" as const,
   fontSize: 14,
   fontWeight: isActive ? 500 : 400,
@@ -57,7 +57,7 @@ function AppShellWrapper({ children }: { children: React.ReactNode }) {
       <AppShell
         page={pageKey}
         sidebarHeader={
-          <span style={{ fontWeight: 700, fontSize: 18, color: "var(--uild-colors-accent)" }}>
+          <span style={{ fontWeight: 700, fontSize: 18, color: "var(--orqui-colors-accent)" }}>
               .Gatekeeper
           </span>
         }

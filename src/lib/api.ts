@@ -25,6 +25,9 @@ import type {
   ContextPack,
   SessionPreset,
   SessionHistory,
+  SessionProfile,
+  TaskType,
+  GitStrategy,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -857,6 +860,80 @@ export const api = {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete history entry")
         }
+      },
+    },
+
+    profiles: {
+      list: async (): Promise<SessionProfile[]> => {
+        const response = await fetch(`${API_BASE}/mcp/profiles`)
+        if (!response.ok) throw new Error("Failed to fetch profiles")
+        const json = await response.json()
+        return json.data
+      },
+
+      get: async (id: string): Promise<SessionProfile> => {
+        const response = await fetch(`${API_BASE}/mcp/profiles/${id}`)
+        if (!response.ok) throw new Error("Failed to fetch profile")
+        return response.json()
+      },
+
+      create: async (data: {
+        name: string
+        taskType?: TaskType
+        gitStrategy?: GitStrategy
+        branch?: string
+        docsDir?: string
+        promptIds?: string[]
+      }): Promise<SessionProfile> => {
+        const response = await fetch(`${API_BASE}/mcp/profiles`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const err = await response.json().catch(() => null)
+          throw new Error(err?.error || "Failed to create profile")
+        }
+        return response.json()
+      },
+
+      update: async (
+        id: string,
+        data: Partial<{
+          name: string
+          taskType: TaskType
+          gitStrategy: GitStrategy
+          branch: string | null
+          docsDir: string | null
+        }>
+      ): Promise<SessionProfile> => {
+        const response = await fetch(`${API_BASE}/mcp/profiles/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const err = await response.json().catch(() => null)
+          throw new Error(err?.error || "Failed to update profile")
+        }
+        return response.json()
+      },
+
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${API_BASE}/mcp/profiles/${id}`, {
+          method: "DELETE",
+        })
+        if (!response.ok) throw new Error("Failed to delete profile")
+      },
+
+      setPrompts: async (id: string, promptIds: string[]): Promise<SessionProfile> => {
+        const response = await fetch(`${API_BASE}/mcp/profiles/${id}/prompts`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ promptIds }),
+        })
+        if (!response.ok) throw new Error("Failed to update profile prompts")
+        return response.json()
       },
     },
   },

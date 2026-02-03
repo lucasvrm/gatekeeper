@@ -334,12 +334,25 @@ export type GitStrategy = "main" | "new-branch" | "existing-branch"
 export type TaskType = "bugfix" | "feature" | "refactor" | "test" | "other"
 
 export interface MCPSessionConfig {
+  activeProfileId: string | null
   gitStrategy: GitStrategy
   branch: string
   taskType: TaskType
   projectId: string | null
-  customInstructions: string
   docsDir: string
+}
+
+// Session Profile
+export interface SessionProfile {
+  id: string
+  name: string
+  taskType: TaskType
+  gitStrategy: GitStrategy
+  branch: string | null
+  docsDir: string | null
+  createdAt: string
+  updatedAt: string
+  prompts: PromptInstruction[]
 }
 
 export interface MCPStatus {

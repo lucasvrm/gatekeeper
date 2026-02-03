@@ -61,6 +61,7 @@ export function createServer(config: Config): ServerContext {
     const result = await handlePromptRequest(name, args ?? {}, {
       client,
       docsDir: config.DOCS_DIR,
+      artifactsDir: config.ARTIFACTS_DIR,
     })
     return result as GetPromptResult
   })

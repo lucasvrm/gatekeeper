@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:ab3cd093c88014f6f4509642f7cff15edbc2274e49521d2ae9fe9d8721e5162f",
-    "generatedAt": "2026-02-03T06:54:22.096Z"
+    "hash": "sha256:a8334ca97f46e18d8a0736f22f47c316d899af013665c4992226f5e3ee021082",
+    "generatedAt": "2026-02-03T05:40:59.074816+00:00"
   },
   "structure": {
     "regions": {
@@ -75,9 +75,9 @@
             "activeFontWeight": "$tokens.fontWeights.bold",
             "activeColor": "$tokens.colors.bg",
             "fontFamily": "$tokens.fontFamilies.mono",
-            "hoverColor": "$tokens.colors.accent",
+            "hoverColor": "$tokens.colors.accent-dim",
             "cardEnabled": true,
-            "activeBackground": "$tokens.colors.ring",
+            "activeBackground": "$tokens.colors.accent-dim",
             "cardBackground": "",
             "cardBorderColor": "",
             "cardBorderWidth": "1",
@@ -347,7 +347,7 @@
     "logo": {
       "type": "icon-text",
       "text": "Gatekeeper",
-      "icon": "ph:door-open",
+      "icon": "ph:shield-check",
       "iconUrl": "",
       "imageUrl": "",
       "position": "header",
@@ -374,7 +374,7 @@
     "favicon": {
       "type": "emoji",
       "url": "",
-      "emoji": "ph:door-open",
+      "emoji": "ph:shield-check",
       "color": "#3a6ab5"
     },
     "headerElements": {
@@ -508,11 +508,11 @@
     },
     "layoutMode": "header-first",
     "scrollbar": {
-      "width": "7px",
-      "thumbColor": "rgba(92,127,168,0.12)",
-      "thumbHoverColor": "rgba(92,127,168,0.25)",
+      "width": "5px",
+      "thumbColor": "rgba(108,140,255,0.15)",
+      "thumbHoverColor": "rgba(108,140,255,0.30)",
       "trackColor": "transparent",
-      "borderRadius": "4px"
+      "borderRadius": "3px"
     },
     "toast": {
       "position": "bottom-right",
@@ -527,11 +527,11 @@
       "actionLabel": "Criar Novo"
     },
     "skeleton": {
-      "animation": "pulse",
-      "baseColor": "rgba(180,165,140,0.10)",
-      "highlightColor": "rgba(180,165,140,0.20)",
-      "borderRadius": "10px",
-      "duration": "2s"
+      "animation": "shimmer",
+      "baseColor": "rgba(108,140,255,0.06)",
+      "highlightColor": "rgba(108,140,255,0.12)",
+      "borderRadius": "5px",
+      "duration": "1.8s"
     },
     "appTitle": "Gatekeeper",
     "tableSeparator": {
@@ -605,7 +605,7 @@
     },
     "sizing": {
       "sidebar-width": {
-        "value": 260,
+        "value": 230,
         "unit": "px"
       },
       "sidebar-min": {
@@ -617,11 +617,11 @@
         "unit": "px"
       },
       "header-height": {
-        "value": 60,
+        "value": 48,
         "unit": "px"
       },
       "footer-height": {
-        "value": 40,
+        "value": 36,
         "unit": "px"
       },
       "full-height": {
@@ -712,33 +712,33 @@
         "description": "Sidebar navigation container padding = sidebar-pad(16) - navItemInternalPad(6). Ensures nav text aligns with brand/footer."
       },
       "size-scale": {
-        "value": 1.12
+        "value": 0.92
       },
       "radius-factor": {
-        "value": 1.4
+        "value": 0.7
       }
     },
     "fontFamilies": {
       "primary": {
         "family": "Inter",
         "fallbacks": [
-          "Inter",
           "-apple-system",
+          "BlinkMacSystemFont",
           "sans-serif"
         ]
       },
       "mono": {
         "family": "JetBrains Mono",
         "fallbacks": [
-          "JetBrains Mono",
+          "Fira Code",
           "Consolas",
           "monospace"
         ]
       },
       "display": {
-        "family": "Source Sans 3",
+        "family": "Inter",
         "fallbacks": [
-          "serif"
+          "sans-serif"
         ]
       }
     },
@@ -839,79 +839,79 @@
     },
     "colors": {
       "bg": {
-        "value": "#faf7f3"
+        "value": "#0d1017"
       },
       "surface": {
-        "value": "#ffffff"
+        "value": "#151a24"
       },
       "surface-2": {
-        "value": "#f3ede5"
+        "value": "#1c2230"
       },
       "surface-3": {
-        "value": "#e8dfd4"
+        "value": "#252d3d"
       },
       "border": {
-        "value": "#d4c8b8"
+        "value": "#2a3345"
       },
       "border-2": {
-        "value": "#c4b5a1"
+        "value": "#374357"
       },
       "text": {
-        "value": "#2c2417"
+        "value": "#e2e6ed"
       },
       "text-muted": {
-        "value": "#7a6e5e"
+        "value": "#8892a4"
       },
       "text-dim": {
-        "value": "#a89b8a"
+        "value": "#5d6878"
       },
       "accent": {
-        "value": "#5c7fa8"
+        "value": "#6c8cff"
       },
       "accent-fg": {
         "value": "#ffffff"
       },
       "sidebar-bg": {
-        "value": "#f5f0e8"
+        "value": "#0a0e16"
       },
       "card-bg": {
-        "value": "#ffffff"
+        "value": "#151a24"
       },
       "card-border": {
-        "value": "#d4c8b8"
+        "value": "#2a3345"
       },
       "ring": {
-        "value": "#5c7fa8"
+        "value": "#6c8cff"
       },
       "input-border": {
-        "value": "#d4c8b8"
+        "value": "#2a3345"
       },
       "success": {
-        "value": "#5a8a5c"
+        "value": "#34d399"
       },
       "success-dim": {
-        "value": "#dceedd"
+        "value": "#065f46"
       },
       "warning": {
-        "value": "#c4913e"
+        "value": "#fbbf24"
       },
       "warning-dim": {
-        "value": "#fef3cd"
+        "value": "#78350f"
       },
       "danger": {
-        "value": "#b85450"
+        "value": "#f87171"
       },
       "danger-dim": {
-        "value": "#f8d7da"
+        "value": "#7f1d1d"
       },
       "info": {
-        "value": "#5c7fa8"
+        "value": "#60a5fa"
       },
       "info-dim": {
-        "value": "#d6e4f0"
+        "value": "#1e3a5f"
       },
       "highlight": {
-        "value": "#f0e68c"
+        "value": "#fef08a"
       }
     },
     "borderRadius": {
@@ -920,19 +920,19 @@
         "unit": "px"
       },
       "sm": {
-        "value": 6,
+        "value": 3,
         "unit": "px"
       },
       "md": {
-        "value": 10,
+        "value": 5,
         "unit": "px"
       },
       "lg": {
-        "value": 14,
+        "value": 7,
         "unit": "px"
       },
       "xl": {
-        "value": 20,
+        "value": 10,
         "unit": "px"
       },
       "full": {

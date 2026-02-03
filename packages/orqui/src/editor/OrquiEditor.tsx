@@ -1,24 +1,23 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { COLORS, s, DEFAULT_LAYOUT, DEFAULT_UI_REGISTRY } from "./lib/constants";
 import { computeHash } from "./lib/utils";
 import { idbGet, idbSet } from "./lib/indexeddb";
 import { apiLoadContracts, apiSaveContract } from "./lib/api";
-import { usePersistentState } from "./hooks/usePersistentState";
 import { useCommandPaletteItems } from "./hooks/useCommandPaletteItems";
 import { CommandPalette } from "./components/CommandPalette";
-import { LayoutSections } from "./editors/LayoutSections";
-import { UIRegistryEditor } from "./editors/ComponentEditors";
-import { LayoutPreview } from "./previews/LayoutPreview";
-import { TypographyPreview } from "./previews/TypographyPreview";
-import { ComponentPreview } from "./previews/ComponentPreview";
 import { PageEditor } from "./page-editor/PageEditor";
+import { StackedWorkbench } from "./workbench/StackedWorkbench";
 
 // ============================================================================
+// OrquiEditor — top-level mode switcher + topbar
+// Pages mode: DnD builder (intocável)
+// Shell & Tokens mode: Stacked Workbench (IDE-like layout)
+// ============================================================================
 export function OrquiEditor() {
-  // Top-level mode: "pages" (DnD builder) or "shell" (v1 config)
+  // Top-level mode: "pages" (DnD builder) or "shell" (Stacked Workbench)
   const [editorMode, setEditorMode] = useState<"pages" | "shell">("pages");
-  const [activeTab, setActiveTab] = useState("layout");
   const [layout, setLayout] = useState(DEFAULT_LAYOUT);
+
   // Normalize registry: ensure every component has name field matching its key
   const normalizeRegistry = useCallback((reg: any) => {
     if (!reg?.components) return reg;
@@ -34,8 +33,7 @@ export function OrquiEditor() {
   const [registry, setRegistryRaw] = useState(() => normalizeRegistry(DEFAULT_UI_REGISTRY));
   const setRegistry = useCallback((r: any) => setRegistryRaw(normalizeRegistry(r)), [normalizeRegistry]);
   const [hasApi, setHasApi] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
-  const [previewTab, setPreviewTab] = useState("layout");
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   // Snapshot for undo: stores state at last save
   const [savedSnapshot, setSavedSnapshot] = useState<{ layout: any; registry: any } | null>(null);
@@ -50,7 +48,8 @@ export function OrquiEditor() {
     setRegistry(savedSnapshot.registry);
   }, [savedSnapshot]);
 
-  // Load: try API first (filesystem), then IndexedDB (draft), then defaults
+  // ── Data Loading ───────────────────────────────────────────────────────────
+  // Try API first (filesystem via Vite plugin), then IndexedDB (draft), then defaults
   useEffect(() => {
     (async () => {
       const apiContracts = await apiLoadContracts();
@@ -82,7 +81,7 @@ export function OrquiEditor() {
   useEffect(() => { idbSet("orqui-layout", layout); }, [layout]);
   useEffect(() => { idbSet("orqui-registry", registry); }, [registry]);
 
-  // Save to filesystem via API
+  // ── Save to Filesystem ─────────────────────────────────────────────────────
   const saveToFilesystem = useCallback(async () => {
     if (!hasApi) return;
     setSaveStatus("saving");
@@ -105,73 +104,22 @@ export function OrquiEditor() {
     setTimeout(() => setSaveStatus(null), 2000);
   }, [layout, registry, hasApi]);
 
-  // Scroll spy for section indicator dots
-  const configRef = useRef<HTMLDivElement>(null);
-  const [activeSection, setActiveSection] = useState("sec-brand");
-  const sectionDots = [
-    { id: "sec-brand", color: "#f59e0b", label: "Marca" },
-    { id: "sec-layout", color: "#3b82f6", label: "Layout" },
-    { id: "sec-content-layout", color: "#3b82f6", label: "Content Layout" },
-    { id: "sec-page-header", color: "#3b82f6", label: "Page Header" },
-    { id: "sec-header", color: "#22c55e", label: "Header" },
-    { id: "sec-table-sep", color: "#22c55e", label: "Table Sep" },
-    { id: "sec-tokens", color: "#a855f7", label: "Tokens" },
-    { id: "sec-typo", color: "#a1a1aa", label: "Tipografia" },
-    { id: "sec-layout-mode", color: "#3b82f6", label: "Layout Mode" },
-    { id: "sec-scrollbar", color: "#64748b", label: "Scrollbar" },
-    { id: "sec-toast", color: "#f97316", label: "Toast" },
-    { id: "sec-empty-state", color: "#8b5cf6", label: "Empty State" },
-    { id: "sec-skeleton", color: "#06b6d4", label: "Skeleton" },
-    { id: "sec-pages", color: "#ef4444", label: "Páginas" },
-    { id: "sec-io", color: "#6d9cff", label: "I/O" },
-  ];
-
-  useEffect(() => {
-    const el = configRef.current;
-    if (!el) return;
-    const handleScroll = () => {
-      const ids = sectionDots.map(d => d.id);
-      let active = ids[0];
-      ids.forEach(id => {
-        const sec = document.getElementById(id);
-        if (sec && sec.offsetTop - el.offsetTop - 120 <= el.scrollTop) active = id;
-      });
-      setActiveSection(active);
-    };
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [activeTab]);
-
-  const scrollToSection = (id: string) => {
-    const sec = document.getElementById(id);
-    const el = configRef.current;
-    if (sec && el) {
-      el.scrollTo({ top: sec.offsetTop - el.offsetTop, behavior: "smooth" });
-    }
-  };
-
-  // Command Palette
+  // ── Command Palette ────────────────────────────────────────────────────────
   const [cmdOpen, setCmdOpen] = useState(false);
 
-  // Orqui favicon
-  useEffect(() => {
-    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
-    if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${COLORS.accent}"><path d="M245.66,74.34l-32-32a8,8,0,0,0-11.32,11.32L220.69,72H208c-49.33,0-61.05,28.12-71.38,52.92-9.38,22.51-16.92,40.59-49.48,42.84a40,40,0,1,0,.1,16c43.26-2.65,54.34-29.15,64.14-52.69C161.41,107,169.33,88,208,88h12.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,74.34ZM48,200a24,24,0,1,1,24-24A24,24,0,0,1,48,200Z"/></svg>`;
-    link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
-    link.type = "image/svg+xml";
-    document.title = "orqui — contract editor";
-  }, []);
-
+  // Backward-compat stubs for useCommandPaletteItems
+  // (cmdItems still references setActiveTab/scrollToSection/openAccordion from the old layout;
+  //  these stubs prevent breakage — command palette → SW deep-linking is a follow-up)
+  const setActiveTab = useCallback((_t: string) => {}, []);
+  const scrollToSection = useCallback((_id: string) => {}, []);
   const openAccordion = useCallback((sectionId: string) => {
-    // Dispatch custom event that usePersistentState hooks listen for
     window.dispatchEvent(new CustomEvent("orqui:open-accordion", { detail: sectionId }));
     window.dispatchEvent(new CustomEvent("orqui:open-accordion", { detail: `wb-${sectionId}` }));
   }, []);
 
   const cmdItems = useCommandPaletteItems(layout, registry, setActiveTab, scrollToSection, openAccordion);
 
-  // Ctrl+K / Cmd+K handler
+  // Ctrl+K / Cmd+K
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -183,9 +131,19 @@ export function OrquiEditor() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const CONFIG_WIDTH = "65%";
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // ── Orqui Favicon ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+    if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${COLORS.accent}"><path d="M245.66,74.34l-32-32a8,8,0,0,0-11.32,11.32L220.69,72H208c-49.33,0-61.05,28.12-71.38,52.92-9.38,22.51-16.92,40.59-49.48,42.84a40,40,0,1,0,.1,16c43.26-2.65,54.34-29.15,64.14-52.69C161.41,107,169.33,88,208,88h12.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,74.34ZM48,200a24,24,0,1,1,24-24A24,24,0,0,1,48,200Z"/></svg>`;
+    link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    link.type = "image/svg+xml";
+    document.title = "orqui — contract editor";
+  }, []);
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════════════════════════════════════
   return (
     <div className="orqui-editor-root" style={{
       background: COLORS.bg, height: "100vh", color: COLORS.text,
@@ -251,30 +209,7 @@ export function OrquiEditor() {
         {/* Dot separator */}
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.border }} />
 
-        {/* Tab pills (only in shell mode) */}
-        {editorMode === "shell" && (
-        <div style={{
-          display: "flex", gap: 2, background: COLORS.surface2,
-          padding: 3, borderRadius: 8,
-        }}>
-          {[
-            { id: "layout", label: "Layout" },
-            { id: "components", label: "Componentes" },
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-              padding: "6px 16px", borderRadius: 6, fontSize: 12, fontWeight: 500,
-              border: "none", cursor: "pointer",
-              fontFamily: "'Inter', sans-serif",
-              background: activeTab === tab.id ? COLORS.surface3 : "transparent",
-              color: activeTab === tab.id ? COLORS.text : COLORS.textDim,
-              boxShadow: activeTab === tab.id ? "0 1px 3px #0003" : "none",
-              transition: "all 0.15s",
-            }}>{tab.label}</button>
-          ))}
-        </div>
-        )}
-
-        {/* Search trigger */}
+        {/* Search trigger — ⌘K */}
         <button
           onClick={() => setCmdOpen(true)}
           style={{
@@ -343,10 +278,10 @@ export function OrquiEditor() {
       </div>
 
       {/* ============================================================ */}
-      {/* MAIN LAYOUT                                                    */}
+      {/* MAIN CONTENT                                                  */}
       {/* ============================================================ */}
 
-      {/* PAGES MODE — DnD builder */}
+      {/* PAGES MODE — DnD builder (intocável) */}
       {editorMode === "pages" && (
         <div style={{ flex: 1, overflow: "hidden" }}>
           <PageEditor
@@ -359,181 +294,14 @@ export function OrquiEditor() {
         </div>
       )}
 
-      {/* SHELL MODE — v1 config panels + preview */}
+      {/* SHELL & TOKENS MODE — Stacked Workbench */}
       {editorMode === "shell" && (
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
-
-        {/* LEFT — scrollable config panel (collapsible) */}
-        <div
-          ref={configRef}
-          style={{
-            width: sidebarCollapsed ? "auto" : CONFIG_WIDTH,
-            minWidth: sidebarCollapsed ? undefined : undefined,
-            flexShrink: 0,
-            overflowY: "auto", overflowX: "hidden",
-            borderRight: `1px solid ${COLORS.border}`,
-            background: COLORS.surface,
-            scrollBehavior: "smooth" as const,
-            transition: "width 0.2s ease",
-          }}
-        >
-          {sidebarCollapsed ? (
-            /* Collapsed: show section names as clickable list */
-            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
-              {[
-                { id: "sec-brand", label: "Marca", color: "#f59e0b" },
-                { id: "sec-layout", label: "Layout & Regiões", color: "#3b82f6" },
-                { id: "sec-content-layout", label: "Content Layout", color: "#3b82f6" },
-                { id: "sec-page-header", label: "Page Header", color: "#3b82f6" },
-                { id: "sec-header", label: "Header Elements", color: "#22c55e" },
-                { id: "sec-table-sep", label: "Table Separator", color: "#22c55e" },
-                { id: "sec-tokens", label: "Design Tokens", color: "#a855f7" },
-                { id: "sec-typo", label: "Tipografia", color: "#a1a1aa" },
-                { id: "sec-layout-mode", label: "Layout Mode", color: "#3b82f6" },
-                { id: "sec-scrollbar", label: "Scrollbar", color: "#64748b" },
-                { id: "sec-toast", label: "Toast", color: "#f97316" },
-                { id: "sec-empty-state", label: "Empty State", color: "#8b5cf6" },
-                { id: "sec-skeleton", label: "Skeleton", color: "#06b6d4" },
-                { id: "sec-pages", label: "Páginas", color: "#ef4444" },
-                { id: "sec-io", label: "Import / Export", color: "#6d9cff" },
-              ].map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    setSidebarCollapsed(false);
-                    setTimeout(() => {
-                      document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }, 250);
-                  }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "8px 10px", borderRadius: 6, border: "none", cursor: "pointer",
-                    background: "transparent", color: COLORS.textDim,
-                    fontSize: 12, fontWeight: 500, fontFamily: "'Inter', sans-serif",
-                    textAlign: "left", whiteSpace: "nowrap",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surface2; e.currentTarget.style.color = COLORS.text; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = COLORS.textDim; }}
-                >
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          ) : (
-            /* Expanded: full config panels */
-            <>
-              {activeTab === "layout" && (
-                <LayoutSections
-                  layout={layout}
-                  registry={registry}
-                  setLayout={setLayout}
-                  setRegistry={setRegistry}
-                />
-              )}
-              {activeTab === "components" && (
-                <div style={{ padding: 20 }}>
-                  <UIRegistryEditor registry={registry} onChange={setRegistry} />
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Collapse/expand chevron — centered vertically on the config panel border */}
-        <div style={{ position: "relative", flexShrink: 0, width: 0 }}>
-          <button
-            onClick={() => setSidebarCollapsed(prev => !prev)}
-            style={{
-              position: "absolute",
-              left: -12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 20,
-              width: 24, height: 24,
-              borderRadius: "50%",
-              border: `1px solid ${COLORS.border}`,
-              background: COLORS.surface2,
-              color: COLORS.textDim,
-              cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 12,
-              transition: "all 0.2s",
-              boxShadow: "0 1px 4px #0003",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.text; e.currentTarget.style.borderColor = COLORS.accent; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.textDim; e.currentTarget.style.borderColor = COLORS.border; }}
-            title={sidebarCollapsed ? "Expandir painel" : "Colapsar painel"}
-          >
-            {sidebarCollapsed ? "›" : "‹"}
-          </button>
-        </div>
-
-        {/* RIGHT — preview pane */}
-        <div style={{
-          flex: 1, display: "flex", flexDirection: "column",
-          background: COLORS.bg, position: "relative",
-        }}>
-          {/* Preview tab bar */}
-          <div style={{
-            padding: "0 24px", display: "flex", gap: 0,
-            borderBottom: `1px solid ${COLORS.border}`,
-            background: COLORS.surface,
-            flexShrink: 0,
-          }}>
-            {[
-              { id: "layout", label: "Layout" },
-              { id: "typography", label: "Tipografia" },
-              { id: "components", label: "Componentes" },
-            ].map(tab => (
-              <button key={tab.id} onClick={() => setPreviewTab(tab.id)} style={{
-                padding: "16px 16px", fontSize: 13, fontWeight: 600,
-                border: "none", cursor: "pointer",
-                fontFamily: "'Inter', sans-serif",
-                borderBottom: previewTab === tab.id ? `2px solid ${COLORS.accent}` : "2px solid transparent",
-                background: "transparent",
-                color: previewTab === tab.id ? COLORS.text : COLORS.textDim,
-                transition: "color 0.15s",
-              }}>{tab.label}</button>
-            ))}
-          </div>
-
-          {/* Preview content */}
-          <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
-            {previewTab === "layout" && <LayoutPreview layout={layout} />}
-            {previewTab === "typography" && <TypographyPreview layout={layout} />}
-            {previewTab === "components" && <ComponentPreview registry={registry} />}
-          </div>
-
-          {/* Scroll spy dots — only in layout tab */}
-          {activeTab === "layout" && (
-            <div style={{
-              position: "absolute", right: 16, top: "50%",
-              transform: "translateY(-50%)",
-              display: "flex", flexDirection: "column", gap: 6,
-              zIndex: 10,
-            }}>
-              {sectionDots.map(dot => (
-                <div
-                  key={dot.id}
-                  onClick={() => scrollToSection(dot.id)}
-                  title={dot.label}
-                  style={{
-                    width: activeSection === dot.id ? 10 : 7,
-                    height: activeSection === dot.id ? 10 : 7,
-                    borderRadius: "50%",
-                    background: dot.color,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    opacity: activeSection === dot.id ? 1 : 0.4,
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+        <StackedWorkbench
+          layout={layout}
+          setLayout={setLayout}
+          registry={registry}
+          setRegistry={setRegistry}
+        />
       )}
 
       {/* Command Palette overlay */}

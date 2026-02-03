@@ -12,11 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { useSessionConfig } from "@/hooks/use-session-config"
@@ -27,6 +22,7 @@ import type {
   MCPSessionConfig,
   PromptInstruction,
   SessionHistory,
+  SessionProfile,
 } from "@/lib/types"
 
 // ─────────────────────────────────────────────────────────────
@@ -179,10 +175,20 @@ function StatusBar() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  SESSION SECTION
+//  SESSION SECTION (grid row 1) — profile-aware
 // ─────────────────────────────────────────────────────────────
 
-function SessionSection() {
+function SessionSection({
+  profiles,
+  activeProfileId,
+  onProfileChange,
+  onProfilesChange,
+}: {
+  profiles: SessionProfile[]
+  activeProfileId: string | null
+  onProfileChange: (id: string | null) => void
+  onProfilesChange: () => void
+}) {
   const { config, loading, saving, update } = useSessionConfig()
   const { status } = useMCPStatus()
 
@@ -190,34 +196,71 @@ function SessionSection() {
   const [gitStrategy, setGitStrategy] = useState<GitStrategy>("main")
   const [branch, setBranch] = useState("")
   const [taskType, setTaskType] = useState<TaskType>("bugfix")
-  const [customInstructions, setCustomInstructions] = useState("")
   const [dirty, setDirty] = useState(false)
 
+  // Creating new profile
+  const [creatingProfile, setCreatingProfile] = useState(false)
+  const [newProfileName, setNewProfileName] = useState("")
+  const newProfileRef = useRef<HTMLInputElement>(null)
+
+  // Deleting profile
+  const [deletingProfileId, setDeletingProfileId] = useState<string | null>(null)
+
+  // Load from config on mount
   useEffect(() => {
     if (config) {
       setDocsDir(config.docsDir || "")
       setGitStrategy(config.gitStrategy || "main")
       setBranch(config.branch || "")
       setTaskType(config.taskType || "bugfix")
-      setCustomInstructions(config.customInstructions || "")
       setDirty(false)
     }
   }, [config])
+
+  // When profile changes, populate fields from profile
+  const handleProfileSelect = (profileId: string) => {
+    const profile = profiles.find((p) => p.id === profileId)
+    if (!profile) return
+
+    setTaskType(profile.taskType as TaskType)
+    setGitStrategy(profile.gitStrategy as GitStrategy)
+    setBranch(profile.branch || "")
+    setDocsDir(profile.docsDir || "")
+    onProfileChange(profileId)
+    setDirty(true)
+  }
+
+  useEffect(() => {
+    if (creatingProfile) newProfileRef.current?.focus()
+  }, [creatingProfile])
 
   const markDirty = () => setDirty(true)
 
   const handleSave = async () => {
     const newConfig: MCPSessionConfig = {
+      activeProfileId,
       docsDir,
       gitStrategy,
       branch: gitStrategy === "main" ? "main" : branch,
       taskType,
       projectId: null,
-      customInstructions,
     }
 
     try {
+      // Save session config
       await update(newConfig)
+
+      // If there's an active profile, also update the profile fields
+      if (activeProfileId) {
+        await api.mcp.profiles.update(activeProfileId, {
+          taskType,
+          gitStrategy,
+          branch: gitStrategy === "main" ? null : branch,
+          docsDir: docsDir || null,
+        })
+        onProfilesChange()
+      }
+
       toast.success("Sessão salva")
       setDirty(false)
     } catch (err) {
@@ -227,150 +270,316 @@ function SessionSection() {
     }
   }
 
+  const handleCreateProfile = async () => {
+    if (!newProfileName.trim()) return
+    try {
+      const profile = await api.mcp.profiles.create({
+        name: newProfileName.trim(),
+        taskType,
+        gitStrategy,
+        branch: gitStrategy === "main" ? undefined : branch,
+        docsDir: docsDir || undefined,
+      })
+      toast.success("Perfil criado")
+      setCreatingProfile(false)
+      setNewProfileName("")
+      onProfilesChange()
+      onProfileChange(profile.id)
+      setDirty(true)
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Erro ao criar perfil"
+      )
+    }
+  }
+
+  const handleDeleteProfile = async (id: string) => {
+    try {
+      await api.mcp.profiles.delete(id)
+      toast.success("Perfil removido")
+      setDeletingProfileId(null)
+      if (activeProfileId === id) onProfileChange(null)
+      onProfilesChange()
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Erro ao remover perfil"
+      )
+    }
+  }
+
   const docsDirInvalid = status?.docsDir === "not-found"
   const branchDisabled = gitStrategy === "main"
 
   if (loading) {
     return (
-      <section data-testid="session-section" className="space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Sessão
-        </h2>
+      <section data-testid="session-section" className="grid grid-cols-2 gap-6">
         <div className="space-y-3">
+          <Skeleton className="h-4 w-24" />
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-9 w-full" />
         </div>
       </section>
     )
   }
 
   return (
-    <section data-testid="session-section" className="space-y-4">
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-        Sessão
-      </h2>
+    <section data-testid="session-section">
+      <div className="grid grid-cols-2 gap-6">
+        {/* Left column: Profile, Task Type, Git Strategy, Branch */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Sessão
+          </h2>
 
-      {/* Row 1: TaskType + GitStrategy + Branch — inline */}
-      <div className="flex items-end gap-3 flex-wrap">
-        <div className="space-y-1.5 min-w-[140px]">
-          <label className="text-xs font-medium text-muted-foreground">
-            Task Type
-          </label>
-          <Select
-            value={taskType}
-            onValueChange={(v: string) => {
-              setTaskType(v as TaskType)
-              markDirty()
-            }}
-          >
-            <SelectTrigger data-testid="task-type-select" className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="bugfix">Bugfix</SelectItem>
-              <SelectItem value="feature">Feature</SelectItem>
-              <SelectItem value="refactor">Refactor</SelectItem>
-              <SelectItem value="test">Test</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          {/* Profile selector */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              Perfil
+            </label>
+            <div className="flex items-center gap-2">
+              <Select
+                value={activeProfileId || "__none__"}
+                onValueChange={(v) => {
+                  if (v === "__none__") {
+                    onProfileChange(null)
+                    markDirty()
+                  } else {
+                    handleProfileSelect(v)
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="profile-select" className="flex-1">
+                  <SelectValue placeholder="Sem perfil" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem perfil</SelectItem>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-        <div className="space-y-1.5 min-w-[140px]">
-          <label className="text-xs font-medium text-muted-foreground">
-            Git Strategy
-          </label>
-          <Select
-            value={gitStrategy}
-            onValueChange={(v: string) => {
-              const strategy = v as GitStrategy
-              setGitStrategy(strategy)
-              if (strategy === "main") setBranch("main")
-              markDirty()
-            }}
-          >
-            <SelectTrigger
-              data-testid="git-strategy-select"
-              className="w-[180px]"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="main">main (direto)</SelectItem>
-              <SelectItem value="new-branch">new branch</SelectItem>
-              <SelectItem value="existing-branch">existing branch</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+              {!creatingProfile && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCreatingProfile(true)}
+                  data-testid="create-profile-button"
+                  className="shrink-0 h-9 px-2.5"
+                  title="Novo perfil"
+                >
+                  +
+                </Button>
+              )}
 
-        <div className="space-y-1.5 flex-1 min-w-[200px]">
-          <label className="text-xs font-medium text-muted-foreground">
-            Branch
-          </label>
-          <Input
-            value={branchDisabled ? "main" : branch}
-            onChange={(e) => {
-              setBranch(e.target.value)
-              markDirty()
-            }}
-            disabled={branchDisabled}
-            placeholder="feat/minha-feature"
-            data-testid="branch-input"
-            className={cn(
-              "font-mono text-sm",
-              branchDisabled && "opacity-50 cursor-not-allowed"
+              {activeProfileId && !deletingProfileId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeletingProfileId(activeProfileId)}
+                  className="shrink-0 h-9 px-2.5 hover:text-destructive"
+                  title="Remover perfil"
+                >
+                  🗑️
+                </Button>
+              )}
+            </div>
+
+            {/* Inline create profile */}
+            {creatingProfile && (
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  ref={newProfileRef}
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  placeholder="Nome do perfil"
+                  className="text-sm flex-1"
+                  data-testid="new-profile-name"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreateProfile()
+                    if (e.key === "Escape") {
+                      setCreatingProfile(false)
+                      setNewProfileName("")
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleCreateProfile}
+                  disabled={!newProfileName.trim()}
+                  className="h-9"
+                >
+                  Criar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setCreatingProfile(false)
+                    setNewProfileName("")
+                  }}
+                  className="h-9"
+                >
+                  ✕
+                </Button>
+              </div>
             )}
-          />
+
+            {/* Confirm delete profile */}
+            {deletingProfileId && (
+              <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20">
+                <span className="text-xs text-destructive flex-1">
+                  Remover perfil "{profiles.find((p) => p.id === deletingProfileId)?.name}"?
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteProfile(deletingProfileId)}
+                  className="h-7 text-xs"
+                >
+                  Confirmar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeletingProfileId(null)}
+                  className="h-7 text-xs"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              Task Type
+            </label>
+            <Select
+              value={taskType}
+              onValueChange={(v: string) => {
+                setTaskType(v as TaskType)
+                markDirty()
+              }}
+            >
+              <SelectTrigger data-testid="task-type-select" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bugfix">Bugfix</SelectItem>
+                <SelectItem value="feature">Feature</SelectItem>
+                <SelectItem value="refactor">Refactor</SelectItem>
+                <SelectItem value="test">Test</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              Git Strategy
+            </label>
+            <Select
+              value={gitStrategy}
+              onValueChange={(v: string) => {
+                const strategy = v as GitStrategy
+                setGitStrategy(strategy)
+                if (strategy === "main") setBranch("main")
+                markDirty()
+              }}
+            >
+              <SelectTrigger
+                data-testid="git-strategy-select"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="main">main (direto)</SelectItem>
+                <SelectItem value="new-branch">new branch</SelectItem>
+                <SelectItem value="existing-branch">existing branch</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              Branch
+            </label>
+            <Input
+              value={branchDisabled ? "main" : branch}
+              onChange={(e) => {
+                setBranch(e.target.value)
+                markDirty()
+              }}
+              disabled={branchDisabled}
+              placeholder="feat/minha-feature"
+              data-testid="branch-input"
+              className={cn(
+                "font-mono text-sm",
+                branchDisabled && "opacity-50 cursor-not-allowed"
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Right column: Docs Directory */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Docs Directory
+          </h2>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              📁 Caminho raiz dos playbooks
+            </label>
+            <Input
+              value={docsDir}
+              onChange={(e) => {
+                setDocsDir(e.target.value)
+                markDirty()
+              }}
+              placeholder="C:\Coding\gatekeeper-docs"
+              data-testid="docs-dir-input"
+              className={cn(
+                "font-mono text-sm",
+                docsDirInvalid &&
+                  "border-yellow-500 focus-visible:border-yellow-500 focus-visible:ring-yellow-500/30"
+              )}
+            />
+            {docsDirInvalid && (
+              <p className="text-xs text-yellow-500">
+                Diretório não encontrado no filesystem
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-md bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground font-mono space-y-1">
+            <p className="font-sans text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mb-1.5">
+              Estrutura esperada
+            </p>
+            <p>
+              <span className="text-foreground/70">└─</span> create_plan/
+              <span className="font-sans text-muted-foreground/60 ml-2">← planner</span>
+            </p>
+            <p>
+              <span className="text-foreground/70">└─</span> generate_spec/
+              <span className="font-sans text-muted-foreground/60 ml-2">← spec writer</span>
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Docs Directory */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">
-          📁 Docs Directory
-        </label>
-        <Input
-          value={docsDir}
-          onChange={(e) => {
-            setDocsDir(e.target.value)
-            markDirty()
-          }}
-          placeholder="C:\Coding\gatekeeper\docs"
-          data-testid="docs-dir-input"
-          className={cn(
-            "font-mono text-sm",
-            docsDirInvalid &&
-              "border-yellow-500 focus-visible:border-yellow-500 focus-visible:ring-yellow-500/30"
-          )}
-        />
-        {docsDirInvalid && (
-          <p className="text-xs text-yellow-500">
-            Diretório não encontrado no filesystem
-          </p>
-        )}
-      </div>
-
-      {/* Custom Instructions */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">
-          Instruções Customizadas
-        </label>
-        <textarea
-          value={customInstructions}
-          onChange={(e) => {
-            setCustomInstructions(e.target.value)
-            markDirty()
-          }}
-          placeholder="Sempre use português nos commits..."
-          data-testid="custom-instructions-textarea"
-          rows={3}
-          className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 resize-y"
-        />
-      </div>
-
-      {/* Save */}
-      <div className="flex justify-end">
+      {/* Save button spanning full width */}
+      <div className="flex justify-end mt-4">
         <Button
           onClick={handleSave}
           disabled={saving || !dirty}
@@ -385,10 +594,18 @@ function SessionSection() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  PROMPT INSTRUCTIONS SECTION
+//  PROMPT INSTRUCTIONS — profile-aware
 // ─────────────────────────────────────────────────────────────
 
-function PromptInstructionsSection() {
+function PromptInstructionsSection({
+  activeProfileId,
+  profiles,
+  onProfilesChange,
+}: {
+  activeProfileId: string | null
+  profiles: SessionProfile[]
+  onProfilesChange: () => void
+}) {
   const [prompts, setPrompts] = useState<PromptInstruction[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -409,6 +626,12 @@ function PromptInstructionsSection() {
   const nameInputRef = useRef<HTMLInputElement>(null)
   const editNameRef = useRef<HTMLInputElement>(null)
 
+  // Get linked prompt IDs for active profile
+  const activeProfile = profiles.find((p) => p.id === activeProfileId)
+  const linkedPromptIds = new Set(
+    activeProfile?.prompts.map((p) => p.id) ?? []
+  )
+
   const reload = useCallback(async () => {
     setLoading(true)
     try {
@@ -425,17 +648,30 @@ function PromptInstructionsSection() {
     reload()
   }, [reload])
 
-  // Focus name input on create
   useEffect(() => {
     if (creating) nameInputRef.current?.focus()
   }, [creating])
 
-  // Focus name input on edit
   useEffect(() => {
     if (editingId) editNameRef.current?.focus()
   }, [editingId])
 
-  const handleToggle = async (prompt: PromptInstruction) => {
+  const handleToggleLink = async (promptId: string) => {
+    if (!activeProfileId) return
+
+    const newLinked = linkedPromptIds.has(promptId)
+      ? [...linkedPromptIds].filter((id) => id !== promptId)
+      : [...linkedPromptIds, promptId]
+
+    try {
+      await api.mcp.profiles.setPrompts(activeProfileId, newLinked)
+      onProfilesChange()
+    } catch {
+      toast.error("Falha ao atualizar vínculo")
+    }
+  }
+
+  const handleToggleActive = async (prompt: PromptInstruction) => {
     try {
       await api.mcp.prompts.update(prompt.id, { isActive: !prompt.isActive })
       setPrompts((prev) =>
@@ -452,11 +688,21 @@ function PromptInstructionsSection() {
     if (!newName.trim() || !newContent.trim()) return
     setSavingNew(true)
     try {
-      await api.mcp.prompts.create({
+      const created = await api.mcp.prompts.create({
         name: newName.trim(),
         content: newContent.trim(),
       })
       toast.success("Prompt criado")
+
+      // Auto-link to active profile
+      if (activeProfileId) {
+        await api.mcp.profiles.setPrompts(activeProfileId, [
+          ...linkedPromptIds,
+          created.id,
+        ])
+        onProfilesChange()
+      }
+
       setCreating(false)
       setNewName("")
       setNewContent("")
@@ -509,6 +755,7 @@ function PromptInstructionsSection() {
       toast.success("Prompt removido")
       setDeletingId(null)
       reload()
+      onProfilesChange() // refresh profile links
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Falha ao remover prompt"
@@ -549,6 +796,16 @@ function PromptInstructionsSection() {
           </Button>
         )}
       </div>
+
+      {activeProfileId ? (
+        <p className="text-xs text-muted-foreground">
+          Checkboxes vinculam prompts ao perfil <strong>{activeProfile?.name}</strong>. Apenas prompts vinculados e ativos são injetados.
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Selecione um perfil para vincular prompts. Sem perfil, todos os prompts ativos são injetados.
+        </p>
+      )}
 
       {/* Inline create form */}
       {creating && (
@@ -622,14 +879,27 @@ function PromptInstructionsSection() {
             const isEditing = editingId === prompt.id
             const isExpanded = expandedId === prompt.id
             const isDeleting = deletingId === prompt.id
+            const isLinked = linkedPromptIds.has(prompt.id)
 
             return (
               <div key={prompt.id} data-testid={`prompt-item-${prompt.id}`}>
                 {/* Row header */}
                 <div className="flex items-center gap-3 px-4 py-2.5">
+                  {/* Profile link checkbox (only when profile is active) */}
+                  {activeProfileId && (
+                    <input
+                      type="checkbox"
+                      checked={isLinked}
+                      onChange={() => handleToggleLink(prompt.id)}
+                      className="size-3.5 rounded border-border accent-primary cursor-pointer"
+                      data-testid={`prompt-link-${prompt.id}`}
+                      title={isLinked ? "Desvincular do perfil" : "Vincular ao perfil"}
+                    />
+                  )}
+
                   <Switch
                     checked={prompt.isActive}
-                    onCheckedChange={() => handleToggle(prompt)}
+                    onCheckedChange={() => handleToggleActive(prompt)}
                     data-testid={`prompt-toggle-${prompt.id}`}
                   />
 
@@ -647,10 +917,6 @@ function PromptInstructionsSection() {
                       )}
                     >
                       {prompt.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground truncate hidden sm:inline max-w-[300px]">
-                      {prompt.content.slice(0, 60)}
-                      {prompt.content.length > 60 ? "…" : ""}
                     </span>
                   </button>
 
@@ -757,32 +1023,27 @@ function PromptInstructionsSection() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  HISTORY SECTION (collapsible)
+//  HISTORY SECTION
 // ─────────────────────────────────────────────────────────────
 
 function HistorySection() {
   const [history, setHistory] = useState<SessionHistory[]>([])
-  const [loading, setLoading] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const loadHistory = useCallback(async () => {
-    if (loaded) return
+  useEffect(() => {
+    loadHistory()
+  }, [])
+
+  const loadHistory = async () => {
     setLoading(true)
     try {
       const data = await api.mcp.history.list()
       setHistory(data)
-      setLoaded(true)
     } catch {
       toast.error("Falha ao carregar histórico")
     } finally {
       setLoading(false)
     }
-  }, [loaded])
-
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen)
-    if (isOpen && !loaded) loadHistory()
   }
 
   const handleDelete = async (id: string) => {
@@ -795,93 +1056,89 @@ function HistorySection() {
     }
   }
 
-  return (
-    <Collapsible open={open} onOpenChange={handleOpenChange}>
-      <CollapsibleTrigger
-        className="flex items-center gap-2 w-full text-left group"
-        data-testid="history-trigger"
-      >
-        <span className="text-xs text-muted-foreground transition-transform group-data-[state=open]:rotate-90">
-          ▶
-        </span>
+  if (loading) {
+    return (
+      <section data-testid="history-section" className="space-y-4">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           Histórico de Sessões
         </h2>
-        {loaded && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-            {history.length}
-          </Badge>
-        )}
-      </CollapsibleTrigger>
-
-      <CollapsibleContent data-testid="history-content">
-        <div className="mt-3">
-          {loading && (
-            <div className="space-y-2">
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-full" />
-            </div>
-          )}
-
-          {loaded && history.length === 0 && (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              Nenhum histórico de sessão encontrado.
-            </p>
-          )}
-
-          {loaded && history.length > 0 && (
-            <div
-              className="border border-border rounded-md divide-y divide-border"
-              data-testid="history-list"
-            >
-              {history.map((item) => (
-                <div
-                  key={item.id}
-                  data-testid={`history-item-${item.id}`}
-                  className="flex items-center justify-between px-4 py-2.5 text-sm"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Badge variant="outline" className="text-[10px] shrink-0">
-                      {item.taskType}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {item.gitStrategy}
-                    </span>
-                    {item.branch && (
-                      <span className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">
-                        {item.branch}
-                      </span>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {item.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[10px] text-muted-foreground">
-                      {new Date(item.createdAt).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(item.id)}
-                      className="h-6 text-xs px-1.5 hover:text-destructive"
-                      data-testid={`delete-button-${item.id}`}
-                    >
-                      ✕
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      </section>
+    )
+  }
+
+  return (
+    <section data-testid="history-section" className="space-y-4">
+      <div className="flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Histórico de Sessões
+        </h2>
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+          {history.length}
+        </Badge>
+      </div>
+
+      {history.length === 0 && (
+        <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-md">
+          Nenhum histórico de sessão encontrado.
+        </p>
+      )}
+
+      {history.length > 0 && (
+        <div
+          className="border border-border rounded-md divide-y divide-border"
+          data-testid="history-list"
+        >
+          {history.map((item) => (
+            <div
+              key={item.id}
+              data-testid={`history-item-${item.id}`}
+              className="flex items-center justify-between px-3 py-2 text-sm gap-2"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  {item.taskType}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {item.gitStrategy}
+                </span>
+                {item.branch && (
+                  <span className="text-xs font-mono text-muted-foreground truncate max-w-[140px]">
+                    {item.branch}
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {item.status}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  {new Date(item.createdAt).toLocaleDateString("pt-BR", {
+                    day: "2-digit",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(item.id)}
+                  className="h-6 text-xs px-1.5 hover:text-destructive"
+                  data-testid={`delete-button-${item.id}`}
+                >
+                  ✕
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -890,19 +1147,69 @@ function HistorySection() {
 // ─────────────────────────────────────────────────────────────
 
 export function MCPSessionPage() {
+  const { config } = useSessionConfig()
+  const [profiles, setProfiles] = useState<SessionProfile[]>([])
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null)
+  const [profilesLoading, setProfilesLoading] = useState(true)
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const data = await api.mcp.profiles.list()
+      setProfiles(data)
+    } catch {
+      toast.error("Falha ao carregar perfis")
+    } finally {
+      setProfilesLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadProfiles()
+  }, [loadProfiles])
+
+  // Sync activeProfileId from session config
+  useEffect(() => {
+    if (config?.activeProfileId) {
+      setActiveProfileId(config.activeProfileId)
+    }
+  }, [config])
+
+  if (profilesLoading) {
+    return (
+      <div data-testid="mcp-session-page" className="space-y-6">
+        <Skeleton className="h-10 w-full" />
+        <div className="grid grid-cols-2 gap-6">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div data-testid="mcp-session-page" className="space-y-8">
+    <div data-testid="mcp-session-page" className="space-y-6">
+      {/* Status bar */}
       <StatusBar />
 
-      <SessionSection />
+      {/* Row 1: Session config (left) + Docs directory (right) */}
+      <SessionSection
+        profiles={profiles}
+        activeProfileId={activeProfileId}
+        onProfileChange={setActiveProfileId}
+        onProfilesChange={loadProfiles}
+      />
 
       <div className="border-t border-border" />
 
-      <PromptInstructionsSection />
-
-      <div className="border-t border-border" />
-
-      <HistorySection />
+      {/* Row 2: Prompt Instructions (left) + History (right) */}
+      <div className="grid grid-cols-2 gap-6 items-start">
+        <PromptInstructionsSection
+          activeProfileId={activeProfileId}
+          profiles={profiles}
+          onProfilesChange={loadProfiles}
+        />
+        <HistorySection />
+      </div>
     </div>
   )
 }

@@ -314,4 +314,34 @@ model PromptInstruction {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  profiles SessionProfilePrompt[]
+}
+
+model SessionProfile {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  taskType    String   @default("feature")
+  gitStrategy String   @default("main")
+  branch      String?
+  docsDir     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  prompts SessionProfilePrompt[]
+
+  @@index([name])
+}
+
+model SessionProfilePrompt {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   SessionProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  promptId  String
+  prompt    PromptInstruction @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, promptId])
+  @@index([profileId])
+  @@index([promptId])
 }

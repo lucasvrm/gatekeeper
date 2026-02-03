@@ -1,10 +1,15 @@
 /**
- * MCP Prompts v2
- * - 2 prompts: create_plan, generate_spec
- * - Reads all docs from subfolder (DOCS_DIR/create_plan/, DOCS_DIR/generate_spec/)
- * - Fetches session config + prompt instructions from API
+ * MCP Prompts v2.3
+ * - 3 prompts: create_plan, generate_spec, implement_code
+ * - Each prompt has explicit STOP boundary
+ * - Flow:
+ *   1. create_plan → produces plan.json + contract.md + task.spec.md → saves to artifacts/{outputId}
+ *   2. generate_spec(outputId) → reads 3 artifacts from disk → produces spec.test → saves to same folder
+ *   3. implement_code(outputId) → reads 4 artifacts from disk → implements code
  */
 
+import * as fs from 'fs'
+import * as path from 'path'
 import type { Prompt, PromptMessage } from '@modelcontextprotocol/sdk/types.js'
 import type { GatekeeperClient } from '../client/GatekeeperClient.js'
 import { LocalDocsReader } from './LocalDocsReader.js'
@@ -12,6 +17,7 @@ import { LocalDocsReader } from './LocalDocsReader.js'
 export interface PromptContext {
   client: GatekeeperClient
   docsDir: string
+  artifactsDir: string
 }
 
 export interface PromptResult {
@@ -25,7 +31,7 @@ export interface PromptResult {
 const prompts: Prompt[] = [
   {
     name: 'create_plan',
-    description: 'Generate a task plan (plan.json + contract.md + task.spec.md) using Gatekeeper methodology',
+    description: 'Step 1/3 — Generate plan.json + contract.md + task.spec.md. Do NOT generate test code or implementation.',
     arguments: [
       {
         name: 'taskDescription',
@@ -41,17 +47,23 @@ const prompts: Prompt[] = [
   },
   {
     name: 'generate_spec',
-    description: 'Generate test specification from contract',
+    description: 'Step 2/3 — Read artifacts from outputId folder, generate spec.test. Do NOT implement code.',
     arguments: [
       {
-        name: 'contractContent',
-        description: 'Content of contract.md',
+        name: 'outputId',
+        description: 'Artifacts folder name (e.g. 2025_01_30_001_my-task)',
         required: true,
       },
+    ],
+  },
+  {
+    name: 'implement_code',
+    description: 'Step 3/3 — Read artifacts from outputId folder, implement code that passes spec.test. Do NOT modify tests.',
+    arguments: [
       {
-        name: 'planContent',
-        description: 'Content of plan.json (optional)',
-        required: false,
+        name: 'outputId',
+        description: 'Artifacts folder name (e.g. 2025_01_30_001_my-task)',
+        required: true,
       },
     ],
   },
@@ -62,15 +74,96 @@ export function getAllPrompts(): Prompt[] {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Prompt Handler
+// Artifact Reader
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function handlePromptRequest(
-  name: string,
-  args: Record<string, unknown>,
-  ctx: PromptContext
-): Promise<PromptResult> {
-  // Fetch session config + prompt instructions from API (best effort)
+function readArtifact(artifactsDir: string, outputId: string, filename: string): string | null {
+  const filepath = path.join(artifactsDir, outputId, filename)
+  try {
+    return fs.readFileSync(filepath, 'utf-8')
+  } catch {
+    return null
+  }
+}
+
+function listArtifacts(artifactsDir: string, outputId: string): string[] {
+  const dir = path.join(artifactsDir, outputId)
+  try {
+    return fs.readdirSync(dir)
+  } catch {
+    return []
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OutputId Generator
+// ─────────────────────────────────────────────────────────────────────────────
+
+function generateOutputId(taskDescription: string): string {
+  const now = new Date()
+  const yyyy = now.getFullYear()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  const nnn = String(Math.floor(Math.random() * 900) + 100) // 100-999
+  const slug = taskDescription
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 40)
+    .replace(/-$/, '')
+  return `${yyyy}_${mm}_${dd}_${nnn}_${slug}`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stop Boundaries
+// ─────────────────────────────────────────────────────────────────────────────
+
+function stopPlan(outputId: string): string {
+  return `
+---
+## ⛔ STOP — Boundary Rule
+Your job in this conversation is ONLY to produce **plan.json**, **contract.md**, and **task.spec.md**.
+- Do NOT generate test code (spec.test).
+- Do NOT generate implementation code.
+- Do NOT continue to the next step.
+- Save ALL 3 artifacts using the save_artifacts tool with outputId exactly: **${outputId}**
+- After saving, STOP.
+The test code and implementation will be done by separate LLMs in separate conversations.
+---`
+}
+
+const STOP_SPEC = `
+---
+## ⛔ STOP — Boundary Rule
+Your job in this conversation is ONLY to produce the test code file.
+- Do NOT implement any production code.
+- Do NOT modify the contract, plan, or task.spec.md.
+- Do NOT continue to the next step.
+- Save the test file using the save_artifacts tool to the SAME outputId folder.
+- After saving, STOP.
+The implementation will be done by a separate LLM in a separate conversation.
+---`
+
+const STOP_CODE = `
+---
+## ⛔ STOP — Boundary Rule
+Your job in this conversation is ONLY to implement production code that passes the spec tests.
+- Do NOT modify the spec tests.
+- Do NOT modify the task spec (task.spec.md).
+- Do NOT modify the contract (contract.md).
+- Do NOT modify the plan (plan.json).
+- If a test seems wrong, flag it but do NOT change it.
+---`
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Session Context Builder
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function buildSessionContext(
+  ctx: PromptContext,
+  args: Record<string, unknown>
+): Promise<string> {
   let sessionContext = ''
   try {
     const sessionRes = await ctx.client.getSessionConfig()
@@ -94,7 +187,6 @@ export async function handlePromptRequest(
         const profile = await ctx.client.getProfile(config.activeProfileId)
         activePrompts = profile.prompts.filter(p => p.isActive)
       } catch {
-        // Profile not found — fallback to all active
         const promptsRes = await ctx.client.getPrompts()
         activePrompts = promptsRes.filter(p => p.isActive)
       }
@@ -110,15 +202,29 @@ export async function handlePromptRequest(
       }
     }
   } catch {
-    // API offline — continue without session context
     sessionContext += '\n[Session config unavailable — API offline]\n'
   }
+  return sessionContext
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prompt Handler
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function handlePromptRequest(
+  name: string,
+  args: Record<string, unknown>,
+  ctx: PromptContext
+): Promise<PromptResult> {
+  const sessionContext = await buildSessionContext(ctx, args)
 
   switch (name) {
     case 'create_plan':
-      return handleCreatePlan(args, ctx.docsDir, sessionContext)
+      return handleCreatePlan(args, ctx, sessionContext)
     case 'generate_spec':
-      return handleGenerateSpec(args, ctx.docsDir, sessionContext)
+      return handleGenerateSpec(args, ctx, sessionContext)
+    case 'implement_code':
+      return handleImplementCode(args, ctx, sessionContext)
     default:
       return {
         messages: [{
@@ -130,21 +236,23 @@ export async function handlePromptRequest(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Individual Prompt Handlers
+// Step 1: Create Plan
 // ─────────────────────────────────────────────────────────────────────────────
 
 function handleCreatePlan(
   args: Record<string, unknown>,
-  docsDir: string,
+  ctx: PromptContext,
   sessionContext: string
 ): PromptResult {
-  const reader = new LocalDocsReader(docsDir)
+  const reader = new LocalDocsReader(ctx.docsDir)
   const taskDescription = args.taskDescription as string
   const taskType = args.taskType as string | undefined
+  const outputId = generateOutputId(taskDescription)
 
   const docs = reader.readFolder('create_plan')
 
-  let text = `# Create Plan\n\n## Task\n${taskDescription}\n`
+  let text = `# Create Plan (Step 1/3)\n\n## Task\n${taskDescription}\n`
+  text += `\n## OutputId\n${outputId}\n`
 
   if (taskType) {
     text += `\n## Task Type\n${taskType}\n`
@@ -152,6 +260,8 @@ function handleCreatePlan(
 
   text += `\n## Reference Documents\n${docs}\n`
   text += sessionContext
+  text += `\nGenerate the following 3 artifacts:\n1. **plan.json** — structured task plan\n2. **contract.md** — validation contract with clauses (CL-XXX)\n3. **task.spec.md** — human-readable test specification describing what each test should verify\n`
+  text += stopPlan(outputId)
 
   return {
     messages: [{
@@ -161,26 +271,113 @@ function handleCreatePlan(
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Step 2: Generate Spec Test
+// ─────────────────────────────────────────────────────────────────────────────
+
 function handleGenerateSpec(
   args: Record<string, unknown>,
-  docsDir: string,
+  ctx: PromptContext,
   sessionContext: string
 ): PromptResult {
-  const reader = new LocalDocsReader(docsDir)
-  const contractContent = args.contractContent as string
-  const planContent = args.planContent as string | undefined
+  const reader = new LocalDocsReader(ctx.docsDir)
+  const outputId = args.outputId as string
+
+  // Read artifacts from disk
+  const planContent = readArtifact(ctx.artifactsDir, outputId, 'plan.json')
+  const contractContent = readArtifact(ctx.artifactsDir, outputId, 'contract.md')
+  const specContent = readArtifact(ctx.artifactsDir, outputId, 'task.spec.md')
+  const files = listArtifacts(ctx.artifactsDir, outputId)
+
+  if (!planContent || !contractContent || !specContent) {
+    const missing: string[] = []
+    if (!planContent) missing.push('plan.json')
+    if (!contractContent) missing.push('contract.md')
+    if (!specContent) missing.push('task.spec.md')
+
+    return {
+      messages: [{
+        role: 'user',
+        content: {
+          type: 'text',
+          text: `❌ Artefatos faltando em ${outputId}: ${missing.join(', ')}\nArquivos encontrados: ${files.join(', ') || 'nenhum'}`,
+        },
+      }],
+    }
+  }
 
   const docs = reader.readFolder('generate_spec')
 
-  let text = `# Generate Spec\n\n## Contract\n${contractContent}\n`
+  let text = `# Generate Spec Test (Step 2/3)\n\n`
+  text += `## OutputId\n${outputId}\n\n`
+  text += `## Plan (plan.json)\n\`\`\`json\n${planContent}\n\`\`\`\n\n`
+  text += `## Contract (contract.md)\n${contractContent}\n\n`
+  text += `## Task Spec (task.spec.md)\n${specContent}\n\n`
+  text += `## Reference Documents\n${docs}\n`
+  text += sessionContext
+  text += `\nGenerate the actual test code file that implements every test case described in task.spec.md.\nEach test should be tagged with its corresponding clause ID using \`// @clause CL-XXX\` comments.\nSave the test file to the same outputId folder: ${outputId}\n`
+  text += STOP_SPEC
 
-  if (planContent) {
-    text += `\n## Plan\n${planContent}\n`
+  return {
+    messages: [{
+      role: 'user',
+      content: { type: 'text', text },
+    }],
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Step 3: Implement Code
+// ─────────────────────────────────────────────────────────────────────────────
+
+function handleImplementCode(
+  args: Record<string, unknown>,
+  ctx: PromptContext,
+  sessionContext: string
+): PromptResult {
+  const reader = new LocalDocsReader(ctx.docsDir)
+  const outputId = args.outputId as string
+
+  // Read all artifacts from disk
+  const planContent = readArtifact(ctx.artifactsDir, outputId, 'plan.json')
+  const contractContent = readArtifact(ctx.artifactsDir, outputId, 'contract.md')
+  const specContent = readArtifact(ctx.artifactsDir, outputId, 'task.spec.md')
+  const files = listArtifacts(ctx.artifactsDir, outputId)
+
+  // Find the test file (could be named differently)
+  const testFile = files.find(f => f.match(/\.spec\.(ts|tsx|js|jsx)$/) || f.match(/\.test\.(ts|tsx|js|jsx)$/) || f === 'spec.test')
+  const testContent = testFile ? readArtifact(ctx.artifactsDir, outputId, testFile) : null
+
+  if (!planContent || !contractContent || !specContent || !testContent) {
+    const missing: string[] = []
+    if (!planContent) missing.push('plan.json')
+    if (!contractContent) missing.push('contract.md')
+    if (!specContent) missing.push('task.spec.md')
+    if (!testContent) missing.push('spec.test (test code file)')
+
+    return {
+      messages: [{
+        role: 'user',
+        content: {
+          type: 'text',
+          text: `❌ Artefatos faltando em ${outputId}: ${missing.join(', ')}\nArquivos encontrados: ${files.join(', ') || 'nenhum'}`,
+        },
+      }],
+    }
   }
 
-  text += `\n## Reference Documents\n${docs}\n`
+  const docs = reader.readFolder('implement_code')
+
+  let text = `# Implement Code (Step 3/3)\n\n`
+  text += `## OutputId\n${outputId}\n\n`
+  text += `## Plan (plan.json)\n\`\`\`json\n${planContent}\n\`\`\`\n\n`
+  text += `## Contract (contract.md)\n${contractContent}\n\n`
+  text += `## Task Spec (task.spec.md)\n${specContent}\n\n`
+  text += `## Spec Test (${testFile})\n\`\`\`\n${testContent}\n\`\`\`\n\n`
+  text += `## Reference Documents\n${docs}\n`
   text += sessionContext
-  text += `\nGenerate a test specification that covers all clauses in the contract.\nEach test should be tagged with its corresponding clause ID using \`// @clause CL-XXX\` comments.\n`
+  text += `\nImplement the production code so that ALL spec tests pass.\nDo NOT modify any test file. If a test seems incorrect, flag it but implement to pass it.\n`
+  text += STOP_CODE
 
   return {
     messages: [{

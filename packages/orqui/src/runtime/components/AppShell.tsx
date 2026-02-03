@@ -48,6 +48,8 @@ const COLLAPSE_ICONS: Record<string, [string, string]> = {
   dots:    ["⋮", "⋯"],
 };
 
+const SIDEBAR_STORAGE_KEY = "orqui-sidebar-collapsed";
+
 export function AppShell({
   sidebarHeader,
   sidebarNav,
@@ -103,7 +105,15 @@ export function AppShell({
   const sidebar = regions.sidebar;
   const header = regions.header;
   const isCollapsible = sidebar?.behavior?.collapsible ?? false;
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return stored === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed));
+  }, [collapsed]);
 
   const resolve = (ref?: string) => ref ? resolveTokenRef(ref, tokens) : null;
 

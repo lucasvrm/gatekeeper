@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "ui-registry-contract",
     "version": "1.0.0",
-    "hash": "sha256:1ac35728df20ead3038a2c1403aa785fddfe316b8dd7d42f9b8f0a3879dd9101",
-    "generatedAt": "2026-02-03T06:54:22.098Z"
+    "hash": "sha256:bb5da222b42ad84fbde90baefcb307c36f074371018be43c1e282954549c5d37",
+    "generatedAt": "2026-02-03T05:41:12.180774+00:00"
   },
   "components": {
     "Accordion": {
