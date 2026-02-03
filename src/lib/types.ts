@@ -206,10 +206,6 @@ export interface ConfigItem {
   isHardBlock?: boolean
 }
 
-
-
-
-
 export interface ManifestFile {
   path: string
   action: "CREATE" | "MODIFY" | "DELETE"
@@ -343,16 +339,27 @@ export interface MCPSessionConfig {
   taskType: TaskType
   projectId: string | null
   customInstructions: string
+  docsDir: string
 }
 
 export interface MCPStatus {
-  mcpServer: "connected" | "disconnected"
   gatekeeperApi: "online" | "offline"
+  database: "connected" | "disconnected"
+  docsDir: "accessible" | "not-found" | "not-configured"
   git: string
-  docs: "accessible" | "not-found"
 }
 
-// MCP CRUD Types
+// Prompt Instructions
+export interface PromptInstruction {
+  id: string
+  name: string
+  content: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// MCP CRUD Types (v1 - mantidos para compatibilidade)
 export interface Snippet {
   id: string
   name: string

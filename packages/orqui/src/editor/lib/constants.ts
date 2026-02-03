@@ -173,6 +173,7 @@ export const DEFAULT_LAYOUT = {
       headerStyle: "solid",
     },
     pages: {},
+    variables: { categories: [], items: [] },
   },
   tokens: {
     spacing: {

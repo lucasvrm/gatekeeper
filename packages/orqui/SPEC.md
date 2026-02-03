@@ -996,3 +996,94 @@ interface NavItem {
   children?: NavItem[];
 }
 ```
+
+---
+
+## 18. Roadmap
+
+### v1 — DnD Page Builder (atual)
+
+O editor visual permite construir páginas via drag-and-drop, produzindo a seção `pages` do contrato com árvores de nodes.
+
+**Implementado:**
+- Editor com dois modos: **Páginas** (DnD builder) e **Shell & Tokens** (configuração v1)
+- Paleta de elementos com todas as categorias: Layout (grid, stack, row, container), Conteúdo (heading, text, button, badge, icon, image, divider, spacer), Dados (stat-card, card, table, list, key-value), Navegação (tabs), Inputs (search, select), Especial (slot)
+- Canvas visual com representação estrutural de cada node type
+- Drag from palette → drop no canvas para criar nodes
+- Drag within canvas para reordenar/mover nodes entre containers
+- Drop zones visuais entre siblings e dentro de containers vazios
+- Painel de propriedades com editors específicos por tipo de node
+- Editor de colunas para tabelas, items para key-value/tabs/select
+- Estilo inline: background, padding, margin, border-radius, border, max-width, min-height
+- Ações: duplicar, envolver em container (stack/row/grid), excluir
+- CRUD de páginas com label, route, browserTitle
+- Seção `pages` no contrato JSON (coexiste com shell v1)
+- Atalhos: Delete para remover, Cmd+D para duplicar
+
+**Não implementado (plain text, sem templates):**
+- Conteúdo de nodes usa texto estático (ex: `content: "Dashboard"`)
+- Templates `{{}}` são escritos como texto literal mas **não são resolvidos** no editor
+- O runtime futuro (PageRenderer) resolverá templates com dados reais
+
+### v2 — Template Engine (planejado)
+
+A engine de templates `{{}}` será integrada ao editor e ao runtime.
+
+**Planejado:**
+- Sintaxe `{{entity.field}}` para variáveis dinâmicas
+- Formatters built-in: `badge`, `date`, `currency`, `number`, `truncate`, `uppercase`, `duration`, etc.
+- Composição: `{{run.id | truncate:8 | uppercase}}`
+- Prefixos especiais: `$app.`, `$page.`, `$enum.`, `$actions:`, `$nav.`
+- Variable schema (`orqui.variables.json`) com autocomplete no editor
+- Variable picker visual no editor (click para inserir `{{}}`)
+- Preview com dados mock do variable schema
+- Regras de visibilidade condicionais: `{{user.role}} === 'admin'`
+- Regras responsivas por breakpoint
+- Ações de tabela: `{{$actions: view, edit, delete}}`
+
+### v3 — Runtime & Integration (planejado)
+
+- `PageRenderer` no runtime: renderiza árvore de nodes com dados reais
+- `NodeRenderer` recursivo para cada tipo de node
+- Deep-merge: shell global + page overrides + runtime data
+- Migração gradual: páginas sem `content` continuam usando `AppShell` + children
+
+---
+
+## 19. Estrutura de Arquivos do Editor
+
+```
+packages/orqui/src/editor/
+├── OrquiEditor.tsx              ← Entry point, mode switcher (Pages / Shell)
+├── EditorProvider.tsx           ← (dead code v2 — não utilizado)
+├── entry.tsx                    ← Monta o editor no DOM
+│
+├── page-editor/                 ← DnD Page Builder (v1 novo)
+│   ├── index.ts                 ← Exports públicos
+│   ├── nodeDefaults.ts          ← Catálogo de nodes, factory, IDs
+│   ├── treeUtils.ts             ← Operações imutáveis na árvore
+│   ├── styles.ts                ← Cores e constantes visuais
+│   ├── PageEditorProvider.tsx   ← State management (context + reducer)
+│   ├── PageEditor.tsx           ← Composição: paleta + canvas + props
+│   ├── ElementPalette.tsx       ← Paleta de elementos (esquerda)
+│   ├── DndCanvas.tsx            ← Canvas visual com DnD (centro)
+│   └── PropsEditor.tsx          ← Editor de propriedades (direita)
+│
+├── editors/                     ← Editores do modo Shell & Tokens (v1)
+│   ├── LayoutSections.tsx       ← Seções de configuração
+│   ├── RegionEditors.tsx        ← Regiões (sidebar, header, main, footer)
+│   ├── HeaderElementsEditor.tsx ← Header elements
+│   ├── ContentLayoutEditor.tsx  ← Breadcrumbs, separadores
+│   ├── PagesEditor.tsx          ← Page overrides (v1)
+│   ├── ColorTokenEditor.tsx     ← Tokens de cor
+│   ├── TypographyEditors.tsx    ← Tipografia
+│   ├── LogoConfigEditor.tsx     ← Logo e favicon
+│   └── ComponentEditors.tsx     ← UI Registry
+│
+├── previews/                    ← Preview panels (Shell mode)
+├── components/                  ← Shared components
+├── hooks/                       ← Shared hooks
+├── lib/                         ← Utils, constants, API, IndexedDB
+├── panels/                      ← Import/Export
+└── types/                       ← Type definitions
+```

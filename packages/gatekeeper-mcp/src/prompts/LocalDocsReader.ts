@@ -1,6 +1,6 @@
 /**
- * Local Docs Reader
- * Reads playbook and template files from DOCS_DIR
+ * Local Docs Reader v2
+ * Reads all files from a prompt subfolder inside DOCS_DIR
  */
 
 import * as fs from 'fs'
@@ -21,8 +21,7 @@ export class LocalDocsReader {
   }
 
   /**
-   * Read a file from DOCS_DIR
-   * Returns content or fallback message if not found
+   * Read a single file from DOCS_DIR
    */
   readFile(filename: string): string {
     const filepath = path.join(this.docsDir, filename)
@@ -39,28 +38,59 @@ export class LocalDocsReader {
   }
 
   /**
-   * Read multiple files and combine them
+   * Read ALL files from a subfolder inside DOCS_DIR.
+   * Returns concatenated content with file separators.
+   * Supports .md, .txt, .json files. Sorted alphabetically.
+   *
+   * Example: readFolder('create_plan') reads everything in DOCS_DIR/create_plan/
    */
-  readFiles(filenames: string[]): Record<string, string> {
-    const result: Record<string, string> = {}
+  readFolder(folderName: string): string {
+    const folderPath = path.join(this.docsDir, folderName)
 
-    for (const filename of filenames) {
-      result[filename] = this.readFile(filename)
+    if (!fs.existsSync(folderPath)) {
+      return `[Folder "${folderName}" not found in ${this.docsDir}]`
     }
 
-    return result
-  }
-
-  /**
-   * List all .md files in DOCS_DIR
-   */
-  listMarkdownFiles(): string[] {
-    if (!this.exists()) {
-      return []
+    const stat = fs.statSync(folderPath)
+    if (!stat.isDirectory()) {
+      return `["${folderName}" is not a directory]`
     }
 
     try {
-      return fs.readdirSync(this.docsDir).filter(f => f.endsWith('.md'))
+      const extensions = ['.md', '.txt', '.json']
+      const files = fs.readdirSync(folderPath)
+        .filter(f => extensions.some(ext => f.endsWith(ext)))
+        .sort()
+
+      if (files.length === 0) {
+        return `[No .md/.txt/.json files found in "${folderName}"]`
+      }
+
+      const sections: string[] = []
+      for (const file of files) {
+        const filepath = path.join(folderPath, file)
+        try {
+          const content = fs.readFileSync(filepath, 'utf-8')
+          sections.push(`--- ${file} ---\n${content}`)
+        } catch {
+          sections.push(`--- ${file} ---\n[Error reading file]`)
+        }
+      }
+
+      return sections.join('\n\n')
+    } catch {
+      return `[Error reading folder "${folderName}"]`
+    }
+  }
+
+  /**
+   * List subfolders in DOCS_DIR (each represents a prompt)
+   */
+  listPromptFolders(): string[] {
+    if (!this.exists()) return []
+    try {
+      return fs.readdirSync(this.docsDir)
+        .filter(f => fs.statSync(path.join(this.docsDir, f)).isDirectory())
     } catch {
       return []
     }

@@ -1,8 +1,8 @@
 {
   "name": "gatekeeper-mcp",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "Gatekeeper MCP Server - Model Context Protocol integration for Gatekeeper",
+  "description": "Gatekeeper MCP Server v2 - Pipeline-focused MCP integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -18,15 +18,10 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "eventsource": "^3.0.6",
-    "node-notifier": "^10.0.1",
-    "play-sound": "^1.1.6",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/eventsource": "^1.1.15",
     "@types/node": "^22.10.5",
-    "@types/node-notifier": "^8.0.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vitest": "^3.2.4"

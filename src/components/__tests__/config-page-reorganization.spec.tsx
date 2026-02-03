@@ -598,13 +598,13 @@ describe("Config Page Reorganization — 5 tabs → 4 tabs centradas no validato
       const user = userEvent.setup()
       const gateHeader = screen.getByTestId("gate-header-0")
 
-      // First click: gate 0 should be expanded (default open), click to collapse
-      await user.click(gateHeader)
-      expect(screen.queryByTestId("validator-row-TOKEN_BUDGET_FIT")).not.toBeVisible()
-
-      // Second click: expand again
+      // First click: gate 0 starts collapsed (default closed), click to expand
       await user.click(gateHeader)
       expect(screen.getByTestId("validator-row-TOKEN_BUDGET_FIT")).toBeVisible()
+
+      // Second click: collapse again
+      await user.click(gateHeader)
+      expect(screen.queryByTestId("validator-row-TOKEN_BUDGET_FIT")).not.toBeVisible()
     })
 
     // @clause CL-UI-VAL-002
@@ -688,6 +688,9 @@ describe("Config Page Reorganization — 5 tabs → 4 tabs centradas no validato
     // @ui-clause CL-UI-VAL-004
     it("fails when validator row lacks a role=switch element", async () => {
       await renderConfigPage()
+      const user = userEvent.setup()
+      // Expand gate 0 first (all gates start collapsed by default)
+      await user.click(screen.getByTestId("gate-header-0"))
       const row = screen.getByTestId("validator-row-TOKEN_BUDGET_FIT")
       const switches = within(row).getAllByRole("switch")
       expect(switches.length).toBeGreaterThanOrEqual(1)

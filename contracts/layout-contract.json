@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:d48d4bdfc08815820b845644b530e2712984fd9b7ff13004a13f761c311bd2e7",
-    "generatedAt": "2026-02-03T01:24:27.999Z"
+    "hash": "sha256:945cd9aca74ed600c6c721a2c889a48a67a46baa8dc166ce94a8a44be2a08871",
+    "generatedAt": "2026-02-03T03:46:12.811Z"
   },
   "structure": {
     "regions": {
@@ -429,49 +429,49 @@
         "label": "Dashboard",
         "route": "/",
         "description": "Visão geral de workspaces, projetos e validações",
-        "browserTitle": "Dashboard — Gatekeeper"
+        "browserTitle": "Dashboard / Gatekeeper"
       },
       "runs": {
         "label": "Runs de Validação",
         "route": "/runs",
         "description": "Ver e gerenciar todas as runs de validação",
-        "browserTitle": "Runs de Validação — Gatekeeper"
+        "browserTitle": "Runs de Validação / Gatekeeper"
       },
       "new-validation": {
         "label": "Nova Validação",
         "route": "/runs/new",
         "description": "Carregue o plano e o teste",
-        "browserTitle": "Nova Validação | Gatekeeper"
+        "browserTitle": "Nova Validação / Gatekeeper"
       },
       "gates": {
         "label": "Validation Gates",
         "route": "/gates",
         "description": "Visão geral de todos os validation gates e seus validators",
-        "browserTitle": "Validation Gates — Gatekeeper"
+        "browserTitle": "Validation Gates / Gatekeeper"
       },
       "workspaces": {
         "label": "Workspaces",
         "route": "/workspaces",
         "description": "Gerenciar workspaces de validação",
-        "browserTitle": "Workspaces — Gatekeeper"
+        "browserTitle": "Workspaces / Gatekeeper"
       },
       "projects": {
         "label": "Projects",
         "route": "/projects",
         "description": "Gerenciar projetos de validação",
-        "browserTitle": "Projects — Gatekeeper"
+        "browserTitle": "Projects / Gatekeeper"
       },
       "mcp": {
         "label": "MCP",
         "route": "/mcp",
         "description": "Model Context Protocol — sessões e ferramentas",
-        "browserTitle": "MCP — Gatekeeper"
+        "browserTitle": "MCP Server / Gatekeeper"
       },
       "config": {
         "label": "Config",
         "route": "/config",
         "description": "Configurações gerais do Gatekeeper",
-        "browserTitle": "Config — Gatekeeper"
+        "browserTitle": "Config / Gatekeeper"
       }
     },
     "contentLayout": {
@@ -1079,6 +1079,208 @@
       "fontSize": "$tokens.fontSizes.sm",
       "fontWeight": "$tokens.fontWeights.regular",
       "lineHeight": "$tokens.lineHeights.normal"
+    }
+  },
+  "pages": {
+    "dashboard-4329": {
+      "id": "dashboard-4329",
+      "label": "Dashboard",
+      "route": "/dashboard-4329",
+      "content": {
+        "id": "stack-31308",
+        "type": "stack",
+        "props": {
+          "gap": "24px"
+        },
+        "children": [
+          {
+            "id": "row-31297",
+            "type": "row",
+            "props": {
+              "gap": "12px",
+              "align": "center",
+              "justify": "space-between"
+            },
+            "children": [
+              {
+                "id": "heading-31293",
+                "type": "heading",
+                "props": {
+                  "content": "Dashboard",
+                  "level": 1
+                }
+              },
+              {
+                "id": "row-31296",
+                "type": "row",
+                "props": {
+                  "gap": "8px",
+                  "align": "center"
+                },
+                "children": [
+                  {
+                    "id": "search-31294",
+                    "type": "search",
+                    "props": {
+                      "placeholder": "Buscar..."
+                    }
+                  },
+                  {
+                    "id": "button-31295",
+                    "type": "button",
+                    "props": {
+                      "label": "Nova ação",
+                      "variant": "primary",
+                      "icon": "Plus"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "grid-31302",
+            "type": "grid",
+            "props": {
+              "columns": 4,
+              "gap": "18px"
+            },
+            "children": [
+              {
+                "id": "stat-card-31298",
+                "type": "stat-card",
+                "props": {
+                  "label": "Total",
+                  "value": "1,234",
+                  "icon": "TrendUp"
+                }
+              },
+              {
+                "id": "stat-card-31299",
+                "type": "stat-card",
+                "props": {
+                  "label": "Ativos",
+                  "value": "567",
+                  "icon": "CheckCircle"
+                }
+              },
+              {
+                "id": "stat-card-31300",
+                "type": "stat-card",
+                "props": {
+                  "label": "Pendentes",
+                  "value": "89",
+                  "icon": "Clock"
+                }
+              },
+              {
+                "id": "stat-card-31301",
+                "type": "stat-card",
+                "props": {
+                  "label": "Taxa",
+                  "value": "94.2%",
+                  "icon": "Percent"
+                }
+              }
+            ]
+          },
+          {
+            "id": "row-31306",
+            "type": "row",
+            "props": {
+              "gap": "8px",
+              "align": "center"
+            },
+            "children": [
+              {
+                "id": "select-31303",
+                "type": "select",
+                "props": {
+                  "placeholder": "Status",
+                  "options": [
+                    {
+                      "value": "all",
+                      "label": "Todos"
+                    },
+                    {
+                      "value": "active",
+                      "label": "Ativos"
+                    },
+                    {
+                      "value": "inactive",
+                      "label": "Inativos"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "select-31304",
+                "type": "select",
+                "props": {
+                  "placeholder": "Período",
+                  "options": [
+                    {
+                      "value": "7d",
+                      "label": "Últimos 7 dias"
+                    },
+                    {
+                      "value": "30d",
+                      "label": "Últimos 30 dias"
+                    },
+                    {
+                      "value": "90d",
+                      "label": "Últimos 90 dias"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "spacer-31305",
+                "type": "spacer",
+                "props": {
+                  "size": "1px"
+                }
+              }
+            ]
+          },
+          {
+            "id": "table-31307",
+            "type": "table",
+            "props": {
+              "dataSource": "items",
+              "columns": [
+                {
+                  "key": "name",
+                  "label": "Nome",
+                  "width": "18%"
+                },
+                {
+                  "key": "status",
+                  "label": "Status",
+                  "width": "18%"
+                },
+                {
+                  "key": "date",
+                  "label": "Data",
+                  "width": "18%"
+                },
+                {
+                  "key": "value",
+                  "label": "Valor",
+                  "width": "18%",
+                  "align": "right"
+                },
+                {
+                  "key": "actions",
+                  "label": "",
+                  "width": "18%",
+                  "align": "right"
+                }
+              ]
+            }
+          }
+        ]
+      }
     }
   }
 }

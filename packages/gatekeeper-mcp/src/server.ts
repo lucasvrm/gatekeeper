@@ -1,26 +1,22 @@
 /**
- * MCP Server setup for Gatekeeper
+ * MCP Server v2 for Gatekeeper
+ * 5 tools, 2 prompts, zero resources/notifications
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
   CallToolRequestSchema,
   ListToolsRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
-  ReadResourceResult,
   CallToolResult,
   GetPromptResult,
 } from '@modelcontextprotocol/sdk/types.js'
 import { GatekeeperClient } from './client/GatekeeperClient.js'
 import { Config } from './config.js'
-import { registerResources, handleReadResource } from './resources/index.js'
-import { getAllTools, handleToolCall } from './tools/index.js'
+import { tools, handleToolCall } from './tools.js'
 import { getAllPrompts, handlePromptRequest } from './prompts/index.js'
-import { initNotificationConfig } from './tools/notifications.tools.js'
 
 export interface ServerContext {
   server: Server
@@ -32,11 +28,10 @@ export function createServer(config: Config): ServerContext {
   const server = new Server(
     {
       name: 'gatekeeper-mcp',
-      version: '1.0.0',
+      version: '2.0.0',
     },
     {
       capabilities: {
-        resources: {},
         tools: {},
         prompts: {},
       },
@@ -45,26 +40,9 @@ export function createServer(config: Config): ServerContext {
 
   const client = new GatekeeperClient({ baseUrl: config.GATEKEEPER_API_URL })
 
-  // Initialize notification config from environment
-  initNotificationConfig({
-    desktop: config.NOTIFICATIONS_DESKTOP,
-    sound: config.NOTIFICATIONS_SOUND,
-  })
-
-  // Register resource handlers
-  server.setRequestHandler(ListResourcesRequestSchema, async () => {
-    return {
-      resources: registerResources(config),
-    }
-  })
-
-  server.setRequestHandler(ReadResourceRequestSchema, async (request): Promise<ReadResourceResult> => {
-    return handleReadResource(request.params.uri, client, config)
-  })
-
   // Register tool handlers
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return { tools: getAllTools() }
+    return { tools }
   })
 
   server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
@@ -80,7 +58,10 @@ export function createServer(config: Config): ServerContext {
 
   server.setRequestHandler(GetPromptRequestSchema, async (request): Promise<GetPromptResult> => {
     const { name, arguments: args } = request.params
-    const result = handlePromptRequest(name, args ?? {}, config.DOCS_DIR)
+    const result = await handlePromptRequest(name, args ?? {}, {
+      client,
+      docsDir: config.DOCS_DIR,
+    })
     return result as GetPromptResult
   })
 

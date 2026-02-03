@@ -41,6 +41,8 @@ export interface Run {
   baseRef: string
   targetRef: string
   taskPrompt?: string
+  currentGate?: number
+  failedValidatorCode?: string | null
   createdAt: string
 }
 
@@ -57,6 +59,7 @@ export interface ValidatorResult {
   validatorName: string
   status: ValidatorStatus
   passed: boolean
+  message?: string
 }
 
 export interface RunWithResults extends Run {
@@ -139,4 +142,30 @@ export interface UploadFilesResponse {
 
 export interface ContinueRunResponse {
   message: string
+}
+
+// Session Config from API
+export interface SessionConfig {
+  gitStrategy?: string
+  branch?: string
+  taskType?: string
+  projectId?: string | null
+  customInstructions?: string
+  docsDir?: string
+}
+
+export interface SessionConfigResponse {
+  id: string
+  config: SessionConfig
+  updatedAt: string
+}
+
+// Prompt Instructions from API
+export interface PromptInstruction {
+  id: string
+  name: string
+  content: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }

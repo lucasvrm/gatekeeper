@@ -6,6 +6,7 @@ import type { GitStrategy, TaskType, MCPSessionConfig } from "@/lib/types"
 
 export function SessionConfigTab() {
   const { config, loading, saving, update } = useSessionConfig()
+  const [docsDir, setDocsDir] = useState("")
   const [gitStrategy, setGitStrategy] = useState<GitStrategy>("main")
   const [branch, setBranch] = useState("")
   const [taskType, setTaskType] = useState<TaskType>("bugfix")
@@ -14,6 +15,7 @@ export function SessionConfigTab() {
 
   useEffect(() => {
     if (config) {
+      setDocsDir(config.docsDir || "")
       setGitStrategy(config.gitStrategy)
       setBranch(config.branch)
       setTaskType(config.taskType)
@@ -31,6 +33,7 @@ export function SessionConfigTab() {
 
   const handleSave = async () => {
     const newConfig: MCPSessionConfig = {
+      docsDir,
       gitStrategy,
       branch,
       taskType,
@@ -69,6 +72,22 @@ export function SessionConfigTab() {
 
   return (
     <div data-testid="session-config-tab" className="space-y-6">
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Diretório de Documentos (DOCS_DIR)</label>
+        <p className="text-xs text-muted-foreground mb-2">
+          Caminho absoluto para a pasta com os playbooks e templates usados pelos prompts do MCP.
+        </p>
+        <input
+          type="text"
+          value={docsDir}
+          onChange={(e) => setDocsDir(e.target.value)}
+          placeholder="C:\Coding\gatekeeper-docs"
+          data-testid="docs-dir-input"
+          className="border border-input rounded-md px-3 py-2 w-full bg-background font-mono text-sm"
+        />
+      </div>
+
       <div>
         <label className="block text-sm font-medium mb-2">Git Strategy</label>
         <div role="radiogroup" className="space-y-2">

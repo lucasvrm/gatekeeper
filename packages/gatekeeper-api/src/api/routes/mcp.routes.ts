@@ -5,6 +5,7 @@ import { MCPSessionPresetController } from '../controllers/MCPSessionPresetContr
 import { MCPSessionConfigController } from '../controllers/MCPSessionConfigController.js'
 import { MCPSessionHistoryController } from '../controllers/MCPSessionHistoryController.js'
 import { MCPStatusController } from '../controllers/MCPStatusController.js'
+import { MCPPromptController } from '../controllers/MCPPromptController.js'
 
 const router = Router()
 
@@ -14,6 +15,7 @@ const presetController = new MCPSessionPresetController()
 const sessionConfigController = new MCPSessionConfigController()
 const historyController = new MCPSessionHistoryController()
 const statusController = new MCPStatusController()
+const promptController = new MCPPromptController()
 
 // Snippets CRUD
 router.get('/mcp/snippets', (req, res, next) => {
@@ -99,6 +101,27 @@ router.delete('/mcp/history/:id', (req, res, next) => {
 // Status
 router.get('/mcp/status', (req, res, next) => {
   statusController.get(req, res).catch(next)
+})
+
+// Prompt Instructions CRUD
+router.get('/mcp/prompts', (req, res, next) => {
+  promptController.list(req, res).catch(next)
+})
+
+router.post('/mcp/prompts', (req, res, next) => {
+  promptController.create(req, res).catch(next)
+})
+
+router.get('/mcp/prompts/:id', (req, res, next) => {
+  promptController.get(req, res).catch(next)
+})
+
+router.put('/mcp/prompts/:id', (req, res, next) => {
+  promptController.update(req, res).catch(next)
+})
+
+router.delete('/mcp/prompts/:id', (req, res, next) => {
+  promptController.delete(req, res).catch(next)
 })
 
 export { router as mcpRoutes }

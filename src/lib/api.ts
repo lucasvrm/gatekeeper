@@ -20,6 +20,7 @@ import type {
   GitDiffResponse,
   MCPSessionConfig,
   MCPStatus,
+  PromptInstruction,
   Snippet,
   ContextPack,
   SessionPreset,
@@ -789,6 +790,52 @@ export const api = {
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete preset")
+        }
+      },
+    },
+
+    prompts: {
+      list: async (): Promise<PromptInstruction[]> => {
+        const response = await fetch(`${API_BASE}/mcp/prompts`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch prompts")
+        }
+        const result = await response.json()
+        return result.data
+      },
+
+      create: async (data: { name: string; content: string; isActive?: boolean }): Promise<PromptInstruction> => {
+        const response = await fetch(`${API_BASE}/mcp/prompts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to create prompt")
+        }
+        return response.json()
+      },
+
+      update: async (id: string, data: { name?: string; content?: string; isActive?: boolean }): Promise<PromptInstruction> => {
+        const response = await fetch(`${API_BASE}/mcp/prompts/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to update prompt")
+        }
+        return response.json()
+      },
+
+      delete: async (id: string): Promise<void> => {
+        const response = await fetch(`${API_BASE}/mcp/prompts/${id}`, { method: "DELETE" })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to delete prompt")
         }
       },
     },

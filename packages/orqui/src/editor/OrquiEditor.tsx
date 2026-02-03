@@ -11,9 +11,12 @@ import { UIRegistryEditor } from "./editors/ComponentEditors";
 import { LayoutPreview } from "./previews/LayoutPreview";
 import { TypographyPreview } from "./previews/TypographyPreview";
 import { ComponentPreview } from "./previews/ComponentPreview";
+import { PageEditor } from "./page-editor/PageEditor";
 
 // ============================================================================
 export function OrquiEditor() {
+  // Top-level mode: "pages" (DnD builder) or "shell" (v1 config)
+  const [editorMode, setEditorMode] = useState<"pages" | "shell">("pages");
   const [activeTab, setActiveTab] = useState("layout");
   const [layout, setLayout] = useState(DEFAULT_LAYOUT);
   // Normalize registry: ensure every component has name field matching its key
@@ -225,7 +228,31 @@ export function OrquiEditor() {
         {/* Dot separator */}
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.border }} />
 
-        {/* Tab pills */}
+        {/* Mode switcher — Pages vs Shell & Tokens */}
+        <div style={{
+          display: "flex", gap: 2, background: COLORS.surface2,
+          padding: 3, borderRadius: 8,
+        }}>
+          {[
+            { id: "pages" as const, label: "📐 Páginas" },
+            { id: "shell" as const, label: "⚙ Shell & Tokens" },
+          ].map(mode => (
+            <button key={mode.id} onClick={() => setEditorMode(mode.id)} style={{
+              padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+              border: "none", cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              background: editorMode === mode.id ? COLORS.accent + "20" : "transparent",
+              color: editorMode === mode.id ? COLORS.accent : COLORS.textDim,
+              transition: "all 0.15s",
+            }}>{mode.label}</button>
+          ))}
+        </div>
+
+        {/* Dot separator */}
+        <div style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.border }} />
+
+        {/* Tab pills (only in shell mode) */}
+        {editorMode === "shell" && (
         <div style={{
           display: "flex", gap: 2, background: COLORS.surface2,
           padding: 3, borderRadius: 8,
@@ -245,6 +272,7 @@ export function OrquiEditor() {
             }}>{tab.label}</button>
           ))}
         </div>
+        )}
 
         {/* Search trigger */}
         <button
@@ -315,8 +343,24 @@ export function OrquiEditor() {
       </div>
 
       {/* ============================================================ */}
-      {/* MAIN LAYOUT: config scroll (left) + preview (right)           */}
+      {/* MAIN LAYOUT                                                    */}
       {/* ============================================================ */}
+
+      {/* PAGES MODE — DnD builder */}
+      {editorMode === "pages" && (
+        <div style={{ flex: 1, overflow: "hidden" }}>
+          <PageEditor
+            pages={layout.pages || {}}
+            onPagesChange={(pages) => setLayout((prev: any) => ({ ...prev, pages }))}
+            tokens={layout.tokens}
+            variables={layout.variables}
+            onVariablesChange={(variables) => setLayout((prev: any) => ({ ...prev, variables }))}
+          />
+        </div>
+      )}
+
+      {/* SHELL MODE — v1 config panels + preview */}
+      {editorMode === "shell" && (
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
 
         {/* LEFT — scrollable config panel (collapsible) */}
@@ -490,6 +534,7 @@ export function OrquiEditor() {
           )}
         </div>
       </div>
+      )}
 
       {/* Command Palette overlay */}
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} items={cmdItems} />

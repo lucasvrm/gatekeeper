@@ -20,6 +20,8 @@ import type {
   UploadFilesInput,
   UploadFilesResponse,
   ContinueRunResponse,
+  SessionConfigResponse,
+  PromptInstruction,
 } from './types.js'
 
 export class GatekeeperClient {
@@ -131,6 +133,17 @@ export class GatekeeperClient {
     return this.request<ContinueRunResponse>(`/runs/${id}/rerun/${gate}`, {
       method: 'POST',
     })
+  }
+
+  // Session Config (singleton from API)
+  async getSessionConfig(): Promise<SessionConfigResponse> {
+    return this.request<SessionConfigResponse>('/mcp/session')
+  }
+
+  // Prompt Instructions from API
+  async getPrompts(): Promise<PromptInstruction[]> {
+    const result = await this.request<{ data: PromptInstruction[] }>('/mcp/prompts')
+    return result.data
   }
 
   // SSE Subscription

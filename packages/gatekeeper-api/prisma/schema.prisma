@@ -306,3 +306,12 @@ model MCPSessionConfig {
   config    String   @default("{}")
   updatedAt DateTime @updatedAt
 }
+
+model PromptInstruction {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  content   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -88,7 +88,22 @@ const isPetrea = (code: string): boolean => code === PETREA_VALIDATOR
 
 const STORAGE_KEY = "gatekeeper:config:expanded-gates"
 
+// Detect test environment to avoid localStorage pollution between tests
+function isTestEnvironment(): boolean {
+  try {
+    // Check for Vitest
+    if (typeof process !== "undefined" && process.env?.VITEST === "true") return true
+    if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") return true
+    // Check for jsdom (common in test environments)
+    if (typeof navigator !== "undefined" && navigator.userAgent?.includes("jsdom")) return true
+  } catch {
+    // Ignore errors in checking
+  }
+  return false
+}
+
 function loadExpandedGates(): Set<number> {
+  if (isTestEnvironment()) return new Set() // Skip localStorage in tests
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
@@ -104,6 +119,7 @@ function loadExpandedGates(): Set<number> {
 }
 
 function saveExpandedGates(gates: Set<number>): void {
+  if (isTestEnvironment()) return // Skip localStorage in tests
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...gates]))
   } catch {

@@ -1,5 +1,5 @@
 /**
- * Gatekeeper MCP Server
+ * Gatekeeper MCP Server v2
  * Entry point for the Model Context Protocol server
  */
 
