@@ -1,304 +1,330 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { FailModePopover } from "@/components/fail-mode-popover"
+import { ValidatorConfigDialog } from "@/components/validator-config-dialog"
+import { ChevronDown, ChevronRight, Settings } from "lucide-react"
 import type { FailMode } from "@/lib/types"
 
-type ValidatorItem = {
+interface ValidatorItem {
+  id?: string
   key: string
   value: string
+  type?: string
   failMode?: FailMode
   gateCategory?: string
   displayName?: string
   description?: string
   category?: string
+  gate?: number
+  order?: number
+  isHardBlock?: boolean
+}
+
+interface ValidationConfigItem {
+  id: string
+  key: string
+  value: string
+  type: string
+  category: string
+  description?: string | null
 }
 
 interface ValidatorsTabProps {
   validators: ValidatorItem[]
-  actionId: string | null
-  activeCount: number
-  inactiveCount: number
-  onToggle: (name: string, isActive: boolean) => void | Promise<void>
+  validationConfigs: ValidationConfigItem[]
+  onToggle: (key: string, isActive: boolean) => void | Promise<void>
   onFailModeChange: (validatorKey: string, mode: FailMode) => void | Promise<void>
-  onBulkUpdate?: (payload: { keys: string[]; updates: { isActive?: boolean; failMode?: FailMode } }) => Promise<unknown>
+  onUpdateConfig: (id: string, value: string) => void | Promise<void>
+}
+
+// Gate metadata
+const GATE_META: Record<number, { name: string; emoji: string }> = {
+  0: { name: "SANITIZATION", emoji: "🧹" },
+  1: { name: "CONTRACT", emoji: "📜" },
+  2: { name: "EXECUTION", emoji: "⚙️" },
+  3: { name: "INTEGRITY", emoji: "🏗️" },
+}
+
+// Mapping validator code → config keys
+const VALIDATOR_CONFIG_MAP: Record<string, string[]> = {
+  TOKEN_BUDGET_FIT: ["MAX_TOKEN_BUDGET", "TOKEN_SAFETY_MARGIN"],
+  TASK_SCOPE_SIZE: ["MAX_FILES_PER_TASK"],
+  PATH_CONVENTION: ["TYPE_DETECTION_PATTERNS"],
+  DELETE_DEPENDENCY_CHECK: ["DELETE_CHECK_IGNORE_DIRS"],
+  TEST_COVERS_HAPPY_AND_SAD_PATH: ["HAPPY_PATH_KEYWORDS", "SAD_PATH_KEYWORDS"],
+  IMPORT_REALITY_CHECK: ["EXTRA_BUILTIN_MODULES", "PATH_ALIASES"],
+  DIFF_SCOPE_ENFORCEMENT: [
+    "DIFF_SCOPE_INCLUDE_WORKING_TREE",
+    "DIFF_SCOPE_IGNORED_PATTERNS",
+    "DIFF_SCOPE_ALLOW_TEST_ONLY_DIFF",
+    "DIFF_SCOPE_INCOMPLETE_FAIL_MODE",
+  ],
+  TEST_READ_ONLY_ENFORCEMENT: ["TEST_READ_ONLY_EXCLUDED_PATHS"],
+  STYLE_CONSISTENCY_LINT: ["ESLINT_CONFIG_FILES", "SKIP_LINT_IF_NO_CONFIG"],
+  TEST_CLAUSE_MAPPING_VALID: ["ALLOW_UNTAGGED_TESTS"],
+}
+
+// Validators that depend on external tables
+const TABLE_DEPENDENT_VALIDATORS = [
+  "SENSITIVE_FILES_LOCK",
+  "DANGER_MODE_EXPLICIT",
+  "TASK_CLARITY_CHECK",
+]
+
+// Validator that cannot be disabled
+const PETREA_VALIDATOR = "TEST_FAILS_BEFORE_IMPLEMENTATION"
+
+const hasConfigs = (code: string): boolean => code in VALIDATOR_CONFIG_MAP
+const hasTableDependency = (code: string): boolean => TABLE_DEPENDENT_VALIDATORS.includes(code)
+const isPetrea = (code: string): boolean => code === PETREA_VALIDATOR
+
+const STORAGE_KEY = "gatekeeper:config:expanded-gates"
+
+function loadExpandedGates(): Set<number> {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed)) {
+        return new Set(parsed.filter((n): n is number => typeof n === "number"))
+      }
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return new Set() // Default: all closed
+}
+
+function saveExpandedGates(gates: Set<number>): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...gates]))
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 export function ValidatorsTab({
   validators,
-  actionId,
-  activeCount,
-  inactiveCount,
+  validationConfigs,
   onToggle,
   onFailModeChange,
-  onBulkUpdate,
+  onUpdateConfig,
 }: ValidatorsTabProps) {
-  const [categoryFilter, setCategoryFilter] = useState("ALL")
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL")
-  const [failModeFilter, setFailModeFilter] = useState<"ALL" | "HARD" | "WARNING" | "DEFAULT">("ALL")
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
+  // Track which gates are expanded (default: all closed, persisted in localStorage)
+  const [expandedGates, setExpandedGates] = useState<Set<number>>(() => loadExpandedGates())
 
-  const enrichedValidators = useMemo(() => {
-    return validators.map((validator) => {
-      return {
-        ...validator,
-        categoryKey: validator.category ?? "UNKNOWN",
-        categoryLabel: validator.category ?? validator.gateCategory ?? "—",
-        categoryDescription: validator.description ?? "",
-      }
+  // Persist expanded gates to localStorage
+  useEffect(() => {
+    saveExpandedGates(expandedGates)
+  }, [expandedGates])
+
+  // Track which validator config dialog is open
+  const [configDialogOpen, setConfigDialogOpen] = useState(false)
+  const [selectedValidator, setSelectedValidator] = useState<ValidatorItem | null>(null)
+
+  // Group validators by gate
+  const gateGroups = useMemo(() => {
+    const groups = new Map<number, ValidatorItem[]>()
+    validators.forEach(v => {
+      const gate = v.gate ?? 0
+      if (!groups.has(gate)) groups.set(gate, [])
+      groups.get(gate)!.push(v)
     })
+    // Sort by order within each gate
+    groups.forEach(list => list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)))
+    return groups
   }, [validators])
 
-  const availableCategories = useMemo(() => {
-    const categories = new Set(
-      validators
-        .map((v) => v.category)
-        .filter((c): c is string => Boolean(c))
-    )
-    return Array.from(categories).sort()
-  }, [validators])
-
-  const filteredValidators = useMemo(() => {
-    return enrichedValidators.filter((validator) => {
-      if (categoryFilter !== "ALL" && validator.categoryKey !== categoryFilter) {
-        return false
-      }
-      if (statusFilter === "ACTIVE" && validator.value !== "true") {
-        return false
-      }
-      if (statusFilter === "INACTIVE" && validator.value === "true") {
-        return false
-      }
-      if (failModeFilter !== "ALL") {
-        if (failModeFilter === "DEFAULT") {
-          if (validator.failMode !== null && validator.failMode !== undefined) {
-            return false
-          }
-        } else if (validator.failMode !== failModeFilter) {
-          return false
-        }
-      }
-      return true
-    })
-  }, [categoryFilter, enrichedValidators, failModeFilter, statusFilter])
-
-  const visibleKeys = useMemo(() => filteredValidators.map((validator) => validator.key), [filteredValidators])
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedKeys(new Set(visibleKeys))
-    } else {
-      setSelectedKeys(new Set())
-    }
-  }
-
-  const handleSelectOne = (key: string, checked: boolean) => {
-    setSelectedKeys((prev) => {
+  const toggleGate = (gateNumber: number) => {
+    setExpandedGates(prev => {
       const next = new Set(prev)
-      if (checked) {
-        next.add(key)
+      if (next.has(gateNumber)) {
+        next.delete(gateNumber)
       } else {
-        next.delete(key)
+        next.add(gateNumber)
       }
       return next
     })
   }
 
-  const handleBulkActivate = async () => {
-    if (onBulkUpdate && selectedKeys.size > 0) {
-      await onBulkUpdate({ keys: Array.from(selectedKeys), updates: { isActive: true } })
-    }
+  const getConfigsForValidator = (validatorCode: string): ValidationConfigItem[] => {
+    const configKeys = VALIDATOR_CONFIG_MAP[validatorCode] ?? []
+    return validationConfigs.filter(c => configKeys.includes(c.key))
   }
 
-  const handleBulkDeactivate = async () => {
-    if (onBulkUpdate && selectedKeys.size > 0) {
-      await onBulkUpdate({ keys: Array.from(selectedKeys), updates: { isActive: false } })
-    }
+  const openConfigDialog = (validator: ValidatorItem) => {
+    setSelectedValidator(validator)
+    setConfigDialogOpen(true)
   }
 
-  const handleBulkFailMode = async (mode: FailMode) => {
-    if (onBulkUpdate && selectedKeys.size > 0) {
-      await onBulkUpdate({ keys: Array.from(selectedKeys), updates: { failMode: mode } })
-    }
+  const handleConfigSave = async (id: string, value: string) => {
+    await onUpdateConfig(id, value)
   }
 
-  const handleClearSelection = () => {
-    setSelectedKeys(new Set())
-  }
-
-  const isAllSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedKeys.has(key))
+  // Render gate sections for gates 0-3
+  const gates = [0, 1, 2, 3]
 
   return (
     <Card className="p-6 bg-card border-border space-y-4">
       <div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">Validators</h2>
-          <div className="flex flex-wrap items-center gap-3 justify-end">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Categoria</span>
-              <select
-                data-testid="category-filter"
-                className="h-9 w-52 rounded-md border border-input bg-background px-3 text-sm"
-                value={categoryFilter}
-                onChange={(event) => setCategoryFilter(event.target.value)}
-              >
-                <option value="ALL">Todas categorias</option>
-                {availableCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Status</span>
-              <select
-                data-testid="status-filter"
-                className="h-9 w-40 rounded-md border border-input bg-background px-3 text-sm"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as "ALL" | "ACTIVE" | "INACTIVE")}
-              >
-                <option value="ALL">Todos status</option>
-                <option value="ACTIVE">Ativo</option>
-                <option value="INACTIVE">Inativo</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Fail Mode</span>
-              <select
-                data-testid="fail-mode-filter"
-                className="h-9 w-40 rounded-md border border-input bg-background px-3 text-sm"
-                value={failModeFilter}
-                onChange={(event) =>
-                  setFailModeFilter(event.target.value as "ALL" | "HARD" | "WARNING" | "DEFAULT")
-                }
-              >
-                <option value="ALL">Todos tipos</option>
-                <option value="HARD">Hard</option>
-                <option value="WARNING">Warning</option>
-                <option value="DEFAULT">Default</option>
-              </select>
-            </div>
-          </div>
-        </div>
+        <h2 className="text-xl font-semibold">Validators</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Alterne a aplicação dos validators nas verificações do Gatekeeper.
+          Gerencie os validators por gate. Clique em um gate para expandir/colapsar.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2 text-sm">
-          <Badge variant="default">Ativo {activeCount}</Badge>
-          <Badge variant="secondary">Inativos {inactiveCount}</Badge>
-        </div>
       </div>
 
-      {selectedKeys.size > 0 && (
-        <div data-testid="bulk-actions-bar" className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
-          <span data-testid="selected-count">{selectedKeys.size} validators selecionados</span>
-          <Button size="sm" variant="secondary" data-testid="bulk-activate-btn" onClick={handleBulkActivate}>
-            Ativar Selecionados
-          </Button>
-          <Button size="sm" variant="secondary" data-testid="bulk-deactivate-btn" onClick={handleBulkDeactivate}>
-            Desativar Selecionados
-          </Button>
-          <select
-            data-testid="bulk-fail-mode-dropdown"
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            defaultValue=""
-            onChange={(event) => {
-              const value = event.target.value
-              const mode = value === "HARD" ? "HARD" : value === "WARNING" ? "WARNING" : null
-              handleBulkFailMode(mode)
-            }}
-          >
-            <option value="" disabled>Definir Fail Mode</option>
-            <option value="HARD">Hard</option>
-            <option value="WARNING">Warning</option>
-          </select>
-          <Button size="sm" variant="ghost" data-testid="clear-selection-btn" onClick={handleClearSelection}>
-            Limpar Seleção
-          </Button>
-        </div>
-      )}
+      <div className="space-y-3">
+        {gates.map(gateNumber => {
+          const meta = GATE_META[gateNumber] ?? { name: `GATE ${gateNumber}`, emoji: "📋" }
+          const gateValidators = gateGroups.get(gateNumber) ?? []
+          const activeCount = gateValidators.filter(v => v.value === "true").length
+          const totalCount = gateValidators.length
+          const isExpanded = expandedGates.has(gateNumber)
 
-      {filteredValidators.length === 0 ? (
-        <div className="text-sm text-muted-foreground">Nenhum validator encontrado.</div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-xs uppercase tracking-wide">
-                <input
-                  type="checkbox"
-                  data-testid="select-all-checkbox"
-                  checked={isAllSelected}
-                  onChange={(event) => handleSelectAll(event.target.checked)}
-                />
-              </TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Validator</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Categoria</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Status</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Fail</TableHead>
-              <TableHead className="text-xs uppercase tracking-wide">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredValidators.map((validator) => {
-              const isActive = validator.value === "true"
-              const displayName = validator.displayName ?? validator.key
-              const description = validator.description || "Sem descrição disponível"
-              return (
-                <TableRow key={validator.key} data-testid={`validator-row-${validator.key}`}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      data-testid={`validator-checkbox-${validator.key}`}
-                      checked={selectedKeys.has(validator.key)}
-                      onChange={(event) => handleSelectOne(validator.key, event.target.checked)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{displayName}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground" title={validator.categoryDescription}>
-                    {validator.categoryLabel}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-md whitespace-normal break-words">
-                    {description}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={isActive ? "default" : "secondary"}>
-                      {isActive ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <FailModePopover
-                      currentMode={validator.failMode ?? null}
-                      onModeChange={(mode) => onFailModeChange(validator.key, mode)}
-                      disabled={actionId === validator.key}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant={isActive ? "secondary" : "outline"}
-                      onClick={() => onToggle(validator.key, !isActive)}
-                      disabled={actionId === validator.key}
-                    >
-                      {isActive ? "Desativar" : "Ativar"}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+          return (
+            <Collapsible
+              key={gateNumber}
+              open={isExpanded}
+              onOpenChange={() => toggleGate(gateNumber)}
+              data-testid={`gate-section-${gateNumber}`}
+            >
+              <CollapsibleTrigger
+                className="w-full"
+                data-testid={`gate-header-${gateNumber}`}
+              >
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <span className="text-lg">{meta.emoji}</span>
+                    <span className="font-semibold">
+                      Gate {gateNumber} — {meta.name}
+                    </span>
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    data-testid={`gate-active-count-${gateNumber}`}
+                  >
+                    {activeCount} / {totalCount}
+                  </Badge>
+                </div>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent
+                forceMount
+                className="mt-2"
+                style={{ display: isExpanded ? undefined : "none" }}
+              >
+                <div className="space-y-2 pl-8 pr-4">
+                  {gateValidators.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-4">
+                      Nenhum validator neste gate.
+                    </div>
+                  ) : (
+                    gateValidators.map(validator => {
+                      const isActive = validator.value === "true"
+                      const displayName = validator.displayName ?? validator.key
+                      const description = validator.description ?? "Sem descrição disponível"
+                      const validatorIsPetrea = isPetrea(validator.key)
+                      const validatorHasConfigs = hasConfigs(validator.key)
+                      const validatorHasTableDep = hasTableDependency(validator.key)
+
+                      return (
+                        <div
+                          key={validator.key}
+                          data-testid={`validator-row-${validator.key}`}
+                          className="flex items-center justify-between p-3 border rounded-lg bg-background"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Switch
+                              data-testid={`validator-switch-${validator.key}`}
+                              role="switch"
+                              checked={isActive}
+                              onCheckedChange={(checked) => onToggle(validator.key, checked)}
+                              disabled={validatorIsPetrea}
+                              aria-checked={isActive}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm">{displayName}</span>
+                                {validator.category && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {validator.category}
+                                  </Badge>
+                                )}
+                                {validatorIsPetrea && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    🔒 PÉTREA
+                                  </Badge>
+                                )}
+                                {validatorHasTableDep && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                    data-testid={`validator-ref-badge-${validator.key}`}
+                                  >
+                                    ref
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                {description}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <FailModePopover
+                              currentMode={validator.failMode ?? null}
+                              onModeChange={(mode) => onFailModeChange(validator.key, mode)}
+                              disabled={validatorIsPetrea}
+                            />
+
+                            {validatorHasConfigs && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                data-testid={`validator-config-btn-${validator.key}`}
+                                onClick={() => openConfigDialog(validator)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Settings className="h-4 w-4" />
+                                <span className="sr-only">Configurações</span>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )
+        })}
+      </div>
+
+      {/* Validator Config Dialog */}
+      {selectedValidator && (
+        <ValidatorConfigDialog
+          open={configDialogOpen}
+          onOpenChange={setConfigDialogOpen}
+          validatorCode={selectedValidator.key}
+          validatorDisplayName={selectedValidator.displayName ?? selectedValidator.key}
+          configs={getConfigsForValidator(selectedValidator.key)}
+          onSave={handleConfigSave}
+        />
       )}
     </Card>
   )

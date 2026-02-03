@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:3132eb62953e6748eba0ba7bf10a99b3680616811f0f3ab932c2d574c1a8c89e",
-    "generatedAt": "2026-02-02T22:39:48.942Z"
+    "hash": "sha256:d48d4bdfc08815820b845644b530e2712984fd9b7ff13004a13f761c311bd2e7",
+    "generatedAt": "2026-02-03T01:24:27.999Z"
   },
   "structure": {
     "regions": {
@@ -16,7 +16,7 @@
           "minWidth": "$tokens.sizing.sidebar-collapsed"
         },
         "padding": {
-          "top": "$tokens.spacing.sm",
+          "top": "$tokens.spacing.xs",
           "right": "0",
           "bottom": "0",
           "left": "0"
@@ -38,7 +38,7 @@
             "description": "Links de navegação principal",
             "order": 1,
             "padding": {
-              "top": "$tokens.spacing.sm",
+              "top": "$tokens.spacing.md",
               "right": "$tokens.sizing.sidebar-nav-pad",
               "bottom": "$tokens.spacing.xs",
               "left": "$tokens.sizing.sidebar-nav-pad"
@@ -62,7 +62,7 @@
           "fixed": true,
           "collapsible": true,
           "scrollable": false,
-          "collapsedDisplay": "letter-only"
+          "collapsedDisplay": "icon-only"
         },
         "navigation": {
           "icons": {
@@ -263,7 +263,7 @@
           "maxWidth": "$tokens.sizing.content-max-width"
         },
         "padding": {
-          "top": "$tokens.spacing.lg",
+          "top": "$tokens.spacing.md",
           "right": "$tokens.sizing.main-pad",
           "bottom": "$tokens.spacing.xl",
           "left": "$tokens.sizing.main-pad"
