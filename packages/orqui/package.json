@@ -35,5 +35,9 @@
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@easyblocks/core": "^1.0.10",
+    "@easyblocks/editor": "^1.0.10"
   }
 }

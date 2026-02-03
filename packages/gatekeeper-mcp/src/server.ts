@@ -1,6 +1,12 @@
 /**
- * MCP Server v2 for Gatekeeper
- * 5 tools, 2 prompts, zero resources/notifications
+ * MCP Server v3 for Gatekeeper
+ * 8 tools (5 pipeline + 3 workflow), 3 prompts, zero resources/notifications
+ *
+ * The 3 workflow tools (create_plan, generate_spec, implement_code) are
+ * wrappers over the MCP prompts. This dual-registration ensures:
+ * - Claude Desktop → uses tools (reliable, always works)
+ * - Claude Code    → uses prompts via /mcp__gatekeeper__create_plan (or tools)
+ * - Other clients  → whichever primitive they support
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -28,7 +34,7 @@ export function createServer(config: Config): ServerContext {
   const server = new Server(
     {
       name: 'gatekeeper-mcp',
-      version: '2.0.0',
+      version: '3.0.0',
     },
     {
       capabilities: {
@@ -40,7 +46,7 @@ export function createServer(config: Config): ServerContext {
 
   const client = new GatekeeperClient({ baseUrl: config.GATEKEEPER_API_URL })
 
-  // Register tool handlers
+  // Register tool handlers (includes workflow tools that wrap prompts)
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return { tools }
   })
@@ -51,7 +57,7 @@ export function createServer(config: Config): ServerContext {
     return result as CallToolResult
   })
 
-  // Register prompt handlers
+  // Register prompt handlers (kept for Claude Code and other clients that support prompts)
   server.setRequestHandler(ListPromptsRequestSchema, async () => {
     return { prompts: getAllPrompts() }
   })

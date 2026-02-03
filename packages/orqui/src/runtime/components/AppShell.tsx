@@ -225,7 +225,12 @@ export function AppShell({
       if (faviconConfig.emoji.startsWith("ph:")) {
         const phPath = PHOSPHOR_SVG_PATHS[faviconConfig.emoji.slice(3)];
         if (phPath) {
-          svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${fillColor}"><path d="${phPath}"/></svg>`;
+          // Check if this is a duotone icon (object with bg and fg)
+          if (typeof phPath === "object" && phPath.bg && phPath.fg) {
+            svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${fillColor}"><path d="${phPath.bg}" opacity="0.2"/><path d="${phPath.fg}"/></svg>`;
+          } else {
+            svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${fillColor}"><path d="${phPath}"/></svg>`;
+          }
         } else {
           svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">?</text></svg>`;
         }

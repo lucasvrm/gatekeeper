@@ -1,6 +1,11 @@
 /**
- * MCP Tools v2
- * 5 tools focused on the pipeline workflow
+ * MCP Tools v3
+ * 5 pipeline tools + 3 workflow tools (wrapping prompts)
+ *
+ * The 3 workflow tools (create_plan, generate_spec, implement_code) call
+ * the same handlers as the MCP prompts. This gives Claude Desktop a
+ * reliable invocation path (tools always work) while keeping the prompts
+ * registered for clients that support them (Claude Code, VS Code, etc.).
  */
 
 import * as fs from 'fs'
@@ -9,6 +14,7 @@ import type { Tool, TextContent } from '@modelcontextprotocol/sdk/types.js'
 import type { GatekeeperClient } from './client/GatekeeperClient.js'
 import type { Config } from './config.js'
 import type { GatekeeperError, CreateRunInput } from './client/types.js'
+import { handlePromptRequest, type PromptContext } from './prompts/index.js'
 
 export interface ToolContext {
   client: GatekeeperClient
@@ -25,15 +31,79 @@ export interface ToolResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const tools: Tool[] = [
+  // ── Workflow Tools (wrappers over MCP prompts) ────────────────────────────
   {
-    name: 'save_artifacts',
-    description: 'Save one or more artifact files to disk. Use after generating plan.json, contract.md, task.spec.md, or spec tests.',
+    name: 'create_plan',
+    description:
+      'Step 1/3 of TDD workflow. Returns full instructions, reference docs, session context, ' +
+      'and STOP boundary for creating plan.json + contract.md + task.spec.md. ' +
+      'Call this when the user wants to start a new TDD task. ' +
+      'After receiving the response, follow the instructions precisely and use save_artifacts to persist the 3 files.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskDescription: {
+          type: 'string',
+          description: 'Description of the task to plan',
+        },
+        taskType: {
+          type: 'string',
+          description: 'Type of task (feature, bugfix, refactor)',
+        },
+      },
+      required: ['taskDescription'],
+    },
+  },
+  {
+    name: 'generate_spec',
+    description:
+      'Step 2/3 of TDD workflow. Reads plan.json, contract.md, and task.spec.md from the ' +
+      'outputId artifacts folder, then returns full instructions for generating the test code file. ' +
+      'Call this after Step 1 is complete and all 3 artifacts are saved. ' +
+      'After receiving the response, follow the instructions precisely and use save_artifacts to persist the test file.',
     inputSchema: {
       type: 'object',
       properties: {
         outputId: {
           type: 'string',
-          description: 'Folder name inside artifacts dir (e.g. "button-redesign")',
+          description: 'Artifacts folder name (e.g. 2025_01_30_001_my-task)',
+        },
+      },
+      required: ['outputId'],
+    },
+  },
+  {
+    name: 'implement_code',
+    description:
+      'Step 3/3 of TDD workflow. Reads all artifacts (plan, contract, task spec, test file) from ' +
+      'the outputId folder, then returns full instructions for implementing production code. ' +
+      'Call this after Step 2 is complete and the test file is saved. ' +
+      'After receiving the response, follow the instructions precisely. Do NOT modify test files.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        outputId: {
+          type: 'string',
+          description: 'Artifacts folder name (e.g. 2025_01_30_001_my-task)',
+        },
+      },
+      required: ['outputId'],
+    },
+  },
+
+  // ── Pipeline Tools ────────────────────────────────────────────────────────
+  {
+    name: 'save_artifacts',
+    description:
+      'Save artifact files to disk. For Step 1 (create_plan), you MUST save ALL THREE files: ' +
+      'plan.json, contract.md, AND task.spec.md. Do NOT call this tool until all three are ready. ' +
+      'For Step 2 (generate_spec), save the test code file to the same outputId folder.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        outputId: {
+          type: 'string',
+          description: 'Folder name inside artifacts dir (e.g. "2025_01_30_001_button-redesign")',
         },
         files: {
           type: 'array',
@@ -53,7 +123,8 @@ export const tools: Tool[] = [
   },
   {
     name: 'start_contract_run',
-    description: 'Start a contract validation run (gates 0-1). Reads plan.json from the artifacts folder and creates the run via API.',
+    description:
+      'Start a contract validation run (gates 0-1). Reads plan.json from the artifacts folder and creates the run via API.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -120,12 +191,19 @@ export const tools: Tool[] = [
 // Tool Handlers
 // ─────────────────────────────────────────────────────────────────────────────
 
+const WORKFLOW_TOOLS = new Set(['create_plan', 'generate_spec', 'implement_code'])
+
 export async function handleToolCall(
   name: string,
   args: Record<string, unknown>,
   ctx: ToolContext
 ): Promise<ToolResult> {
   try {
+    // Workflow tools → delegate to prompt handlers (single source of truth)
+    if (WORKFLOW_TOOLS.has(name)) {
+      return handleWorkflowTool(name, args, ctx)
+    }
+
     switch (name) {
       case 'save_artifacts':
         return handleSaveArtifacts(args, ctx)
@@ -147,6 +225,38 @@ export async function handleToolCall(
     }
     return { content: [{ type: 'text', text: `❌ Erro: ${err.message}` }], isError: true }
   }
+}
+
+// ── Workflow Tool Handler ──────────────────────────────────────────────────
+// Calls the exact same logic as MCP prompts, but returns as tool output
+// so Claude Desktop can reliably invoke it.
+
+async function handleWorkflowTool(
+  name: string,
+  args: Record<string, unknown>,
+  ctx: ToolContext
+): Promise<ToolResult> {
+  const promptCtx: PromptContext = {
+    client: ctx.client,
+    docsDir: ctx.config.DOCS_DIR,
+    artifactsDir: ctx.config.ARTIFACTS_DIR,
+  }
+
+  const result = await handlePromptRequest(name, args, promptCtx)
+
+  // Extract text from PromptMessage[] → single string
+  const text = result.messages
+    .map((m) => {
+      if (typeof m.content === 'string') return m.content
+      if (m.content && typeof m.content === 'object' && 'text' in m.content) {
+        return (m.content as { text: string }).text
+      }
+      return ''
+    })
+    .filter(Boolean)
+    .join('\n\n')
+
+  return { content: [{ type: 'text', text }] }
 }
 
 // ── save_artifacts ──────────────────────────────────────────────────────────
@@ -174,10 +284,19 @@ async function handleSaveArtifacts(
     saved.push(file.filename)
   }
 
+  // Warn if step 1 artifacts are incomplete
+  const hasPlan = saved.includes('plan.json')
+  const hasContract = saved.includes('contract.md')
+  const hasSpec = saved.includes('task.spec.md')
+  let warning = ''
+  if (hasPlan && hasContract && !hasSpec) {
+    warning = '\n\n⚠️ MISSING task.spec.md — Step 1 requires ALL THREE: plan.json, contract.md, AND task.spec.md. Generate task.spec.md and save it now.'
+  }
+
   return {
     content: [{
       type: 'text',
-      text: `✅ ${saved.length} arquivo(s) salvo(s) em ${dir}:\n${saved.map(f => `  • ${f}`).join('\n')}`,
+      text: `✅ ${saved.length} arquivo(s) salvo(s) em ${dir}:\n${saved.map(f => `  • ${f}`).join('\n')}${warning}`,
     }],
   }
 }

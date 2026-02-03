@@ -7,6 +7,7 @@ import { useCommandPaletteItems } from "./hooks/useCommandPaletteItems";
 import { CommandPalette } from "./components/CommandPalette";
 import { PageEditor } from "./page-editor/PageEditor";
 import { StackedWorkbench } from "./workbench/StackedWorkbench";
+import { EasyblocksPageEditor } from "./easyblocks";
 
 // ============================================================================
 // OrquiEditor — top-level mode switcher + topbar
@@ -281,19 +282,18 @@ export function OrquiEditor() {
       {/* MAIN CONTENT                                                  */}
       {/* ============================================================ */}
 
-      {/* PAGES MODE — DnD builder (intocável) */}
-      {editorMode === "pages" && (
+      {/* PAGES MODE — Easyblocks builder */}
+        {editorMode === "pages" && (
         <div style={{ flex: 1, overflow: "hidden" }}>
-          <PageEditor
+          <EasyblocksPageEditor
             pages={layout.pages || {}}
             onPagesChange={(pages) => setLayout((prev: any) => ({ ...prev, pages }))}
             tokens={layout.tokens}
             variables={layout.variables}
             onVariablesChange={(variables) => setLayout((prev: any) => ({ ...prev, variables }))}
-          />
+            />
         </div>
       )}
-
       {/* SHELL & TOKENS MODE — Stacked Workbench */}
       {editorMode === "shell" && (
         <StackedWorkbench
