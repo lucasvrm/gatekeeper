@@ -73,13 +73,10 @@ export async function handlePromptRequest(
   // Fetch session config + prompt instructions from API (best effort)
   let sessionContext = ''
   try {
-    const [sessionRes, promptsRes] = await Promise.all([
-      ctx.client.getSessionConfig(),
-      ctx.client.getPrompts(),
-    ])
+    const sessionRes = await ctx.client.getSessionConfig()
+    const config = sessionRes.config
 
     // Git strategy instruction
-    const config = sessionRes.config
     if (config?.gitStrategy === 'new-branch') {
       const branchName = config.branch || `feature/${(args.taskDescription as string || 'task').slice(0, 30).replace(/\s+/g, '-').toLowerCase()}`
       sessionContext += `\n## Git Strategy\nCrie uma nova branch antes de implementar: ${branchName}\n`
@@ -89,13 +86,23 @@ export async function handlePromptRequest(
       sessionContext += `\n## Git Strategy\nCommit direto na branch atual.\n`
     }
 
-    // Custom instructions from session config
-    if (config?.customInstructions) {
-      sessionContext += `\n## Custom Instructions\n${config.customInstructions}\n`
+    // Resolve prompts: profile-aware or fallback to all active
+    let activePrompts: { name: string; content: string; isActive: boolean }[] = []
+
+    if (config?.activeProfileId) {
+      try {
+        const profile = await ctx.client.getProfile(config.activeProfileId)
+        activePrompts = profile.prompts.filter(p => p.isActive)
+      } catch {
+        // Profile not found — fallback to all active
+        const promptsRes = await ctx.client.getPrompts()
+        activePrompts = promptsRes.filter(p => p.isActive)
+      }
+    } else {
+      const promptsRes = await ctx.client.getPrompts()
+      activePrompts = promptsRes.filter(p => p.isActive)
     }
 
-    // Prompt instructions from database
-    const activePrompts = promptsRes.filter(p => p.isActive)
     if (activePrompts.length > 0) {
       sessionContext += `\n## Instruções Adicionais\n`
       for (const p of activePrompts) {

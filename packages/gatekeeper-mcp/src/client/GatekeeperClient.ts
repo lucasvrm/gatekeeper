@@ -21,6 +21,7 @@ import type {
   UploadFilesResponse,
   ContinueRunResponse,
   SessionConfigResponse,
+  ProfileResponse,
   PromptInstruction,
 } from './types.js'
 
@@ -144,6 +145,11 @@ export class GatekeeperClient {
   async getPrompts(): Promise<PromptInstruction[]> {
     const result = await this.request<{ data: PromptInstruction[] }>('/mcp/prompts')
     return result.data
+  }
+
+  // Session Profile from API
+  async getProfile(id: string): Promise<ProfileResponse> {
+    return this.request<ProfileResponse>(`/mcp/profiles/${id}`)
   }
 
   // SSE Subscription
