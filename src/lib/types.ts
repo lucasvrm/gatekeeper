@@ -411,3 +411,21 @@ export interface SessionHistory {
   notes: string | null
   createdAt: string
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Add to src/lib/types.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type OrchestratorContentKind = 'instruction' | 'doc' | 'prompt'
+
+export interface OrchestratorContent {
+  id: string
+  kind: OrchestratorContentKind
+  step: number
+  name: string
+  content: string
+  order: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}

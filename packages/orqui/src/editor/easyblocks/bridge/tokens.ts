@@ -1,23 +1,33 @@
 // ============================================================================
 // Token Bridge — Orqui tokens → Easyblocks Config.tokens
 //
-// Orqui stores tokens as typed objects:
-//   { "sm": { value: 8, unit: "px" } }
-//   { "accent": { value: "#6d9cff" } }
+// Easyblocks Config.tokens uses ConfigTokenValue<T>:
+//   { id: string, label?: string, value: T, isDefault?: boolean }
 //
-// Easyblocks expects flat token arrays:
-//   [{ id: "sm", label: "sm", value: "8px" }]
-//
-// This bridge converts bidirectionally.
+// Where T is:
+//   colors  → ThemeColor (ResponsiveValue<string>)
+//   space   → ThemeSpace (ResponsiveValue<string|number>)
+//   fonts   → ThemeFont  (ResponsiveValue<{fontFamily: string, ...}>)
 // ============================================================================
 
-import type { EasyblocksToken, EasyblocksTokens } from "../types";
+import type { ConfigTokenValue } from "@easyblocks/core";
+
+// ============================================================================
+// Token output shape matching Config.tokens
+// ============================================================================
+
+export interface OrquiEasyblocksTokens {
+  colors: ConfigTokenValue<string>[];
+  space: ConfigTokenValue<string | number>[];
+  fonts: ConfigTokenValue<Record<string, any>>[];
+  /** Custom token group — not in core ConfigTokens but Config.tokens allows extra keys */
+  [key: string]: ConfigTokenValue<any>[];
+}
 
 // ============================================================================
 // Orqui → Easyblocks
 // ============================================================================
 
-/** Resolve an Orqui token to its CSS string value */
 function resolveTokenValue(token: { value: unknown; unit?: string }): string {
   if (typeof token.value === "string") return token.value;
   if (typeof token.value === "number") {
@@ -26,89 +36,120 @@ function resolveTokenValue(token: { value: unknown; unit?: string }): string {
   return String(token.value ?? "");
 }
 
-/** Convert a single Orqui token group to Easyblocks token array */
-function convertTokenGroup(
-  group: Record<string, { value: unknown; unit?: string }> | undefined,
-  defaultId?: string,
-): EasyblocksToken[] {
+function convertColorTokens(
+  group: Record<string, { value: string }> | undefined,
+): ConfigTokenValue<string>[] {
   if (!group) return [];
   return Object.entries(group).map(([id, token]) => ({
     id,
     label: id.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-    value: resolveTokenValue(token),
-    ...(id === defaultId ? { isDefault: true } : {}),
+    value: token.value,
+    ...(id === "accent" ? { isDefault: true } : {}),
   }));
 }
 
-/** Convert Orqui font family tokens to Easyblocks font tokens */
+/**
+ * Easyblocks parseSpacing only accepts `px` and `vw` units.
+ * Values like `vh`, `%`, `rem`, `em` etc. will crash the editor.
+ */
+const VALID_SPACE_UNITS = /^-?\d+(\.\d+)?(px|vw)$/;
+
+function isValidSpaceValue(css: string): boolean {
+  return VALID_SPACE_UNITS.test(css);
+}
+
+/** Attempt to normalize a token to a valid space value (px/vw). Returns null if not possible. */
+function normalizeSpaceValue(token: { value: unknown; unit?: string }): string | null {
+  const raw = resolveTokenValue(token);
+  if (isValidSpaceValue(raw)) return raw;
+
+  // Pure number → assume px
+  const num = parseFloat(raw);
+  if (!isNaN(num) && String(num) === raw.trim()) return `${num}px`;
+
+  // Has px/vw suffix but maybe extra whitespace
+  const cleaned = raw.replace(/\s/g, "");
+  if (isValidSpaceValue(cleaned)) return cleaned;
+
+  // Cannot safely convert (vh, %, rem, em, etc.) — skip
+  return null;
+}
+
+function convertSpaceTokens(
+  spacing: Record<string, { value: unknown; unit?: string }> | undefined,
+  sizing: Record<string, { value: unknown; unit?: string }> | undefined,
+): ConfigTokenValue<string | number>[] {
+  const tokens: ConfigTokenValue<string | number>[] = [];
+  if (spacing) {
+    for (const [id, token] of Object.entries(spacing)) {
+      const val = normalizeSpaceValue(token);
+      if (val === null) continue; // skip incompatible values
+      tokens.push({
+        id,
+        label: id.replace(/-/g, " "),
+        value: val,
+        ...(id === "md" ? { isDefault: true } : {}),
+      });
+    }
+  }
+  if (sizing) {
+    for (const [id, token] of Object.entries(sizing)) {
+      const val = normalizeSpaceValue(token);
+      if (val === null) continue; // skip incompatible values
+      tokens.push({
+        id: `sizing-${id}`,
+        label: id.replace(/-/g, " "),
+        value: val,
+      });
+    }
+  }
+  return tokens;
+}
+
 function convertFontTokens(
   fontFamilies: Record<string, { family: string; fallbacks?: string[] }> | undefined,
-): EasyblocksToken[] {
+): ConfigTokenValue<Record<string, any>>[] {
   if (!fontFamilies) return [];
   return Object.entries(fontFamilies).map(([id, token]) => {
     const fallbacks = token.fallbacks?.join(", ") || "sans-serif";
-    const fullFamily = `'${token.family}', ${fallbacks}`;
     return {
       id,
       label: token.family,
-      value: { fontFamily: fullFamily },
+      value: { fontFamily: `'${token.family}', ${fallbacks}` },
       ...(id === "primary" ? { isDefault: true } : {}),
     };
   });
 }
 
 /**
- * Convert the full Orqui `layout.tokens` object to Easyblocks `Config.tokens`.
- *
- * @param orquiTokens - The `layout.tokens` from the Orqui contract
- * @returns Easyblocks-compatible token configuration
- *
- * @example
- * ```ts
- * const ebTokens = orquiTokensToEasyblocks(layout.tokens);
- * // → { colors: [...], space: [...], fonts: [...], borderRadius: [...] }
- * ```
+ * Convert the full Orqui `layout.tokens` to Easyblocks `Config.tokens`.
  */
-export function orquiTokensToEasyblocks(orquiTokens: Record<string, any>): EasyblocksTokens {
+export function orquiTokensToEasyblocks(orquiTokens: Record<string, any>): OrquiEasyblocksTokens {
   return {
-    colors: convertTokenGroup(orquiTokens.colors, "accent"),
-    space: [
-      ...convertTokenGroup(orquiTokens.spacing, "md"),
-      ...convertTokenGroup(orquiTokens.sizing),
-    ],
+    colors: convertColorTokens(orquiTokens.colors),
+    space: convertSpaceTokens(orquiTokens.spacing, orquiTokens.sizing),
     fonts: convertFontTokens(orquiTokens.fontFamilies),
-    borderRadius: convertTokenGroup(orquiTokens.borderRadius, "md"),
   };
 }
 
 // ============================================================================
-// Easyblocks → Orqui (reverse bridge for roundtrip)
+// Easyblocks → Orqui (reverse bridge)
 // ============================================================================
 
-/**
- * Convert Easyblocks token arrays back to Orqui token objects.
- * Used when syncing changes made in Easyblocks back to the contract.
- *
- * Note: this is lossy for font tokens (fallbacks are reconstructed heuristically).
- */
-export function easyblocksToOrquiTokens(ebTokens: EasyblocksTokens): Record<string, any> {
+export function easyblocksToOrquiTokens(ebTokens: OrquiEasyblocksTokens): Record<string, any> {
   const colors: Record<string, { value: string }> = {};
   for (const t of ebTokens.colors) {
     colors[t.id] = { value: typeof t.value === "string" ? t.value : String(t.value) };
   }
 
-  // Separate spacing from sizing based on known sizing keys
-  const SIZING_KEYS = new Set([
-    "sidebar-width", "sidebar-collapsed", "sidebar-pad",
-    "main-pad", "header-height", "full-height",
-  ]);
+  const SIZING_PREFIXES = ["sizing-"];
   const spacing: Record<string, { value: number; unit: string }> = {};
   const sizing: Record<string, { value: number; unit: string }> = {};
 
   for (const t of ebTokens.space) {
-    const parsed = parseSpaceValue(typeof t.value === "string" ? t.value : String(t.value));
-    if (SIZING_KEYS.has(t.id)) {
-      sizing[t.id] = parsed;
+    const parsed = parseSpaceValue(String(t.value));
+    if (typeof t.id === "string" && t.id.startsWith("sizing-")) {
+      sizing[t.id.replace("sizing-", "")] = parsed;
     } else {
       spacing[t.id] = parsed;
     }
@@ -116,19 +157,44 @@ export function easyblocksToOrquiTokens(ebTokens: EasyblocksTokens): Record<stri
 
   const fontFamilies: Record<string, { family: string; fallbacks: string[] }> = {};
   for (const t of ebTokens.fonts) {
-    const val = typeof t.value === "object" && t.value !== null
-      ? (t.value as { fontFamily?: string }).fontFamily || ""
-      : String(t.value);
-    const { family, fallbacks } = parseFontFamily(val);
+    const fontFamily = typeof t.value === "object" ? (t.value as any).fontFamily || "" : String(t.value);
+    const { family, fallbacks } = parseFontFamily(fontFamily);
     fontFamilies[t.id] = { family, fallbacks };
   }
 
-  const borderRadius: Record<string, { value: number; unit: string }> = {};
-  for (const t of (ebTokens.borderRadius || [])) {
-    borderRadius[t.id] = parseSpaceValue(typeof t.value === "string" ? t.value : String(t.value));
+  return { colors, spacing, sizing, fontFamilies };
+}
+
+// ============================================================================
+// CSS Variable injection
+// ============================================================================
+
+/**
+ * Generate CSS custom properties from Orqui tokens for the Easyblocks canvas.
+ */
+export function generateTokenCSSVariables(orquiTokens: Record<string, any>): string {
+  const lines: string[] = [":root {"];
+
+  if (orquiTokens.colors) {
+    for (const [id, token] of Object.entries(orquiTokens.colors)) {
+      lines.push(`  --orqui-${id}: ${(token as any).value};`);
+    }
+  }
+  if (orquiTokens.spacing) {
+    for (const [id, token] of Object.entries(orquiTokens.spacing)) {
+      const t = token as { value: number; unit?: string };
+      lines.push(`  --orqui-spacing-${id}: ${t.value}${t.unit || "px"};`);
+    }
+  }
+  if (orquiTokens.fontFamilies) {
+    for (const [id, token] of Object.entries(orquiTokens.fontFamilies)) {
+      const t = token as { family: string; fallbacks?: string[] };
+      lines.push(`  --orqui-font-${id}: '${t.family}', ${t.fallbacks?.join(", ") || "sans-serif"};`);
+    }
   }
 
-  return { colors, spacing, sizing, fontFamilies, borderRadius };
+  lines.push("}");
+  return lines.join("\n");
 }
 
 // ============================================================================
@@ -137,66 +203,11 @@ export function easyblocksToOrquiTokens(ebTokens: EasyblocksTokens): Record<stri
 
 function parseSpaceValue(css: string): { value: number; unit: string } {
   const match = css.match(/^(-?\d+\.?\d*)(px|em|rem|vh|vw|%)?$/);
-  if (match) {
-    return { value: parseFloat(match[1]), unit: match[2] || "px" };
-  }
+  if (match) return { value: parseFloat(match[1]), unit: match[2] || "px" };
   return { value: 0, unit: "px" };
 }
 
 function parseFontFamily(css: string): { family: string; fallbacks: string[] } {
   const parts = css.split(",").map(s => s.trim().replace(/^['"]|['"]$/g, ""));
-  return {
-    family: parts[0] || "Inter",
-    fallbacks: parts.slice(1),
-  };
-}
-
-// ============================================================================
-// CSS Variable injection — for Easyblocks canvas to use Orqui token values
-// ============================================================================
-
-/**
- * Generate CSS custom properties from Orqui tokens.
- * These are injected into the Easyblocks canvas so components can reference
- * `var(--orqui-accent)` etc. in their styles functions.
- *
- * @returns A CSS string to inject into a <style> tag
- */
-export function generateTokenCSSVariables(orquiTokens: Record<string, any>): string {
-  const lines: string[] = [":root {"];
-
-  // Colors
-  if (orquiTokens.colors) {
-    for (const [id, token] of Object.entries(orquiTokens.colors)) {
-      lines.push(`  --orqui-${id}: ${(token as any).value};`);
-    }
-  }
-
-  // Spacing
-  if (orquiTokens.spacing) {
-    for (const [id, token] of Object.entries(orquiTokens.spacing)) {
-      const t = token as { value: number; unit?: string };
-      lines.push(`  --orqui-spacing-${id}: ${t.value}${t.unit || "px"};`);
-    }
-  }
-
-  // Sizing
-  if (orquiTokens.sizing) {
-    for (const [id, token] of Object.entries(orquiTokens.sizing)) {
-      const t = token as { value: number; unit?: string };
-      lines.push(`  --orqui-sizing-${id}: ${t.value}${t.unit || "px"};`);
-    }
-  }
-
-  // Font families
-  if (orquiTokens.fontFamilies) {
-    for (const [id, token] of Object.entries(orquiTokens.fontFamilies)) {
-      const t = token as { family: string; fallbacks?: string[] };
-      const fallbacks = t.fallbacks?.join(", ") || "sans-serif";
-      lines.push(`  --orqui-font-${id}: '${t.family}', ${fallbacks};`);
-    }
-  }
-
-  lines.push("}");
-  return lines.join("\n");
+  return { family: parts[0] || "Inter", fallbacks: parts.slice(1) };
 }

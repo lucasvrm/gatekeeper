@@ -14,6 +14,7 @@ import { ProjectsListPage } from "@/components/projects-list-page"
 import { ProjectDetailsPage } from "@/components/project-details-page"
 import { ProjectFormPage } from "@/components/project-form-page"
 import { MCPSessionPage } from "@/components/mcp-session-page"
+import { OrchestratorPage } from "@/components/orchestrator-page"
 import { CommandPalette } from "@/components/command-palette"
 import { useCommandPalette } from "@/hooks/use-command-palette"
 import { PageShellProvider, usePageShellState } from "@/hooks/use-page-shell"
@@ -25,6 +26,7 @@ import { ContractProvider, AppShell } from "../packages/orqui/src/runtime"
 const navItems = [
   { to: "/", label: "Dashboard" },
   { to: "/runs", label: "Runs" },
+  { to: "/orchestrator", label: "Orchestrator" },
   { to: "/gates", label: "Gates" },
   { to: "/workspaces", label: "Workspaces" },
   { to: "/projects", label: "Projects" },
@@ -93,6 +95,7 @@ function App() {
               <Route path="/runs/:id" element={<RunDetailsPageV2 />} />
               <Route path="/runs/:id/v2" element={<RunDetailsPageV2 />} />
               <Route path="/runs/:id/legacy" element={<RunDetailsPage />} />
+              <Route path="/orchestrator" element={<OrchestratorPage />} />
               <Route path="/gates" element={<GatesPage />} />
               <Route path="/mcp" element={<MCPSessionPage />} />
               <Route path="/config" element={<ConfigPage />} />

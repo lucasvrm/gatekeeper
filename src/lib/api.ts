@@ -28,6 +28,8 @@ import type {
   SessionProfile,
   TaskType,
   GitStrategy,
+  OrchestratorContent,
+  OrchestratorContentKind,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -935,6 +937,78 @@ export const api = {
         if (!response.ok) throw new Error("Failed to update profile prompts")
         return response.json()
       },
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Orchestrator Content (Instructions, Docs, Prompts per step)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  orchestratorContent: {
+    list: async (kind: OrchestratorContentKind, step?: number, active?: boolean): Promise<OrchestratorContent[]> => {
+      const params = new URLSearchParams()
+      if (step !== undefined) params.append("step", String(step))
+      if (active !== undefined) params.append("active", String(active))
+      const kindPlural = kind + "s"
+      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}?${params}`)
+      if (!response.ok) throw new Error(`Failed to fetch orchestrator ${kindPlural}`)
+      const json = await response.json()
+      return json.data
+    },
+
+    get: async (kind: OrchestratorContentKind, id: string): Promise<OrchestratorContent> => {
+      const kindPlural = kind + "s"
+      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}/${id}`)
+      if (!response.ok) throw new Error(`Failed to fetch orchestrator ${kind}`)
+      return response.json()
+    },
+
+    create: async (kind: OrchestratorContentKind, data: {
+      step: number
+      name: string
+      content: string
+      order?: number
+      isActive?: boolean
+    }): Promise<OrchestratorContent> => {
+      const kindPlural = kind + "s"
+      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => null)
+        throw new Error(err?.error || `Failed to create orchestrator ${kind}`)
+      }
+      return response.json()
+    },
+
+    update: async (kind: OrchestratorContentKind, id: string, data: Partial<{
+      step: number
+      name: string
+      content: string
+      order: number
+      isActive: boolean
+    }>): Promise<OrchestratorContent> => {
+      const kindPlural = kind + "s"
+      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => null)
+        throw new Error(err?.error || `Failed to update orchestrator ${kind}`)
+      }
+      return response.json()
+    },
+
+    delete: async (kind: OrchestratorContentKind, id: string): Promise<void> => {
+      const kindPlural = kind + "s"
+      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}/${id}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) throw new Error(`Failed to delete orchestrator ${kind}`)
     },
   },
 

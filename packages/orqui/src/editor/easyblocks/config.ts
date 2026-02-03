@@ -1,15 +1,8 @@
 // ============================================================================
-// Easyblocks Config Builder
-//
-// Constructs the complete Easyblocks Config object from Orqui state.
-// This is the single entry point that wires together:
-//   - All 21 component definitions
-//   - Token bridge (Orqui tokens → Easyblocks tokens)
-//   - Custom types (orqui-template, orqui-entity-ref)
-//   - Backend (OrquiBackend)
+// Easyblocks Config Builder — returns real @easyblocks/core Config
 // ============================================================================
 
-import type { EasyblocksConfig } from "./types";
+import type { Config } from "@easyblocks/core";
 import { ALL_DEFINITIONS } from "./definitions";
 import { orquiTokensToEasyblocks } from "./bridge/tokens";
 import { getOrquiCustomTypes } from "./bridge/variables";
@@ -21,82 +14,55 @@ import type { PageDef } from "../page-editor/nodeDefaults";
 // ============================================================================
 
 export interface BuildConfigOptions {
-  /** Orqui tokens from layout.tokens */
   tokens: Record<string, any>;
-  /** Current pages */
   pages: Record<string, PageDef>;
-  /** Callback when a page changes */
   onPageChange: (pageId: string, page: PageDef) => void;
-  /** Callback when a page is deleted */
   onPageDelete?: (pageId: string) => void;
-  /** Device configuration overrides */
-  devices?: Record<string, { hidden?: boolean }>;
 }
 
 /**
  * Build the complete Easyblocks Config from Orqui state.
- *
- * @example
- * ```tsx
- * const config = buildOrquiEasyblocksConfig({
- *   tokens: layout.tokens,
- *   pages: layout.pages,
- *   onPageChange: (id, page) => {
- *     setLayout(prev => ({ ...prev, pages: { ...prev.pages, [id]: page } }));
- *   },
- * });
- * ```
  */
-export function buildOrquiEasyblocksConfig(options: BuildConfigOptions): EasyblocksConfig {
+export function buildOrquiEasyblocksConfig(options: BuildConfigOptions): Config {
   const backend = createOrquiBackend({
     pages: options.pages,
     onPageChange: options.onPageChange,
     onPageDelete: options.onPageDelete,
   });
 
+  const ebTokens = orquiTokensToEasyblocks(options.tokens);
+
   return {
     backend,
-
-    // All 21 Orqui component definitions
     components: ALL_DEFINITIONS,
-
-    // Tokens bridged from Orqui format
-    tokens: orquiTokensToEasyblocks(options.tokens),
-
-    // Custom types for template engine integration
+    tokens: {
+      colors: ebTokens.colors,
+      space: ebTokens.space,
+      fonts: ebTokens.fonts,
+    },
     types: getOrquiCustomTypes(),
-
-    // Single locale (Orqui is not multi-locale yet)
-    locales: [
-      { code: "pt-BR", isDefault: true },
-    ],
-
-    // Device configuration — show only desktop and mobile
-    devices: options.devices || {
+    locales: [{ code: "pt-BR", isDefault: true }],
+    devices: {
       xs: { hidden: true },
-      sm: { hidden: false },  // Mobile
-      md: { hidden: true },   // Tablet (hidden by default)
-      lg: { hidden: false },  // Desktop
+      sm: { hidden: false },
+      md: { hidden: true },
+      lg: { hidden: false },
       xl: { hidden: true },
     },
-
-    // Templates will be populated from PagePresets in Phase 2
     templates: [],
+    hideCloseButton: true,
   };
 }
 
 // ============================================================================
-// Re-exports for convenience
+// Re-exports
 // ============================================================================
 
 export { orquiTokensToEasyblocks, generateTokenCSSVariables } from "./bridge/tokens";
 export { buildWidgetVariableContext, getOrquiCustomTypes } from "./bridge/variables";
 export { createOrquiBackend } from "./backend";
 export {
-  noCodeEntryToNodeDef,
-  nodeDefToNoCodeEntry,
-  pageDefToDocument,
-  documentToPageDef,
-  testRoundtrip,
+  noCodeEntryToNodeDef, nodeDefToNoCodeEntry,
+  pageDefToDocument, documentToPageDef, testRoundtrip,
 } from "./adapter";
 export { ALL_DEFINITIONS } from "./definitions";

@@ -345,3 +345,24 @@ model SessionProfilePrompt {
   @@index([profileId])
   @@index([promptId])
 }
+
+// =============================================================================
+// ORCHESTRATOR CONTENT (Instructions, Docs, Prompts per step)
+// =============================================================================
+// Add this block to the END of your schema.prisma file
+
+model OrchestratorContent {
+  id        String   @id @default(cuid())
+  kind      String   // 'instruction' | 'doc' | 'prompt'
+  step      Int      // 0=tarefa, 1=plano, 2=testes, 3=fix, 4=execução
+  name      String
+  content   String
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([kind, step, name])
+  @@index([kind, step])
+  @@index([isActive])
+}

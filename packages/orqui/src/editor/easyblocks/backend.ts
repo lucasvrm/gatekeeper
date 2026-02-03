@@ -1,28 +1,24 @@
 // ============================================================================
 // OrquiBackend — Custom Easyblocks Backend
 //
-// Instead of using the Easyblocks cloud service, this backend stores
-// documents directly in the Orqui contract structure (layout.pages).
+// Implements the real @easyblocks/core Backend interface:
+//   documents: { get, create, update }
+//   templates:  { get, getAll, create, update, delete }
 //
-// Document lifecycle:
-//   1. Load: pageDefToDocument(page) → feed to EasyblocksEditor
-//   2. Save: onSave(entry) → documentToPageDef() → update layout.pages
-//   3. Persist: OrquiEditor's existing save pipeline (IndexedDB + API)
-//
-// This backend is stateful: it holds a reference to the current pages
-// and notifies the parent when a document changes.
+// Stores documents in-memory, synced with Orqui's layout.pages.
 // ============================================================================
 
-import type { EasyblocksBackend } from "./types";
+import type {
+  Backend,
+  Document,
+  NoCodeComponentEntry,
+  UserDefinedTemplate,
+} from "@easyblocks/core";
 import type { PageDef } from "../page-editor/nodeDefaults";
-import {
-  noCodeEntryToNodeDef,
-  nodeDefToNoCodeEntry,
-  type NoCodeEntry,
-} from "./adapter";
+import { noCodeEntryToNodeDef, nodeDefToNoCodeEntry } from "./adapter";
 
 // ============================================================================
-// Types
+// Options
 // ============================================================================
 
 export interface OrquiBackendOptions {
@@ -34,90 +30,72 @@ export interface OrquiBackendOptions {
   onPageDelete?: (pageId: string) => void;
 }
 
-interface DocumentRecord {
+// ============================================================================
+// In-memory state
+// ============================================================================
+
+interface DocRecord {
   id: string;
-  entry: NoCodeEntry;
+  version: number;
+  entry: NoCodeComponentEntry;
   meta: { label: string; route: string; browserTitle?: string };
-  updatedAt: string;
 }
 
 // ============================================================================
-// Backend Implementation
+// Factory
 // ============================================================================
 
 /**
- * Creates an Easyblocks-compatible backend that bridges to Orqui's
- * contract-based persistence.
+ * Creates a Backend compatible with the real @easyblocks/core Backend interface.
  *
- * @example
- * ```tsx
- * const backend = createOrquiBackend({
- *   pages: layout.pages,
- *   onPageChange: (id, page) => {
- *     setLayout(prev => ({
- *       ...prev,
- *       pages: { ...prev.pages, [id]: page },
- *     }));
- *   },
- * });
- *
- * const config: Config = {
- *   backend,
- *   components: ALL_DEFINITIONS,
- *   tokens: orquiTokensToEasyblocks(layout.tokens),
- * };
- * ```
+ * Documents map 1:1 to Orqui pages. When the Easyblocks editor saves,
+ * we convert back to NodeDef and notify the parent via onPageChange.
  */
-export function createOrquiBackend(options: OrquiBackendOptions): EasyblocksBackend {
-  // In-memory document store (synced from options.pages)
-  const documents = new Map<string, DocumentRecord>();
+export function createOrquiBackend(options: OrquiBackendOptions): Backend {
+  // ---- In-memory document store ----
+  const docs = new Map<string, DocRecord>();
+  let nextVersion = 1;
 
-  // Initialize from current pages
+  // Seed from current pages
   for (const [id, page] of Object.entries(options.pages)) {
-    documents.set(id, {
+    docs.set(id, {
       id,
+      version: nextVersion++,
       entry: nodeDefToNoCodeEntry(page.content),
-      meta: {
-        label: page.label,
-        route: page.route,
-        browserTitle: page.browserTitle,
-      },
-      updatedAt: new Date().toISOString(),
+      meta: { label: page.label, route: page.route, browserTitle: page.browserTitle },
     });
   }
 
+  // ---- In-memory template store ----
+  const templates = new Map<string, UserDefinedTemplate>();
+
+  // ================================================================
+  // Backend implementation
+  // ================================================================
   return {
     documents: {
-      async get({ id }) {
-        const doc = documents.get(id);
-        if (!doc) return null;
-        return {
-          document: {
-            _id: doc.id,
-            entry: doc.entry,
-            meta: doc.meta,
-          },
-        };
+      async get({ id }): Promise<Document> {
+        const doc = docs.get(id);
+        if (!doc) {
+          throw new Error(`[OrquiBackend] Document "${id}" not found`);
+        }
+        return { id: doc.id, version: doc.version, entry: doc.entry };
       },
 
-      async create({ entry, id: requestedId }) {
-        const id = requestedId || `page-${Date.now()}`;
-        const noCodeEntry = entry as NoCodeEntry;
-        const node = noCodeEntryToNodeDef(noCodeEntry);
+      async create({ entry }): Promise<Document> {
+        const id = `page-${Date.now()}`;
+        const version = nextVersion++;
+        const noCodeEntry = entry as NoCodeComponentEntry;
 
         const meta = {
-          label: `Página ${Object.keys(options.pages).length + 1}`,
+          label: `Página ${docs.size + 1}`,
           route: `/${id}`,
         };
 
-        documents.set(id, {
-          id,
-          entry: noCodeEntry,
-          meta,
-          updatedAt: new Date().toISOString(),
-        });
+        docs.set(id, { id, version, entry: noCodeEntry, meta });
 
-        // Notify parent
+        // Convert to NodeDef and notify parent
+        const node = noCodeEntryToNodeDef(noCodeEntry);
         options.onPageChange(id, {
           id,
           label: meta.label,
@@ -125,25 +103,22 @@ export function createOrquiBackend(options: OrquiBackendOptions): EasyblocksBack
           content: node,
         });
 
-        return { id };
+        return { id, version, entry: noCodeEntry };
       },
 
-      async update({ id, entry }) {
-        const existing = documents.get(id);
+      async update({ id, version, entry }): Promise<Document> {
+        const existing = docs.get(id);
         if (!existing) {
-          throw new Error(`Document ${id} not found`);
+          throw new Error(`[OrquiBackend] Document "${id}" not found for update`);
         }
 
-        const noCodeEntry = entry as NoCodeEntry;
+        const newVersion = nextVersion++;
+        const noCodeEntry = entry as NoCodeComponentEntry;
+
+        docs.set(id, { ...existing, version: newVersion, entry: noCodeEntry });
+
+        // Convert to NodeDef and notify parent
         const node = noCodeEntryToNodeDef(noCodeEntry);
-
-        documents.set(id, {
-          ...existing,
-          entry: noCodeEntry,
-          updatedAt: new Date().toISOString(),
-        });
-
-        // Notify parent
         options.onPageChange(id, {
           id,
           label: existing.meta.label,
@@ -151,38 +126,47 @@ export function createOrquiBackend(options: OrquiBackendOptions): EasyblocksBack
           browserTitle: existing.meta.browserTitle,
           content: node,
         });
+
+        return { id, version: newVersion, entry: noCodeEntry };
       },
     },
 
     templates: {
-      async get() {
-        // In Phase 2, this will return saved page presets as templates
-        return [];
+      async get({ id }): Promise<UserDefinedTemplate> {
+        const tpl = templates.get(id);
+        if (!tpl) throw new Error(`[OrquiBackend] Template "${id}" not found`);
+        return tpl;
+      },
+
+      async getAll(): Promise<UserDefinedTemplate[]> {
+        return Array.from(templates.values());
+      },
+
+      async create({ label, entry, width, widthAuto }): Promise<UserDefinedTemplate> {
+        const id = `tpl-${Date.now()}`;
+        const tpl: UserDefinedTemplate = {
+          id,
+          label,
+          entry: entry as NoCodeComponentEntry,
+          isUserDefined: true,
+          width,
+          widthAuto,
+        };
+        templates.set(id, tpl);
+        return tpl;
+      },
+
+      async update({ id, label }): Promise<Omit<UserDefinedTemplate, "entry">> {
+        const existing = templates.get(id);
+        if (!existing) throw new Error(`[OrquiBackend] Template "${id}" not found`);
+        const updated = { ...existing, label };
+        templates.set(id, updated);
+        return { id, label, isUserDefined: true, width: updated.width, widthAuto: updated.widthAuto };
+      },
+
+      async delete({ id }): Promise<void> {
+        templates.delete(id);
       },
     },
   };
-}
-
-// ============================================================================
-// Utility: sync backend when pages change externally
-// ============================================================================
-
-/**
- * Update the backend's in-memory store when pages change from outside
- * (e.g., Shell & Tokens mode edits page metadata, or undo reverts).
- *
- * This is a mutable operation on the backend instance.
- */
-export function syncBackendPages(
-  backend: EasyblocksBackend,
-  pages: Record<string, PageDef>,
-): void {
-  // The backend holds a closure over the documents Map.
-  // To sync, we re-create documents for each page.
-  // This requires the backend to expose an internal sync method.
-  //
-  // TODO: In Phase 4, refactor to use a shared reactive store
-  // (e.g., Zustand or a custom observable) so both the Easyblocks
-  // editor and OrquiEditor share the same state.
-  console.warn("[OrquiBackend] syncBackendPages is a no-op until Phase 4 reactive store");
 }

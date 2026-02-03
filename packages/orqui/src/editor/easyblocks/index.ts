@@ -6,21 +6,14 @@
 export { EasyblocksPageEditor } from "./EasyblocksPageEditor";
 
 // ---- Config builder ----
-export {
-  buildOrquiEasyblocksConfig,
-  type BuildConfigOptions,
-} from "./config";
+export { buildOrquiEasyblocksConfig, type BuildConfigOptions } from "./config";
 
-// ---- Adapter (bidirectional conversion) ----
+// ---- Adapter ----
 export {
-  noCodeEntryToNodeDef,
-  nodeDefToNoCodeEntry,
-  pageDefToDocument,
-  documentToPageDef,
-  allPagesToDocuments,
-  allDocumentsToPages,
+  noCodeEntryToNodeDef, nodeDefToNoCodeEntry,
+  pageDefToDocument, documentToPageDef,
+  allPagesToDocuments, allDocumentsToPages,
   testRoundtrip,
-  type NoCodeEntry,
 } from "./adapter";
 
 // ---- Bridge ----
@@ -36,13 +29,5 @@ export { ALL_DEFINITIONS } from "./definitions";
 // ---- Components ----
 export { ORQUI_COMPONENTS } from "./components";
 
-// ---- Types ----
-export type {
-  NoCodeComponentDefinition,
-  SchemaProp,
-  EasyblocksConfig,
-  EasyblocksBackend,
-  EasyblocksTokens,
-  EasyblocksToken,
-} from "./types";
+// ---- Orqui-specific types and mappings ----
 export { NODE_TYPE_TO_EB_ID, EB_ID_TO_NODE_TYPE, ALL_COMPONENT_IDS, ORQUI_TYPE_GROUPS } from "./types";

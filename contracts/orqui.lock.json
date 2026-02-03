@@ -2,13 +2,13 @@
   "contracts": {
     "layout-contract": {
       "version": "1.0.0",
-      "hash": "sha256:7c8d0e8cadcbf9115345e28852b9cf1c5c8a7b4dcd0f369472cad4458a146ee5",
-      "updatedAt": "2026-02-03T16:26:11.506Z"
+      "hash": "sha256:6e7d7011d572c0c8347ddcaafc3d320c29b3e8d75baa405dbbd6f67fbd103efc",
+      "updatedAt": "2026-02-03T17:51:16.412Z"
     },
     "ui-registry-contract": {
       "version": "1.0.0",
       "hash": "sha256:1ac35728df20ead3038a2c1403aa785fddfe316b8dd7d42f9b8f0a3879dd9101",
-      "updatedAt": "2026-02-03T16:26:11.518Z"
+      "updatedAt": "2026-02-03T17:51:16.441Z"
     }
   }
 }

@@ -1,126 +1,37 @@
 // ============================================================================
 // Orqui × Easyblocks — Shared Types
+//
+// Imports real types from @easyblocks/core and adds Orqui-specific extensions.
 // ============================================================================
 
 // Re-export Orqui types that the bridge needs
 export type { NodeDef, PageDef } from "../page-editor/nodeDefaults";
 export type { VariablesSection, VariableInfo, VariableCategory } from "../page-editor/variableSchema";
 
-// ============================================================================
-// Easyblocks type stubs
-// Until @easyblocks/core is installed, these mirror the shapes we need.
-// Replace with `import type { ... } from "@easyblocks/core"` after install.
-// ============================================================================
-
-/** Schema property definition for a No-Code Component */
-export interface SchemaProp {
-  prop: string;
-  type: string;
-  label?: string;
-  responsive?: boolean;
-  required?: boolean;
-  defaultValue?: unknown;
-  /** For `select` type */
-  options?: Array<{ value: string; label: string }> | string[];
-  /** For `component` / `component-collection` */
-  accepts?: string[];
-  /** For `component-collection` */
-  placeholderAppearance?: {
-    height?: number;
-    width?: number;
-    label?: string;
-  };
-  /** Easyblocks: when true, passed to styles/editing but NOT to React component */
-  buildOnly?: boolean;
-  /** Group in the sidebar */
-  group?: string;
-}
-
-/** The styles function receives resolved prop values and returns CSS for styled slots */
-export interface StylesFunctionArgs {
-  values: Record<string, any>;
-  params: Record<string, any>;
-  isEditing: boolean;
-  device: { id: string; w: number; h?: number };
-}
-
-export type StylesFunctionResult = {
-  styled: Record<string, React.CSSProperties>;
-  props?: Record<string, any>;
-  components?: Record<string, Record<string, any>>;
-};
-
-/** The editing function controls sidebar/canvas behavior */
-export interface EditingFunctionArgs {
-  values: Record<string, any>;
-  editingInfo: Record<string, any>;
-}
-
-export type EditingFunctionResult = {
-  components?: Record<string, { visible?: boolean; label?: string }>;
-  fields?: Record<string, { visible?: boolean; label?: string }>;
-};
-
-/** A full No-Code Component Definition */
-export interface NoCodeComponentDefinition {
-  id: string;
-  label: string;
-  type?: string;
-  schema: SchemaProp[];
-  styles?: (args: StylesFunctionArgs) => StylesFunctionResult;
-  editing?: (args: EditingFunctionArgs) => EditingFunctionResult;
-  /** Group in the component palette */
-  paletteLabel?: string;
-}
-
-/** Easyblocks token entry */
-export interface EasyblocksToken {
-  id: string;
-  label: string;
-  value: string | Record<string, any>;
-  isDefault?: boolean;
-}
-
-/** Easyblocks Config.tokens shape */
-export interface EasyblocksTokens {
-  colors: EasyblocksToken[];
-  space: EasyblocksToken[];
-  fonts: EasyblocksToken[];
-  /** Orqui extends with custom token types */
-  borderRadius?: EasyblocksToken[];
-}
-
-/** Easyblocks custom type definition */
-export interface EasyblocksCustomType {
-  type: "inline" | "external";
-  widget?: { id: string; label: string };
-  widgets?: Array<{ id: string; label: string }>;
-  defaultValue?: unknown;
-  validate?: (value: unknown) => boolean;
-}
-
-/** Easyblocks Config shape (subset we use) */
-export interface EasyblocksConfig {
-  backend: EasyblocksBackend;
-  components: NoCodeComponentDefinition[];
-  tokens: EasyblocksTokens;
-  types?: Record<string, EasyblocksCustomType>;
-  locales: Array<{ code: string; isDefault?: boolean; fallback?: string }>;
-  templates?: Array<{ id: string; label?: string; thumbnail?: string; entry: unknown }>;
-  devices?: Record<string, { hidden?: boolean }>;
-}
-
-/** Easyblocks Backend interface (custom implementation) */
-export interface EasyblocksBackend {
-  documents: {
-    get: (params: { id: string }) => Promise<{ document: unknown } | null>;
-    create: (params: { entry: unknown; id?: string }) => Promise<{ id: string }>;
-    update: (params: { id: string; entry: unknown }) => Promise<void>;
-  };
-  templates?: {
-    get: () => Promise<Array<{ id: string; entry: unknown }>>;
-  };
-}
+// Re-export Easyblocks types we use throughout the integration
+export type {
+  Config,
+  Backend,
+  Document,
+  NoCodeComponentEntry,
+  NoCodeComponentDefinition,
+  SchemaProp,
+  ConfigTokenValue,
+  ConfigDevices,
+  CustomTypeDefinition,
+  InlineTypeDefinition,
+  ExternalTypeDefinition,
+  Template,
+  UserDefinedTemplate,
+  NoCodeComponentStylesFunctionInput,
+  NoCodeComponentStylesFunctionResult,
+  NoCodeComponentEditingFunctionInput,
+  NoCodeComponentEditingFunctionResult,
+  ExternalData,
+  RequestedExternalData,
+  WidgetComponentProps,
+  InlineTypeWidgetComponentProps,
+} from "@easyblocks/core";
 
 // ============================================================================
 // Orqui-specific component type groupings (used in `accepts`)
