@@ -69,11 +69,11 @@ export class Orchestrator {
       input.profileId
     )
 
-    // Build prompt
-    const prompt = buildPlanPrompt(
+    // Build prompt (fetches instructions/docs/prompts from DB)
+    const prompt = await buildPlanPrompt(
       input.taskDescription,
       outputId,
-      this.config.docsDir,
+      this.config.gatekeeperApiUrl,
       session,
       input.taskType
     )
@@ -154,13 +154,13 @@ export class Orchestrator {
       input.profileId
     )
 
-    // Build prompt
-    const prompt = buildSpecPrompt(
+    // Build prompt (fetches instructions/docs/prompts from DB)
+    const prompt = await buildSpecPrompt(
       outputId,
       planContent,
       contractContent,
       specContent,
-      this.config.docsDir,
+      this.config.gatekeeperApiUrl,
       session
     )
 
@@ -228,14 +228,14 @@ export class Orchestrator {
       input.profileId
     )
 
-    // Build fix prompt
-    const prompt = buildFixPrompt(
+    // Build fix prompt (fetches instructions/docs/prompts from DB)
+    const prompt = await buildFixPrompt(
       target,
       outputId,
       artifacts,
       rejectionReport,
       failedValidators,
-      this.config.docsDir,
+      this.config.gatekeeperApiUrl,
       session
     )
 
@@ -300,8 +300,13 @@ export class Orchestrator {
     // Fetch session context
     const session = await fetchSessionContext(this.config.gatekeeperApiUrl)
 
-    // Build execution prompt
-    const prompt = buildExecutionPrompt(outputId, artifacts, this.config.docsDir, session)
+    // Build execution prompt (fetches instructions/docs/prompts from DB)
+    const prompt = await buildExecutionPrompt(
+      outputId,
+      artifacts,
+      this.config.gatekeeperApiUrl,
+      session
+    )
 
     // Try SDK first (Mode B), fall back to CLI (Mode C)
     try {

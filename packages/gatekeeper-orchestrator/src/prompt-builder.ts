@@ -1,316 +1,229 @@
 /**
- * Gatekeeper Orchestrator — Prompt Builder
+ * Gatekeeper Orchestrator — Prompt Builder (v2)
  *
- * Builds prompts for each pipeline step.
- * Reads reference docs from DOCS_DIR subfolders (same as MCP server).
- * Unlike the MCP prompts, these don't include STOP boundaries or save_artifacts
- * instructions — the orchestrator handles I/O externally.
+ * Zero hardcoded templates. Everything comes from the DB via API:
+ *   - Instructions (kind='instruction'): Define WHAT the LLM must do and produce
+ *   - Docs (kind='doc'): Reference documentation about the project
+ *   - Prompts (kind='prompt'): Behavioral directives and tone
+ *
+ * Each is scoped to a step (0-4) and ordered by `order` field.
+ *
+ * Assembly order:
+ *   1. Instructions for the step (the task definition)
+ *   2. Dynamic data (task description, artifacts, etc.)
+ *   3. Docs for the step (reference material)
+ *   4. Prompts for the step (behavioral guidelines)
+ *   5. Session context (git strategy, MCP prompts)
  */
 
-import * as fs from 'fs'
-import * as path from 'path'
 import type { FixTarget } from './types.js'
 import type { SessionContext } from './session-context.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Docs reader (same as MCP's LocalDocsReader)
+// Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface DocsResult {
-  [folder: string]: { [file: string]: string }
+interface ContentItem {
+  id: string
+  name: string
+  content: string
+  order: number
 }
 
-/**
- * Read all markdown/text files from DOCS_DIR subfolders.
- * Returns { folderName: { fileName: content } }
- */
-function readDocsFolder(docsDir: string): DocsResult {
-  const result: DocsResult = {}
-
-  if (!fs.existsSync(docsDir)) return result
-
-  const folders = fs.readdirSync(docsDir, { withFileTypes: true })
-    .filter(d => d.isDirectory())
-
-  for (const folder of folders) {
-    const folderPath = path.join(docsDir, folder.name)
-    const files = fs.readdirSync(folderPath)
-      .filter(f => /\.(md|txt|json)$/.test(f))
-
-    if (files.length > 0) {
-      result[folder.name] = {}
-      for (const file of files) {
-        result[folder.name][file] = fs.readFileSync(path.join(folderPath, file), 'utf-8')
-      }
-    }
-  }
-
-  return result
-}
-
-/**
- * Format docs into a single string block for prompt injection.
- */
-function formatDocs(docs: DocsResult): string {
-  const sections: string[] = []
-
-  for (const [folder, files] of Object.entries(docs)) {
-    for (const [file, content] of Object.entries(files)) {
-      sections.push(`### ${folder}/${file}\n\n${content}`)
-    }
-  }
-
-  return sections.length > 0
-    ? `\n## Documentação de Referência\n\n${sections.join('\n\n---\n\n')}`
-    : ''
+interface StepContent {
+  instructions: ContentItem[]
+  docs: ContentItem[]
+  prompts: ContentItem[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Prompt Builders
+// Content fetcher
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch all active content for a given step from the Gatekeeper API.
+ * Makes 3 parallel requests (instructions, docs, prompts).
+ */
+async function fetchStepContent(apiUrl: string, step: number): Promise<StepContent> {
+  const fetchKind = async (kind: string): Promise<ContentItem[]> => {
+    try {
+      const res = await fetch(`${apiUrl}/orchestrator/${kind}s?step=${step}&active=true`)
+      if (!res.ok) return []
+      const data = await res.json()
+      return data.data || []
+    } catch {
+      return []
+    }
+  }
+
+  const [instructions, docs, prompts] = await Promise.all([
+    fetchKind('instruction'),
+    fetchKind('doc'),
+    fetchKind('prompt'),
+  ])
+
+  return { instructions, docs, prompts }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prompt assembler
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Assemble a complete prompt from DB content + dynamic data + session context.
+ */
+function assemblePrompt(
+  content: StepContent,
+  dynamicSections: string,
+  sessionContext: SessionContext
+): string {
+  const parts: string[] = []
+
+  // 1. Instructions (the "what to do and produce")
+  if (content.instructions.length > 0) {
+    for (const instr of content.instructions) {
+      parts.push(instr.content)
+    }
+  }
+
+  // 2. Dynamic data (task description, artifacts, etc.)
+  parts.push(dynamicSections)
+
+  // 3. Reference docs
+  if (content.docs.length > 0) {
+    const docBlock = content.docs
+      .map((d) => `### ${d.name}\n\n${d.content}`)
+      .join('\n\n---\n\n')
+    parts.push(`## Documentação de Referência\n\n${docBlock}`)
+  }
+
+  // 4. Behavioral prompts
+  if (content.prompts.length > 0) {
+    const promptBlock = content.prompts
+      .map((p) => `### ${p.name}\n\n${p.content}`)
+      .join('\n\n')
+    parts.push(`## Diretrizes\n\n${promptBlock}`)
+  }
+
+  // 5. Session context (git strategy + MCP custom instructions)
+  if (sessionContext.gitStrategy) {
+    parts.push(sessionContext.gitStrategy)
+  }
+  if (sessionContext.customInstructions) {
+    parts.push(sessionContext.customInstructions)
+  }
+
+  return parts.filter(Boolean).join('\n\n')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public API — one function per pipeline step
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Step 1: Build prompt for plan generation.
  *
- * Called by pipeline.ts as:
- *   buildPlanPrompt(taskDescription, outputId, docsDir, session, taskType?)
+ * Dynamic data: taskDescription, outputId, taskType
  */
-export function buildPlanPrompt(
+export async function buildPlanPrompt(
   taskDescription: string,
   outputId: string,
-  docsDir: string,
+  gatekeeperApiUrl: string,
   sessionContext: SessionContext,
   taskType?: string
-): string {
-  const docs = formatDocs(readDocsFolder(docsDir))
-  const { gitStrategy, customInstructions } = sessionContext
+): Promise<string> {
+  const content = await fetchStepContent(gatekeeperApiUrl, 1)
 
-  return `# Gatekeeper — Gerar Plano de Implementação
+  const dynamic = [
+    `## Dados da Tarefa`,
+    `**Descrição:** ${taskDescription}`,
+    taskType ? `**Tipo:** ${taskType}` : '',
+    `**Output ID:** ${outputId}`,
+  ]
+    .filter(Boolean)
+    .join('\n')
 
-## Sua Tarefa
-Você é um arquiteto de software. Analise a tarefa abaixo e produza os artefatos de planejamento.
-
-## Descrição da Tarefa
-${taskDescription}
-${taskType ? `\n**Tipo:** ${taskType}\n` : ''}
-**Output ID:** ${outputId}
-${gitStrategy}
-${customInstructions}
-${docs}
-
-## Artefatos Esperados
-
-Produza EXATAMENTE estes 3 arquivos como blocos de código nomeados:
-
-### 1. \`plan.json\`
-JSON com a estrutura:
-\`\`\`json
-{
-  "taskTitle": "Título curto da tarefa",
-  "taskType": "feature|bugfix|refactor",
-  "scope": "Descrição do escopo",
-  "approach": "Abordagem técnica",
-  "files": [
-    { "path": "src/...", "action": "CREATE|MODIFY|DELETE", "reason": "..." }
-  ],
-  "testFile": "caminho/do/arquivo.spec.ts",
-  "risks": ["..."],
-  "acceptanceCriteria": ["..."]
-}
-\`\`\`
-
-### 2. \`contract.md\`
-Contrato de mudança com cláusulas no formato:
-\`\`\`markdown
-# Contrato: {título}
-
-## Metadata
-- slug: nome-kebab
-- changeType: feature|bugfix|refactor
-- criticality: low|medium|high
-
-## Cláusulas
-
-### MUST-001: {descrição curta}
-- **kind:** behavior|error|invariant|ui|constraint
-- **when:** {condição}
-- **then:** {resultado esperado}
-
-### SHOULD-001: {descrição curta}
-...
-\`\`\`
-
-### 3. \`task.spec.md\`
-Especificação técnica detalhada descrevendo O QUE implementar (não COMO).
-
-## Regras
-- Use nomes de arquivo EXATOS como label do bloco de código
-- Não inclua explicações fora dos blocos de código
-- Paths devem ser relativos à raiz do projeto`
+  return assemblePrompt(content, dynamic, sessionContext)
 }
 
 /**
  * Step 2: Build prompt for spec/test generation.
  *
- * Called by pipeline.ts as:
- *   buildSpecPrompt(outputId, planContent, contractContent, specContent, docsDir, session)
+ * Dynamic data: outputId + existing artifacts (plan, contract, spec)
  */
-export function buildSpecPrompt(
+export async function buildSpecPrompt(
   outputId: string,
   plan: string,
   contract: string,
   taskSpec: string,
-  docsDir: string,
+  gatekeeperApiUrl: string,
   sessionContext: SessionContext
-): string {
-  const docs = formatDocs(readDocsFolder(docsDir))
-  const { customInstructions } = sessionContext
+): Promise<string> {
+  const content = await fetchStepContent(gatekeeperApiUrl, 2)
 
-  // Extract testFile path from plan.json
-  let testFilePath = `${outputId}.spec.ts`
-  try {
-    const planObj = JSON.parse(plan)
-    if (planObj.testFile) testFilePath = planObj.testFile
-  } catch {
-    // Use default
-  }
+  const dynamic = [
+    `## Output ID: ${outputId}`,
+    `## Artefatos de Entrada`,
+    `### plan.json\n\`\`\`json\n${plan}\n\`\`\``,
+    `### contract.md\n${contract}`,
+    `### task.spec.md\n${taskSpec}`,
+  ].join('\n\n')
 
-  return `# Gatekeeper — Gerar Arquivo de Testes
-
-## Sua Tarefa
-Você é um engenheiro de testes. Crie o arquivo de testes baseado nos artefatos de planejamento.
-
-## Output ID: ${outputId}
-
-## Artefatos de Entrada
-
-### plan.json
-\`\`\`json
-${plan}
-\`\`\`
-
-### contract.md
-${contract}
-
-### task.spec.md
-${taskSpec}
-${customInstructions}
-${docs}
-
-## Arquivo de Saída
-
-Produza EXATAMENTE 1 arquivo como bloco de código nomeado:
-
-### \`${testFilePath}\`
-
-O arquivo de testes deve:
-- Ter um \`describe\` principal com o título da tarefa
-- Mapear CADA cláusula do contrato para pelo menos 1 teste
-- Usar comentários \`// @clause MUST-001\` antes de cada \`it()\` para rastreabilidade
-- Testar comportamentos, não implementação
-- Incluir testes de erro/edge cases para cláusulas de tipo \`error\`
-- Usar mocks/stubs conforme necessário
-- Ser executável com vitest
-
-## Regras
-- Use o nome de arquivo EXATO como label do bloco de código
-- Não inclua explicações fora do bloco de código
-- Imports devem usar paths relativos à raiz do projeto`
+  return assemblePrompt(content, dynamic, sessionContext)
 }
 
 /**
  * Fix: Build prompt for artifact correction after Gatekeeper rejection.
  *
- * Called by pipeline.ts as:
- *   buildFixPrompt(target, outputId, artifacts, rejectionReport, failedValidators, docsDir, session)
+ * Dynamic data: target, outputId, current artifacts, rejection report, failed validators
  */
-export function buildFixPrompt(
+export async function buildFixPrompt(
   target: FixTarget,
   outputId: string,
   currentArtifacts: Record<string, string>,
   rejectionReport: string,
   failedValidators: string[],
-  docsDir: string,
+  gatekeeperApiUrl: string,
   sessionContext: SessionContext
-): string {
-  const docs = formatDocs(readDocsFolder(docsDir))
-  const { customInstructions } = sessionContext
+): Promise<string> {
+  const content = await fetchStepContent(gatekeeperApiUrl, 3)
 
   const artifactBlocks = Object.entries(currentArtifacts)
-    .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
+    .map(([name, c]) => `### ${name}\n\`\`\`\n${c}\n\`\`\``)
     .join('\n\n')
 
-  const targetDescription = target === 'plan'
-    ? 'Corrija os artefatos de planejamento (plan.json, contract.md, task.spec.md)'
-    : 'Corrija o arquivo de testes'
+  const dynamic = [
+    `## Alvo: ${target === 'plan' ? 'Artefatos de planejamento' : 'Arquivo de testes'}`,
+    `## Output ID: ${outputId}`,
+    `## Validadores que Falharam\n${failedValidators.map((v) => `- \`${v}\``).join('\n')}`,
+    `## Relatório de Rejeição\n\n${rejectionReport}`,
+    `## Artefatos Atuais\n\n${artifactBlocks}`,
+  ].join('\n\n')
 
-  return `# Gatekeeper — Correção de Artefatos
-
-## Sua Tarefa
-${targetDescription} para resolver os problemas apontados pelo Gatekeeper.
-
-## Output ID: ${outputId}
-
-## Validadores que Falharam
-${failedValidators.map(v => `- \`${v}\``).join('\n')}
-
-## Relatório de Rejeição
-
-${rejectionReport}
-
-## Artefatos Atuais
-
-${artifactBlocks}
-${customInstructions}
-${docs}
-
-## Regras
-- Produza APENAS os arquivos que precisam ser corrigidos
-- Use os nomes de arquivo EXATOS como labels dos blocos de código
-- Corrija TODOS os problemas apontados no relatório
-- Mantenha consistência entre plan.json, contract.md e task.spec.md
-- Não inclua explicações fora dos blocos de código`
+  return assemblePrompt(content, dynamic, sessionContext)
 }
 
 /**
  * Step 4: Build prompt for implementation execution.
  *
- * Called by pipeline.ts as:
- *   buildExecutionPrompt(outputId, artifacts, docsDir, session)
+ * Dynamic data: outputId + all approved artifacts
  */
-export function buildExecutionPrompt(
+export async function buildExecutionPrompt(
   outputId: string,
   artifacts: Record<string, string>,
-  docsDir: string,
+  gatekeeperApiUrl: string,
   sessionContext: SessionContext
-): string {
-  const docs = formatDocs(readDocsFolder(docsDir))
-  const { gitStrategy, customInstructions } = sessionContext
+): Promise<string> {
+  const content = await fetchStepContent(gatekeeperApiUrl, 4)
 
   const artifactBlocks = Object.entries(artifacts)
-    .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
+    .map(([name, c]) => `### ${name}\n\`\`\`\n${c}\n\`\`\``)
     .join('\n\n')
 
-  return `# Gatekeeper — Implementação
+  const dynamic = [
+    `## Output ID: ${outputId}`,
+    `## Artefatos Aprovados\n\n${artifactBlocks}`,
+  ].join('\n\n')
 
-## Contexto
-Você está implementando a tarefa ${outputId}, validada pelo Gatekeeper.
-Todos os artefatos abaixo foram aprovados. Siga-os à risca.
-${gitStrategy}
-${customInstructions}
-${docs}
-
-## Artefatos Aprovados
-
-${artifactBlocks}
-
-## Regras de Implementação
-1. Leia o plan.json para entender o escopo e os arquivos a modificar
-2. Leia o contract.md para entender os requisitos
-3. Leia o task.spec.md para entender a especificação técnica
-4. Leia o arquivo de testes para entender os comportamentos esperados
-5. Implemente APENAS o que está descrito nos artefatos
-6. Execute os testes após implementar para verificar que passam
-7. Não modifique os arquivos de teste
-8. Faça commit das mudanças com uma mensagem descritiva`
+  return assemblePrompt(content, dynamic, sessionContext)
 }
