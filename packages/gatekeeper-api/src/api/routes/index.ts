@@ -7,6 +7,7 @@ import { workspaceRoutes } from './workspace.routes.js'
 import { projectRoutes } from './project.routes.js'
 import { gitRoutes } from './git.routes.js'
 import { mcpRoutes } from './mcp.routes.js'
+import { orchestratorRoutes } from './orchestrator.routes.js'
 
 const router = Router()
 
@@ -18,5 +19,6 @@ router.use('/', workspaceRoutes)
 router.use('/', projectRoutes)
 router.use('/', gitRoutes)
 router.use('/', mcpRoutes)
+router.use('/orchestrator', orchestratorRoutes)
 
 export default router

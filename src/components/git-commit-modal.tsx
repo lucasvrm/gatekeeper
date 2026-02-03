@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle } from '@phosphor-icons/react'
+import { WarningCircle } from '@phosphor-icons/react'
 import type { GitStatusResponse } from '@/lib/types'
 
 interface GitCommitModalProps {
@@ -84,7 +84,7 @@ export function GitCommitModal({
                 data-testid="protected-branch-warning"
                 className="flex items-center gap-1"
               >
-                <AlertCircle className="w-3 h-3" />
+                <WarningCircle className="w-3 h-3" />
                 Branch protegida
               </Badge>
             )}

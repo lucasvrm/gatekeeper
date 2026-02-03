@@ -96,22 +96,4 @@ describe('typescript-errors-fix', () => {
       expect(content).toContain('satisfies CreateRunRequest')
     })
   })
-
-  describe('CL-TS-007: Import @github/spark/spark tratado', () => {
-    // @clause CL-TS-007
-    it('should not have active import of @github/spark/spark', () => {
-      const mainPath = path.resolve(process.cwd(), 'src/main.tsx')
-      const content = fs.readFileSync(mainPath, 'utf-8')
-      const lines = content.split('\n')
-
-      const hasActiveImport = lines.some((line) => {
-        const trimmed = line.trim()
-        const isComment = trimmed.startsWith('//') || trimmed.startsWith('/*')
-        const hasSparkImport = trimmed.includes('import') && trimmed.includes('@github/spark/spark')
-        return hasSparkImport && !isComment
-      })
-
-      expect(hasActiveImport).toBe(false)
-    })
-  })
 })

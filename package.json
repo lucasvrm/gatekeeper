@@ -1,5 +1,5 @@
 {
-    "name": "spark-template",
+    "name": "gatekeeper",
     "private": true,
     "version": "0.0.0",
     "type": "module",
@@ -17,7 +17,6 @@
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.71.2",
-        "@github/spark": ">=0.43.1 <1",
         "@google/generative-ai": "^0.24.1",
         "@heroicons/react": "^2.2.0",
         "@hookform/resolvers": "^4.1.3",

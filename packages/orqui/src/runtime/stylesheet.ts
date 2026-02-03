@@ -91,32 +91,6 @@ export function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string
 
   lines.push("}");
 
-  // --- Spark variable overrides ---
-  const sparkLines: string[] = [];
-  if (c("bg"))           sparkLines.push(`  --color-bg: ${c("bg")}${imp};`);
-  if (c("surface"))      sparkLines.push(`  --color-bg-inset: ${c("surface")}${imp};`);
-  if (c("surface-2"))    sparkLines.push(`  --color-bg-overlay: ${c("surface-2")}${imp};`);
-  if (c("text"))         sparkLines.push(`  --color-fg: ${c("text")}${imp};`);
-  if (c("text-muted"))   sparkLines.push(`  --color-fg-secondary: ${c("text-muted")}${imp};`);
-  if (c("bg"))           sparkLines.push(`  --color-neutral-1: ${c("bg")}${imp};`);
-  if (c("surface"))      sparkLines.push(`  --color-neutral-2: ${c("surface")}${imp};`);
-  if (c("surface-2"))    sparkLines.push(`  --color-neutral-3: ${c("surface-2")}${imp};`);
-  if (c("surface-3"))    sparkLines.push(`  --color-neutral-4: ${c("surface-3")}${imp};`);
-  if (c("border"))       sparkLines.push(`  --color-neutral-6: ${c("border")}${imp};`);
-  if (c("border-2"))     sparkLines.push(`  --color-neutral-7: ${c("border-2")}${imp};`);
-  if (c("text-dim"))     sparkLines.push(`  --color-neutral-9: ${c("text-dim")}${imp};`);
-  if (c("text-muted"))   sparkLines.push(`  --color-neutral-11: ${c("text-muted")}${imp};`);
-  if (c("text"))         sparkLines.push(`  --color-neutral-12: ${c("text")}${imp};`);
-  if (c("accent"))       sparkLines.push(`  --color-focus-ring: ${c("accent")}${imp};`);
-
-  if (sparkLines.length > 0) {
-    lines.push("");
-    lines.push("/* Orqui Contract → Spark overrides */");
-    lines.push(":root, :root #spark-app, :root #spark-app.dark-theme {");
-    lines.push(...sparkLines);
-    lines.push("}");
-  }
-
   // --- Typography overrides ---
   const fonts = tokens.fontFamilies ?? {};
   const fontSizes = tokens.fontSizes ?? {};

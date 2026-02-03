@@ -9,7 +9,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Este é um **monorepo com npm workspaces** contendo:
 - **Frontend React** (raiz do projeto)
 - **Backend API** (`packages/gatekeeper-api`)
-- **Ferramentas Spark** (`packages/spark-tools`)
 
 ## Build & Development Commands
 

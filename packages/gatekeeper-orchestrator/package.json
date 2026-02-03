@@ -1,0 +1,23 @@
+{
+  "name": "gatekeeper-orchestrator",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Gatekeeper TDD Pipeline Orchestrator — LLM-powered plan/spec generation + Claude Agent SDK execution",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}

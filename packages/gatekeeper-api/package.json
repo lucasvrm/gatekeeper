@@ -44,6 +44,7 @@
     "dotenv": "^16.4.7",
     "execa": "^9.5.1",
     "express": "^5.2.1",
+    "gatekeeper-orchestrator": "*",
     "glob": "^11.0.0",
     "helmet": "^8.0.0",
     "inquirer": "^13.2.0",
