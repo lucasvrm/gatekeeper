@@ -1,0 +1,291 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://orqui.dev/schemas/layout-contract/v2.0.0",
+  "title": "Orqui Layout Contract v2",
+  "description": "Contrato de layout com node tree flexível, templates {{}}, e regras de visibilidade.",
+  "type": "object",
+  "required": ["$orqui", "app", "tokens", "shell", "navigation", "pages"],
+  "additionalProperties": false,
+  "properties": {
+
+    "$orqui": {
+      "type": "object",
+      "required": ["schema", "version", "hash", "generatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "type": "string", "const": "layout-contract" },
+        "version": { "type": "string", "pattern": "^2\\.\\d+\\.\\d+$" },
+        "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "app": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "description": "Nome do app" },
+        "favicon": { "$ref": "#/$defs/favicon" },
+        "logo": { "$ref": "#/$defs/logo" }
+      }
+    },
+
+    "tokens": {
+      "type": "object",
+      "description": "Design tokens — mesma estrutura do v1",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "value": {},
+            "unit": { "type": "string" }
+          },
+          "required": ["value"]
+        }
+      }
+    },
+
+    "textStyles": {
+      "type": "object",
+      "description": "Text styles — mesma estrutura do v1",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "fontFamily": { "type": "string" },
+          "fontSize": { "type": "string" },
+          "fontWeight": { "type": ["string", "number"] },
+          "lineHeight": { "type": ["string", "number"] },
+          "letterSpacing": { "type": "string" }
+        }
+      }
+    },
+
+    "shell": {
+      "type": "object",
+      "required": ["layout"],
+      "properties": {
+        "layout": {
+          "type": "string",
+          "enum": ["sidebar-left", "sidebar-right", "topbar", "minimal"]
+        },
+        "sidebar": { "$ref": "#/$defs/sidebarConfig" },
+        "header": { "$ref": "#/$defs/headerConfig" },
+        "footer": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "height": { "type": "number" }
+          }
+        }
+      }
+    },
+
+    "navigation": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/navItem" }
+    },
+
+    "pages": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/pageDefinition" }
+    }
+  },
+
+  "$defs": {
+
+    "favicon": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["emoji", "image", "svg"] },
+        "value": { "type": "string" }
+      }
+    },
+
+    "logo": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["text", "icon-text", "image"] },
+        "text": { "type": "string" },
+        "icon": { "type": "string" },
+        "src": { "type": "string" },
+        "font": {
+          "type": "object",
+          "properties": {
+            "family": { "type": "string" },
+            "size": { "type": "number" },
+            "weight": { "type": "number" },
+            "color": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "sidebarConfig": {
+      "type": "object",
+      "properties": {
+        "width": { "type": "number" },
+        "collapsedWidth": { "type": "number" },
+        "collapsible": { "type": "boolean" },
+        "background": { "type": "string" },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["logo", "navigation", "search", "slot"] },
+              "props": { "type": "object" }
+            }
+          }
+        },
+        "separators": { "type": "object" },
+        "collapseButton": {
+          "type": "object",
+          "properties": {
+            "position": { "type": "string", "enum": ["header-end", "center", "bottom", "border-center"] },
+            "icon": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "headerConfig": {
+      "type": "object",
+      "properties": {
+        "height": { "type": "number" },
+        "background": { "type": "string" },
+        "border": { "type": "object" },
+        "left": { "type": "array", "items": { "$ref": "#/$defs/headerElement" } },
+        "center": { "type": "array", "items": { "$ref": "#/$defs/headerElement" } },
+        "right": { "type": "array", "items": { "$ref": "#/$defs/headerElement" } }
+      }
+    },
+
+    "headerElement": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["breadcrumbs", "search", "button", "icon-button", "text", "slot"]
+        },
+        "props": { "type": "object" },
+        "visibility": { "$ref": "#/$defs/visibilityRule" }
+      }
+    },
+
+    "navItem": {
+      "type": "object",
+      "required": ["id", "order"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "icon": { "type": "string" },
+        "route": { "type": "string" },
+        "order": { "type": "number" },
+        "type": { "type": "string", "enum": ["item", "divider", "group"], "default": "item" },
+        "badge": { "type": "string", "description": "Template {{}} para badge" },
+        "position": { "type": "string", "enum": ["top", "bottom"], "default": "top" },
+        "visibility": { "$ref": "#/$defs/visibilityRule" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/navItem" } }
+      }
+    },
+
+    "pageDefinition": {
+      "type": "object",
+      "required": ["id", "label", "route", "content"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "route": { "type": "string" },
+        "browserTitle": { "type": "string" },
+        "header": { "$ref": "#/$defs/pageHeaderOverrides" },
+        "content": { "$ref": "#/$defs/node" },
+        "visibility": { "$ref": "#/$defs/visibilityRule" }
+      }
+    },
+
+    "pageHeaderOverrides": {
+      "type": "object",
+      "properties": {
+        "cta": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "label": { "type": "string" },
+            "icon": { "type": "string" },
+            "route": { "type": "string" },
+            "variant": { "type": "string" }
+          }
+        },
+        "hideElements": { "type": "array", "items": { "type": "string" } },
+        "addElements": {
+          "type": "object",
+          "properties": {
+            "left": { "type": "array", "items": { "$ref": "#/$defs/headerElement" } },
+            "center": { "type": "array", "items": { "$ref": "#/$defs/headerElement" } },
+            "right": { "type": "array", "items": { "$ref": "#/$defs/headerElement" } }
+          }
+        }
+      }
+    },
+
+    "node": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "description": "Identificador único do node" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "grid", "stack", "row", "container",
+            "text", "heading", "image", "icon", "badge", "button", "divider", "spacer",
+            "table", "list", "card", "stat-card", "key-value",
+            "breadcrumbs", "nav-menu", "tabs",
+            "search", "select", "input", "toggle",
+            "slot", "component"
+          ]
+        },
+        "props": { "type": "object", "description": "Props específicas do tipo de node" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/node" },
+          "description": "Nodes filhos"
+        },
+        "style": {
+          "type": "object",
+          "description": "CSS overrides. Valores podem ser token refs ($tokens.xxx) ou valores diretos.",
+          "additionalProperties": { "type": "string" }
+        },
+        "visibility": { "$ref": "#/$defs/visibilityRule" }
+      }
+    },
+
+    "visibilityRule": {
+      "type": "object",
+      "properties": {
+        "pages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Páginas onde o elemento é visível. ['*'] = todas."
+        },
+        "condition": {
+          "type": "string",
+          "description": "Expressão condicional com templates {{}}. Ex: {{user.role}} === 'admin'"
+        },
+        "breakpoints": {
+          "type": "object",
+          "properties": {
+            "hidden": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["mobile", "tablet", "desktop"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

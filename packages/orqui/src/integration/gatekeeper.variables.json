@@ -1,0 +1,313 @@
+{
+  "$schema": "orqui-variables/v2",
+  "project": "gatekeeper",
+  "version": "2.0.0",
+  "entities": {
+    "run": {
+      "label": "Run",
+      "plural": "runs",
+      "description": "Uma execução de validação TDD no pipeline",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "ID",
+          "example": "run_7f3a2b1c",
+          "format": "prefixed-id"
+        },
+        "status": {
+          "type": "enum",
+          "label": "Status",
+          "enum": ["passed", "failed", "running", "pending", "cancelled"],
+          "example": "passed",
+          "colorMap": {
+            "passed": "success",
+            "failed": "danger",
+            "running": "accent",
+            "pending": "warning",
+            "cancelled": "text-dim"
+          },
+          "iconMap": {
+            "passed": "CheckCircle",
+            "failed": "XCircle",
+            "running": "CircleNotch",
+            "pending": "Clock",
+            "cancelled": "Prohibit"
+          }
+        },
+        "project": {
+          "type": "ref",
+          "label": "Projeto",
+          "entity": "project"
+        },
+        "current_gate": {
+          "type": "string",
+          "label": "Gate Atual",
+          "example": "Gate 3: QUALITY"
+        },
+        "passed_validators": {
+          "type": "number",
+          "label": "Validadores OK",
+          "example": 18
+        },
+        "total_validators": {
+          "type": "number",
+          "label": "Total Validadores",
+          "example": 24
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duração",
+          "unit": "ms",
+          "example": 154000
+        },
+        "target_ref": {
+          "type": "string",
+          "label": "Branch/Ref",
+          "example": "feat/new-button"
+        },
+        "triggered_by": {
+          "type": "enum",
+          "label": "Trigger",
+          "enum": ["push", "pr", "manual", "schedule", "mcp"],
+          "example": "push"
+        },
+        "created_at": {
+          "type": "date",
+          "label": "Criado em",
+          "example": "2026-02-01T14:30:00Z"
+        },
+        "finished_at": {
+          "type": "date",
+          "label": "Finalizado em",
+          "example": "2026-02-01T14:32:34Z"
+        },
+        "error_summary": {
+          "type": "string",
+          "label": "Resumo de Erros",
+          "example": "TestReadOnlyEnforcement: 2 violations"
+        },
+        "gate_results": {
+          "type": "array",
+          "label": "Resultados por Gate",
+          "itemType": "gate_result"
+        }
+      }
+    },
+    "project": {
+      "label": "Projeto",
+      "plural": "projects",
+      "description": "Um projeto configurado no Gatekeeper",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "ID",
+          "example": "proj_frontend"
+        },
+        "name": {
+          "type": "string",
+          "label": "Nome",
+          "example": "Frontend"
+        },
+        "workspace": {
+          "type": "ref",
+          "label": "Workspace",
+          "entity": "workspace"
+        },
+        "status": {
+          "type": "enum",
+          "label": "Status",
+          "enum": ["active", "archived", "paused"],
+          "colorMap": { "active": "success", "archived": "text-dim", "paused": "warning" }
+        },
+        "total_runs": {
+          "type": "number",
+          "label": "Total de Runs",
+          "example": 142
+        },
+        "pass_rate": {
+          "type": "number",
+          "label": "Taxa de Aprovação",
+          "example": 83.1
+        },
+        "last_run_at": {
+          "type": "date",
+          "label": "Último Run",
+          "example": "2026-02-01T14:30:00Z"
+        },
+        "gates_config": {
+          "type": "string",
+          "label": "Config Gates",
+          "example": "4 gates, 24 validators"
+        },
+        "repo_url": {
+          "type": "string",
+          "label": "Repositório",
+          "example": "https://github.com/org/frontend"
+        },
+        "created_at": {
+          "type": "date",
+          "label": "Criado em",
+          "example": "2025-06-15T10:00:00Z"
+        }
+      }
+    },
+    "workspace": {
+      "label": "Workspace",
+      "plural": "workspaces",
+      "description": "Agrupamento de projetos",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "ID",
+          "example": "ws_main"
+        },
+        "name": {
+          "type": "string",
+          "label": "Nome",
+          "example": "Main Workspace"
+        },
+        "project_count": {
+          "type": "number",
+          "label": "Projetos",
+          "example": 5
+        },
+        "created_at": {
+          "type": "date",
+          "label": "Criado em",
+          "example": "2025-01-01T00:00:00Z"
+        }
+      }
+    },
+    "gate": {
+      "label": "Gate",
+      "plural": "gates",
+      "description": "Uma etapa do pipeline de validação",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "ID",
+          "example": "gate_1"
+        },
+        "name": {
+          "type": "string",
+          "label": "Nome",
+          "example": "SANITIZATION"
+        },
+        "order": {
+          "type": "number",
+          "label": "Ordem",
+          "example": 1
+        },
+        "validator_count": {
+          "type": "number",
+          "label": "Validadores",
+          "example": 6
+        },
+        "description": {
+          "type": "string",
+          "label": "Descrição",
+          "example": "Sanitização de inputs e validação estrutural"
+        },
+        "icon": {
+          "type": "string",
+          "label": "Ícone",
+          "example": "Broom"
+        }
+      }
+    },
+    "validator": {
+      "label": "Validador",
+      "plural": "validators",
+      "description": "Um validador individual dentro de um gate",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "ID",
+          "example": "TestReadOnlyEnforcement"
+        },
+        "name": {
+          "type": "string",
+          "label": "Nome",
+          "example": "Test Read-Only Enforcement"
+        },
+        "gate": {
+          "type": "ref",
+          "label": "Gate",
+          "entity": "gate"
+        },
+        "status": {
+          "type": "enum",
+          "label": "Status",
+          "enum": ["passed", "failed", "skipped", "running"],
+          "colorMap": { "passed": "success", "failed": "danger", "skipped": "text-dim", "running": "accent" }
+        },
+        "severity": {
+          "type": "enum",
+          "label": "Severidade",
+          "enum": ["error", "warning", "info"],
+          "colorMap": { "error": "danger", "warning": "warning", "info": "accent" }
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duração",
+          "unit": "ms",
+          "example": 340
+        },
+        "message": {
+          "type": "string",
+          "label": "Mensagem",
+          "example": "All test files are read-only protected"
+        }
+      }
+    }
+  },
+  "globals": {
+    "stats": {
+      "total_runs": { "type": "number", "label": "Total Runs", "example": 142 },
+      "passed_runs": { "type": "number", "label": "Runs Aprovados", "example": 118 },
+      "failed_runs": { "type": "number", "label": "Runs Falhados", "example": 24 },
+      "pending_runs": { "type": "number", "label": "Runs Pendentes", "example": 3 },
+      "pass_rate": { "type": "number", "label": "Taxa Aprovação (%)", "example": 83.1 },
+      "avg_duration": { "type": "number", "label": "Duração Média (ms)", "unit": "ms", "example": 45000 },
+      "total_projects": { "type": "number", "label": "Total Projetos", "example": 5 },
+      "total_workspaces": { "type": "number", "label": "Total Workspaces", "example": 2 }
+    },
+    "user": {
+      "name": { "type": "string", "label": "Nome do Usuário", "example": "Lucas" },
+      "email": { "type": "string", "label": "Email", "example": "lucas@dev.com" },
+      "role": { "type": "enum", "label": "Role", "enum": ["admin", "developer", "viewer"], "example": "admin" },
+      "avatar": { "type": "string", "label": "Avatar URL", "example": "/avatars/lucas.jpg" }
+    },
+    "feature": {
+      "mcp_enabled": { "type": "boolean", "label": "MCP Habilitado", "example": true },
+      "v2_details": { "type": "boolean", "label": "V2 Details View", "example": true },
+      "realtime": { "type": "boolean", "label": "Realtime Updates", "example": false }
+    }
+  },
+  "enums": {
+    "run_status": {
+      "values": ["passed", "failed", "running", "pending", "cancelled"],
+      "colorMap": {
+        "passed": "success",
+        "failed": "danger",
+        "running": "accent",
+        "pending": "warning",
+        "cancelled": "text-dim"
+      }
+    },
+    "trigger_type": {
+      "values": ["push", "pr", "manual", "schedule", "mcp"],
+      "colorMap": {
+        "push": "accent",
+        "pr": "success",
+        "manual": "warning",
+        "schedule": "text-muted",
+        "mcp": "info"
+      }
+    },
+    "severity": {
+      "values": ["error", "warning", "info"],
+      "colorMap": { "error": "danger", "warning": "warning", "info": "accent" }
+    }
+  }
+}

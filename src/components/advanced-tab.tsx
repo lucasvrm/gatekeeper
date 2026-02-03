@@ -1,0 +1,275 @@
+import { useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { toast } from "sonner"
+
+interface ValidationConfigItem {
+  id: string
+  key: string
+  value: string
+  type: string
+  category: string
+  description?: string | null
+}
+
+interface AdvancedTabProps {
+  validationConfigs: ValidationConfigItem[]
+  onUpdateConfig: (id: string, value: string) => Promise<void>
+}
+
+// Mapping of config keys to their UI location
+const CONFIG_LOCATION_MAP: Record<string, string> = {
+  MAX_TOKEN_BUDGET: "Validators → TOKEN_BUDGET_FIT dialog",
+  TOKEN_SAFETY_MARGIN: "Validators → TOKEN_BUDGET_FIT dialog",
+  MAX_FILES_PER_TASK: "Validators → TASK_SCOPE_SIZE dialog",
+  TYPE_DETECTION_PATTERNS: "Validators → PATH_CONVENTION dialog",
+  DELETE_CHECK_IGNORE_DIRS: "Validators → DELETE_DEPENDENCY_CHECK dialog",
+  HAPPY_PATH_KEYWORDS: "Validators → TEST_COVERS_HAPPY_AND_SAD_PATH dialog",
+  SAD_PATH_KEYWORDS: "Validators → TEST_COVERS_HAPPY_AND_SAD_PATH dialog",
+  EXTRA_BUILTIN_MODULES: "Validators → IMPORT_REALITY_CHECK dialog",
+  PATH_ALIASES: "Validators → IMPORT_REALITY_CHECK dialog",
+  DIFF_SCOPE_INCLUDE_WORKING_TREE: "Validators → DIFF_SCOPE_ENFORCEMENT dialog",
+  DIFF_SCOPE_IGNORED_PATTERNS: "Validators → DIFF_SCOPE_ENFORCEMENT dialog",
+  DIFF_SCOPE_GLOBAL_EXCLUSIONS: "Validators → DIFF_SCOPE_ENFORCEMENT dialog",
+  DIFF_SCOPE_ALLOW_TEST_ONLY_DIFF: "Validators → DIFF_SCOPE_ENFORCEMENT dialog",
+  DIFF_SCOPE_INCOMPLETE_FAIL_MODE: "Validators → DIFF_SCOPE_ENFORCEMENT dialog",
+  TEST_READ_ONLY_EXCLUDED_PATHS: "Validators → TEST_READ_ONLY_ENFORCEMENT dialog",
+  ESLINT_CONFIG_FILES: "Validators → STYLE_CONSISTENCY_LINT dialog",
+  SKIP_LINT_IF_NO_CONFIG: "Validators → STYLE_CONSISTENCY_LINT dialog",
+  ALLOW_UNTAGGED_TESTS: "Validators → TEST_CLAUSE_MAPPING_VALID dialog",
+  ALLOW_SOFT_GATES: "Advanced → Global Flags",
+  PROJECT_ROOT: "Conventions → System Paths",
+  BACKEND_WORKSPACE: "Conventions → System Paths",
+  ARTIFACTS_DIR: "Conventions → System Paths",
+  TEST_FILE_PATH: "Conventions → System Paths",
+  SANDBOX_DIR: "Conventions → System Paths",
+  TEST_EXECUTION_TIMEOUT_MS: "Advanced → Timeouts",
+  COMPILATION_TIMEOUT_MS: "Advanced → Timeouts",
+  BUILD_TIMEOUT_MS: "Advanced → Timeouts",
+  LINT_TIMEOUT_MS: "Advanced → Timeouts",
+}
+
+const TIMEOUT_KEYS = [
+  "TEST_EXECUTION_TIMEOUT_MS",
+  "COMPILATION_TIMEOUT_MS",
+  "BUILD_TIMEOUT_MS",
+  "LINT_TIMEOUT_MS",
+]
+
+export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabProps) {
+  const [timeoutValues, setTimeoutValues] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState<string | null>(null)
+
+  const allowSoftGatesConfig = useMemo(() =>
+    validationConfigs.find(c => c.key === "ALLOW_SOFT_GATES"),
+    [validationConfigs]
+  )
+
+  const timeoutConfigs = useMemo(() =>
+    validationConfigs.filter(c => TIMEOUT_KEYS.includes(c.key)),
+    [validationConfigs]
+  )
+
+  const handleToggleAllowSoftGates = async (checked: boolean) => {
+    if (!allowSoftGatesConfig) return
+    setSaving("ALLOW_SOFT_GATES")
+    try {
+      await onUpdateConfig(allowSoftGatesConfig.id, checked ? "true" : "false")
+      toast.success("ALLOW_SOFT_GATES atualizado")
+    } catch (error) {
+      console.error("Failed to update ALLOW_SOFT_GATES:", error)
+      toast.error("Falha ao atualizar ALLOW_SOFT_GATES")
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const handleTimeoutChange = (configId: string, key: string, value: string) => {
+    setTimeoutValues(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleSaveTimeout = async (config: ValidationConfigItem) => {
+    const newValue = timeoutValues[config.key] ?? config.value
+    if (newValue === config.value) return
+
+    setSaving(config.key)
+    try {
+      await onUpdateConfig(config.id, newValue)
+      toast.success(`${config.key} atualizado`)
+    } catch (error) {
+      console.error(`Failed to update ${config.key}:`, error)
+      toast.error(`Falha ao atualizar ${config.key}`)
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const coverageAuditEntries = useMemo(() => {
+    const entries: Array<{ key: string; location: string }> = []
+    for (const [key, location] of Object.entries(CONFIG_LOCATION_MAP)) {
+      entries.push({ key, location })
+    }
+    return entries.sort((a, b) => a.key.localeCompare(b.key))
+  }, [])
+
+  return (
+    <div className="space-y-6">
+      {/* Global Flags Section */}
+      <Card data-testid="global-flags-section">
+        <CardHeader>
+          <CardTitle>Global Flags</CardTitle>
+          <CardDescription>
+            Flags globais que afetam o comportamento geral do Gatekeeper.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-0.5">
+              <Label className="text-base font-medium">ALLOW_SOFT_GATES</Label>
+              <p className="text-sm text-muted-foreground">
+                Permite que gates com falhas em validators de warning não bloqueiem a execução.
+              </p>
+            </div>
+            <Switch
+              data-testid="allow-soft-gates-switch"
+              role="switch"
+              checked={allowSoftGatesConfig?.value === "true"}
+              onCheckedChange={handleToggleAllowSoftGates}
+              disabled={saving === "ALLOW_SOFT_GATES"}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Timeouts Section */}
+      <Card data-testid="timeouts-section">
+        <CardHeader>
+          <CardTitle>Timeouts</CardTitle>
+          <CardDescription>
+            Configure os timeouts para diferentes operações de validação (em milissegundos).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {TIMEOUT_KEYS.map(key => {
+              const config = timeoutConfigs.find(c => c.key === key)
+              const value = timeoutValues[key] ?? config?.value ?? ""
+
+              return (
+                <div
+                  key={key}
+                  data-testid={`timeout-field-${key}`}
+                  className="space-y-2 p-4 border rounded-lg"
+                >
+                  <Label className="text-sm font-medium">{key}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={value}
+                      onChange={(e) => config && handleTimeoutChange(config.id, key, e.target.value)}
+                      placeholder="Timeout em ms"
+                      className="flex-1"
+                    />
+                    <span className="flex items-center text-sm text-muted-foreground">ms</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Atual: {config?.value ?? "N/A"} ms
+                  </p>
+                  {config && timeoutValues[key] && timeoutValues[key] !== config.value && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleSaveTimeout(config)}
+                      disabled={saving === key}
+                    >
+                      {saving === key ? "Salvando..." : "Salvar"}
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* All Configs Debug View Section */}
+      <Card data-testid="all-configs-debug-view">
+        <CardHeader>
+          <CardTitle>All Configs (Debug View)</CardTitle>
+          <CardDescription>
+            Visualização somente leitura de todas as configurações de validação.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border max-h-96 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs uppercase tracking-wide">Key</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wide">Value</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wide">Type</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wide">Category</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {validationConfigs.map(config => (
+                  <TableRow key={config.id}>
+                    <TableCell className="font-mono text-xs">{config.key}</TableCell>
+                    <TableCell className="text-xs max-w-xs truncate" title={config.value}>
+                      {config.value}
+                    </TableCell>
+                    <TableCell className="text-xs">{config.type}</TableCell>
+                    <TableCell className="text-xs">{config.category}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Coverage Audit Section */}
+      <Card data-testid="coverage-audit-section">
+        <CardHeader>
+          <CardTitle>Coverage Audit</CardTitle>
+          <CardDescription>
+            Mapeamento de todas as config keys para suas localizações na nova UI.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border max-h-96 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs uppercase tracking-wide">Config Key</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wide">Localização na UI</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {coverageAuditEntries.map(entry => (
+                  <TableRow key={entry.key}>
+                    <TableCell className="font-mono text-xs">{entry.key}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{entry.location}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Total: {coverageAuditEntries.length} config keys mapeadas
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

@@ -1,0 +1,359 @@
+{
+  "$orqui": {
+    "schema": "layout-contract/v2",
+    "version": "2.0.0",
+    "hash": "gk_v2_initial",
+    "generatedAt": "2026-02-02T23:00:00Z"
+  },
+  "app": {
+    "name": "Gatekeeper",
+    "favicon": { "type": "emoji", "value": "🛡️" },
+    "logo": {
+      "type": "icon-text",
+      "text": "Gatekeeper",
+      "icon": "ShieldCheck",
+      "font": { "family": "JetBrains Mono", "size": 15, "weight": 700, "color": "$tokens.colors.accent" }
+    }
+  },
+  "tokens": {
+    "colors": {
+      "bg": { "value": "#0a0a0b" },
+      "surface": { "value": "#141417" },
+      "surface-2": { "value": "#1c1c21" },
+      "surface-3": { "value": "#24242b" },
+      "border": { "value": "#2a2a33" },
+      "border-2": { "value": "#3a3a45" },
+      "text": { "value": "#e4e4e7" },
+      "text-muted": { "value": "#8b8b96" },
+      "text-dim": { "value": "#5b5b66" },
+      "accent": { "value": "#6d9cff" },
+      "success": { "value": "#4ade80" },
+      "danger": { "value": "#ff6b6b" },
+      "warning": { "value": "#fbbf24" },
+      "info": { "value": "#22d3ee" },
+      "sidebar-bg": { "value": "#111114" },
+      "header-bg": { "value": "#111114" }
+    },
+    "spacing": {
+      "xs": { "value": 4, "unit": "px" },
+      "sm": { "value": 8, "unit": "px" },
+      "md": { "value": 16, "unit": "px" },
+      "lg": { "value": 24, "unit": "px" },
+      "xl": { "value": 32, "unit": "px" },
+      "2xl": { "value": 48, "unit": "px" }
+    },
+    "borderRadius": {
+      "sm": { "value": 4, "unit": "px" },
+      "md": { "value": 6, "unit": "px" },
+      "lg": { "value": 8, "unit": "px" },
+      "xl": { "value": 12, "unit": "px" },
+      "full": { "value": 9999, "unit": "px" }
+    },
+    "fontFamilies": {
+      "primary": { "value": "Inter, -apple-system, sans-serif" },
+      "mono": { "value": "JetBrains Mono, Fira Code, monospace" }
+    },
+    "fontSizes": {
+      "xs": { "value": 11, "unit": "px" },
+      "sm": { "value": 12, "unit": "px" },
+      "md": { "value": 14, "unit": "px" },
+      "lg": { "value": 16, "unit": "px" },
+      "xl": { "value": 20, "unit": "px" },
+      "2xl": { "value": 28, "unit": "px" }
+    }
+  },
+  "textStyles": {
+    "heading-1": { "fontSize": "$tokens.fontSizes.2xl", "fontWeight": 700, "lineHeight": 1.2 },
+    "heading-2": { "fontSize": "$tokens.fontSizes.xl", "fontWeight": 600, "lineHeight": 1.3 },
+    "heading-3": { "fontSize": "$tokens.fontSizes.lg", "fontWeight": 600, "lineHeight": 1.4 },
+    "body": { "fontSize": "$tokens.fontSizes.md", "fontWeight": 400, "lineHeight": 1.5 },
+    "body-sm": { "fontSize": "$tokens.fontSizes.sm", "fontWeight": 400, "lineHeight": 1.5 },
+    "caption": { "fontSize": "$tokens.fontSizes.xs", "fontWeight": 500, "lineHeight": 1.4 },
+    "code": { "fontFamily": "$tokens.fontFamilies.mono", "fontSize": "$tokens.fontSizes.sm", "fontWeight": 400, "lineHeight": 1.6 }
+  },
+  "shell": {
+    "layout": "sidebar-left",
+    "sidebar": {
+      "width": 260,
+      "collapsedWidth": 64,
+      "collapsible": true,
+      "background": "$tokens.colors.sidebar-bg",
+      "sections": [
+        { "id": "logo", "type": "logo" },
+        { "id": "nav", "type": "navigation" },
+        { "id": "footer", "type": "slot", "props": { "name": "sidebar-footer" } }
+      ],
+      "separators": {
+        "afterLogo": { "enabled": true, "color": "$tokens.colors.border" },
+        "beforeFooter": { "enabled": true, "color": "$tokens.colors.border" }
+      },
+      "collapseButton": { "position": "edge", "icon": "CaretLeft" }
+    },
+    "header": {
+      "height": 56,
+      "background": "$tokens.colors.header-bg",
+      "border": { "bottom": { "width": 1, "color": "$tokens.colors.border" } },
+      "left": [
+        { "id": "breadcrumbs", "type": "breadcrumbs", "props": { "homeLabel": "Home", "separator": "/" } }
+      ],
+      "center": [],
+      "right": [
+        { "id": "notifications", "type": "icon-button", "props": { "icon": "Bell", "badge": "{{stats.pending_runs}}" } },
+        { "id": "cta-main", "type": "button", "props": { "label": "Nova Run", "icon": "Play", "route": "/runs/new", "variant": "primary" } }
+      ]
+    }
+  },
+  "navigation": [
+    { "id": "dashboard", "label": "Dashboard", "icon": "House", "route": "/", "order": 0 },
+    { "id": "runs", "label": "Runs", "icon": "Play", "route": "/runs", "order": 1, "badge": "{{stats.pending_runs}}" },
+    { "id": "gates", "label": "Gates", "icon": "Funnel", "route": "/gates", "order": 2 },
+    { "id": "projects", "label": "Projetos", "icon": "FolderOpen", "route": "/projects", "order": 3 },
+    { "id": "workspaces", "label": "Workspaces", "icon": "Buildings", "route": "/workspaces", "order": 4 },
+    { "id": "divider-1", "type": "divider", "order": 5 },
+    { "id": "mcp", "label": "MCP", "icon": "Robot", "route": "/mcp", "order": 6, "visibility": { "condition": "{{feature.mcp_enabled}}" } },
+    { "id": "config", "label": "Configuração", "icon": "Gear", "route": "/config", "order": 98, "position": "bottom" },
+    { "id": "help", "label": "Ajuda", "icon": "Question", "route": "/help", "order": 99, "position": "bottom" }
+  ],
+  "pages": {
+    "dashboard": {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "route": "/",
+      "browserTitle": "{{$app.name}} — Dashboard",
+      "header": {
+        "cta": { "enabled": true, "label": "Nova Run", "icon": "Play", "route": "/runs/new" }
+      },
+      "content": {
+        "id": "dash-root",
+        "type": "stack",
+        "props": { "gap": "$tokens.spacing.lg" },
+        "children": [
+          {
+            "id": "dash-header",
+            "type": "row",
+            "props": { "justify": "space-between", "align": "center" },
+            "children": [
+              { "id": "dash-title", "type": "heading", "props": { "content": "Dashboard", "level": 1, "textStyle": "heading-1" } },
+              { "id": "dash-subtitle", "type": "text", "props": { "content": "Visão geral do {{$app.name}}", "color": "$tokens.colors.text-muted" } }
+            ]
+          },
+          {
+            "id": "dash-stats",
+            "type": "grid",
+            "props": { "columns": 4, "gap": "$tokens.spacing.md" },
+            "children": [
+              { "id": "stat-total", "type": "stat-card", "props": { "label": "Total Runs", "value": "{{stats.total_runs | number}}", "icon": "Play", "color": "accent" } },
+              { "id": "stat-passed", "type": "stat-card", "props": { "label": "Aprovados", "value": "{{stats.passed_runs | number}}", "icon": "CheckCircle", "color": "success" } },
+              { "id": "stat-failed", "type": "stat-card", "props": { "label": "Falhados", "value": "{{stats.failed_runs | number}}", "icon": "XCircle", "color": "danger" } },
+              { "id": "stat-rate", "type": "stat-card", "props": { "label": "Taxa Aprovação", "value": "{{stats.pass_rate | percent}}", "icon": "ChartLineUp", "color": "accent" } }
+            ]
+          },
+          {
+            "id": "dash-recent",
+            "type": "card",
+            "props": { "title": "Runs Recentes" },
+            "children": [
+              {
+                "id": "dash-table",
+                "type": "table",
+                "props": {
+                  "dataSource": "recent_runs",
+                  "rowHeight": 48,
+                  "emptyMessage": "Nenhuma run recente",
+                  "columns": [
+                    { "key": "id", "label": "ID", "width": "120px", "content": "{{run.id | truncate:12}}", "link": "/runs/{{run.id}}" },
+                    { "key": "status", "label": "Status", "width": "100px", "content": "{{run.status | badge}}" },
+                    { "key": "project", "label": "Projeto", "width": "140px", "content": "{{run.project.name}}" },
+                    { "key": "gate", "label": "Gate", "content": "{{run.current_gate}}" },
+                    { "key": "time", "label": "Quando", "width": "100px", "content": "{{run.created_at | date:relative}}", "align": "right" }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "runs-list": {
+      "id": "runs-list",
+      "label": "Runs",
+      "route": "/runs",
+      "browserTitle": "{{$app.name}} — Runs",
+      "header": {
+        "cta": { "enabled": true, "label": "Nova Run", "icon": "Play", "route": "/runs/new" },
+        "addElements": {
+          "left": [
+            { "id": "runs-search", "type": "search", "props": { "placeholder": "Buscar runs..." } }
+          ]
+        }
+      },
+      "content": {
+        "id": "runs-root",
+        "type": "stack",
+        "props": { "gap": "$tokens.spacing.lg" },
+        "children": [
+          {
+            "id": "runs-header",
+            "type": "row",
+            "props": { "justify": "space-between", "align": "center" },
+            "children": [
+              { "id": "runs-title", "type": "heading", "props": { "content": "Runs", "level": 1, "textStyle": "heading-1" } },
+              {
+                "id": "runs-filters",
+                "type": "row",
+                "props": { "gap": "$tokens.spacing.sm" },
+                "children": [
+                  { "id": "runs-status-filter", "type": "select", "props": { "placeholder": "Status", "options": ["passed", "failed", "running", "pending"] } },
+                  { "id": "runs-project-filter", "type": "select", "props": { "placeholder": "Projeto" } }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "runs-table-card",
+            "type": "card",
+            "children": [
+              {
+                "id": "runs-table",
+                "type": "table",
+                "props": {
+                  "dataSource": "runs",
+                  "rowHeight": 48,
+                  "emptyMessage": "Nenhuma run encontrada",
+                  "columns": [
+                    { "key": "id", "label": "ID", "width": "130px", "content": "{{run.id | truncate:12}}", "link": "/runs/{{run.id}}" },
+                    { "key": "status", "label": "Status", "width": "100px", "content": "{{run.status | badge}}" },
+                    { "key": "project", "label": "Projeto", "width": "140px", "content": "{{run.project.name}}" },
+                    { "key": "gate", "label": "Gate Atual", "content": "{{run.current_gate}}" },
+                    { "key": "progress", "label": "Progresso", "width": "100px", "content": "{{run.passed_validators}}/{{run.total_validators}}" },
+                    { "key": "ref", "label": "Branch", "width": "160px", "content": "{{run.target_ref | truncate:20}}" },
+                    { "key": "duration", "label": "Duração", "width": "90px", "content": "{{run.duration | duration}}", "align": "right" },
+                    { "key": "time", "label": "Quando", "width": "100px", "content": "{{run.created_at | date:relative}}", "align": "right" },
+                    { "key": "actions", "label": "", "width": "80px", "content": "{{$actions: view, rerun, delete}}", "align": "right" }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "gates": {
+      "id": "gates",
+      "label": "Gates",
+      "route": "/gates",
+      "browserTitle": "{{$app.name}} — Pipeline Gates",
+      "header": {
+        "cta": { "enabled": false }
+      },
+      "content": {
+        "id": "gates-root",
+        "type": "stack",
+        "props": { "gap": "$tokens.spacing.lg" },
+        "children": [
+          { "id": "gates-title", "type": "heading", "props": { "content": "Pipeline de Validação", "level": 1, "textStyle": "heading-1" } },
+          { "id": "gates-desc", "type": "text", "props": { "content": "O {{$app.name}} executa validações em 4 gates sequenciais. Cada gate contém validadores especializados.", "color": "$tokens.colors.text-muted" } },
+          { "id": "gates-overview-slot", "type": "slot", "props": { "name": "gates-overview" } }
+        ]
+      }
+    },
+    "projects-list": {
+      "id": "projects-list",
+      "label": "Projetos",
+      "route": "/projects",
+      "browserTitle": "{{$app.name}} — Projetos",
+      "content": {
+        "id": "projects-root",
+        "type": "stack",
+        "props": { "gap": "$tokens.spacing.lg" },
+        "children": [
+          {
+            "id": "projects-header",
+            "type": "row",
+            "props": { "justify": "space-between", "align": "center" },
+            "children": [
+              { "id": "projects-title", "type": "heading", "props": { "content": "Projetos", "level": 1, "textStyle": "heading-1" } }
+            ]
+          },
+          {
+            "id": "projects-table-card",
+            "type": "card",
+            "children": [
+              {
+                "id": "projects-table",
+                "type": "table",
+                "props": {
+                  "dataSource": "projects",
+                  "rowHeight": 52,
+                  "emptyMessage": "Nenhum projeto configurado",
+                  "columns": [
+                    { "key": "name", "label": "Nome", "width": "200px", "content": "{{project.name}}", "link": "/projects/{{project.id}}" },
+                    { "key": "status", "label": "Status", "width": "100px", "content": "{{project.status | badge}}" },
+                    { "key": "workspace", "label": "Workspace", "width": "150px", "content": "{{project.workspace.name}}" },
+                    { "key": "runs", "label": "Total Runs", "width": "100px", "content": "{{project.total_runs | number}}", "align": "right" },
+                    { "key": "rate", "label": "Pass Rate", "width": "90px", "content": "{{project.pass_rate | percent}}", "align": "right" },
+                    { "key": "last", "label": "Último Run", "width": "120px", "content": "{{project.last_run_at | date:relative}}", "align": "right" }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "config": {
+      "id": "config",
+      "label": "Configuração",
+      "route": "/config",
+      "browserTitle": "{{$app.name}} — Configuração",
+      "header": {
+        "cta": { "enabled": false }
+      },
+      "visibility": {
+        "condition": "{{user.role}} === 'admin'"
+      },
+      "content": {
+        "id": "config-root",
+        "type": "stack",
+        "props": { "gap": "$tokens.spacing.lg" },
+        "children": [
+          { "id": "config-title", "type": "heading", "props": { "content": "Configuração", "level": 1, "textStyle": "heading-1" } },
+          {
+            "id": "config-tabs",
+            "type": "tabs",
+            "props": {
+              "defaultTab": "general",
+              "items": [
+                { "id": "general", "label": "Geral" },
+                { "id": "gates-config", "label": "Gates" },
+                { "id": "integrations", "label": "Integrações" }
+              ]
+            },
+            "children": [
+              {
+                "id": "config-general-panel",
+                "type": "card",
+                "props": { "tab": "general", "title": "Configurações Gerais" },
+                "children": [
+                  {
+                    "id": "general-kv",
+                    "type": "key-value",
+                    "props": {
+                      "layout": "vertical",
+                      "items": [
+                        { "label": "Nome do App", "value": "{{$app.name}}" },
+                        { "label": "Projetos", "value": "{{stats.total_projects}}" },
+                        { "label": "Workspaces", "value": "{{stats.total_workspaces}}" },
+                        { "label": "MCP Habilitado", "value": "{{feature.mcp_enabled | boolean:Sim/Não}}" }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

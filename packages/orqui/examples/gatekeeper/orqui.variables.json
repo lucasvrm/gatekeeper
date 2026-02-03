@@ -1,0 +1,430 @@
+{
+  "$orqui": {
+    "schema": "variables",
+    "version": "1.0.0",
+    "project": "gatekeeper"
+  },
+
+  "entities": {
+    "run": {
+      "label": "Validation Run",
+      "description": "Uma execução de validação através dos gates",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "Run ID",
+          "example": "run_7f3a2b1c"
+        },
+        "status": {
+          "type": "enum",
+          "label": "Status",
+          "values": ["pending", "running", "passed", "failed", "cancelled"],
+          "colorMap": {
+            "pending": "warning",
+            "running": "accent",
+            "passed": "success",
+            "failed": "danger",
+            "cancelled": "text-dim"
+          },
+          "iconMap": {
+            "pending": "Clock",
+            "running": "CircleNotch",
+            "passed": "CheckCircle",
+            "failed": "XCircle",
+            "cancelled": "MinusCircle"
+          },
+          "example": "passed"
+        },
+        "current_gate": {
+          "type": "string",
+          "label": "Gate Atual",
+          "example": "Gate 2: EXECUTION"
+        },
+        "project": {
+          "type": "ref",
+          "label": "Projeto",
+          "entity": "project"
+        },
+        "workspace": {
+          "type": "ref",
+          "label": "Workspace",
+          "entity": "workspace"
+        },
+        "passed_validators": {
+          "type": "number",
+          "label": "Validadores aprovados",
+          "example": 18
+        },
+        "total_validators": {
+          "type": "number",
+          "label": "Total de validadores",
+          "example": 24
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duração (ms)",
+          "unit": "ms",
+          "example": 154000
+        },
+        "error_message": {
+          "type": "string",
+          "label": "Mensagem de erro",
+          "example": "TEST_SYNTAX_VALID failed: SyntaxError at line 42"
+        },
+        "manifest_files": {
+          "type": "number",
+          "label": "Arquivos no manifest",
+          "example": 5
+        },
+        "test_file": {
+          "type": "string",
+          "label": "Arquivo de teste",
+          "example": "src/components/Button.spec.tsx"
+        },
+        "base_ref": {
+          "type": "string",
+          "label": "Branch base",
+          "example": "main"
+        },
+        "target_ref": {
+          "type": "string",
+          "label": "Branch target",
+          "example": "feat/new-button"
+        },
+        "created_at": {
+          "type": "date",
+          "label": "Criado em",
+          "example": "2026-02-01T10:30:00Z"
+        },
+        "updated_at": {
+          "type": "date",
+          "label": "Atualizado em",
+          "example": "2026-02-01T10:32:34Z"
+        },
+        "completed_at": {
+          "type": "date",
+          "label": "Finalizado em",
+          "example": "2026-02-01T10:32:34Z"
+        }
+      }
+    },
+
+    "gate": {
+      "label": "Gate",
+      "description": "Fase de validação sequencial",
+      "fields": {
+        "id": {
+          "type": "number",
+          "label": "Gate ID",
+          "example": 0
+        },
+        "name": {
+          "type": "string",
+          "label": "Nome",
+          "example": "SANITIZATION"
+        },
+        "emoji": {
+          "type": "string",
+          "label": "Emoji",
+          "example": "🧹"
+        },
+        "status": {
+          "type": "enum",
+          "label": "Status",
+          "values": ["pending", "running", "passed", "failed", "skipped"],
+          "colorMap": {
+            "pending": "text-dim",
+            "running": "accent",
+            "passed": "success",
+            "failed": "danger",
+            "skipped": "text-muted"
+          },
+          "example": "passed"
+        },
+        "order": {
+          "type": "number",
+          "label": "Ordem",
+          "example": 0
+        },
+        "validator_count": {
+          "type": "number",
+          "label": "Qtd validadores",
+          "example": 6
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duração (ms)",
+          "unit": "ms",
+          "example": 3200
+        }
+      }
+    },
+
+    "validator": {
+      "label": "Validator",
+      "description": "Unidade atômica de validação dentro de um gate",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "Validator ID",
+          "example": "TOKEN_BUDGET_FIT"
+        },
+        "name": {
+          "type": "string",
+          "label": "Nome",
+          "example": "Token Budget Fit"
+        },
+        "gate": {
+          "type": "number",
+          "label": "Gate",
+          "example": 0
+        },
+        "status": {
+          "type": "enum",
+          "label": "Status",
+          "values": ["pending", "running", "passed", "failed", "bypassed", "skipped"],
+          "colorMap": {
+            "pending": "text-dim",
+            "running": "accent",
+            "passed": "success",
+            "failed": "danger",
+            "bypassed": "warning",
+            "skipped": "text-muted"
+          },
+          "example": "passed"
+        },
+        "is_hard_block": {
+          "type": "boolean",
+          "label": "Hard Block",
+          "example": true
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duração (ms)",
+          "unit": "ms",
+          "example": 450
+        },
+        "reasoning": {
+          "type": "string",
+          "label": "Reasoning",
+          "example": "All files within token budget. Total: 2,340 tokens."
+        },
+        "findings": {
+          "type": "array",
+          "label": "Findings",
+          "items": { "type": "string" },
+          "example": ["File src/App.tsx: 340 tokens", "File src/utils.ts: 120 tokens"]
+        }
+      }
+    },
+
+    "project": {
+      "label": "Project",
+      "description": "Projeto de software monitorado pelo Gatekeeper",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "Project ID",
+          "example": "proj_frontend"
+        },
+        "name": {
+          "type": "string",
+          "label": "Nome",
+          "example": "Frontend App"
+        },
+        "path": {
+          "type": "string",
+          "label": "Caminho",
+          "example": "/home/lucas/projects/frontend"
+        },
+        "workspace": {
+          "type": "ref",
+          "label": "Workspace",
+          "entity": "workspace"
+        },
+        "total_runs": {
+          "type": "number",
+          "label": "Total de runs",
+          "example": 47
+        },
+        "last_run_status": {
+          "type": "enum",
+          "label": "Último status",
+          "values": ["passed", "failed", "running"],
+          "colorMap": {
+            "passed": "success",
+            "failed": "danger",
+            "running": "accent"
+          },
+          "example": "passed"
+        },
+        "created_at": {
+          "type": "date",
+          "label": "Criado em",
+          "example": "2025-12-01T08:00:00Z"
+        }
+      }
+    },
+
+    "workspace": {
+      "label": "Workspace",
+      "description": "Agrupamento de projetos",
+      "fields": {
+        "id": {
+          "type": "string",
+          "label": "Workspace ID",
+          "example": "ws_main"
+        },
+        "name": {
+          "type": "string",
+          "label": "Nome",
+          "example": "Main Workspace"
+        },
+        "project_count": {
+          "type": "number",
+          "label": "Qtd projetos",
+          "example": 3
+        },
+        "created_at": {
+          "type": "date",
+          "label": "Criado em",
+          "example": "2025-11-15T10:00:00Z"
+        }
+      }
+    },
+
+    "manifest_file": {
+      "label": "Manifest File",
+      "description": "Arquivo declarado no manifest de uma run",
+      "fields": {
+        "path": {
+          "type": "string",
+          "label": "Caminho",
+          "example": "src/components/Button.tsx"
+        },
+        "action": {
+          "type": "enum",
+          "label": "Ação",
+          "values": ["CREATE", "MODIFY", "DELETE"],
+          "colorMap": {
+            "CREATE": "success",
+            "MODIFY": "accent",
+            "DELETE": "danger"
+          },
+          "example": "MODIFY"
+        },
+        "reason": {
+          "type": "string",
+          "label": "Razão",
+          "example": "Add hover state to button component"
+        }
+      }
+    }
+  },
+
+  "globals": {
+    "feature": {
+      "mcp_enabled": {
+        "type": "boolean",
+        "label": "MCP Habilitado",
+        "example": true
+      },
+      "v2_details": {
+        "type": "boolean",
+        "label": "V2 Details Page",
+        "example": true
+      }
+    },
+    "stats": {
+      "total_runs": {
+        "type": "number",
+        "label": "Total de Runs",
+        "example": 142
+      },
+      "passed_runs": {
+        "type": "number",
+        "label": "Runs Aprovadas",
+        "example": 118
+      },
+      "failed_runs": {
+        "type": "number",
+        "label": "Runs Falhadas",
+        "example": 24
+      },
+      "pending_runs": {
+        "type": "number",
+        "label": "Runs Pendentes",
+        "example": 3
+      },
+      "pass_rate": {
+        "type": "number",
+        "label": "Taxa de Aprovação",
+        "example": 83.1
+      },
+      "avg_duration": {
+        "type": "number",
+        "label": "Duração Média (ms)",
+        "unit": "ms",
+        "example": 45000
+      },
+      "total_projects": {
+        "type": "number",
+        "label": "Total de Projetos",
+        "example": 5
+      },
+      "total_workspaces": {
+        "type": "number",
+        "label": "Total de Workspaces",
+        "example": 2
+      }
+    },
+    "user": {
+      "name": {
+        "type": "string",
+        "label": "Nome do Usuário",
+        "example": "Lucas"
+      },
+      "role": {
+        "type": "enum",
+        "label": "Role",
+        "values": ["admin", "viewer"],
+        "example": "admin"
+      }
+    }
+  },
+
+  "actions": {
+    "view": {
+      "label": "Ver detalhes",
+      "icon": "Eye"
+    },
+    "edit": {
+      "label": "Editar",
+      "icon": "PencilSimple"
+    },
+    "delete": {
+      "label": "Excluir",
+      "icon": "Trash",
+      "variant": "danger",
+      "confirm": true,
+      "confirmMessage": "Tem certeza que deseja excluir?"
+    },
+    "rerun": {
+      "label": "Re-executar",
+      "icon": "ArrowClockwise"
+    },
+    "cancel": {
+      "label": "Cancelar",
+      "icon": "Stop",
+      "variant": "warning"
+    },
+    "export": {
+      "label": "Exportar",
+      "icon": "Export"
+    },
+    "duplicate": {
+      "label": "Duplicar",
+      "icon": "Copy"
+    }
+  }
+}

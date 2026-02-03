@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://orqui.dev/schemas/variables/v1.0.0",
+  "title": "Orqui Variable Schema",
+  "description": "Define as variáveis disponíveis num projeto para uso em templates {{}} nos contratos Orqui.",
+  "type": "object",
+  "required": ["$orqui", "entities"],
+  "additionalProperties": false,
+  "properties": {
+
+    "$orqui": {
+      "type": "object",
+      "required": ["schema", "version"],
+      "properties": {
+        "schema": { "type": "string", "const": "variables" },
+        "version": { "type": "string" },
+        "project": { "type": "string", "description": "Nome do projeto" }
+      }
+    },
+
+    "entities": {
+      "type": "object",
+      "description": "Entidades do domínio do projeto. Cada chave é o nome da entidade (snake_case).",
+      "additionalProperties": {
+        "$ref": "#/$defs/entityDefinition"
+      }
+    },
+
+    "globals": {
+      "type": "object",
+      "description": "Variáveis globais agrupadas por namespace.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/$defs/fieldDefinition"
+        }
+      }
+    },
+
+    "actions": {
+      "type": "object",
+      "description": "Ações disponíveis para uso em tabelas e listas via {{$actions: ...}}",
+      "additionalProperties": {
+        "$ref": "#/$defs/actionDefinition"
+      }
+    }
+  },
+
+  "$defs": {
+
+    "entityDefinition": {
+      "type": "object",
+      "required": ["label", "fields"],
+      "properties": {
+        "label": { "type": "string", "description": "Label legível da entidade" },
+        "description": { "type": "string", "description": "Descrição do propósito" },
+        "fields": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/fieldDefinition" }
+        }
+      }
+    },
+
+    "fieldDefinition": {
+      "type": "object",
+      "required": ["type", "label"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "date", "enum", "ref", "array", "object"],
+          "description": "Tipo do campo"
+        },
+        "label": { "type": "string", "description": "Label legível" },
+        "example": { "description": "Valor de exemplo para preview no editor" },
+        "values": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Valores possíveis (apenas para type=enum)"
+        },
+        "colorMap": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Mapa valor→cor token (para enums). Usado pelo formatter badge."
+        },
+        "iconMap": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Mapa valor→ícone Phosphor (para enums)."
+        },
+        "entity": {
+          "type": "string",
+          "description": "Nome da entidade referenciada (apenas para type=ref)"
+        },
+        "items": {
+          "description": "Definição dos itens (apenas para type=array)",
+          "$ref": "#/$defs/fieldDefinition"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/fieldDefinition" },
+          "description": "Sub-campos (apenas para type=object)"
+        },
+        "unit": { "type": "string", "description": "Unidade (ex: ms, px, %)" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "maxLength": { "type": "number" },
+        "pattern": { "type": "string" },
+        "format": { "type": "string", "description": "Formato (para dates)" }
+      }
+    },
+
+    "actionDefinition": {
+      "type": "object",
+      "required": ["label", "icon"],
+      "properties": {
+        "label": { "type": "string", "description": "Texto da ação" },
+        "icon": { "type": "string", "description": "Ícone Phosphor" },
+        "variant": {
+          "type": "string",
+          "enum": ["default", "primary", "danger", "warning", "success"],
+          "default": "default"
+        },
+        "confirm": { "type": "boolean", "description": "Exigir confirmação antes de executar" },
+        "confirmMessage": { "type": "string", "description": "Mensagem de confirmação" },
+        "visibility": {
+          "type": "object",
+          "properties": {
+            "condition": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
