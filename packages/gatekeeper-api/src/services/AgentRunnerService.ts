@@ -94,10 +94,13 @@ export class AgentRunnerService {
   }
 
   /**
-   * Run the full 3-phase pipeline.
+   * Run the full pipeline.
    *
-   * Phase 1 (Planner) → Phase 2 (Spec Writer) → Phase 4 (Coder)
+   * Phase 1 (Planner) → Phase 2 (Spec Writer) → Phase 3 (Fixer, optional) → Phase 4 (Coder)
    * Output from each phase feeds into the next as user message context.
+   *
+   * Persistence callbacks are optional — when provided, the caller (controller)
+   * can track each step in the database.
    */
   async runPipeline(params: {
     phases: PhaseConfig[]
@@ -108,6 +111,10 @@ export class AgentRunnerService {
     writeTools: ToolDefinition[]
     saveArtifactTool: ToolDefinition
     onEvent?: (event: AgentEvent) => void
+    // Persistence callbacks (optional)
+    onStepStart?: (step: number, phase: PhaseConfig) => Promise<string>
+    onStepComplete?: (stepId: string, result: AgentResult) => Promise<void>
+    onStepFail?: (stepId: string, error: string) => Promise<void>
   }): Promise<{
     artifacts: Map<string, string>
     totalTokens: TokenUsage
@@ -122,6 +129,9 @@ export class AgentRunnerService {
       writeTools,
       saveArtifactTool,
       onEvent,
+      onStepStart,
+      onStepComplete,
+      onStepFail,
     } = params
 
     const phaseResults: AgentResult[] = []
@@ -142,42 +152,84 @@ export class AgentRunnerService {
         tools.push(...writeTools)
       }
 
-      // Build user message
-      let userMessage: string
-      if (phase.step === 1) {
-        // Planner: just the task description
-        userMessage = taskDescription
-      } else {
-        // Subsequent phases: include previous artifacts as context
-        const artifacts = this.toolExecutor.getArtifacts()
-        const artifactContext = [...artifacts.entries()]
-          .map(([name, content]) => `--- ${name} ---\n${content}`)
-          .join('\n\n')
+      // Build user message based on step
+      const userMessage = this.buildStepUserMessage(
+        phase.step,
+        taskDescription,
+        this.toolExecutor.getArtifacts(),
+      )
 
-        userMessage =
-          phase.step === 2
-            ? `Task: ${taskDescription}\n\nArtifacts from Phase 1:\n${artifactContext}`
-            : `Task: ${taskDescription}\n\nArtifacts:\n${artifactContext}\n\nImplement the code to make all tests pass.`
+      // Persistence: record step start
+      let stepId: string | undefined
+      if (onStepStart) {
+        stepId = await onStepStart(phase.step, phase)
       }
 
-      const result = await this.run({
-        phase,
-        systemPrompt,
-        userMessage,
-        tools,
-        projectRoot,
-        onEvent,
-      })
+      try {
+        const result = await this.run({
+          phase,
+          systemPrompt,
+          userMessage,
+          tools,
+          projectRoot,
+          onEvent,
+        })
 
-      phaseResults.push(result)
-      totalTokens.inputTokens += result.tokensUsed.inputTokens
-      totalTokens.outputTokens += result.tokensUsed.outputTokens
+        phaseResults.push(result)
+        totalTokens.inputTokens += result.tokensUsed.inputTokens
+        totalTokens.outputTokens += result.tokensUsed.outputTokens
+
+        // Persistence: record step complete
+        if (stepId && onStepComplete) {
+          await onStepComplete(stepId, result)
+        }
+      } catch (err) {
+        // Persistence: record step failure
+        if (stepId && onStepFail) {
+          await onStepFail(stepId, (err as Error).message)
+        }
+        throw err
+      }
     }
 
     return {
       artifacts: this.toolExecutor.getArtifacts(),
       totalTokens,
       phaseResults,
+    }
+  }
+
+  /**
+   * Build user message appropriate for each pipeline step.
+   */
+  private buildStepUserMessage(
+    step: number,
+    taskDescription: string,
+    artifacts: Map<string, string>,
+  ): string {
+    const artifactContext = [...artifacts.entries()]
+      .map(([name, content]) => `--- ${name} ---\n${content}`)
+      .join('\n\n')
+
+    switch (step) {
+      case 1:
+        // Planner: just the task description
+        return taskDescription
+
+      case 2:
+        // Spec writer: task + plan artifacts
+        return `Task: ${taskDescription}\n\nArtifacts from Phase 1:\n${artifactContext}`
+
+      case 3:
+        // Fixer: task + all current artifacts + instruction to fix
+        return `Task: ${taskDescription}\n\nCurrent artifacts:\n${artifactContext}\n\nReview the artifacts above and fix any issues found during validation.`
+
+      case 4:
+        // Coder: task + all artifacts + instruction to implement
+        return `Task: ${taskDescription}\n\nArtifacts:\n${artifactContext}\n\nImplement the code to make all tests pass.`
+
+      default:
+        return `Task: ${taskDescription}\n\nContext:\n${artifactContext}`
     }
   }
 
@@ -221,6 +273,37 @@ export class AgentRunnerService {
       totalTokens.outputTokens += response.usage.outputTokens
       totalTokens.cacheCreationTokens = (totalTokens.cacheCreationTokens || 0) + (response.usage.cacheCreationTokens || 0)
       totalTokens.cacheReadTokens = (totalTokens.cacheReadTokens || 0) + (response.usage.cacheReadTokens || 0)
+
+      // ── Token Budget Guardrail ────────────────────────────────────────────
+
+      const budget = phase.maxInputTokensBudget
+      if (budget > 0) {
+        const used = totalTokens.inputTokens
+        const percentUsed = Math.round((used / budget) * 100)
+
+        if (used >= budget) {
+          emit({
+            type: 'agent:budget_exceeded',
+            usedTokens: used,
+            budgetTokens: budget,
+          })
+          const error = new Error(
+            `Token budget exceeded on step ${phase.step}: ${used}/${budget} input tokens (${percentUsed}%). ` +
+              `Provider: ${llm.name}/${phase.model}`,
+          )
+          emit({ type: 'agent:error', error: error.message })
+          throw error
+        }
+
+        if (percentUsed >= 80) {
+          emit({
+            type: 'agent:budget_warning',
+            usedTokens: used,
+            budgetTokens: budget,
+            percentUsed,
+          })
+        }
+      }
 
       emit({
         type: 'agent:iteration',

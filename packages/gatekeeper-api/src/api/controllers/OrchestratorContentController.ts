@@ -2,19 +2,30 @@ import type { Request, Response } from 'express'
 import { prisma } from '../../db/client.js'
 import type { CreateContentInput, UpdateContentInput } from '../schemas/agent.schema.js'
 
+/**
+ * Orchestrator Content Controller
+ *
+ * CRUD for pipeline prompt content (PromptInstruction entries with step + kind set).
+ * These entries are assembled by AgentPromptAssembler to build system prompts.
+ *
+ * Routes mounted under /api/agent/content/*
+ */
 export class OrchestratorContentController {
   /**
-   * GET /agent/content — List all content, optionally filtered by step/kind
+   * GET /agent/content — List all pipeline content, optionally filtered by step/kind
    */
   async list(req: Request, res: Response): Promise<void> {
     const step = req.query.step ? parseInt(req.query.step as string, 10) : undefined
     const kind = req.query.kind as string | undefined
 
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = {
+      // Only show pipeline entries (those with step set)
+      step: { not: null },
+    }
     if (step !== undefined && !isNaN(step)) where.step = step
     if (kind) where.kind = kind
 
-    const contents = await prisma.orchestratorContent.findMany({
+    const contents = await prisma.promptInstruction.findMany({
       where,
       orderBy: [{ step: 'asc' }, { kind: 'asc' }, { order: 'asc' }],
     })
@@ -28,7 +39,7 @@ export class OrchestratorContentController {
   async getById(req: Request, res: Response): Promise<void> {
     const { id } = req.params
 
-    const content = await prisma.orchestratorContent.findUnique({
+    const content = await prisma.promptInstruction.findUnique({
       where: { id },
     })
 
@@ -51,8 +62,8 @@ export class OrchestratorContentController {
       return
     }
 
-    const contents = await prisma.orchestratorContent.findMany({
-      where: { step, isActive: true },
+    const contents = await prisma.promptInstruction.findMany({
+      where: { step, isActive: true, kind: { not: null } },
       orderBy: [{ kind: 'asc' }, { order: 'asc' }],
     })
 
@@ -85,30 +96,24 @@ export class OrchestratorContentController {
   }
 
   /**
-   * POST /agent/content — Create a new content entry
+   * POST /agent/content — Create a new pipeline content entry
    */
   async create(req: Request, res: Response): Promise<void> {
     const data = req.body as CreateContentInput
 
-    // Check unique constraint
-    const existing = await prisma.orchestratorContent.findUnique({
-      where: {
-        step_kind_name: {
-          step: data.step,
-          kind: data.kind,
-          name: data.name,
-        },
-      },
+    // Check name uniqueness (PromptInstruction has name @unique)
+    const existing = await prisma.promptInstruction.findUnique({
+      where: { name: data.name },
     })
 
     if (existing) {
       res.status(409).json({
-        error: `Content com step=${data.step}, kind="${data.kind}", name="${data.name}" já existe.`,
+        error: `PromptInstruction com name="${data.name}" já existe.`,
       })
       return
     }
 
-    const content = await prisma.orchestratorContent.create({ data })
+    const content = await prisma.promptInstruction.create({ data })
     res.status(201).json(content)
   }
 
@@ -119,7 +124,7 @@ export class OrchestratorContentController {
     const { id } = req.params
     const data = req.body as UpdateContentInput
 
-    const existing = await prisma.orchestratorContent.findUnique({
+    const existing = await prisma.promptInstruction.findUnique({
       where: { id },
     })
 
@@ -128,7 +133,7 @@ export class OrchestratorContentController {
       return
     }
 
-    const content = await prisma.orchestratorContent.update({
+    const content = await prisma.promptInstruction.update({
       where: { id },
       data,
     })
@@ -143,7 +148,7 @@ export class OrchestratorContentController {
     const { id } = req.params
 
     try {
-      await prisma.orchestratorContent.delete({ where: { id } })
+      await prisma.promptInstruction.delete({ where: { id } })
       res.status(204).end()
     } catch {
       res.status(404).json({ error: 'Content não encontrado' })

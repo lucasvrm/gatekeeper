@@ -53,6 +53,47 @@ const BASH_ALLOWED_PREFIXES = [
   'findstr ',
 ]
 
+// ─── Bash Blocklist — command composition / injection patterns ─────────────
+
+/**
+ * Patterns that indicate command chaining or redirection.
+ * Even if a command starts with an allowed prefix, these patterns
+ * could enable arbitrary command execution via composition.
+ */
+const BASH_BLOCKED_PATTERNS: RegExp[] = [
+  /;/,                   // command separator
+  /&&/,                  // AND chaining
+  /\|\|/,               // OR chaining
+  /\|/,                  // pipe (could route to arbitrary command)
+  />/,                   // output redirection
+  /</,                   // input redirection
+  /`/,                   // backtick command substitution
+  /\$\(/,               // $() command substitution
+  /\$\{/,               // ${} variable expansion with side effects
+  /\beval\b/,           // eval
+  /\bexec\b/,           // exec
+  /\bsource\b/,         // source
+  /\b\.\s/,             // dot-source (. script)
+]
+
+/**
+ * Patterns that indicate attempts to escape or inject.
+ */
+const BASH_INJECTION_PATTERNS: RegExp[] = [
+  /\brm\s/,             // rm command embedded
+  /\brm\b.*-rf/,        // rm -rf anywhere
+  /\bchmod\b/,          // permission changes
+  /\bchown\b/,          // ownership changes
+  /\bcurl\b/,           // network fetch
+  /\bwget\b/,           // network fetch
+  /\bnc\b/,             // netcat
+  /\bdd\b/,             // disk destroyer
+  /\bmkfs\b/,           // filesystem format
+  /\/dev\//,            // device access
+  /\/etc\//,            // system config access
+  /\/proc\//,           // process info access
+]
+
 // ─── search_code configuration ────────────────────────────────────────────
 
 const SEARCH_SKIP_DIRS = new Set([
@@ -491,6 +532,8 @@ export class AgentToolExecutor {
     projectRoot: string,
   ): ToolExecutionResult {
     const trimmed = command.trim()
+
+    // Step 1: Allowlist check
     const isAllowed = BASH_ALLOWED_PREFIXES.some((prefix) =>
       trimmed.startsWith(prefix),
     )
@@ -501,6 +544,30 @@ export class AgentToolExecutor {
           `Command not allowed: "${trimmed}". ` +
           `Allowed prefixes: ${BASH_ALLOWED_PREFIXES.join(', ')}`,
         isError: true,
+      }
+    }
+
+    // Step 2: Blocklist check — prevent command composition
+    for (const pattern of BASH_BLOCKED_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        return {
+          content:
+            `Command blocked: "${trimmed}" contains a disallowed pattern (${pattern}). ` +
+            `Command chaining, piping, and redirection are not permitted.`,
+          isError: true,
+        }
+      }
+    }
+
+    // Step 3: Injection pattern check
+    for (const pattern of BASH_INJECTION_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        return {
+          content:
+            `Command blocked: "${trimmed}" matches a dangerous pattern (${pattern}). ` +
+            `This command pattern is not permitted for security reasons.`,
+          isError: true,
+        }
       }
     }
 

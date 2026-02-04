@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { AgentPhaseConfigController } from '../controllers/AgentPhaseConfigController.js'
 import { OrchestratorContentController } from '../controllers/OrchestratorContentController.js'
 import { AgentRunnerController } from '../controllers/AgentRunnerController.js'
+import { AgentRunsController } from '../controllers/AgentRunsController.js'
 import { BridgeController } from '../controllers/BridgeController.js'
 import { OrchestratorEventService, type OrchestratorStreamEvent } from '../../services/OrchestratorEventService.js'
 import {
@@ -17,6 +18,7 @@ const router = Router()
 const phaseConfigCtrl = new AgentPhaseConfigController()
 const contentCtrl = new OrchestratorContentController()
 const runnerCtrl = new AgentRunnerController()
+const runsCtrl = new AgentRunsController()
 const bridgeCtrl = new BridgeController()
 
 // ─── System Status ─────────────────────────────────────────────────────────
@@ -195,6 +197,14 @@ router.post('/bridge/execute', async (req, res, next) => {
   }
 })
 
+router.post('/bridge/pipeline', async (req, res, next) => {
+  try {
+    await bridgeCtrl.runFullPipeline(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
 router.get('/bridge/artifacts/:outputId', async (req, res, next) => {
   try {
     await bridgeCtrl.listArtifacts(req, res)
@@ -206,6 +216,24 @@ router.get('/bridge/artifacts/:outputId', async (req, res, next) => {
 router.get('/bridge/artifacts/:outputId/:filename', async (req, res, next) => {
   try {
     await bridgeCtrl.readArtifact(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// ─── Runs: Observability ──────────────────────────────────────────────────
+
+router.get('/runs', async (req, res, next) => {
+  try {
+    await runsCtrl.list(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/runs/:id', async (req, res, next) => {
+  try {
+    await runsCtrl.getById(req, res)
   } catch (error) {
     next(error)
   }

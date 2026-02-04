@@ -12,6 +12,7 @@ export const CreatePhaseConfigSchema = z.object({
   model: z.string().min(1),
   maxTokens: z.number().int().min(256).max(65536).default(8192),
   maxIterations: z.number().int().min(1).max(100).default(30),
+  maxInputTokensBudget: z.number().int().min(0).default(0),
   temperature: z.number().min(0).max(2).optional(),
   fallbackProvider: ProviderEnum.optional(),
   fallbackModel: z.string().optional(),
@@ -23,13 +24,14 @@ export const UpdatePhaseConfigSchema = z.object({
   model: z.string().min(1).optional(),
   maxTokens: z.number().int().min(256).max(65536).optional(),
   maxIterations: z.number().int().min(1).max(100).optional(),
+  maxInputTokensBudget: z.number().int().min(0).optional(),
   temperature: z.number().min(0).max(2).nullable().optional(),
   fallbackProvider: ProviderEnum.nullable().optional(),
   fallbackModel: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
 })
 
-// ─── OrchestratorContent CRUD ──────────────────────────────────────────────
+// ─── PromptInstruction Pipeline Content CRUD ────────────────────────────────
 
 export const CreateContentSchema = z.object({
   step: z.number().int().min(0).max(4),
@@ -62,8 +64,8 @@ export const RunAgentSchema = z.object({
 })
 
 export const RunSinglePhaseSchema = z.object({
-  step: z.number().int().refine((v) => [1, 2, 4].includes(v), {
-    message: 'step deve ser 1, 2 ou 4',
+  step: z.number().int().refine((v) => [1, 2, 3, 4].includes(v), {
+    message: 'step deve ser 1, 2, 3 ou 4',
   }),
   taskDescription: z.string().min(10),
   projectPath: z.string().min(1),

@@ -105,7 +105,25 @@ router.get('/mcp/status', (req, res, next) => {
   statusController.get(req, res).catch(next)
 })
 
-// Prompt Instructions CRUD
+// ─── Prompt Instructions CRUD ─────────────────────────────────────────────
+// NOTE: /steps and /preview/:step MUST be before /:id to avoid route conflicts
+
+// Step overview (dashboard)
+router.get('/mcp/prompts/steps', (req, res, next) => {
+  promptController.stepOverview(req, res).catch(next)
+})
+
+// Preview assembled prompt for a step
+router.get('/mcp/prompts/preview/:step', (req, res, next) => {
+  promptController.previewStep(req, res).catch(next)
+})
+
+// Batch reorder
+router.post('/mcp/prompts/reorder', (req, res, next) => {
+  promptController.reorder(req, res).catch(next)
+})
+
+// Standard CRUD
 router.get('/mcp/prompts', (req, res, next) => {
   promptController.list(req, res).catch(next)
 })
@@ -120,6 +138,11 @@ router.get('/mcp/prompts/:id', (req, res, next) => {
 
 router.put('/mcp/prompts/:id', (req, res, next) => {
   promptController.update(req, res).catch(next)
+})
+
+// Toggle active/inactive
+router.patch('/mcp/prompts/:id/toggle', (req, res, next) => {
+  promptController.toggle(req, res).catch(next)
 })
 
 router.delete('/mcp/prompts/:id', (req, res, next) => {

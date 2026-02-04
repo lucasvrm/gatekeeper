@@ -311,11 +311,16 @@ model PromptInstruction {
   id        String   @id @default(cuid())
   name      String   @unique
   content   String
+  step      Int?              // null = generic/MCP prompt, 1-4 = pipeline step
+  kind      String?           // null = generic, 'instruction' | 'doc' | 'prompt' = pipeline
+  order     Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   profiles SessionProfilePrompt[]
+
+  @@index([step, kind, isActive])
 }
 
 model SessionProfile {
@@ -350,36 +355,65 @@ model SessionProfilePrompt {
 // AGENT RUNNER MODELS
 // =============================================================================
 
-/// Content used to assemble system prompts for each pipeline step.
-/// The AgentPromptAssembler queries this model to build prompts.
-model OrchestratorContent {
-  id        String   @id @default(cuid())
-  step      Int               // 0-4 (pipeline step)
-  kind      String            // 'instruction' | 'doc' | 'prompt'
-  name      String
-  content   String            // full text content
-  order     Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([step, kind, name])
-  @@index([step, kind, isActive])
-}
-
 /// Per-phase LLM configuration: which provider/model to use, limits, fallbacks.
 /// Queried by AgentRunnerService to build PhaseConfig for each pipeline step.
 model AgentPhaseConfig {
-  id                String   @id @default(cuid())
-  step              Int      @unique         // 1, 2, 4
-  provider          String   @default("anthropic")  // 'anthropic' | 'openai' | 'mistral'
-  model             String   @default("claude-sonnet-4-5-20250929")
-  maxTokens         Int      @default(8192)
-  maxIterations     Int      @default(30)
-  temperature       Float?
-  fallbackProvider  String?  // fallback provider if primary fails
-  fallbackModel     String?
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  step                  Int      @unique         // 1, 2, 3, 4
+  provider              String   @default("anthropic")  // 'anthropic' | 'openai' | 'mistral'
+  model                 String   @default("claude-sonnet-4-5-20250929")
+  maxTokens             Int      @default(8192)
+  maxIterations         Int      @default(30)
+  maxInputTokensBudget  Int      @default(0)     // 0 = unlimited, >0 = hard cap (warning at 80%)
+  temperature           Float?
+  fallbackProvider      String?  // fallback provider if primary fails
+  fallbackModel         String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+/// Tracks a full agent pipeline run (multiple steps).
+model AgentRun {
+  id                String    @id @default(cuid())
+  taskDescription   String
+  projectPath       String
+  status            String    @default("running")   // 'running' | 'completed' | 'failed'
+  provider          String                          // primary provider used
+  model             String                          // primary model used
+  totalInputTokens  Int       @default(0)
+  totalOutputTokens Int       @default(0)
+  cacheReadTokens   Int       @default(0)
+  cacheWriteTokens  Int       @default(0)
+  estimatedCostUsd  Float     @default(0)
+  error             String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+  steps             AgentRunStep[]
+
+  @@index([status])
+  @@index([startedAt])
+}
+
+/// Tracks a single step within an agent pipeline run.
+model AgentRunStep {
+  id                String    @id @default(cuid())
+  runId             String
+  run               AgentRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step              Int                             // 1, 2, 3, 4
+  status            String    @default("running")   // 'running' | 'completed' | 'failed'
+  provider          String
+  model             String
+  inputTokens       Int       @default(0)
+  outputTokens      Int       @default(0)
+  cacheReadTokens   Int       @default(0)
+  cacheWriteTokens  Int       @default(0)
+  estimatedCostUsd  Float     @default(0)
+  iterations        Int       @default(0)
+  error             String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+
+  @@index([runId])
+  @@index([runId, step])
 }

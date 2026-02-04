@@ -22,7 +22,10 @@ import { nanoid } from 'nanoid'
 import { prisma } from '../../db/client.js'
 import { AgentOrchestratorBridge, BridgeError } from '../../services/AgentOrchestratorBridge.js'
 import { OrchestratorEventService } from '../../services/OrchestratorEventService.js'
+import { AgentRunPersistenceService } from '../../services/AgentRunPersistenceService.js'
 import type { AgentEvent } from '../../types/agent.types.js'
+
+const persistence = new AgentRunPersistenceService(prisma)
 
 // ─── Lazy singleton ────────────────────────────────────────────────────────
 
@@ -87,14 +90,36 @@ export class BridgeController {
 
     // Background execution
     const bridge = getBridge()
+    const dbRunId = await persistence.createRun({
+      taskDescription,
+      projectPath,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+    const stepId = await persistence.startStep({
+      runId: dbRunId,
+      step: 1,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+
     try {
       const result = await bridge.generatePlan(
         { taskDescription, projectPath, taskType, profileId, provider, model },
         { onEvent: makeEmitter(runId) },
       )
 
+      await persistence.completeStep({
+        stepId,
+        tokensUsed: result.tokensUsed,
+        iterations: result.agentResult.iterations,
+        model: result.agentResult.model,
+      })
+      await persistence.completeRun(dbRunId)
+
       OrchestratorEventService.emitOrchestratorEvent(runId, {
         type: 'agent:bridge_plan_done',
+        dbRunId,
         outputId: result.outputId,
         artifacts: result.artifacts.map((a) => a.filename),
         tokensUsed: result.tokensUsed,
@@ -104,6 +129,8 @@ export class BridgeController {
       })
     } catch (err) {
       console.error(`[Bridge] Plan ${runId} failed:`, err)
+      await persistence.failStep(stepId, (err as Error).message)
+      await persistence.failRun(dbRunId, (err as Error).message)
       OrchestratorEventService.emitOrchestratorEvent(runId, {
         type: 'agent:error',
         error: (err as Error).message,
@@ -134,14 +161,36 @@ export class BridgeController {
     })
 
     const bridge = getBridge()
+    const dbRunId = await persistence.createRun({
+      taskDescription: `spec for ${outputId}`,
+      projectPath,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+    const stepId = await persistence.startStep({
+      runId: dbRunId,
+      step: 2,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+
     try {
       const result = await bridge.generateSpec(
         { outputId, projectPath, profileId, provider, model },
         { onEvent: makeEmitter(runId) },
       )
 
+      await persistence.completeStep({
+        stepId,
+        tokensUsed: result.tokensUsed,
+        iterations: result.agentResult.iterations,
+        model: result.agentResult.model,
+      })
+      await persistence.completeRun(dbRunId)
+
       OrchestratorEventService.emitOrchestratorEvent(runId, {
         type: 'agent:bridge_spec_done',
+        dbRunId,
         outputId,
         artifacts: result.artifacts.map((a) => a.filename),
         tokensUsed: result.tokensUsed,
@@ -151,6 +200,8 @@ export class BridgeController {
       })
     } catch (err) {
       console.error(`[Bridge] Spec ${runId} failed:`, err)
+      await persistence.failStep(stepId, (err as Error).message)
+      await persistence.failRun(dbRunId, (err as Error).message)
       const errObj = err as Error
       if (err instanceof BridgeError) {
         OrchestratorEventService.emitOrchestratorEvent(runId, {
@@ -195,6 +246,19 @@ export class BridgeController {
     })
 
     const bridge = getBridge()
+    const dbRunId = await persistence.createRun({
+      taskDescription: `fix ${target} for ${outputId}`,
+      projectPath,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+    const stepId = await persistence.startStep({
+      runId: dbRunId,
+      step: 3,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+
     try {
       const result = await bridge.fixArtifacts(
         {
@@ -204,8 +268,17 @@ export class BridgeController {
         { onEvent: makeEmitter(runId) },
       )
 
+      await persistence.completeStep({
+        stepId,
+        tokensUsed: result.tokensUsed,
+        iterations: result.agentResult.iterations,
+        model: result.agentResult.model,
+      })
+      await persistence.completeRun(dbRunId)
+
       OrchestratorEventService.emitOrchestratorEvent(runId, {
         type: 'agent:bridge_fix_done',
+        dbRunId,
         outputId,
         artifacts: result.artifacts.map((a) => a.filename),
         corrections: result.corrections,
@@ -213,6 +286,8 @@ export class BridgeController {
       })
     } catch (err) {
       console.error(`[Bridge] Fix ${runId} failed:`, err)
+      await persistence.failStep(stepId, (err as Error).message)
+      await persistence.failRun(dbRunId, (err as Error).message)
       OrchestratorEventService.emitOrchestratorEvent(runId, {
         type: 'agent:error',
         error: (err as Error).message,
@@ -243,14 +318,36 @@ export class BridgeController {
     })
 
     const bridge = getBridge()
+    const dbRunId = await persistence.createRun({
+      taskDescription: `execute ${outputId}`,
+      projectPath,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+    const stepId = await persistence.startStep({
+      runId: dbRunId,
+      step: 4,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+
     try {
       const result = await bridge.execute(
         { outputId, projectPath, provider, model },
         { onEvent: makeEmitter(runId) },
       )
 
+      await persistence.completeStep({
+        stepId,
+        tokensUsed: result.tokensUsed,
+        iterations: result.agentResult.iterations,
+        model: result.agentResult.model,
+      })
+      await persistence.completeRun(dbRunId)
+
       OrchestratorEventService.emitOrchestratorEvent(runId, {
         type: 'agent:bridge_execute_done',
+        dbRunId,
         outputId,
         artifacts: result.artifacts.map((a) => a.filename),
         tokensUsed: result.tokensUsed,
@@ -260,10 +357,201 @@ export class BridgeController {
       })
     } catch (err) {
       console.error(`[Bridge] Execute ${runId} failed:`, err)
+      await persistence.failStep(stepId, (err as Error).message)
+      await persistence.failRun(dbRunId, (err as Error).message)
       OrchestratorEventService.emitOrchestratorEvent(runId, {
         type: 'agent:error',
         error: (err as Error).message,
       })
+    }
+  }
+
+  /**
+   * POST /agent/bridge/pipeline
+   *
+   * Full automated pipeline: plan → spec → execute → [validate → fix → re-execute] loop.
+   * Body: { taskDescription, projectPath, taskType?, profileId?, provider?, model?, maxFixRetries? }
+   */
+  async runFullPipeline(req: Request, res: Response): Promise<void> {
+    const {
+      taskDescription, projectPath, taskType, profileId,
+      provider, model, maxFixRetries = 3,
+    } = req.body
+    const runId = nanoid(12)
+
+    if (!taskDescription || !projectPath) {
+      res.status(400).json({ error: 'taskDescription and projectPath are required' })
+      return
+    }
+
+    res.status(202).json({
+      runId,
+      status: 'started',
+      pipeline: 'full',
+      maxFixRetries,
+      eventsUrl: `/api/agent/events/${runId}`,
+    })
+
+    // Background execution of full pipeline
+    this.executeFullPipeline(runId, {
+      taskDescription, projectPath, taskType, profileId,
+      provider, model, maxFixRetries,
+    }).catch((err) => {
+      console.error(`[Bridge] Full pipeline ${runId} failed:`, err)
+      OrchestratorEventService.emitOrchestratorEvent(runId, {
+        type: 'agent:error',
+        error: (err as Error).message,
+      })
+    })
+  }
+
+  // ─── Full Pipeline Background Execution ──────────────────────────────
+
+  private async executeFullPipeline(
+    runId: string,
+    params: {
+      taskDescription: string
+      projectPath: string
+      taskType?: string
+      profileId?: string
+      provider?: string
+      model?: string
+      maxFixRetries: number
+    },
+  ): Promise<void> {
+    const bridge = getBridge()
+    const emit = makeEmitter(runId)
+    const { taskDescription, projectPath, taskType, profileId, provider, model, maxFixRetries } = params
+
+    const dbRunId = await persistence.createRun({
+      taskDescription,
+      projectPath,
+      provider: provider || 'anthropic',
+      model: model || 'claude-sonnet-4-5-20250929',
+    })
+
+    try {
+      // ── Step 1: Plan ──────────────────────────────────────────────────
+      emit({ type: 'agent:bridge_start', step: 1 } as AgentEvent)
+      const step1Id = await persistence.startStep({ runId: dbRunId, step: 1, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
+
+      const planResult = await bridge.generatePlan(
+        { taskDescription, projectPath, taskType, profileId, provider, model },
+        { onEvent: emit },
+      )
+
+      await persistence.completeStep({ stepId: step1Id, tokensUsed: planResult.tokensUsed, iterations: planResult.agentResult.iterations, model: planResult.agentResult.model })
+
+      OrchestratorEventService.emitOrchestratorEvent(runId, {
+        type: 'agent:bridge_plan_done',
+        outputId: planResult.outputId,
+        artifacts: planResult.artifacts.map((a) => a.filename),
+      })
+
+      const outputId = planResult.outputId
+
+      // ── Step 2: Spec ──────────────────────────────────────────────────
+      emit({ type: 'agent:bridge_start', step: 2 } as AgentEvent)
+      const step2Id = await persistence.startStep({ runId: dbRunId, step: 2, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
+
+      const specResult = await bridge.generateSpec(
+        { outputId, projectPath, profileId, provider, model },
+        { onEvent: emit },
+      )
+
+      await persistence.completeStep({ stepId: step2Id, tokensUsed: specResult.tokensUsed, iterations: specResult.agentResult.iterations, model: specResult.agentResult.model })
+
+      OrchestratorEventService.emitOrchestratorEvent(runId, {
+        type: 'agent:bridge_spec_done',
+        outputId,
+        artifacts: specResult.artifacts.map((a) => a.filename),
+      })
+
+      // ── Step 4 + Fix Loop ─────────────────────────────────────────────
+      let attempt = 0
+      let lastExecuteResult
+
+      while (attempt <= maxFixRetries) {
+        emit({ type: 'agent:bridge_start', step: 4 } as AgentEvent)
+        const step4Id = await persistence.startStep({ runId: dbRunId, step: 4, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
+
+        const executeResult = await bridge.execute(
+          { outputId, projectPath, provider, model },
+          { onEvent: emit },
+        )
+
+        await persistence.completeStep({ stepId: step4Id, tokensUsed: executeResult.tokensUsed, iterations: executeResult.agentResult.iterations, model: executeResult.agentResult.model })
+
+        lastExecuteResult = executeResult
+
+        // Check if tests pass by looking at the agent's final text output
+        // The coder agent runs tests internally; if it ends successfully, we're done
+        const agentText = executeResult.agentResult.text.toLowerCase()
+        const testsPass = agentText.includes('all tests pass') ||
+          agentText.includes('tests passed') ||
+          agentText.includes('test suite passed') ||
+          !agentText.includes('fail')
+
+        if (testsPass || attempt >= maxFixRetries) {
+          OrchestratorEventService.emitOrchestratorEvent(runId, {
+            type: 'agent:bridge_execute_done',
+            outputId,
+            attempt: attempt + 1,
+            testsPass,
+            artifacts: executeResult.artifacts.map((a) => a.filename),
+          })
+          break
+        }
+
+        // Tests failed → run fixer (step 3) and retry
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:pipeline_retry',
+          attempt: attempt + 1,
+          maxRetries: maxFixRetries,
+          reason: 'Tests failed after execution',
+        })
+
+        emit({ type: 'agent:bridge_start', step: 3 } as AgentEvent)
+        const step3Id = await persistence.startStep({ runId: dbRunId, step: 3, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
+
+        const fixResult = await bridge.fixArtifacts(
+          {
+            outputId,
+            projectPath,
+            target: 'spec' as const,
+            failedValidators: ['TestExecution'],
+            rejectionReport: `Agent execution attempt ${attempt + 1} reported test failures.\n\nAgent output:\n${executeResult.agentResult.text.slice(-2000)}`,
+            profileId,
+            provider,
+            model,
+          },
+          { onEvent: emit },
+        )
+
+        await persistence.completeStep({ stepId: step3Id, tokensUsed: fixResult.tokensUsed, iterations: fixResult.agentResult.iterations, model: fixResult.agentResult.model })
+
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:bridge_fix_done',
+          outputId,
+          attempt: attempt + 1,
+          corrections: fixResult.corrections,
+        })
+
+        attempt++
+      }
+
+      await persistence.completeRun(dbRunId)
+
+      OrchestratorEventService.emitOrchestratorEvent(runId, {
+        type: 'agent:pipeline_complete',
+        dbRunId,
+        outputId,
+        totalAttempts: attempt + 1,
+        artifacts: lastExecuteResult?.artifacts.map((a) => a.filename) ?? [],
+      })
+    } catch (err) {
+      await persistence.failRun(dbRunId, (err as Error).message)
+      throw err
     }
   }
 

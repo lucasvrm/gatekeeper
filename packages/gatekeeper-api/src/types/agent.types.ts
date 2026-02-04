@@ -106,6 +106,7 @@ export interface PhaseConfig {
   model: string
   maxTokens: number
   maxIterations: number
+  maxInputTokensBudget: number // 0 = unlimited, >0 = hard cap in tokens
   temperature?: number
   fallbackProvider?: ProviderName
   fallbackModel?: string
@@ -119,6 +120,8 @@ export type AgentEvent =
   | { type: 'agent:tool_call'; tool: string; input: Record<string, unknown> }
   | { type: 'agent:tool_result'; tool: string; isError: boolean; durationMs: number }
   | { type: 'agent:iteration'; iteration: number; tokensUsed: TokenUsage }
+  | { type: 'agent:budget_warning'; usedTokens: number; budgetTokens: number; percentUsed: number }
+  | { type: 'agent:budget_exceeded'; usedTokens: number; budgetTokens: number }
   | { type: 'agent:complete'; result: AgentResult }
   | { type: 'agent:fallback'; from: string; to: string; reason: string }
   | { type: 'agent:error'; error: string }

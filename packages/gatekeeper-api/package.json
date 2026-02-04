@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:no-watch": "tsx src/index.ts",
     "build": "tsc",
     "build:cli": "tsc -p tsconfig.cli.json",
     "cli": "ts-node src/cli/index.ts",

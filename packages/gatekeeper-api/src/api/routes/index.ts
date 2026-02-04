@@ -8,6 +8,7 @@ import { projectRoutes } from './project.routes.js'
 import { gitRoutes } from './git.routes.js'
 import { mcpRoutes } from './mcp.routes.js'
 import { orchestratorRoutes } from './orchestrator.routes.js'
+import { orchestratorContentRoutes } from './orchestrator-content.routes.js'
 import { agentRoutes } from './agent.routes.js'
 import { healthRoutes } from './health.routes.js'
 
@@ -23,6 +24,7 @@ router.use('/', projectRoutes)
 router.use('/', gitRoutes)
 router.use('/', mcpRoutes)
 router.use('/orchestrator', orchestratorRoutes)
+router.use('/', orchestratorContentRoutes)
 router.use('/agent', agentRoutes)
 
 export default router

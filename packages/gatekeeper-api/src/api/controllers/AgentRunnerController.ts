@@ -6,8 +6,11 @@ import { AgentToolExecutor, READ_TOOLS, WRITE_TOOLS, SAVE_ARTIFACT_TOOL } from '
 import { AgentRunnerService } from '../../services/AgentRunnerService.js'
 import { AgentPromptAssembler } from '../../services/AgentPromptAssembler.js'
 import { OrchestratorEventService } from '../../services/OrchestratorEventService.js'
+import { AgentRunPersistenceService } from '../../services/AgentRunPersistenceService.js'
 import type { PhaseConfig, AgentEvent, ProviderName } from '../../types/agent.types.js'
 import type { RunAgentInput, RunSinglePhaseInput } from '../schemas/agent.schema.js'
+
+const persistence = new AgentRunPersistenceService(prisma)
 
 /**
  * Lazy-initialized registry + runner.
@@ -55,6 +58,7 @@ export class AgentRunnerController {
         model: override?.model ?? db.model,
         maxTokens: db.maxTokens,
         maxIterations: db.maxIterations,
+        maxInputTokensBudget: db.maxInputTokensBudget,
         temperature: db.temperature ?? undefined,
         fallbackProvider: db.fallbackProvider as ProviderName | undefined,
         fallbackModel: db.fallbackModel ?? undefined,
@@ -106,6 +110,7 @@ export class AgentRunnerController {
       model: data.model ?? dbConfig?.model ?? 'claude-sonnet-4-5-20250929',
       maxTokens: dbConfig?.maxTokens ?? 8192,
       maxIterations: dbConfig?.maxIterations ?? 30,
+      maxInputTokensBudget: dbConfig?.maxInputTokensBudget ?? 0,
       temperature: dbConfig?.temperature ?? undefined,
       fallbackProvider: dbConfig?.fallbackProvider as ProviderName | undefined,
       fallbackModel: dbConfig?.fallbackModel ?? undefined,
@@ -181,34 +186,70 @@ export class AgentRunnerController {
 
     const systemPrompts = await assembler.assembleAll()
 
+    // Persistence: create run record
+    const primaryPhase = phases[0]
+    const dbRunId = await persistence.createRun({
+      taskDescription: data.taskDescription,
+      projectPath: data.projectPath,
+      provider: primaryPhase.provider,
+      model: primaryPhase.model,
+    })
+
     const onEvent = (event: AgentEvent) => {
       OrchestratorEventService.emitOrchestratorEvent(runId, event as Record<string, unknown>)
     }
 
-    const result = await runner.runPipeline({
-      phases,
-      systemPrompts,
-      taskDescription: data.taskDescription,
-      projectRoot: data.projectPath,
-      readTools: READ_TOOLS,
-      writeTools: WRITE_TOOLS,
-      saveArtifactTool: SAVE_ARTIFACT_TOOL,
-      onEvent,
-    })
+    try {
+      const result = await runner.runPipeline({
+        phases,
+        systemPrompts,
+        taskDescription: data.taskDescription,
+        projectRoot: data.projectPath,
+        readTools: READ_TOOLS,
+        writeTools: WRITE_TOOLS,
+        saveArtifactTool: SAVE_ARTIFACT_TOOL,
+        onEvent,
+        onStepStart: async (step, phase) => {
+          return persistence.startStep({
+            runId: dbRunId,
+            step,
+            provider: phase.provider,
+            model: phase.model,
+          })
+        },
+        onStepComplete: async (stepId, result) => {
+          await persistence.completeStep({
+            stepId,
+            tokensUsed: result.tokensUsed,
+            iterations: result.iterations,
+            model: result.model,
+          })
+        },
+        onStepFail: async (stepId, error) => {
+          await persistence.failStep(stepId, error)
+        },
+      })
 
-    // Emit final result
-    OrchestratorEventService.emitOrchestratorEvent(runId, {
-      type: 'agent:pipeline_complete',
-      artifactCount: result.artifacts.size,
-      artifactNames: [...result.artifacts.keys()],
-      totalTokens: result.totalTokens,
-      phases: result.phaseResults.map((r) => ({
-        provider: r.provider,
-        model: r.model,
-        iterations: r.iterations,
-        tokens: r.tokensUsed,
-      })),
-    })
+      await persistence.completeRun(dbRunId)
+
+      // Emit final result
+      OrchestratorEventService.emitOrchestratorEvent(runId, {
+        type: 'agent:pipeline_complete',
+        dbRunId,
+        artifactCount: result.artifacts.size,
+        artifactNames: [...result.artifacts.keys()],
+        totalTokens: result.totalTokens,
+        phases: result.phaseResults.map((r) => ({
+          provider: r.provider,
+          model: r.model,
+          iterations: r.iterations,
+          tokens: r.tokensUsed,
+        })),
+      })
+    } catch (err) {
+      await persistence.failRun(dbRunId, (err as Error).message)
+      throw err
+    }
   }
 
   private async executeSinglePhase(
@@ -228,24 +269,53 @@ export class AgentRunnerController {
       tools.push(...WRITE_TOOLS)
     }
 
+    // Persistence: create run + step
+    const dbRunId = await persistence.createRun({
+      taskDescription: data.taskDescription,
+      projectPath: data.projectPath,
+      provider: phase.provider,
+      model: phase.model,
+    })
+    const stepId = await persistence.startStep({
+      runId: dbRunId,
+      step: data.step,
+      provider: phase.provider,
+      model: phase.model,
+    })
+
     const onEvent = (event: AgentEvent) => {
       OrchestratorEventService.emitOrchestratorEvent(runId, event as Record<string, unknown>)
     }
 
-    const result = await runner.run({
-      phase,
-      systemPrompt,
-      userMessage: data.taskDescription,
-      tools,
-      projectRoot: data.projectPath,
-      onEvent,
-    })
+    try {
+      const result = await runner.run({
+        phase,
+        systemPrompt,
+        userMessage: data.taskDescription,
+        tools,
+        projectRoot: data.projectPath,
+        onEvent,
+      })
 
-    OrchestratorEventService.emitOrchestratorEvent(runId, {
-      type: 'agent:phase_complete',
-      step: data.step,
-      ...result,
-      artifactNames: [...toolExecutor.getArtifacts().keys()],
-    })
+      await persistence.completeStep({
+        stepId,
+        tokensUsed: result.tokensUsed,
+        iterations: result.iterations,
+        model: result.model,
+      })
+      await persistence.completeRun(dbRunId)
+
+      OrchestratorEventService.emitOrchestratorEvent(runId, {
+        type: 'agent:phase_complete',
+        dbRunId,
+        step: data.step,
+        ...result,
+        artifactNames: [...toolExecutor.getArtifacts().keys()],
+      })
+    } catch (err) {
+      await persistence.failStep(stepId, (err as Error).message)
+      await persistence.failRun(dbRunId, (err as Error).message)
+      throw err
+    }
   }
 }

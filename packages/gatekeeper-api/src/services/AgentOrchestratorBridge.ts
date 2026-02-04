@@ -7,7 +7,7 @@
  *
  * Key responsibilities:
  *   1. Artifact persistence to disk (workspace.artifactsDir/{outputId}/)
- *   2. DB-driven prompt assembly (OrchestratorContent table)
+ *   2. DB-driven prompt assembly (PromptInstruction table, managed via CRUD)
  *   3. Session context integration (git strategy, MCP prompts)
  *   4. Event translation (agent events → orchestrator SSE events)
  *   5. outputId generation and lifecycle management
@@ -521,6 +521,7 @@ export class AgentOrchestratorBridge {
       model: modelOverride ?? dbConfig?.model ?? 'claude-sonnet-4-5-20250929',
       maxTokens: dbConfig?.maxTokens ?? 8192,
       maxIterations: dbConfig?.maxIterations ?? 30,
+      maxInputTokensBudget: dbConfig?.maxInputTokensBudget ?? 0,
       temperature: dbConfig?.temperature ?? undefined,
       fallbackProvider: dbConfig?.fallbackProvider as ProviderName | undefined,
       fallbackModel: dbConfig?.fallbackModel ?? undefined,
