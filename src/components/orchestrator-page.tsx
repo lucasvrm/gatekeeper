@@ -316,6 +316,10 @@ export function OrchestratorPage() {
   // Attachments (ad-hoc files for plan generation context)
   const [attachments, setAttachments] = useState<Array<{ name: string; type: string; content: string; size: number }>>([])
 
+  // Autonomous pipeline mode
+  const [pipelineMode, setPipelineMode] = useState<"manual" | "autonomous">("manual")
+  const [pipelineRunId, setPipelineRunId] = useState<string | null>(null)
+  const [pipelineStep, setPipelineStep] = useState<number>(0) // current step in autonomous mode
   // ── Persist session on state changes ───────────────────────────────────
   useEffect(() => {
     if (!outputId && step === 0) return // nothing to persist
@@ -449,6 +453,27 @@ export function OrchestratorPage() {
           toast.success("Plano gerado com sucesso")
           break
         }
+        case "agent:bridge_spec_done": {
+          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          setSpecArtifacts(artifacts)
+          markComplete(2)
+          setStep(3)
+          setLoading(false)
+          addLog("success", `Testes gerados (${artifacts.length} artefatos)`)
+          toast.success("Testes gerados com sucesso")
+          break
+        }
+        case "agent:bridge_execute_done": {
+          setExecuteResult({ mode: (event.mode as string) || "agent" })
+          markComplete(3)
+          markComplete(4)
+          setStep(4)
+          setLoading(false)
+          const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
+          addLog("success", `Execução concluída${tokens ? ` (${tokens.inputTokens.toLocaleString()} tokens)` : ""}`)
+          toast.success("Execução concluída")
+          break
+        }
         case "agent:error":
           setError(String(event.error))
           setLoading(false)
@@ -463,6 +488,105 @@ export function OrchestratorPage() {
   )
 
   useOrchestratorEvents(outputId, handleSSE)
+
+  // ── Autonomous pipeline SSE — listens on /api/agent/events/${pipelineRunId} ──
+  const handlePipelineSSE = useCallback(
+    (event: OrchestratorEvent) => {
+      switch (event.type) {
+        case "agent:bridge_start":
+          setPipelineStep(event.step as number)
+          setStep(Math.min(event.step as number, 4) as WizardStep)
+          addLog("info", `Pipeline: etapa ${event.step}...`)
+          break
+        case "agent:start":
+          addLog("info", `LLM ${event.provider}/${event.model} conectado`)
+          break
+        case "agent:iteration":
+          addLog("info", `Iteração ${event.iteration} — ${(event.tokensUsed as any)?.inputTokens?.toLocaleString() ?? "?"} tokens in`)
+          break
+        case "agent:tool_call":
+          addLog("info", `🔧 ${event.tool}`)
+          break
+        case "agent:tool_result":
+          addLog(event.isError ? "error" : "info", `${event.tool} (${event.durationMs}ms)`)
+          break
+        case "agent:budget_warning":
+          addLog("warning", `⚠️ Budget ${event.percentUsed}% usado`)
+          break
+        case "agent:complete":
+          addLog("info", "LLM finalizado")
+          break
+        case "agent:bridge_plan_done": {
+          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          setPlanArtifacts(artifacts)
+          setOutputId(event.outputId as string)
+          markComplete(0)
+          markComplete(1)
+          addLog("success", `Pipeline: plano gerado (${artifacts.length} artefatos)`)
+          break
+        }
+        case "agent:bridge_spec_done": {
+          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          setSpecArtifacts(artifacts)
+          markComplete(2)
+          addLog("success", `Pipeline: testes gerados (${artifacts.length} artefatos)`)
+          break
+        }
+        case "agent:step_skipped":
+          addLog("info", `Pipeline: etapa ${event.step} pulada (checkpoint)`)
+          break
+        case "agent:validation_start":
+          setValidationStatus("RUNNING")
+          addLog("info", `Pipeline: validação (tentativa ${event.attempt})...`)
+          break
+        case "agent:validation_complete":
+          setValidationStatus((event.passed as boolean) ? "PASSED" : "FAILED")
+          addLog(
+            (event.passed as boolean) ? "success" : "warning",
+            `Pipeline: validação ${(event.passed as boolean) ? "aprovada" : "falhou"}${event.failedValidatorCodes ? ` (${(event.failedValidatorCodes as string[]).join(", ")})` : ""}`
+          )
+          break
+        case "agent:pipeline_retry":
+          addLog("warning", `Pipeline: fix tentativa ${event.attempt}/${event.maxRetries} — ${event.reason}`)
+          break
+        case "agent:bridge_fix_done":
+          addLog("success", `Pipeline: fix aplicado (${(event.corrections as number) ?? 0} correções)`)
+          break
+        case "agent:bridge_execute_done":
+          markComplete(3)
+          markComplete(4)
+          setStep(4)
+          setExecuteResult({ mode: "agent" })
+          addLog("success", `Pipeline: execução concluída (validação: ${event.validationMode})`)
+          break
+        case "agent:pipeline_complete":
+          setLoading(false)
+          setPipelineMode("manual")
+          setPipelineRunId(null)
+          addLog("success",
+            `Pipeline completo — ${event.totalAttempts} tentativa(s), validação: ${(event.validationPassed as boolean) ? "✓ OK" : "✗ falhou"}`
+          )
+          toast.success("Pipeline autônomo concluído!")
+          break
+        case "agent:error":
+          setError(String(event.error))
+          setLoading(false)
+          setPipelineMode("manual")
+          setPipelineRunId(null)
+          addLog("error", `Pipeline erro: ${event.error}`)
+          toast.error(String(event.error))
+          break
+        case "agent:stream_end":
+          // SSE stream closed by server — no action needed
+          break
+        default:
+          addLog(event.type, typeof event.text === "string" ? event.text : JSON.stringify(event))
+      }
+    },
+    [addLog]
+  )
+
+  useOrchestratorEvents(pipelineRunId ?? undefined, handlePipelineSSE, "agent")
 
   // ── Run validation SSE — polls run status inline ──────────────────────
   const validationResolvedRef = useRef(false)
@@ -743,20 +867,63 @@ export function OrchestratorPage() {
         setSpecArtifacts((prev) => mergeArtifacts(prev, result.artifacts))
       }
 
-      // Reset validation state so user can re-validate
+      // Reset validation state for auto re-run
       setValidationStatus(null)
       setRunResults(null)
       setRunId(null)
 
-      addLog("success", `${target} corrigido — pronto para re-validar`)
+      addLog("success", `${target} corrigido — re-validando automaticamente...`)
       toast.success(`${target === "plan" ? "Plano" : "Testes"} corrigido`)
+
+      // Auto re-validate: keep loading=true, trigger validation after React state commits
+      setTimeout(() => handleValidate(), 100)
     } catch (err) {
       const msg = err instanceof Error ? err.message : `Erro ao corrigir ${target}`
       setError(msg)
       addLog("error", msg)
       toast.error(msg)
-    } finally {
       setLoading(false)
+    }
+  }
+
+  // ── Autonomous Pipeline ─────────────────────────────────────────────
+  const handleRunFullPipeline = async () => {
+    if (!taskDescription.trim() || !selectedProjectId) return
+    setError(null)
+    setLoading(true)
+    setPipelineMode("autonomous")
+    setPipelineStep(0)
+    setStep(0)
+    setCompletedSteps(new Set())
+    setPlanArtifacts([])
+    setSpecArtifacts([])
+    setValidationStatus(null)
+    setRunResults(null)
+    setRunId(null)
+    setExecuteResult(null)
+    addLog("info", "Iniciando pipeline autônomo: plan → spec → execute → validate → fix loop")
+
+    try {
+      const result = await apiPost("pipeline", {
+        taskDescription,
+        taskType,
+        projectPath: getProjectPath(),
+        projectId: selectedProjectId,
+        provider: stepLLMs[1].provider,
+        model: stepLLMs[1].model,
+        maxFixRetries: 3,
+      })
+
+      setPipelineRunId(result.runId)
+      addLog("info", `Pipeline iniciado: ${result.runId} — acompanhe via SSE...`)
+      // All further updates come via handlePipelineSSE → useOrchestratorEvents('agent')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao iniciar pipeline"
+      setError(msg)
+      addLog("error", msg)
+      toast.error(msg)
+      setLoading(false)
+      setPipelineMode("manual")
     }
   }
 
@@ -767,23 +934,23 @@ export function OrchestratorPage() {
     setLoading(true)
     addLog("info", "Executando implementação...")
 
-    const project = projects.find((p) => p.id === selectedProjectId)
-    const projectPath = project?.workspace?.rootPath || ""
-
     try {
-      const result = await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4].provider, model: stepLLMs[4].model })
-      setExecuteResult(result)
-      markComplete(3)
-      markComplete(4)
-      setStep(4)
-      addLog("success", `Execução concluída (modo: ${result.mode})`)
-      toast.success("Execução concluída")
+      // POST returns 202 — execution runs in background with SSE progress
+      await apiPost("execute", {
+        outputId,
+        projectPath: getProjectPath(),
+        provider: stepLLMs[4].provider,
+        model: stepLLMs[4].model,
+      })
+
+      addLog("info", "Execução iniciada — aguardando resultado via SSE...")
+      // Completion is handled by handleSSE when it receives 'agent:bridge_execute_done'
+      // loading=false is also set there
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro na execução"
       setError(msg)
       addLog("error", msg)
       toast.error(msg)
-    } finally {
       setLoading(false)
     }
   }
@@ -860,6 +1027,46 @@ export function OrchestratorPage() {
             <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-sm text-blue-400 flex items-center gap-2">
               <span className="animate-spin">⏳</span>
               Restaurando sessão...
+            </div>
+          )}
+
+          {/* Autonomous pipeline progress banner */}
+          {pipelineMode === "autonomous" && loading && (
+            <div className="rounded-md border border-violet-500/30 bg-violet-500/5 p-4 text-sm text-violet-300">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 font-medium">
+                  <span className="animate-spin inline-block w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full" />
+                  Pipeline Autônomo em execução
+                </div>
+                <Badge variant="outline" className="text-violet-400 text-[10px]">
+                  {pipelineRunId?.slice(0, 8)}
+                </Badge>
+              </div>
+              <div className="flex gap-1 text-xs text-violet-400/70">
+                {([
+                  { s: 1, label: "Plan" },
+                  { s: 2, label: "Spec" },
+                  { s: 4, label: "Execute" },
+                ] as const).map(({ s, label }) => (
+                  <span
+                    key={s}
+                    className={`px-2 py-0.5 rounded ${
+                      completedSteps.has(s)
+                        ? "bg-green-500/20 text-green-400"
+                        : pipelineStep === s
+                          ? "bg-violet-500/20 text-violet-300 animate-pulse"
+                          : "bg-muted/30 text-muted-foreground"
+                    }`}
+                  >
+                    {completedSteps.has(s) ? "✓" : pipelineStep === s ? "⟳" : "○"} {label}
+                  </span>
+                ))}
+                {validationStatus === "RUNNING" && (
+                  <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 animate-pulse">
+                    ⟳ Validate
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
@@ -1039,13 +1246,24 @@ export function OrchestratorPage() {
                   )}
                 </div>
 
-                <Button
-                  onClick={handleGeneratePlan}
-                  disabled={loading || taskDescription.length < 10 || !selectedProjectId}
-                  className="w-full"
-                >
-                  {loading ? "Gerando..." : "Gerar Plano →"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleGeneratePlan}
+                    disabled={loading || taskDescription.length < 10 || !selectedProjectId}
+                    className="flex-1"
+                  >
+                    {loading && pipelineMode === "manual" ? "Gerando..." : "Gerar Plano →"}
+                  </Button>
+                  <Button
+                    onClick={handleRunFullPipeline}
+                    disabled={loading || taskDescription.length < 10 || !selectedProjectId}
+                    variant="outline"
+                    className="flex-1"
+                    title="Roda plan → spec → execute → validate → fix loop automaticamente"
+                  >
+                    {loading && pipelineMode === "autonomous" ? "Pipeline rodando..." : "⚡ Rodar Tudo"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}

@@ -21,6 +21,7 @@
 import type { PageDef } from "../page-editor/nodeDefaults";
 import {
   noCodeEntryToNodeDef,
+  nodeDefToNoCodeEntry,
   type NoCodeEntry,
 } from "./adapter";
 
@@ -34,6 +35,14 @@ import {
 
 const _ebEntryCache = new Map<string, any>();
 
+/**
+ * Tracks which cache entries were seeded from the adapter (NodeDef → NoCodeEntry)
+ * rather than produced by Easyblocks itself. If one of these causes a crash,
+ * clearAdapterSeededEntry() removes it so the editor can fall back to
+ * rootComponent mode (empty stack) on retry.
+ */
+const _adapterSeededEntries = new Set<string>();
+
 /** Check if a page has a cached Easyblocks entry (safe for document mode) */
 export function hasEbCachedEntry(pageId: string): boolean {
   return _ebEntryCache.has(pageId);
@@ -42,6 +51,20 @@ export function hasEbCachedEntry(pageId: string): boolean {
 /** Remove a cached entry (e.g., when page is deleted) */
 export function removeEbCachedEntry(pageId: string): void {
   _ebEntryCache.delete(pageId);
+  _adapterSeededEntries.delete(pageId);
+}
+
+/** Clear an adapter-seeded entry that caused a crash, allowing
+ *  the editor to fall back to rootComponent mode (empty stack).
+ *  Returns true if the entry was adapter-seeded and was removed. */
+export function clearAdapterSeededEntry(pageId: string): boolean {
+  if (_adapterSeededEntries.has(pageId)) {
+    _ebEntryCache.delete(pageId);
+    _adapterSeededEntries.delete(pageId);
+    console.warn(`[backend] Cleared adapter-seeded entry for "${pageId}" — falling back to rootComponent mode`);
+    return true;
+  }
+  return false;
 }
 
 // ============================================================================
@@ -108,8 +131,33 @@ const PAGE_CHANGE_DEBOUNCE_MS = 300;
 export function createOrquiBackend(options: OrquiBackendOptions) {
   const versions = new Map<string, number>();
 
-  for (const id of Object.keys(options.pages)) {
+  // Hydrate entry cache from persisted _ebEntry on pages.
+  // This restores document-mode capability after browser refresh.
+  for (const [id, page] of Object.entries(options.pages)) {
     versions.set(id, 1);
+
+    if (_ebEntryCache.has(id)) {
+      // Already in cache (from a previous backend creation in this session)
+      continue;
+    }
+
+    if (page._ebEntry) {
+      // Persisted EB-native entry — use it directly (Passo 1)
+      _ebEntryCache.set(id, structuredClone(page._ebEntry));
+    } else if (page.content) {
+      // No EB entry — best-effort hydration from adapter (Passo 2).
+      // Converts existing NodeDef → NoCodeEntry so the page opens in
+      // document mode with its content visible instead of an empty stack.
+      // If Easyblocks can't normalize this, the error boundary catches it
+      // and clearAdapterSeededEntry() allows graceful fallback.
+      try {
+        const seeded = nodeDefToNoCodeEntry(page.content);
+        _ebEntryCache.set(id, seeded);
+        _adapterSeededEntries.add(id);
+      } catch (err) {
+        console.warn(`[backend] Could not hydrate page "${id}" from adapter:`, err);
+      }
+    }
   }
 
   const debouncedPageChange = debounce(
@@ -170,6 +218,7 @@ export function createOrquiBackend(options: OrquiBackendOptions) {
           label: `Página ${Object.keys(options.pages).length + 1}`,
           route: `/${id}`,
           content: node,
+          _ebEntry: structuredClone(noCodeEntry),
         });
 
         return { id, version: 1, entry: noCodeEntry };
@@ -186,6 +235,8 @@ export function createOrquiBackend(options: OrquiBackendOptions) {
 
         // Cache the Easyblocks-native entry for future get() calls
         _ebEntryCache.set(payload.id, structuredClone(noCodeEntry));
+        // Entry is now EB-native (produced by Easyblocks), no longer adapter-seeded
+        _adapterSeededEntries.delete(payload.id);
 
         // Convert to NodeDef for the shell
         let node;
@@ -211,6 +262,7 @@ export function createOrquiBackend(options: OrquiBackendOptions) {
           route,
           browserTitle: existing?.browserTitle,
           content: node,
+          _ebEntry: structuredClone(noCodeEntry),
         });
 
         // Shell sync event

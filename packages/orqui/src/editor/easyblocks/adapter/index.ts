@@ -25,6 +25,63 @@
 import type { NodeDef, PageDef } from "../../page-editor/nodeDefaults";
 import { generateId } from "../../page-editor/nodeDefaults";
 import { NODE_TYPE_TO_EB_ID, EB_ID_TO_NODE_TYPE } from "../types";
+import { ALL_DEFINITIONS } from "../definitions";
+
+// ============================================================================
+// Token prop detection — built dynamically from definitions
+//
+// Easyblocks expects token-typed props (space, color, font, border-radius)
+// to be objects like { tokenId?: string, value: any }, NOT raw strings.
+// Passing a raw string (e.g. "24px") causes:
+//   TypeError: Cannot use 'in' operator to search for 'tokenId' in 24px
+//
+// We build a map of which props need wrapping per component so the adapter
+// can convert bidirectionally without crashing Easyblocks' normalizer.
+// ============================================================================
+
+const TOKEN_SCHEMA_TYPES = new Set(["space", "color", "font", "orqui-border-radius"]);
+
+/**
+ * Map: Easyblocks component ID → Set of prop names that are token-typed.
+ * Built once at module load from ALL_DEFINITIONS.
+ */
+const TOKEN_PROP_MAP = new Map<string, Set<string>>();
+for (const def of ALL_DEFINITIONS) {
+  const tokenProps = new Set<string>();
+  for (const sp of def.schema) {
+    if (TOKEN_SCHEMA_TYPES.has(sp.type)) {
+      tokenProps.add(sp.prop);
+    }
+  }
+  if (tokenProps.size > 0) {
+    TOKEN_PROP_MAP.set(def.id, tokenProps);
+  }
+}
+
+/**
+ * Wrap a raw scalar into Easyblocks token value format.
+ * Already-wrapped objects (from EB-native entries) pass through unchanged.
+ */
+function wrapTokenValue(value: unknown): unknown {
+  if (typeof value === "object" && value !== null) return value;
+  return { value };
+}
+
+/**
+ * Unwrap an Easyblocks token value to its raw scalar.
+ *   { tokenId: "md", value: "16px" } → "16px"
+ *   { value: "24px" }               → "24px"
+ *   "24px"                           → "24px"  (already raw)
+ */
+function unwrapTokenValue(val: unknown): unknown {
+  if (typeof val === "object" && val !== null && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>;
+    if ("tokenId" in obj || "value" in obj) {
+      return obj.value ?? obj.tokenId ?? val;
+    }
+  }
+  return val;
+}
 
 // ============================================================================
 // Types — Easyblocks NoCodeEntry shape
@@ -131,7 +188,7 @@ export function noCodeEntryToNodeDef(entry: NoCodeEntry): NodeDef {
     // Children slot → will be handled separately
     if (key === CHILDREN_SLOT_KEY) continue;
 
-    const value = unwrapResponsive(rawValue);
+    const value = unwrapTokenValue(unwrapResponsive(rawValue));
 
     // JSON-encoded props (table columns, kv items, etc.)
     if (key in JSON_PROP_MAP) {
@@ -237,6 +294,19 @@ export function nodeDefToNoCodeEntry(node: NodeDef): NoCodeEntry {
   // Convert children → Easyblocks component-collection slot
   if (node.children && node.children.length > 0) {
     entry[CHILDREN_SLOT_KEY] = node.children.map(nodeDefToNoCodeEntry);
+  }
+
+  // Wrap token-typed props in Easyblocks token value format.
+  // Raw scalars like "24px" or "#ff0000" must become { value: "24px" }
+  // to avoid crashes in Easyblocks' normalizeTokenValue which does
+  // `'tokenId' in value` (TypeError on strings).
+  const tokenProps = TOKEN_PROP_MAP.get(ebComponent);
+  if (tokenProps) {
+    for (const prop of tokenProps) {
+      if (prop in entry && entry[prop] != null) {
+        entry[prop] = wrapTokenValue(entry[prop]);
+      }
+    }
   }
 
   return entry;

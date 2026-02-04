@@ -231,6 +231,9 @@ export class BridgeController {
    * POST /agent/bridge/execute
    *
    * Body: { outputId, projectPath, provider?, model? }
+   * Returns: 202 + { outputId, eventsUrl }
+   * Background: runs agent → saves artifacts to disk
+   * SSE events: agent:bridge_start, agent:iteration, agent:tool_call, agent:bridge_execute_done
    */
   async execute(req: Request, res: Response): Promise<void> {
     const { outputId, projectPath, provider, model } = req.body
@@ -241,26 +244,41 @@ export class BridgeController {
     }
 
     const bridge = getBridge()
+    const emit = makeEmitter(outputId)
 
-    try {
-      const result = await bridge.execute(
-        { outputId, projectPath, provider, model },
-      )
+    // Return immediately — execution runs in background with SSE progress
+    res.status(202).json({
+      outputId,
+      eventsUrl: `/api/orchestrator/events/${outputId}`,
+    })
 
-      res.json({
-        outputId,
-        mode: 'agent',
-        artifacts: result.artifacts.map((a) => ({
-          filename: a.filename,
-          content: a.content,
-        })),
-        tokensUsed: result.tokensUsed,
-      })
-    } catch (err) {
-      console.error('[Bridge] Execute failed:', err)
-      const errObj = err as Error
-      res.status(500).json({ error: errObj.message })
-    }
+    // Run in background
+    setImmediate(async () => {
+      try {
+        const result = await bridge.execute(
+          { outputId, projectPath, provider, model },
+          { onEvent: emit },
+        )
+
+        // Emit completion with full result
+        OrchestratorEventService.emitOrchestratorEvent(outputId, {
+          type: 'agent:bridge_execute_done',
+          outputId,
+          mode: 'agent',
+          artifacts: result.artifacts.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+          })),
+          tokensUsed: result.tokensUsed,
+        })
+      } catch (err) {
+        console.error('[Bridge] Execute failed:', err)
+        OrchestratorEventService.emitOrchestratorEvent(outputId, {
+          type: 'agent:error',
+          error: (err as Error).message,
+        })
+      }
+    })
   }
 
   /**
@@ -450,7 +468,11 @@ export class BridgeController {
         OrchestratorEventService.emitOrchestratorEvent(runId, {
           type: 'agent:bridge_plan_done',
           outputId: planResult.outputId,
-          artifacts: planResult.artifacts.map((a) => a.filename),
+          artifacts: planResult.artifacts.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+          })),
+          tokensUsed: planResult.tokensUsed,
         })
 
         outputId = planResult.outputId
@@ -479,7 +501,11 @@ export class BridgeController {
         OrchestratorEventService.emitOrchestratorEvent(runId, {
           type: 'agent:bridge_spec_done',
           outputId,
-          artifacts: specResult.artifacts.map((a) => a.filename),
+          artifacts: specResult.artifacts.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+          })),
+          tokensUsed: specResult.tokensUsed,
         })
       } else {
         console.log(`[Bridge] Resuming: skipping step 2 (spec) — already completed`)
@@ -566,7 +592,10 @@ export class BridgeController {
               attempt: attempt + 1,
               testsPass,
               validationMode: 'heuristic',
-              artifacts: executeResult.artifacts.map((a) => a.filename),
+              artifacts: executeResult.artifacts.map((a) => ({
+                filename: a.filename,
+                content: a.content,
+              })),
             })
             break
           }
@@ -579,7 +608,10 @@ export class BridgeController {
             testsPass: true,
             validationMode: 'gatekeeper',
             validationRunId: validation.validationRunId,
-            artifacts: executeResult.artifacts.map((a) => a.filename),
+            artifacts: executeResult.artifacts.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+            })),
           })
           break
         }
@@ -595,7 +627,10 @@ export class BridgeController {
             validationMode: 'gatekeeper',
             validationRunId: validation.validationRunId,
             failedValidators: validation.failedValidatorCodes,
-            artifacts: executeResult.artifacts.map((a) => a.filename),
+            artifacts: executeResult.artifacts.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+            })),
           })
           break
         }
@@ -651,7 +686,10 @@ export class BridgeController {
         totalAttempts: attempt + 1,
         validationPassed: lastValidation?.passed ?? false,
         validationRunId: lastValidation?.validationRunId,
-        artifacts: lastExecuteResult?.artifacts.map((a) => a.filename) ?? [],
+        artifacts: lastExecuteResult?.artifacts.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+        })) ?? [],
       })
     } catch (err) {
       await persistence.failRun(dbRunId, (err as Error).message)

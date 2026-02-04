@@ -28,7 +28,7 @@ export { orquiTokensToEasyblocks, easyblocksToOrquiTokens, generateTokenCSSVaria
 export { getOrquiCustomTypes, buildWidgetVariableContext, type WidgetVariableContext } from "./bridge/variables";
 
 // Backend
-export { createOrquiBackend, type OrquiBackendOptions } from "./backend";
+export { createOrquiBackend, clearAdapterSeededEntry, type OrquiBackendOptions } from "./backend";
 
 // Definitions
 export { ALL_DEFINITIONS } from "./definitions";

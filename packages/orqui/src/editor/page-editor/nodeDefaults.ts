@@ -16,6 +16,11 @@ export interface PageDef {
   route: string;
   browserTitle?: string;
   content: NodeDef;
+  /** Cached Easyblocks-native entry. Persisted alongside the contract so that
+   *  pages survive browser refresh without losing the EB-normalized format.
+   *  Populated by the backend on create/update and consumed on init to
+   *  hydrate the in-memory _ebEntryCache. */
+  _ebEntry?: any;
 }
 
 export interface NodeTypeMeta {

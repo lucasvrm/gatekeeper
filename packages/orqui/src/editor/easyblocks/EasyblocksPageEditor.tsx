@@ -25,7 +25,7 @@ import { ORQUI_COMPONENTS } from "./components";
 import { ORQUI_WIDGETS } from "./widgets/TemplatePickerWidget";
 import { buildWidgetVariableContext } from "./bridge/variables";
 import { PageSwitcher } from "./PageSwitcher";
-import { hasEbCachedEntry, removeEbCachedEntry } from "./backend";
+import { hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry } from "./backend";
 
 // ============================================================================
 // Iframe Detection
@@ -404,10 +404,15 @@ function EasyblocksParentEditor({
   const tokenCSS = useMemo(() => generateTokenCSSVariables(tokens), [tokens]);
 
   // ---- Error boundary reset ----
+  // If the crash was caused by an adapter-seeded entry (best-effort hydration),
+  // clear it so the editor falls back to rootComponent mode (empty stack).
   const handleErrorReset = useCallback(() => {
+    if (selectedPageId) {
+      clearAdapterSeededEntry(selectedPageId);
+    }
     setEditorKey(k => k + 1);
     setReady(false);
-  }, []);
+  }, [selectedPageId]);
 
   // Wait for URL params before rendering
   if (!ready) return null;

@@ -284,16 +284,15 @@ router.get('/events/:runId', (req, res) => {
         resWithFlush.flush()
       }
 
-      // Auto-close on terminal events
+      // Auto-close on terminal events.
+      // NOTE: We do NOT close on bridge_*_done events because those are emitted
+      // as intermediate steps within a full pipeline run. Only true terminal
+      // events (pipeline complete, single phase complete, or error) close the stream.
       const eventType = (payload.event as Record<string, unknown>).type as string
       if (
         eventType === 'agent:pipeline_complete' ||
         eventType === 'agent:phase_complete' ||
-        eventType === 'agent:error' ||
-        eventType === 'agent:bridge_plan_done' ||
-        eventType === 'agent:bridge_spec_done' ||
-        eventType === 'agent:bridge_fix_done' ||
-        eventType === 'agent:bridge_execute_done'
+        eventType === 'agent:error'
       ) {
         res.write(`data: ${JSON.stringify({ type: 'agent:stream_end' })}\n\n`)
         res.end()
