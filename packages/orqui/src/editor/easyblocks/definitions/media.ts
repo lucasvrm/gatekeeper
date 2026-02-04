@@ -5,10 +5,12 @@
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
+import { THUMB_AVATAR, THUMB_VIDEO, THUMB_CAROUSEL } from "./thumbnails";
 import { ALL_COMPONENT_IDS } from "../types";
 
 export const avatarDefinition: NoCodeComponentDefinition = {
   id: "OrquiAvatar",
+  thumbnail: THUMB_AVATAR,
   label: "Avatar",
   type: "item",
   paletteLabel: "Mídia",
@@ -87,6 +89,7 @@ export const avatarDefinition: NoCodeComponentDefinition = {
 
 export const videoDefinition: NoCodeComponentDefinition = {
   id: "OrquiVideo",
+  thumbnail: THUMB_VIDEO,
   label: "Vídeo",
   type: "item",
   paletteLabel: "Mídia",
@@ -133,6 +136,7 @@ export const videoDefinition: NoCodeComponentDefinition = {
 
 export const carouselDefinition: NoCodeComponentDefinition = {
   id: "OrquiCarousel",
+  thumbnail: THUMB_CAROUSEL,
   label: "Carrossel",
   type: "item",
   paletteLabel: "Mídia",

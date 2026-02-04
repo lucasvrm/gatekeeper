@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import type { AgentEvent } from '../types/agent.types.js'
 
 /**
  * Orchestrator SSE event types.
@@ -8,6 +9,14 @@ export interface OrchestratorEventData {
   type: string
   [key: string]: unknown
 }
+
+/**
+ * Any event that can flow through the SSE channel.
+ * AgentEvent (discriminated union) is structurally compatible with
+ * OrchestratorEventData but TypeScript can't prove it due to index
+ * signature constraints — so we accept both explicitly.
+ */
+export type EmittableEvent = OrchestratorEventData | AgentEvent
 
 export interface OrchestratorStreamEvent {
   outputId: string
@@ -34,22 +43,24 @@ class OrchestratorEventServiceClass extends EventEmitter {
     return super.emit(event, payload)
   }
 
-  emitOrchestratorEvent(outputId: string, event: OrchestratorEventData) {
-    console.log('[OrchestratorEventService] Emitting:', event.type, 'for:', outputId)
+  emitOrchestratorEvent(outputId: string, event: EmittableEvent) {
+    // AgentEvent has type: string (literal subtypes) + other fields → structurally satisfies OrchestratorEventData
+    const data = event as OrchestratorEventData
+    console.log('[OrchestratorEventService] Emitting:', data.type, 'for:', outputId)
 
     // Buffer the event for late-joining SSE clients
     if (!this.eventBuffer.has(outputId)) {
       this.eventBuffer.set(outputId, [])
     }
     const buffer = this.eventBuffer.get(outputId)!
-    buffer.push({ event, timestamp: Date.now() })
+    buffer.push({ event: data, timestamp: Date.now() })
 
     // Trim buffer size
     if (buffer.length > MAX_BUFFER_PER_OUTPUT) {
       buffer.splice(0, buffer.length - MAX_BUFFER_PER_OUTPUT)
     }
 
-    this.emit('orchestrator-event', { outputId, event })
+    this.emit('orchestrator-event', { outputId, event: data })
   }
 
   /**

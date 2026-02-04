@@ -27,7 +27,7 @@ import { ORQUI_WIDGETS } from "./widgets/TemplatePickerWidget";
  */
 export function EasyblocksCanvasEntry() {
   return (
-    <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#fff" }}>
+    <div style={{ width: "100vw", minHeight: "100vh", overflow: "auto", background: "#fff" }}>
       <EasyblocksEditor
         config={{
           // Minimal config — child mode gets everything from parent via editorWindowAPI

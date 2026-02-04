@@ -7,6 +7,7 @@
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
+import { THUMB_TABS, THUMB_SEARCH, THUMB_SELECT, THUMB_SLOT } from "./thumbnails";
 
 // ============================================================================
 // OrquiTabs — tabbed content
@@ -14,6 +15,7 @@ import type { NoCodeComponentDefinition } from "../types";
 
 export const tabsDefinition: NoCodeComponentDefinition = {
   id: "OrquiTabs",
+  thumbnail: THUMB_TABS,
   label: "Tabs",
   type: "item",
   paletteLabel: "Navegação",
@@ -80,6 +82,7 @@ export const tabsDefinition: NoCodeComponentDefinition = {
 
 export const searchDefinition: NoCodeComponentDefinition = {
   id: "OrquiSearch",
+  thumbnail: THUMB_SEARCH,
   label: "Busca",
   type: "item",
   paletteLabel: "Inputs",
@@ -141,6 +144,7 @@ export const searchDefinition: NoCodeComponentDefinition = {
 
 export const selectDefinition: NoCodeComponentDefinition = {
   id: "OrquiSelect",
+  thumbnail: THUMB_SELECT,
   label: "Select",
   type: "item",
   paletteLabel: "Inputs",
@@ -196,6 +200,7 @@ export const selectDefinition: NoCodeComponentDefinition = {
 
 export const slotDefinition: NoCodeComponentDefinition = {
   id: "OrquiSlot",
+  thumbnail: THUMB_SLOT,
   label: "Slot",
   type: "item",
   paletteLabel: "Especial",

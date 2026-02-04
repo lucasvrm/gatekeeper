@@ -242,7 +242,7 @@ export class RunsController {
       where: { runId: id },
     })
 
-    // Reset run to initial state (including clearing bypassed validators)
+    // Reset run to initial state (preserving bypassed validators)
     const firstGate = run.runType === 'EXECUTION' ? 2 : 0
     await prisma.validationRun.update({
       where: { id },
@@ -254,7 +254,7 @@ export class RunsController {
         failedValidatorCode: null,
         startedAt: null,
         completedAt: null,
-        bypassedValidators: null,
+        // NOTE: bypassedValidators are preserved so user doesn't lose their bypasses on rerun
       },
     })
 
@@ -307,14 +307,6 @@ export class RunsController {
 
     if (!validatorResult) {
       res.status(404).json({ error: 'Validator result not found' })
-      return
-    }
-
-    if (!validatorResult.isHardBlock) {
-      res.status(400).json({
-        error: 'Cannot bypass validator',
-        message: 'Only hard block validators can be bypassed this way',
-      })
       return
     }
 
@@ -521,15 +513,31 @@ export class RunsController {
 
         // Extract original filename to get the proper spec filename
         const specFileName = specFile.originalname
-        if (!specFileName.endsWith('.spec.tsx') && !specFileName.endsWith('.spec.ts')) {
-          res.status(400).json({ error: 'Spec file must have .spec.tsx or .spec.ts extension' })
+        const specBaseName = path.basename(specFileName)
+        const hasTestExt = specBaseName.endsWith('.spec.tsx') || specBaseName.endsWith('.spec.ts') ||
+          specBaseName.endsWith('.test.tsx') || specBaseName.endsWith('.test.ts')
+        if (!hasTestExt) {
+          res.status(400).json({ error: 'Spec file must have .spec.tsx/.spec.ts/.test.tsx/.test.ts extension' })
           return
         }
 
         // Save to artifacts/ - will be copied to correct path by orchestrator
+        // If filename has path separators (e.g. "src/__tests__/spec.tsx"), create parent dirs
         const artifactsSpecPath = path.join(artifactDir, specFileName)
+        const specDir = path.dirname(artifactsSpecPath)
+        if (specDir !== artifactDir) {
+          await fs.mkdir(specDir, { recursive: true })
+        }
         await fs.writeFile(artifactsSpecPath, specFile.buffer)
         console.log('[uploadFiles] Saved spec to artifacts:', artifactsSpecPath)
+
+        // Also save a flat copy at root of outputId dir for ensureSpecAtCorrectPath
+        // which looks for basename(manifest.testFile) at the root level
+        if (specBaseName !== specFileName) {
+          const flatPath = path.join(artifactDir, specBaseName)
+          await fs.writeFile(flatPath, specFile.buffer)
+          console.log('[uploadFiles] Also saved flat copy:', flatPath)
+        }
 
         uploadedFiles.push({ type: 'spec', path: artifactsSpecPath, size: specFile.size })
       }

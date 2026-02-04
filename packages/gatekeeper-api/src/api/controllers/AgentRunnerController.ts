@@ -196,7 +196,7 @@ export class AgentRunnerController {
     })
 
     const onEvent = (event: AgentEvent) => {
-      OrchestratorEventService.emitOrchestratorEvent(runId, event as Record<string, unknown>)
+      OrchestratorEventService.emitOrchestratorEvent(runId, event)
     }
 
     try {
@@ -284,7 +284,7 @@ export class AgentRunnerController {
     })
 
     const onEvent = (event: AgentEvent) => {
-      OrchestratorEventService.emitOrchestratorEvent(runId, event as Record<string, unknown>)
+      OrchestratorEventService.emitOrchestratorEvent(runId, event)
     }
 
     try {

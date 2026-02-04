@@ -15,7 +15,7 @@
 // Gatekeeper app (sidebar, dashboard, nav) instead of the blank canvas.
 // ============================================================================
 
-import React, { useState, useCallback, useMemo, useEffect, Component, type ErrorInfo, type ReactNode } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from "react";
 import { EasyblocksEditor } from "@easyblocks/editor";
 import type { PageDef } from "../page-editor/nodeDefaults";
 import type { VariablesSection } from "../page-editor/variableSchema";
@@ -25,7 +25,7 @@ import { ORQUI_COMPONENTS } from "./components";
 import { ORQUI_WIDGETS } from "./widgets/TemplatePickerWidget";
 import { buildWidgetVariableContext } from "./bridge/variables";
 import { PageSwitcher } from "./PageSwitcher";
-import { hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry } from "./backend";
+import { hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry, invalidateAllEntries } from "./backend";
 
 // ============================================================================
 // Iframe Detection
@@ -368,11 +368,40 @@ function EasyblocksParentEditor({
         e.preventDefault();
         handleNewPage();
       }
+
+      // Ctrl+PgUp / Ctrl+Shift+Tab — Previous page
+      if (ctrl && (e.key === "PageUp" || (e.shiftKey && e.key === "Tab"))) {
+        e.preventDefault();
+        const ids = Object.keys(pages);
+        if (ids.length <= 1 || !selectedPageId) return;
+        const idx = ids.indexOf(selectedPageId);
+        const prev = ids[(idx - 1 + ids.length) % ids.length];
+        handleSelectPage(prev);
+      }
+
+      // Ctrl+PgDn / Ctrl+Tab — Next page
+      if (ctrl && (e.key === "PageDown" || (!e.shiftKey && e.key === "Tab"))) {
+        e.preventDefault();
+        const ids = Object.keys(pages);
+        if (ids.length <= 1 || !selectedPageId) return;
+        const idx = ids.indexOf(selectedPageId);
+        const next = ids[(idx + 1) % ids.length];
+        handleSelectPage(next);
+      }
+
+      // Ctrl+W — Delete current page (with safety: must have >1 page)
+      if (ctrl && e.key === "w") {
+        const ids = Object.keys(pages);
+        if (ids.length > 1 && selectedPageId) {
+          e.preventDefault();
+          handleDeletePage(selectedPageId);
+        }
+      }
     };
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleNewPage]);
+  }, [handleNewPage, handleSelectPage, handleDeletePage, pages, selectedPageId]);
 
   // ---- Build Easyblocks config ----
   const handlePageChange = useCallback((pageId: string, page: PageDef) => {
@@ -388,6 +417,34 @@ function EasyblocksParentEditor({
     }),
     [tokens, pages, handlePageChange, handleDeletePage]
   );
+
+  // ---- Ref to latest config for cleanup ----
+  const configRef = useRef(config);
+  configRef.current = config;
+
+  // ---- Flush debounced backend changes on unmount ----
+  // Prevents data loss when switching from Pages to Shell mode.
+  useEffect(() => {
+    return () => {
+      const c = configRef.current;
+      if (c.backend && typeof (c.backend as any).flush === "function") {
+        (c.backend as any).flush();
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Listen for external changes (import, undo, collaborative edits) ----
+  // When emitted, invalidate all cache entries and remount the editor
+  // so it re-hydrates from the current layout state.
+  useEffect(() => {
+    const handler = () => {
+      invalidateAllEntries();
+      setReady(false);
+      setEditorKey(k => k + 1);
+    };
+    window.addEventListener("orqui:external-change", handler);
+    return () => window.removeEventListener("orqui:external-change", handler);
+  }, []);
 
   // ---- Flush backend on Ctrl+S (force-save event) ----
   useEffect(() => {
@@ -415,7 +472,37 @@ function EasyblocksParentEditor({
   }, [selectedPageId]);
 
   // Wait for URL params before rendering
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
+        {/* Keep PageSwitcher visible during loading for continuity */}
+        <PageSwitcher
+          pages={pages}
+          currentPageId={selectedPageId}
+          onSelectPage={handleSelectPage}
+          onNewPage={handleNewPage}
+          onDeletePage={handleDeletePage}
+        />
+        <div style={{
+          flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "#0e0e11",
+        }}>
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+            color: "#5b5b66", fontSize: 13, fontFamily: "'Inter', sans-serif",
+          }}>
+            <div style={{
+              width: 24, height: 24, borderRadius: "50%",
+              border: "2px solid #2a2a33", borderTopColor: "#6d9cff",
+              animation: "orqui-spin 0.7s linear infinite",
+            }} />
+            <span>Carregando página…</span>
+            <style>{`@keyframes orqui-spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
@@ -430,8 +517,38 @@ function EasyblocksParentEditor({
         onDeletePage={handleDeletePage}
       />
 
-      {/* Easyblocks editor — re-mounted on page switch via key */}
+      {/* Easyblocks editor — re-mounted on page switch via key.
+       *
+       * HEIGHT FIX — based on source analysis of @easyblocks/editor v1.0.10:
+       *
+       * Easyblocks has an internal `heightMode` prop (not in public API) that
+       * defaults to "viewport". This causes:
+       *   - #shopstory-app  → height: 100vh
+       *   - SidebarAndContentContainer → height: calc(100vh - 40px)
+       *
+       * Since Orqui embeds the editor below its own header + page tabs,
+       * the 100vh overflows by ~62px, cutting off the sidebar and canvas bottom.
+       *
+       * Fix: Two targeted CSS rules convert the layout from viewport-based
+       * to container-based sizing, letting flex do the work.
+       */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <style>{`
+          /* Rule 1: Make editor root fill its flex parent instead of viewport */
+          #shopstory-app {
+            height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          /* Rule 2: SidebarAndContentContainer (always last DOM child of
+             #shopstory-app — providers don't create DOM elements) uses
+             flex-grow instead of calc(100vh - 40px) */
+          #shopstory-app > :last-child {
+            flex: 1 !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+        `}</style>
         <EasyblocksErrorBoundary onReset={handleErrorReset}>
           <EasyblocksEditor
             key={editorKey}

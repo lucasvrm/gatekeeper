@@ -166,9 +166,10 @@ export class MCPPromptController {
     const grouped = new Map<string, typeof rows>()
 
     for (const row of rows) {
-      const list = grouped.get(row.kind) || []
+      const kind = row.kind ?? 'instruction'
+      const list = grouped.get(kind) || []
       list.push(row)
-      grouped.set(row.kind, list)
+      grouped.set(kind, list)
     }
 
     const parts: string[] = []
@@ -181,7 +182,7 @@ export class MCPPromptController {
         parts.push(item.content)
         manifest.push({
           name: item.name,
-          kind: item.kind,
+          kind: item.kind ?? 'instruction',
           order: item.order,
           chars: item.content.length,
         })
@@ -195,7 +196,7 @@ export class MCPPromptController {
         parts.push(item.content)
         manifest.push({
           name: item.name,
-          kind: item.kind,
+          kind: item.kind ?? 'instruction',
           order: item.order,
           chars: item.content.length,
         })

@@ -6,10 +6,12 @@
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
+import { THUMB_MODAL, THUMB_DRAWER, THUMB_TOOLTIP } from "./thumbnails";
 import { ALL_COMPONENT_IDS } from "../types";
 
 export const modalDefinition: NoCodeComponentDefinition = {
   id: "OrquiModal",
+  thumbnail: THUMB_MODAL,
   label: "Modal",
   type: "item",
   paletteLabel: "Overlay",
@@ -77,6 +79,7 @@ export const modalDefinition: NoCodeComponentDefinition = {
 
 export const drawerDefinition: NoCodeComponentDefinition = {
   id: "OrquiDrawer",
+  thumbnail: THUMB_DRAWER,
   label: "Drawer",
   type: "item",
   paletteLabel: "Overlay",
@@ -151,6 +154,7 @@ export const drawerDefinition: NoCodeComponentDefinition = {
 
 export const tooltipDefinition: NoCodeComponentDefinition = {
   id: "OrquiTooltip",
+  thumbnail: THUMB_TOOLTIP,
   label: "Tooltip",
   type: "item",
   paletteLabel: "Overlay",

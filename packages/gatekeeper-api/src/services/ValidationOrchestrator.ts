@@ -81,12 +81,47 @@ export class ValidationOrchestrator {
     const artifactsPath = join(run.projectPath, artifactsDir, run.outputId, specFileName)
     const artifactsExists = existsSync(artifactsPath)
 
+    // Also try the full relative path inside the output dir (Claude Code may nest files)
+    const artifactsNestedPath = join(run.projectPath, artifactsDir, run.outputId, manifest.testFile)
+    const artifactsNestedExists = !artifactsExists && artifactsNestedPath !== artifactsPath && existsSync(artifactsNestedPath)
+
+    console.log('[ensureSpecAtCorrectPath] Spec lookup:', {
+      manifestTestFile: manifest.testFile,
+      specFileName,
+      artifactsDir,
+      artifactsPath,
+      artifactsExists,
+      artifactsNestedPath: artifactsNestedPath !== artifactsPath ? artifactsNestedPath : '(same)',
+      artifactsNestedExists,
+      targetPath,
+      targetExists,
+    })
+
     if (artifactsExists) {
       const targetDir = dirname(targetPath)
       mkdirSync(targetDir, { recursive: true })
       copyFileSync(artifactsPath, targetPath)
       console.log('[ensureSpecAtCorrectPath] ✅ Copied spec from', artifactsPath, 'to', targetPath)
-    } else if (!targetExists) {
+    } else if (artifactsNestedExists) {
+      const targetDir = dirname(targetPath)
+      mkdirSync(targetDir, { recursive: true })
+      copyFileSync(artifactsNestedPath, targetPath)
+      console.log('[ensureSpecAtCorrectPath] ✅ Copied spec from nested path', artifactsNestedPath, 'to', targetPath)
+    } else if (targetExists) {
+      console.warn('[ensureSpecAtCorrectPath] ⚠️ Spec NOT found in artifacts dir but EXISTS at target — using existing file (possibly stale!)')
+      console.warn('[ensureSpecAtCorrectPath] ⚠️ Expected at:', artifactsPath)
+      // List what's actually in the artifacts folder for debugging
+      try {
+        const outputDir = join(run.projectPath, artifactsDir, run.outputId)
+        if (existsSync(outputDir)) {
+          const { readdirSync } = require('fs')
+          const entries = readdirSync(outputDir) as string[]
+          console.warn('[ensureSpecAtCorrectPath] ⚠️ Artifacts dir contents:', entries)
+        } else {
+          console.warn('[ensureSpecAtCorrectPath] ⚠️ Artifacts dir does not exist:', outputDir)
+        }
+      } catch { /* ignore */ }
+    } else {
       throw new Error(
         `Spec file not found in artifacts staging path: ${artifactsPath}. Ensure the artifacts folder is selected.`,
       )

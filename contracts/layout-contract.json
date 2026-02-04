@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:e86c2bd1bc49a707f6545b7d2eded0a5254faf17abba834ecc4ea80028145ab5",
-    "generatedAt": "2026-02-04T07:04:53.053Z"
+    "hash": "sha256:07517b320e014b5a4c252537d54a01c5a3af203fbcc7e3f0c2004ea5859f7cb5",
+    "generatedAt": "2026-02-04T08:02:37.198Z"
   },
   "structure": {
     "regions": {
@@ -92,7 +92,7 @@
             {
               "id": "dashboard",
               "label": "Dashboard",
-              "icon": "ph:gauge-duotone",
+              "icon": "ph:hurricane-duotone",
               "route": "/dashboard"
             },
             {
@@ -110,13 +110,13 @@
             {
               "id": "workspaces",
               "label": "Workspaces",
-              "icon": "ph:squares-four-duotone",
+              "icon": "ph:squares-four",
               "route": "/workspaces"
             },
             {
               "id": "projects",
               "label": "Projects",
-              "icon": "ph:kanban-duotone",
+              "icon": "ph:file",
               "route": "/projects"
             },
             {
@@ -1093,7 +1093,9 @@
         "id": "stack-31308",
         "type": "stack",
         "props": {
-          "gap": "24px"
+          "gap": "24px",
+          "padding": "14px",
+          "background": "#5c7fa8"
         },
         "children": [
           {
@@ -1102,7 +1104,10 @@
             "props": {
               "gap": "12px",
               "align": "center",
-              "justify": "space-between"
+              "justify": "space-between",
+              "wrap": false,
+              "padding": "14px",
+              "background": "#5c7fa8"
             },
             "children": [
               {
@@ -1110,7 +1115,11 @@
                 "type": "heading",
                 "props": {
                   "content": "Dashboard",
-                  "level": 1
+                  "level": 1,
+                  "color": "#5c7fa8",
+                  "font": {
+                    "fontFamily": "'Inter', Inter, -apple-system, sans-serif"
+                  }
                 }
               },
               {
@@ -1118,14 +1127,20 @@
                 "type": "row",
                 "props": {
                   "gap": "8px",
-                  "align": "center"
+                  "align": "center",
+                  "justify": "flex-start",
+                  "wrap": false,
+                  "padding": "14px",
+                  "background": "#5c7fa8"
                 },
                 "children": [
                   {
                     "id": "search-31294",
                     "type": "search",
                     "props": {
-                      "placeholder": "Buscar..."
+                      "placeholder": "Buscar...",
+                      "background": "#5c7fa8",
+                      "borderRadius": "10px"
                     }
                   },
                   {
@@ -1134,6 +1149,9 @@
                     "props": {
                       "label": "Nova ação",
                       "variant": "primary",
+                      "customBg": "#5c7fa8",
+                      "customColor": "#5c7fa8",
+                      "borderRadius": "10px",
                       "icon": "Plus"
                     }
                   }
@@ -1146,7 +1164,9 @@
             "type": "grid",
             "props": {
               "columns": 4,
-              "gap": "18px"
+              "gap": "18px",
+              "padding": "14px",
+              "background": "#5c7fa8"
             },
             "children": [
               {
@@ -1155,7 +1175,11 @@
                 "props": {
                   "label": "Total",
                   "value": "1,234",
-                  "icon": "TrendUp"
+                  "icon": "TrendUp",
+                  "trendDirection": "up",
+                  "padding": "14px",
+                  "background": "#5c7fa8",
+                  "borderRadius": "10px"
                 }
               },
               {
@@ -1164,7 +1188,11 @@
                 "props": {
                   "label": "Ativos",
                   "value": "567",
-                  "icon": "CheckCircle"
+                  "icon": "CheckCircle",
+                  "trendDirection": "up",
+                  "padding": "14px",
+                  "background": "#5c7fa8",
+                  "borderRadius": "10px"
                 }
               },
               {
@@ -1173,7 +1201,11 @@
                 "props": {
                   "label": "Pendentes",
                   "value": "89",
-                  "icon": "Clock"
+                  "icon": "Clock",
+                  "trendDirection": "up",
+                  "padding": "14px",
+                  "background": "#5c7fa8",
+                  "borderRadius": "10px"
                 }
               },
               {
@@ -1182,7 +1214,11 @@
                 "props": {
                   "label": "Taxa",
                   "value": "94.2%",
-                  "icon": "Percent"
+                  "icon": "Percent",
+                  "trendDirection": "up",
+                  "padding": "14px",
+                  "background": "#5c7fa8",
+                  "borderRadius": "10px"
                 }
               }
             ]
@@ -1192,7 +1228,11 @@
             "type": "row",
             "props": {
               "gap": "8px",
-              "align": "center"
+              "align": "center",
+              "justify": "flex-start",
+              "wrap": false,
+              "padding": "14px",
+              "background": "#5c7fa8"
             },
             "children": [
               {
@@ -1213,7 +1253,9 @@
                       "value": "inactive",
                       "label": "Inativos"
                     }
-                  ]
+                  ],
+                  "background": "#5c7fa8",
+                  "borderRadius": "10px"
                 }
               },
               {
@@ -1234,7 +1276,9 @@
                       "value": "90d",
                       "label": "Últimos 90 dias"
                     }
-                  ]
+                  ],
+                  "background": "#5c7fa8",
+                  "borderRadius": "10px"
                 }
               },
               {
@@ -1279,72 +1323,468 @@
                   "width": "18%",
                   "align": "right"
                 }
-              ]
+              ],
+              "striped": false,
+              "compact": false,
+              "borderRadius": "10px"
             }
           }
         ]
-      }
-    },
-    "page-1770173683738": {
-      "id": "page-1770173683738",
-      "label": "Página 2",
-      "route": "/page-1770173683738",
-      "content": {
-        "id": "5ba8ce18-b380-42d2-ac81-bdfc9e10bb17",
-        "type": "stack",
-        "props": {
-          "gap": {
-            "value": "16px",
+      },
+      "_ebEntry": {
+        "_id": "stack-31308",
+        "_component": "OrquiStack",
+        "gap": {
+          "$res": true,
+          "xl": {
+            "value": "24px",
+            "widgetId": "@easyblocks/space"
+          }
+        },
+        "padding": {
+          "$res": true,
+          "xl": {
+            "value": "14px",
             "tokenId": "md",
             "widgetId": "@easyblocks/space"
           }
-        }
-      }
-    },
-    "page-1770182980004": {
-      "id": "page-1770182980004",
-      "label": "Página 3",
-      "route": "/page-1770182980004",
-      "content": {
-        "id": "3b81b58f-c9ef-4bf6-b158-b37f2a712d5e",
-        "type": "stack",
-        "props": {
-          "gap": {
-            "value": "14px",
-            "tokenId": "md",
-            "widgetId": "@easyblocks/space"
-          },
-          "padding": {
-            "value": "14px",
-            "tokenId": "md",
-            "widgetId": "@easyblocks/space"
-          },
-          "background": {
+        },
+        "background": {
+          "$res": true,
+          "xl": {
             "value": "#5c7fa8",
             "tokenId": "accent",
             "widgetId": "@easyblocks/color"
           }
         },
-        "children": [
+        "Children": [
           {
-            "id": "1aa53d60-a640-45b1-9b3d-0a24950d1003",
-            "type": "stack",
-            "props": {
-              "gap": {
+            "_id": "row-31297",
+            "_component": "OrquiRow",
+            "gap": {
+              "$res": true,
+              "xl": {
+                "value": "12px",
+                "widgetId": "@easyblocks/space"
+              }
+            },
+            "align": {
+              "$res": true,
+              "xl": "center"
+            },
+            "justify": {
+              "$res": true,
+              "xl": "space-between"
+            },
+            "wrap": {
+              "$res": true,
+              "xl": false
+            },
+            "padding": {
+              "$res": true,
+              "xl": {
                 "value": "14px",
                 "tokenId": "md",
                 "widgetId": "@easyblocks/space"
-              },
-              "padding": {
-                "value": "14px",
-                "tokenId": "md",
-                "widgetId": "@easyblocks/space"
-              },
-              "background": {
-                "tokenId": "info-dim",
-                "value": "#d6e4f0",
+              }
+            },
+            "background": {
+              "$res": true,
+              "xl": {
+                "value": "#5c7fa8",
+                "tokenId": "accent",
                 "widgetId": "@easyblocks/color"
               }
+            },
+            "Children": [
+              {
+                "_id": "heading-31293",
+                "_component": "OrquiHeading",
+                "content": {
+                  "value": "Dashboard",
+                  "widgetId": "orqui-template-picker"
+                },
+                "level": "1",
+                "color": {
+                  "$res": true,
+                  "xl": {
+                    "value": "#5c7fa8",
+                    "tokenId": "accent",
+                    "widgetId": "@easyblocks/color"
+                  }
+                },
+                "font": {
+                  "$res": true,
+                  "xl": {
+                    "value": {
+                      "fontFamily": "'Inter', Inter, -apple-system, sans-serif"
+                    },
+                    "tokenId": "primary"
+                  }
+                }
+              },
+              {
+                "_id": "row-31296",
+                "_component": "OrquiRow",
+                "gap": {
+                  "$res": true,
+                  "xl": {
+                    "value": "8px",
+                    "widgetId": "@easyblocks/space"
+                  }
+                },
+                "align": {
+                  "$res": true,
+                  "xl": "center"
+                },
+                "justify": {
+                  "$res": true,
+                  "xl": "flex-start"
+                },
+                "wrap": {
+                  "$res": true,
+                  "xl": false
+                },
+                "padding": {
+                  "$res": true,
+                  "xl": {
+                    "value": "14px",
+                    "tokenId": "md",
+                    "widgetId": "@easyblocks/space"
+                  }
+                },
+                "background": {
+                  "$res": true,
+                  "xl": {
+                    "value": "#5c7fa8",
+                    "tokenId": "accent",
+                    "widgetId": "@easyblocks/color"
+                  }
+                },
+                "Children": [
+                  {
+                    "_id": "search-31294",
+                    "_component": "OrquiSearch",
+                    "placeholder": "Buscar...",
+                    "background": {
+                      "$res": true,
+                      "xl": {
+                        "value": "#5c7fa8",
+                        "tokenId": "accent",
+                        "widgetId": "@easyblocks/color"
+                      }
+                    },
+                    "borderRadius": {
+                      "value": "10px",
+                      "tokenId": "md"
+                    }
+                  },
+                  {
+                    "_id": "button-31295",
+                    "_component": "OrquiButton",
+                    "label": {
+                      "value": "Nova ação",
+                      "widgetId": "orqui-template-picker"
+                    },
+                    "variant": "primary",
+                    "customBg": {
+                      "$res": true,
+                      "xl": {
+                        "value": "#5c7fa8",
+                        "tokenId": "accent",
+                        "widgetId": "@easyblocks/color"
+                      }
+                    },
+                    "customColor": {
+                      "$res": true,
+                      "xl": {
+                        "value": "#5c7fa8",
+                        "tokenId": "accent",
+                        "widgetId": "@easyblocks/color"
+                      }
+                    },
+                    "borderRadius": {
+                      "value": "10px",
+                      "tokenId": "md"
+                    },
+                    "icon": "Plus",
+                    "route": ""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "_id": "grid-31302",
+            "_component": "OrquiGrid",
+            "columns": {
+              "$res": true,
+              "xl": "4"
+            },
+            "gap": {
+              "$res": true,
+              "xl": {
+                "value": "18px",
+                "widgetId": "@easyblocks/space"
+              }
+            },
+            "padding": {
+              "$res": true,
+              "xl": {
+                "value": "14px",
+                "tokenId": "md",
+                "widgetId": "@easyblocks/space"
+              }
+            },
+            "background": {
+              "$res": true,
+              "xl": {
+                "value": "#5c7fa8",
+                "tokenId": "accent",
+                "widgetId": "@easyblocks/color"
+              }
+            },
+            "Children": [
+              {
+                "_id": "stat-card-31298",
+                "_component": "OrquiStatCard",
+                "label": {
+                  "value": "Total",
+                  "widgetId": "orqui-template-picker"
+                },
+                "value": {
+                  "value": "1,234",
+                  "widgetId": "orqui-template-picker"
+                },
+                "icon": "TrendUp",
+                "trend": "",
+                "trendDirection": "up",
+                "padding": {
+                  "$res": true,
+                  "xl": {
+                    "value": "14px",
+                    "tokenId": "md",
+                    "widgetId": "@easyblocks/space"
+                  }
+                },
+                "background": {
+                  "$res": true,
+                  "xl": {
+                    "value": "#5c7fa8",
+                    "tokenId": "accent",
+                    "widgetId": "@easyblocks/color"
+                  }
+                },
+                "borderRadius": {
+                  "value": "10px",
+                  "tokenId": "md"
+                }
+              },
+              {
+                "_id": "stat-card-31299",
+                "_component": "OrquiStatCard",
+                "label": {
+                  "value": "Ativos",
+                  "widgetId": "orqui-template-picker"
+                },
+                "value": {
+                  "value": "567",
+                  "widgetId": "orqui-template-picker"
+                },
+                "icon": "CheckCircle",
+                "trend": "",
+                "trendDirection": "up",
+                "padding": {
+                  "$res": true,
+                  "xl": {
+                    "value": "14px",
+                    "tokenId": "md",
+                    "widgetId": "@easyblocks/space"
+                  }
+                },
+                "background": {
+                  "$res": true,
+                  "xl": {
+                    "value": "#5c7fa8",
+                    "tokenId": "accent",
+                    "widgetId": "@easyblocks/color"
+                  }
+                },
+                "borderRadius": {
+                  "value": "10px",
+                  "tokenId": "md"
+                }
+              },
+              {
+                "_id": "stat-card-31300",
+                "_component": "OrquiStatCard",
+                "label": {
+                  "value": "Pendentes",
+                  "widgetId": "orqui-template-picker"
+                },
+                "value": {
+                  "value": "89",
+                  "widgetId": "orqui-template-picker"
+                },
+                "icon": "Clock",
+                "trend": "",
+                "trendDirection": "up",
+                "padding": {
+                  "$res": true,
+                  "xl": {
+                    "value": "14px",
+                    "tokenId": "md",
+                    "widgetId": "@easyblocks/space"
+                  }
+                },
+                "background": {
+                  "$res": true,
+                  "xl": {
+                    "value": "#5c7fa8",
+                    "tokenId": "accent",
+                    "widgetId": "@easyblocks/color"
+                  }
+                },
+                "borderRadius": {
+                  "value": "10px",
+                  "tokenId": "md"
+                }
+              },
+              {
+                "_id": "stat-card-31301",
+                "_component": "OrquiStatCard",
+                "label": {
+                  "value": "Taxa",
+                  "widgetId": "orqui-template-picker"
+                },
+                "value": {
+                  "value": "94.2%",
+                  "widgetId": "orqui-template-picker"
+                },
+                "icon": "Percent",
+                "trend": "",
+                "trendDirection": "up",
+                "padding": {
+                  "$res": true,
+                  "xl": {
+                    "value": "14px",
+                    "tokenId": "md",
+                    "widgetId": "@easyblocks/space"
+                  }
+                },
+                "background": {
+                  "$res": true,
+                  "xl": {
+                    "value": "#5c7fa8",
+                    "tokenId": "accent",
+                    "widgetId": "@easyblocks/color"
+                  }
+                },
+                "borderRadius": {
+                  "value": "10px",
+                  "tokenId": "md"
+                }
+              }
+            ]
+          },
+          {
+            "_id": "row-31306",
+            "_component": "OrquiRow",
+            "gap": {
+              "$res": true,
+              "xl": {
+                "value": "8px",
+                "widgetId": "@easyblocks/space"
+              }
+            },
+            "align": {
+              "$res": true,
+              "xl": "center"
+            },
+            "justify": {
+              "$res": true,
+              "xl": "flex-start"
+            },
+            "wrap": {
+              "$res": true,
+              "xl": false
+            },
+            "padding": {
+              "$res": true,
+              "xl": {
+                "value": "14px",
+                "tokenId": "md",
+                "widgetId": "@easyblocks/space"
+              }
+            },
+            "background": {
+              "$res": true,
+              "xl": {
+                "value": "#5c7fa8",
+                "tokenId": "accent",
+                "widgetId": "@easyblocks/color"
+              }
+            },
+            "Children": [
+              {
+                "_id": "select-31303",
+                "_component": "OrquiSelect",
+                "placeholder": "Status",
+                "optionsJson": "[{\"value\":\"all\",\"label\":\"Todos\"},{\"value\":\"active\",\"label\":\"Ativos\"},{\"value\":\"inactive\",\"label\":\"Inativos\"}]",
+                "background": {
+                  "$res": true,
+                  "xl": {
+                    "value": "#5c7fa8",
+                    "tokenId": "accent",
+                    "widgetId": "@easyblocks/color"
+                  }
+                },
+                "borderRadius": {
+                  "value": "10px",
+                  "tokenId": "md"
+                }
+              },
+              {
+                "_id": "select-31304",
+                "_component": "OrquiSelect",
+                "placeholder": "Período",
+                "optionsJson": "[{\"value\":\"7d\",\"label\":\"Últimos 7 dias\"},{\"value\":\"30d\",\"label\":\"Últimos 30 dias\"},{\"value\":\"90d\",\"label\":\"Últimos 90 dias\"}]",
+                "background": {
+                  "$res": true,
+                  "xl": {
+                    "value": "#5c7fa8",
+                    "tokenId": "accent",
+                    "widgetId": "@easyblocks/color"
+                  }
+                },
+                "borderRadius": {
+                  "value": "10px",
+                  "tokenId": "md"
+                }
+              },
+              {
+                "_id": "spacer-31305",
+                "_component": "OrquiSpacer",
+                "size": {
+                  "$res": true,
+                  "xl": {
+                    "value": "1px",
+                    "widgetId": "@easyblocks/space"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "_id": "table-31307",
+            "_component": "OrquiTable",
+            "dataSource": "items",
+            "columnsJson": "[{\"key\":\"name\",\"label\":\"Nome\",\"width\":\"18%\"},{\"key\":\"status\",\"label\":\"Status\",\"width\":\"18%\"},{\"key\":\"date\",\"label\":\"Data\",\"width\":\"18%\"},{\"key\":\"value\",\"label\":\"Valor\",\"width\":\"18%\",\"align\":\"right\"},{\"key\":\"actions\",\"label\":\"\",\"width\":\"18%\",\"align\":\"right\"}]",
+            "striped": false,
+            "compact": false,
+            "borderRadius": {
+              "value": "10px",
+              "tokenId": "md"
             }
           }
         ]

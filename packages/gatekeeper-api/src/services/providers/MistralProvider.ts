@@ -19,6 +19,12 @@
 
 import { Mistral } from '@mistralai/mistralai'
 import type {
+  AssistantMessage,
+  SystemMessage,
+  ToolMessage,
+  UserMessage,
+} from '@mistralai/mistralai/models/components/index.js'
+import type {
   LLMProvider,
   LLMResponse,
   LLMMessage,
@@ -31,9 +37,12 @@ import type {
   ToolResultBlock,
 } from '../../types/agent.types.js'
 
-// Mistral SDK types are less strict than OpenAI/Anthropic, so we define
-// the message shapes we need inline.
-type MistralMessage = Record<string, unknown>
+// Mistral SDK message union type
+type MistralMessage =
+  | (SystemMessage & { role: 'system' })
+  | (AssistantMessage & { role: 'assistant' })
+  | (ToolMessage & { role: 'tool' })
+  | (UserMessage & { role: 'user' })
 
 export class MistralProvider implements LLMProvider {
   readonly name = 'mistral' as const
@@ -71,12 +80,12 @@ export class MistralProvider implements LLMProvider {
     messages: LLMMessage[],
   ): MistralMessage[] {
     const result: MistralMessage[] = [
-      { role: 'system', content: system },
+      { role: 'system', content: system } as MistralMessage,
     ]
 
     for (const msg of messages) {
       if (typeof msg.content === 'string') {
-        result.push({ role: msg.role, content: msg.content })
+        result.push({ role: msg.role, content: msg.content } as MistralMessage)
         continue
       }
 
@@ -91,14 +100,14 @@ export class MistralProvider implements LLMProvider {
           .filter((b): b is ToolUseBlock => b.type === 'tool_use')
           .map((b) => ({
             id: b.id,
-            type: 'function',
+            type: 'function' as const,
             function: {
               name: b.name,
               arguments: JSON.stringify(b.input),
             },
           }))
 
-        const assistantMsg: MistralMessage = {
+        const assistantMsg: Record<string, unknown> = {
           role: 'assistant',
           content: textParts || '',
         }
@@ -107,7 +116,7 @@ export class MistralProvider implements LLMProvider {
           assistantMsg.toolCalls = toolCalls
         }
 
-        result.push(assistantMsg)
+        result.push(assistantMsg as MistralMessage)
         continue
       }
 
@@ -126,7 +135,7 @@ export class MistralProvider implements LLMProvider {
           toolCallId: tr.toolUseId,
           name: this.toolCallNames.get(tr.toolUseId) ?? 'unknown',
           content: tr.isError ? `Error: ${tr.content}` : tr.content,
-        })
+        } as MistralMessage)
       }
 
       // Text blocks → role: 'user'
@@ -134,7 +143,7 @@ export class MistralProvider implements LLMProvider {
         result.push({
           role: 'user',
           content: textBlocks.map((b) => b.text).join('\n'),
-        })
+        } as MistralMessage)
       }
     }
 

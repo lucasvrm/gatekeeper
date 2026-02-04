@@ -6,15 +6,25 @@ import type { GeneratePlanInput, GenerateSpecInput, FixArtifactsInput, ExecuteIn
  * Lazy-loaded orchestrator instance.
  * Defers the import of gatekeeper-orchestrator to first use,
  * so the API server can boot even if the package isn't installed yet.
+ *
+ * Typed as the duck-typed interface we actually use, avoiding a circular
+ * ReturnType<typeof getOrchestrator> reference.
  */
-let _orchestrator: Awaited<ReturnType<typeof getOrchestrator>> | null = null
+interface OrchestratorInstance {
+  generatePlan(input: GeneratePlanInput, callbacks: ReturnType<typeof makeCallbacks>): Promise<unknown>
+  generateSpec(input: GenerateSpecInput, callbacks: ReturnType<typeof makeCallbacks>): Promise<unknown>
+  fixArtifacts(input: FixArtifactsInput, callbacks: ReturnType<typeof makeCallbacks>): Promise<unknown>
+  execute(input: ExecuteInput, callbacks: ReturnType<typeof makeCallbacks>): Promise<unknown>
+}
 
-async function getOrchestrator() {
+let _orchestrator: OrchestratorInstance | null = null
+
+async function getOrchestrator(): Promise<OrchestratorInstance> {
   if (_orchestrator) return _orchestrator
 
   try {
     const mod = await import('gatekeeper-orchestrator')
-    _orchestrator = new mod.Orchestrator(mod.loadConfig())
+    _orchestrator = new mod.Orchestrator(mod.loadConfig()) as OrchestratorInstance
     return _orchestrator
   } catch (error) {
     throw new Error(

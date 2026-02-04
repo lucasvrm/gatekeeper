@@ -183,12 +183,19 @@ export const buttonDefinition: NoCodeComponentDefinition = {
       group: "Avançado",
     },
   ],
-  editing: ({ values }: any) => ({
-    fields: [
-      { type: "field" as const, path: "customBg", visible: values.variant === "custom" },
-      { type: "field" as const, path: "customColor", visible: values.variant === "custom" },
-    ],
-  }),
+  editing: ({ editingInfo, values }: any) => {
+    // Spread the default editingInfo to preserve all fields.
+    // Only modify visibility for conditional fields.
+    return {
+      ...editingInfo,
+      fields: editingInfo.fields.map((field: any) => {
+        if (field.path === "customBg" || field.path === "customColor") {
+          return { ...field, visible: values.variant === "custom" };
+        }
+        return field;
+      }),
+    };
+  },
   styles: ({ values }: any) => {
     const variants: Record<string, any> = {
       primary: { background: "var(--orqui-accent, #6d9cff)", color: "#fff", border: "none" },

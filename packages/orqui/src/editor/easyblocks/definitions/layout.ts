@@ -6,10 +6,12 @@
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
+import { THUMB_STACK, THUMB_ROW, THUMB_GRID, THUMB_CONTAINER } from "./thumbnails";
 import { ALL_COMPONENT_IDS } from "../types";
 
 export const stackDefinition: NoCodeComponentDefinition = {
   id: "OrquiStack",
+  thumbnail: THUMB_STACK,
   label: "Stack",
   type: "section",
   paletteLabel: "Layout",
@@ -47,6 +49,7 @@ export const stackDefinition: NoCodeComponentDefinition = {
         padding: values.padding || undefined,
         background: values.background || undefined,
         width: "100%",
+        minHeight: "100%",
       },
     },
   }),
@@ -54,6 +57,7 @@ export const stackDefinition: NoCodeComponentDefinition = {
 
 export const rowDefinition: NoCodeComponentDefinition = {
   id: "OrquiRow",
+  thumbnail: THUMB_ROW,
   label: "Row",
   type: "item",
   paletteLabel: "Layout",
@@ -141,6 +145,7 @@ export const rowDefinition: NoCodeComponentDefinition = {
 
 export const gridDefinition: NoCodeComponentDefinition = {
   id: "OrquiGrid",
+  thumbnail: THUMB_GRID,
   label: "Grid",
   type: "item",
   paletteLabel: "Layout",
@@ -202,6 +207,7 @@ export const gridDefinition: NoCodeComponentDefinition = {
 
 export const containerDefinition: NoCodeComponentDefinition = {
   id: "OrquiContainer",
+  thumbnail: THUMB_CONTAINER,
   label: "Container",
   type: "item",
   paletteLabel: "Layout",

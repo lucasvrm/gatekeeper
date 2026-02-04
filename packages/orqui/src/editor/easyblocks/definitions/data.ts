@@ -7,10 +7,12 @@
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
+import { THUMB_STAT_CARD, THUMB_CARD, THUMB_TABLE, THUMB_LIST, THUMB_KEY_VALUE } from "./thumbnails";
 import { ALL_COMPONENT_IDS } from "../types";
 
 export const statCardDefinition: NoCodeComponentDefinition = {
   id: "OrquiStatCard",
+  thumbnail: THUMB_STAT_CARD,
   label: "Stat Card",
   type: "item",
   paletteLabel: "Dados",
@@ -66,6 +68,7 @@ export const statCardDefinition: NoCodeComponentDefinition = {
 
 export const cardDefinition: NoCodeComponentDefinition = {
   id: "OrquiCard",
+  thumbnail: THUMB_CARD,
   label: "Card",
   type: "item",
   paletteLabel: "Dados",
@@ -106,6 +109,7 @@ export const cardDefinition: NoCodeComponentDefinition = {
 
 export const tableDefinition: NoCodeComponentDefinition = {
   id: "OrquiTable",
+  thumbnail: THUMB_TABLE,
   label: "Tabela",
   type: "item",
   paletteLabel: "Dados",
@@ -143,6 +147,7 @@ export const tableDefinition: NoCodeComponentDefinition = {
 
 export const listDefinition: NoCodeComponentDefinition = {
   id: "OrquiList",
+  thumbnail: THUMB_LIST,
   label: "Lista",
   type: "item",
   paletteLabel: "Dados",
@@ -191,6 +196,7 @@ export const listDefinition: NoCodeComponentDefinition = {
 
 export const keyValueDefinition: NoCodeComponentDefinition = {
   id: "OrquiKeyValue",
+  thumbnail: THUMB_KEY_VALUE,
   label: "Key-Value",
   type: "item",
   paletteLabel: "Dados",

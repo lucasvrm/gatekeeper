@@ -5,9 +5,11 @@
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
+import { THUMB_INPUT, THUMB_TEXTAREA, THUMB_CHECKBOX, THUMB_SWITCH, THUMB_RADIO } from "./thumbnails";
 
 export const inputDefinition: NoCodeComponentDefinition = {
   id: "OrquiInput",
+  thumbnail: THUMB_INPUT,
   label: "Input",
   type: "item",
   paletteLabel: "Formulários",
@@ -53,6 +55,7 @@ export const inputDefinition: NoCodeComponentDefinition = {
 
 export const textareaDefinition: NoCodeComponentDefinition = {
   id: "OrquiTextarea",
+  thumbnail: THUMB_TEXTAREA,
   label: "Textarea",
   type: "item",
   paletteLabel: "Formulários",
@@ -98,6 +101,7 @@ export const textareaDefinition: NoCodeComponentDefinition = {
 
 export const checkboxDefinition: NoCodeComponentDefinition = {
   id: "OrquiCheckbox",
+  thumbnail: THUMB_CHECKBOX,
   label: "Checkbox",
   type: "item",
   paletteLabel: "Formulários",
@@ -126,6 +130,7 @@ export const checkboxDefinition: NoCodeComponentDefinition = {
 
 export const switchDefinition: NoCodeComponentDefinition = {
   id: "OrquiSwitch",
+  thumbnail: THUMB_SWITCH,
   label: "Switch",
   type: "item",
   paletteLabel: "Formulários",
@@ -154,6 +159,7 @@ export const switchDefinition: NoCodeComponentDefinition = {
 
 export const radioDefinition: NoCodeComponentDefinition = {
   id: "OrquiRadio",
+  thumbnail: THUMB_RADIO,
   label: "Radio",
   type: "item",
   paletteLabel: "Formulários",

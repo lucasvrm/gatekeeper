@@ -149,9 +149,9 @@ export class AnthropicProvider implements LLMProvider {
     if (blocks.length === 0) return blocks
 
     const result = [...blocks]
-    const last = { ...result[result.length - 1] } as Record<string, unknown>
-    last.cache_control = { type: 'ephemeral' }
-    result[result.length - 1] = last as Anthropic.ContentBlockParam
+    const last = result[result.length - 1]
+    // All ContentBlockParam variants accept cache_control
+    result[result.length - 1] = { ...last, cache_control: { type: 'ephemeral' } } as typeof last
     return result
   }
 
@@ -211,8 +211,8 @@ export class AnthropicProvider implements LLMProvider {
     const result = this.toAnthropicTools(tools)
 
     if (result.length > 0) {
-      const last = result[result.length - 1] as Record<string, unknown>
-      last.cache_control = { type: 'ephemeral' }
+      const last = result[result.length - 1]
+      result[result.length - 1] = { ...last, cache_control: { type: 'ephemeral' } } as Anthropic.Tool
     }
 
     return result
@@ -243,8 +243,13 @@ export class AnthropicProvider implements LLMProvider {
           ? 'max_tokens'
           : 'end_turn'
 
-    // Extract cache metrics from usage
-    const usage = response.usage as Record<string, number>
+    // Cache metrics may be present on usage but not yet in SDK types.
+    // Access safely via optional property check.
+    const { cache_creation_input_tokens = 0, cache_read_input_tokens = 0 } =
+      response.usage as typeof response.usage & {
+        cache_creation_input_tokens?: number
+        cache_read_input_tokens?: number
+      }
 
     return {
       content,
@@ -252,8 +257,8 @@ export class AnthropicProvider implements LLMProvider {
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
-        cacheCreationTokens: usage.cache_creation_input_tokens || 0,
-        cacheReadTokens: usage.cache_read_input_tokens || 0,
+        cacheCreationTokens: cache_creation_input_tokens,
+        cacheReadTokens: cache_read_input_tokens,
       },
     }
   }

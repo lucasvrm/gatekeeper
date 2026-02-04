@@ -7,7 +7,7 @@ import { useCommandPaletteItems } from "./hooks/useCommandPaletteItems";
 import { CommandPalette } from "./components/CommandPalette";
 import { PageEditor } from "./page-editor/PageEditor";
 import { StackedWorkbench } from "./workbench/StackedWorkbench";
-import { EasyblocksPageEditor } from "./easyblocks";
+import { EasyblocksPageEditor, invalidateAllEntries } from "./easyblocks";
 
 // ============================================================================
 // OrquiEditor — top-level mode switcher + topbar
@@ -16,7 +16,19 @@ import { EasyblocksPageEditor } from "./easyblocks";
 // ============================================================================
 export function OrquiEditor() {
   // Top-level mode: "pages" (DnD builder) or "shell" (Stacked Workbench)
-  const [editorMode, setEditorMode] = useState<"pages" | "shell">("pages");
+  const [editorMode, _setEditorMode] = useState<"pages" | "shell">("pages");
+
+  // Wrap mode switch: invalidate EB cache when returning to Pages
+  // so the editor re-hydrates from the current layout state
+  // (picks up token changes, imports, undos that happened in Shell).
+  const setEditorMode = useCallback((mode: "pages" | "shell") => {
+    _setEditorMode(prev => {
+      if (prev === "shell" && mode === "pages") {
+        invalidateAllEntries();
+      }
+      return mode;
+    });
+  }, []);
   const [layout, setLayout] = useState(DEFAULT_LAYOUT);
 
   // Normalize registry: ensure every component has name field matching its key
@@ -45,6 +57,7 @@ export function OrquiEditor() {
 
   const undoChanges = useCallback(() => {
     if (!savedSnapshot) return;
+    invalidateAllEntries();
     setLayout(savedSnapshot.layout);
     setRegistry(savedSnapshot.registry);
   }, [savedSnapshot]);
@@ -81,6 +94,18 @@ export function OrquiEditor() {
   // Auto-save to IndexedDB on every change (draft persistence)
   useEffect(() => { idbSet("orqui-layout", layout); }, [layout]);
   useEffect(() => { idbSet("orqui-registry", registry); }, [registry]);
+
+  // ── Beforeunload — warn on exit with unsaved changes ────────────────────
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Modern browsers ignore custom message but still show prompt
+      e.returnValue = "Há alterações não salvas. Tem certeza que deseja sair?";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedChanges]);
 
   // ── Save to Filesystem ─────────────────────────────────────────────────────
   const saveToFilesystem = useCallback(async () => {
@@ -120,17 +145,35 @@ export function OrquiEditor() {
 
   const cmdItems = useCommandPaletteItems(layout, registry, setActiveTab, scrollToSection, openAccordion);
 
-  // Ctrl+K / Cmd+K
+  // ── Global keyboard shortcuts ────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+K — Command palette
+      if (ctrl && e.key === "k") {
         e.preventDefault();
         setCmdOpen((v) => !v);
+      }
+
+      // Ctrl+S — Save to filesystem (global, complements page-level flush)
+      if (ctrl && e.key === "s") {
+        e.preventDefault();
+        // Emit force-save for pages editor (flushes backend debounce)
+        window.dispatchEvent(new CustomEvent("orqui:force-save"));
+        // Also trigger filesystem save
+        saveToFilesystem();
+      }
+
+      // Ctrl+Shift+M — Toggle mode (Pages ↔ Shell)
+      if (ctrl && e.shiftKey && e.key === "M") {
+        e.preventDefault();
+        setEditorMode(editorMode === "pages" ? "shell" : "pages");
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [saveToFilesystem, editorMode, setEditorMode]);
 
   // ── Orqui Favicon ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -196,14 +239,25 @@ export function OrquiEditor() {
             { id: "pages" as const, label: "📐 Páginas" },
             { id: "shell" as const, label: "⚙ Shell & Tokens" },
           ].map(mode => (
-            <button key={mode.id} onClick={() => setEditorMode(mode.id)} style={{
+            <button key={mode.id} onClick={() => setEditorMode(mode.id)} title={`⌘⇧M — Alternar modo`} style={{
               padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
               border: "none", cursor: "pointer",
               fontFamily: "'Inter', sans-serif",
               background: editorMode === mode.id ? COLORS.accent + "20" : "transparent",
               color: editorMode === mode.id ? COLORS.accent : COLORS.textDim,
               transition: "all 0.15s",
-            }}>{mode.label}</button>
+              position: "relative",
+            }}>
+              {mode.label}
+              {/* Unsaved dot */}
+              {hasUnsavedChanges && editorMode === mode.id && (
+                <span style={{
+                  position: "absolute", top: 3, right: 3,
+                  width: 6, height: 6, borderRadius: "50%",
+                  background: COLORS.warning,
+                }} />
+              )}
+            </button>
           ))}
         </div>
 
@@ -264,7 +318,7 @@ export function OrquiEditor() {
 
         {/* Save */}
         {hasApi && (
-          <button onClick={saveToFilesystem} disabled={saveStatus === "saving"} style={{
+          <button onClick={saveToFilesystem} disabled={saveStatus === "saving"} title="⌘S — Salvar no projeto" style={{
             padding: "7px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600,
             border: "none", cursor: "pointer",
             fontFamily: "'Inter', sans-serif",

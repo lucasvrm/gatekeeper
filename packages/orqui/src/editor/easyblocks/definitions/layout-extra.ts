@@ -6,10 +6,12 @@
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
+import { THUMB_ACCORDION, THUMB_SIDEBAR } from "./thumbnails";
 import { ALL_COMPONENT_IDS } from "../types";
 
 export const accordionDefinition: NoCodeComponentDefinition = {
   id: "OrquiAccordion",
+  thumbnail: THUMB_ACCORDION,
   label: "Accordion",
   type: "item",
   paletteLabel: "Layout",
@@ -66,6 +68,7 @@ export const accordionDefinition: NoCodeComponentDefinition = {
 
 export const sidebarDefinition: NoCodeComponentDefinition = {
   id: "OrquiSidebar",
+  thumbnail: THUMB_SIDEBAR,
   label: "Sidebar",
   type: "item",
   paletteLabel: "Layout",

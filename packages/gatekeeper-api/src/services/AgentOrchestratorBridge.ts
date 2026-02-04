@@ -95,6 +95,8 @@ export interface BridgeFixInput {
   profileId?: string
   provider?: ProviderName
   model?: string
+  /** Original task prompt — needed for validators that check taskPrompt (e.g. NO_IMPLICIT_FILES) */
+  taskPrompt?: string
 }
 
 export interface BridgeFixOutput {
@@ -102,6 +104,8 @@ export interface BridgeFixOutput {
   corrections: string[]
   tokensUsed: TokenUsage
   agentResult: AgentResult
+  /** If the fix addressed taskPrompt-level issues (e.g. NO_IMPLICIT_FILES), this contains the rewritten prompt */
+  correctedTaskPrompt?: string
 }
 
 export interface SessionContext {
@@ -423,6 +427,7 @@ export class AgentOrchestratorBridge {
       existingArtifacts,
       rejectionReport,
       input.failedValidators,
+      input.taskPrompt,
     )
 
     const result = await runner.run({
@@ -440,6 +445,13 @@ export class AgentOrchestratorBridge {
       input.projectPath,
     )
 
+    // Check if the fixer produced a corrected task prompt
+    const correctedPromptArtifact = artifacts.find((a) => a.filename === 'corrected-task-prompt.txt')
+    const correctedTaskPrompt = correctedPromptArtifact?.content?.trim() || undefined
+
+    // Don't include corrected-task-prompt.txt in the regular artifacts list
+    const realArtifacts = artifacts.filter((a) => a.filename !== 'corrected-task-prompt.txt')
+
     // Extract corrections from the response text
     const corrections = result.text
       .split('\n')
@@ -450,16 +462,17 @@ export class AgentOrchestratorBridge {
       type: 'agent:bridge_complete',
       step: 3,
       outputId: input.outputId,
-      artifactNames: artifacts.map((a) => a.filename),
+      artifactNames: realArtifacts.map((a) => a.filename),
     } as AgentEvent)
 
     return {
-      artifacts,
+      artifacts: realArtifacts,
       corrections: corrections.length > 0
         ? corrections
         : ['Artifacts corrected (see agent output for details)'],
       tokensUsed: result.tokensUsed,
       agentResult: result,
+      correctedTaskPrompt,
     }
   }
 
@@ -839,20 +852,47 @@ export class AgentOrchestratorBridge {
     artifacts: Record<string, string>,
     rejectionReport: string,
     failedValidators: string[],
+    taskPrompt?: string,
   ): string {
     const artifactBlocks = Object.entries(artifacts)
-      .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
+      .map(([name, content]) => `### ${name}\n\\`\\`\\`\n${content}\n\\`\\`\\``)
       .join('\n\n')
 
-    return [
+    // Check if any failed validator operates on taskPrompt (not on artifacts)
+    const TASK_PROMPT_VALIDATORS = ['NO_IMPLICIT_FILES', 'TASK_CLARITY_CHECK']
+    const hasTaskPromptFailure = failedValidators.some((v) => TASK_PROMPT_VALIDATORS.includes(v))
+
+    const sections: string[] = [
       `## Target: ${target === 'plan' ? 'Planning artifacts' : 'Test file'}`,
       `## Output ID: ${outputId}`,
-      `## Failed Validators\n${failedValidators.map((v) => `- \`${v}\``).join('\n')}`,
-      rejectionReport ? `## Rejection Report\n\n${rejectionReport}` : '',
+      `## Failed Validators\n${failedValidators.map((v) => `- \\`${v}\\``).join('\n')}`,
+    ]
+
+    if (rejectionReport) {
+      sections.push(`## Rejection Report\n\n${rejectionReport}`)
+    }
+
+    // Include the taskPrompt when relevant validators failed
+    if (hasTaskPromptFailure && taskPrompt) {
+      sections.push(
+        `## Original Task Prompt\n` +
+        `The validators NO_IMPLICIT_FILES and TASK_CLARITY_CHECK analyze the **task prompt text below**, ` +
+        `NOT the plan artifacts. To fix these failures you MUST also save a corrected version of the ` +
+        `task prompt as an artifact named \\`corrected-task-prompt.txt\\`.\n\n` +
+        `\\`\\`\\`\n${taskPrompt}\n\\`\\`\\`\n\n` +
+        `Remove any implicit/vague references (e.g. "etc", "...", "outros arquivos", "e tal", ` +
+        `"among others", "all files", "any file", "related files", "necessary files", "e outros") ` +
+        `and replace them with explicit, specific file or component names.`
+      )
+    }
+
+    sections.push(
       `## Current Artifacts\n\n${artifactBlocks}`,
       ``,
       `Fix the artifacts to address the failed validators. Use save_artifact for each corrected file.`,
-    ].filter(Boolean).join('\n\n')
+    )
+
+    return sections.filter(Boolean).join('\n\n')
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────

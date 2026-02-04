@@ -67,6 +67,18 @@ export function clearAdapterSeededEntry(pageId: string): boolean {
   return false;
 }
 
+/**
+ * Nuke the entire cache. Next createOrquiBackend() will re-hydrate
+ * from _ebEntry / adapter for every page.
+ *
+ * Call this before setting a completely new layout (import, undo)
+ * to avoid stale entries leaking across layouts.
+ */
+export function invalidateAllEntries(): void {
+  _ebEntryCache.clear();
+  _adapterSeededEntries.clear();
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -131,25 +143,43 @@ const PAGE_CHANGE_DEBOUNCE_MS = 300;
 export function createOrquiBackend(options: OrquiBackendOptions) {
   const versions = new Map<string, number>();
 
-  // Hydrate entry cache from persisted _ebEntry on pages.
-  // This restores document-mode capability after browser refresh.
+  // ── Cache hygiene ──────────────────────────────────────────────────────
+  // 1. Remove orphaned cache entries (pages that no longer exist).
+  //    Happens after import, undo, or page deletion outside EB.
+  const currentPageIds = new Set(Object.keys(options.pages));
+  for (const cachedId of [..._ebEntryCache.keys()]) {
+    if (!currentPageIds.has(cachedId)) {
+      _ebEntryCache.delete(cachedId);
+      _adapterSeededEntries.delete(cachedId);
+    }
+  }
+
+  // 2. Adapter-seeded entries contain hardcoded token values (not tokenId refs).
+  //    On each backend creation (e.g., after Shell→Pages switch), re-generate
+  //    them from current content so token value changes are picked up.
+  for (const id of [..._adapterSeededEntries]) {
+    _ebEntryCache.delete(id);
+    _adapterSeededEntries.delete(id);
+  }
+
+  // ── Hydrate entry cache ────────────────────────────────────────────────
   for (const [id, page] of Object.entries(options.pages)) {
     versions.set(id, 1);
 
     if (_ebEntryCache.has(id)) {
-      // Already in cache (from a previous backend creation in this session)
+      // EB-native entry in cache — keep it.
+      // Token references (tokenId) resolve dynamically from config.tokens,
+      // so token value changes in Shell are reflected automatically.
       continue;
     }
 
     if (page._ebEntry) {
-      // Persisted EB-native entry — use it directly (Passo 1)
+      // Persisted EB-native entry (from IndexedDB / filesystem)
       _ebEntryCache.set(id, structuredClone(page._ebEntry));
     } else if (page.content) {
-      // No EB entry — best-effort hydration from adapter (Passo 2).
+      // No EB entry — best-effort hydration from adapter.
       // Converts existing NodeDef → NoCodeEntry so the page opens in
       // document mode with its content visible instead of an empty stack.
-      // If Easyblocks can't normalize this, the error boundary catches it
-      // and clearAdapterSeededEntry() allows graceful fallback.
       try {
         const seeded = nodeDefToNoCodeEntry(page.content);
         _ebEntryCache.set(id, seeded);

@@ -1,448 +1,748 @@
 /**
- * defaults.spec.ts
+ * @fileoverview Testes unitários para validar os defaults de provider e model
  *
- * Contract: claude-code-default-provider (v1.0)
- * Mode: STRICT - Todos os testes devem ter tag @clause
+ * Este arquivo testa o contrato: claude-code-default-provider
+ * - ProviderEnum deve incluir 'claude-code' e usar como default
+ * - Fallbacks hardcoded devem ser 'claude-code' e 'opus'
  *
- * Valida que o sistema usa 'claude-code' como provider default
- * e 'opus' como modelo default.
- *
- * IMPORTANTE: Este arquivo testa o código REAL do projeto.
- * Os testes devem FALHAR se a implementação não corresponder às expectativas.
+ * Veja contract.md para detalhes das cláusulas
  */
-import { describe, it, expect } from 'vitest'
 
-// ─── Imports from REAL project code ────────────────────────────────────────────
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { z } from 'zod'
+
+// ─── Mocks ────────────────────────────────────────────────────────────────────
+
+const { mockPrisma } = vi.hoisted(() => ({
+  mockPrisma: {
+    agentPhaseConfig: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+  },
+}))
+
+vi.mock('../../src/db/client.js', async () => ({
+  prisma: mockPrisma,
+}))
+
+vi.mock('../../src/services/providers/LLMProviderRegistry.js', async () => ({
+  LLMProviderRegistry: {
+    fromEnv: vi.fn(() => ({
+      available: vi.fn(() => []),
+      has: vi.fn(() => false),
+      get: vi.fn(() => null),
+    })),
+  },
+}))
+
+vi.mock('../../src/services/AgentToolExecutor.js', async () => ({
+  AgentToolExecutor: vi.fn(),
+  READ_TOOLS: [],
+  WRITE_TOOLS: [],
+  SAVE_ARTIFACT_TOOL: {},
+}))
+
+vi.mock('../../src/services/AgentRunnerService.js', async () => ({
+  AgentRunnerService: vi.fn(() => ({
+    run: vi.fn().mockResolvedValue({
+      tokensUsed: 100,
+      iterations: 1,
+      model: 'opus',
+      provider: 'claude-code',
+    }),
+  })),
+}))
+
+vi.mock('../../src/services/AgentPromptAssembler.js', async () => ({
+  AgentPromptAssembler: vi.fn(() => ({
+    assemblePrompt: vi.fn().mockResolvedValue({ systemPrompt: '', messages: [] }),
+  })),
+}))
+
+vi.mock('../../src/services/OrchestratorEventService.js', async () => ({
+  OrchestratorEventService: {
+    emitOrchestratorEvent: vi.fn(),
+  },
+}))
+
+vi.mock('../../src/services/AgentRunPersistenceService.js', async () => ({
+  AgentRunPersistenceService: vi.fn(() => ({
+    createRun: vi.fn(),
+    createPhaseRun: vi.fn(),
+    updatePhaseRun: vi.fn(),
+  })),
+}))
+
+vi.mock('nanoid', async () => ({
+  nanoid: vi.fn(() => 'test-run-id'),
+}))
+
+// ─── Imports ──────────────────────────────────────────────────────────────────
+
 import {
   CreatePhaseConfigSchema,
   RunSinglePhaseSchema,
 } from '../../src/api/schemas/agent.schema.js'
 
-// ─── Expected Constants (per contract) ─────────────────────────────────────────
+import { AgentRunnerController } from '../../src/api/controllers/AgentRunnerController.js'
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const EXPECTED_DEFAULT_PROVIDER = 'claude-code'
 const EXPECTED_DEFAULT_MODEL = 'opus'
 const LEGACY_PROVIDERS = ['anthropic', 'openai', 'mistral'] as const
 
-// ─── Test Suite: CL-SCHEMA-001 ─────────────────────────────────────────────────
+// ─── Helper para extrair enum options do schema ───────────────────────────────
 
-describe('CL-SCHEMA-001: ProviderEnum default eh claude-code', () => {
-  // @clause CL-SCHEMA-001
-  it('succeeds when CreatePhaseConfigSchema.parse returns claude-code as default provider', () => {
-    const input = { step: 1, model: 'test-model' }
-    const result = CreatePhaseConfigSchema.parse(input)
+function getProviderEnumOptions(): string[] {
+  // CreatePhaseConfigSchema.shape.provider é z.ZodDefault wrapping z.ZodEnum
+  // Precisamos acessar o enum interno
+  const providerSchema = CreatePhaseConfigSchema.shape.provider
+  // @ts-expect-error - acessando interno do Zod para teste
+  const innerEnum = providerSchema._def.innerType || providerSchema._def.schema
+  if (innerEnum && '_def' in innerEnum && innerEnum._def.values) {
+    return innerEnum._def.values as string[]
+  }
+  return []
+}
 
-    expect(result.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
-  })
+// ─── Setup/Teardown ───────────────────────────────────────────────────────────
 
-  // @clause CL-SCHEMA-001
-  it('succeeds when CreatePhaseConfigSchema applies claude-code default for undefined provider', () => {
-    const input = { step: 2, model: 'sonnet', provider: undefined }
-    const result = CreatePhaseConfigSchema.parse(input)
+beforeEach(() => {
+  vi.clearAllMocks()
+  mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+  mockPrisma.agentPhaseConfig.findMany.mockResolvedValue([])
+})
 
-    expect(result.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
-  })
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
-  // @clause CL-SCHEMA-001
-  it('succeeds when all steps get claude-code as default provider', () => {
-    const steps = [1, 2, 3, 4]
-    for (const step of steps) {
-      const result = CreatePhaseConfigSchema.parse({ step, model: 'test-model' })
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
+describe('Provider Defaults - Schema Validation', () => {
+  describe('ProviderEnum', () => {
+    // @clause CL-DEF-001
+    it('succeeds when ProviderEnum defaults to claude-code for undefined value', () => {
+      const input = { step: 1, model: 'opus' }
+      const result = CreatePhaseConfigSchema.parse(input)
+
       expect(result.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
-    }
-  })
-})
+    })
 
-// ─── Test Suite: CL-SCHEMA-002 ─────────────────────────────────────────────────
+    // @clause CL-DEF-001
+    it('succeeds when CreatePhaseConfigSchema applies claude-code as provider default', () => {
+      const input = { step: 2, model: 'sonnet' }
+      const result = CreatePhaseConfigSchema.parse(input)
 
-describe('CL-SCHEMA-002: ProviderEnum aceita claude-code', () => {
-  // @clause CL-SCHEMA-002
-  it('succeeds when CreatePhaseConfigSchema accepts claude-code as valid provider', () => {
-    const input = { step: 1, model: 'opus', provider: 'claude-code' }
+      expect(result.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
+    })
 
-    expect(() => CreatePhaseConfigSchema.parse(input)).not.toThrow()
+    // @clause CL-DEF-001
+    it('succeeds when parsing minimal config without provider', () => {
+      const safeParse = CreatePhaseConfigSchema.safeParse({ step: 1, model: 'opus' })
 
-    const result = CreatePhaseConfigSchema.parse(input)
-    expect(result.provider).toBe('claude-code')
-  })
+      expect(safeParse.success).toBe(true)
+      if (safeParse.success) {
+        expect(safeParse.data.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
+      }
+    })
 
-  // @clause CL-SCHEMA-002
-  it('succeeds when RunSinglePhaseSchema accepts claude-code as valid provider', () => {
-    const input = {
-      step: 1,
-      taskDescription: 'Test task description for validation',
-      projectPath: '/test/path',
-      provider: 'claude-code',
-    }
+    // @clause CL-DEF-002
+    it('succeeds when ProviderEnum accepts claude-code as valid value', () => {
+      const input = { step: 1, model: 'opus', provider: 'claude-code' }
+      const result = CreatePhaseConfigSchema.safeParse(input)
 
-    expect(() => RunSinglePhaseSchema.parse(input)).not.toThrow()
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.provider).toBe('claude-code')
+      }
+    })
 
-    const result = RunSinglePhaseSchema.parse(input)
-    expect(result.provider).toBe('claude-code')
-  })
+    // @clause CL-DEF-002
+    it('succeeds when explicit claude-code provider is preserved', () => {
+      const input = { step: 3, model: 'haiku', provider: 'claude-code' }
+      const result = CreatePhaseConfigSchema.parse(input)
 
-  // @clause CL-SCHEMA-002
-  it('fails when CreatePhaseConfigSchema receives invalid provider', () => {
-    const input = { step: 1, model: 'test', provider: 'invalid-provider' }
+      expect(result.provider).toBe('claude-code')
+    })
 
-    expect(() => CreatePhaseConfigSchema.parse(input)).toThrow()
-  })
-})
+    // @clause CL-DEF-002
+    it('succeeds when ProviderEnum includes claude-code in valid options', () => {
+      const enumOptions = getProviderEnumOptions()
 
-// ─── Test Suite: CL-CTRL-001 ───────────────────────────────────────────────────
+      expect(enumOptions).toContain('claude-code')
+    })
 
-describe('CL-CTRL-001: Fallback de provider eh claude-code', () => {
-  // @clause CL-CTRL-001
-  it('succeeds when fallback chain resolves to claude-code without data.provider', () => {
-    const data = { step: 1, taskDescription: 'test task', projectPath: '/path' }
-    const dbConfig = null
+    // @clause CL-INV-003
+    it('succeeds when ProviderEnum accepts anthropic (backward compatibility)', () => {
+      const input = { step: 1, model: 'opus', provider: 'anthropic' }
+      const result = CreatePhaseConfigSchema.safeParse(input)
 
-    // Simula a logica do controller (L109):
-    // data.provider ?? dbConfig?.provider ?? 'claude-code'
-    const resolvedProvider = data.provider ?? dbConfig?.provider ?? EXPECTED_DEFAULT_PROVIDER
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.provider).toBe('anthropic')
+      }
+    })
 
-    expect(resolvedProvider).toBe(EXPECTED_DEFAULT_PROVIDER)
-  })
+    // @clause CL-INV-003
+    it('succeeds when ProviderEnum accepts openai (backward compatibility)', () => {
+      const input = { step: 1, model: 'gpt-4', provider: 'openai' }
+      const result = CreatePhaseConfigSchema.safeParse(input)
 
-  // @clause CL-CTRL-001
-  it('succeeds when fallback chain uses dbConfig.provider when available', () => {
-    const data = { step: 1, taskDescription: 'test task', projectPath: '/path' }
-    const dbConfig = { provider: 'openai' }
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.provider).toBe('openai')
+      }
+    })
 
-    const resolvedProvider = data.provider ?? dbConfig?.provider ?? EXPECTED_DEFAULT_PROVIDER
+    // @clause CL-INV-003
+    it('succeeds when ProviderEnum accepts mistral (backward compatibility)', () => {
+      const input = { step: 1, model: 'mistral-large', provider: 'mistral' }
+      const result = CreatePhaseConfigSchema.safeParse(input)
 
-    expect(resolvedProvider).toBe('openai')
-  })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.provider).toBe('mistral')
+      }
+    })
 
-  // @clause CL-CTRL-001
-  it('succeeds when fallback chain uses default when no dbConfig', () => {
-    const data = { step: 1, taskDescription: 'test task', projectPath: '/path' }
-    const dbConfig = null
+    // @clause CL-INV-003
+    it('succeeds when all legacy providers are accepted without error', () => {
+      for (const provider of LEGACY_PROVIDERS) {
+        const input = { step: 1, model: 'test-model', provider }
+        const result = CreatePhaseConfigSchema.safeParse(input)
 
-    const resolvedProvider = data.provider ?? dbConfig?.provider ?? EXPECTED_DEFAULT_PROVIDER
+        expect(result.success).toBe(true)
+        if (result.success) {
+          expect(result.data.provider).toBe(provider)
+        }
+      }
+    })
 
-    expect(resolvedProvider).toBe(EXPECTED_DEFAULT_PROVIDER)
-  })
-})
+    // @clause CL-INV-001
+    it('succeeds when explicit anthropic provider is preserved (not overwritten)', () => {
+      const input = { step: 1, model: 'claude-3', provider: 'anthropic' }
+      const result = CreatePhaseConfigSchema.parse(input)
 
-// ─── Test Suite: CL-CTRL-002 ───────────────────────────────────────────────────
+      expect(result.provider).toBe('anthropic')
+      expect(result.provider).not.toBe(EXPECTED_DEFAULT_PROVIDER)
+    })
 
-describe('CL-CTRL-002: Fallback de model eh opus', () => {
-  // @clause CL-CTRL-002
-  it('succeeds when fallback chain resolves to opus without data.model', () => {
-    const data = { step: 1, taskDescription: 'test task', projectPath: '/path' }
-    const dbConfig = null
+    it('fails when ProviderEnum receives invalid provider value', () => {
+      const input = { step: 1, model: 'test', provider: 'invalid-provider' }
+      const result = CreatePhaseConfigSchema.safeParse(input)
 
-    // Simula a logica do controller (L110):
-    // data.model ?? dbConfig?.model ?? 'opus'
-    const resolvedModel = data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL
-
-    expect(resolvedModel).toBe(EXPECTED_DEFAULT_MODEL)
-  })
-
-  // @clause CL-CTRL-002
-  it('succeeds when fallback chain uses dbConfig.model when available', () => {
-    const data = { step: 1, taskDescription: 'test task', projectPath: '/path' }
-    const dbConfig = { model: 'gpt-4' }
-
-    const resolvedModel = data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL
-
-    expect(resolvedModel).toBe('gpt-4')
-  })
-
-  // @clause CL-CTRL-002
-  it('succeeds when fallback chain uses default model when no dbConfig', () => {
-    const data = { step: 2, taskDescription: 'test task', projectPath: '/path' }
-    const dbConfig = null
-
-    const resolvedModel = data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL
-
-    expect(resolvedModel).toBe(EXPECTED_DEFAULT_MODEL)
-  })
-})
-
-// ─── Test Suite: CL-INV-001 ────────────────────────────────────────────────────
-
-describe('CL-INV-001: Provider explicito preservado', () => {
-  // @clause CL-INV-001
-  it('succeeds when explicit anthropic provider is preserved in schema', () => {
-    const input = { step: 1, model: 'test', provider: 'anthropic' as const }
-    const result = CreatePhaseConfigSchema.parse(input)
-
-    expect(result.provider).toBe('anthropic')
-    expect(result.provider).not.toBe(EXPECTED_DEFAULT_PROVIDER)
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.length).toBeGreaterThan(0)
+      }
+    })
   })
 
-  // @clause CL-INV-001
-  it('succeeds when explicit provider overrides fallback chain', () => {
-    const data = { step: 1, provider: 'anthropic' as const }
-    const dbConfig = { provider: 'openai' }
-
-    const resolvedProvider = data.provider ?? dbConfig?.provider ?? EXPECTED_DEFAULT_PROVIDER
-
-    expect(resolvedProvider).toBe('anthropic')
-  })
-
-  // @clause CL-INV-001
-  it('succeeds when RunSinglePhaseSchema preserves explicit provider', () => {
-    const input = {
-      step: 1,
-      taskDescription: 'Test task description',
-      projectPath: '/test/path',
-      provider: 'anthropic' as const,
-    }
-    const result = RunSinglePhaseSchema.parse(input)
-
-    expect(result.provider).toBe('anthropic')
-  })
-})
-
-// ─── Test Suite: CL-INV-002 ────────────────────────────────────────────────────
-
-describe('CL-INV-002: Model explicito preservado', () => {
-  // @clause CL-INV-002
-  it('succeeds when explicit sonnet model is preserved over default', () => {
-    const data = { step: 1, model: 'sonnet' }
-    const dbConfig = { model: 'haiku' }
-
-    const resolvedModel = data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL
-
-    expect(resolvedModel).toBe('sonnet')
-  })
-
-  // @clause CL-INV-002
-  it('succeeds when explicit model overrides DB config', () => {
-    const data = { model: 'claude-sonnet-4-5-20250929' }
-    const dbConfig = { model: 'opus' }
-
-    const resolvedModel = data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL
-
-    expect(resolvedModel).toBe('claude-sonnet-4-5-20250929')
-  })
-
-  // @clause CL-INV-002
-  it('succeeds when RunSinglePhaseSchema preserves explicit model', () => {
-    const input = {
-      step: 1,
-      taskDescription: 'Test task description',
-      projectPath: '/test/path',
-      model: 'sonnet',
-    }
-    const result = RunSinglePhaseSchema.parse(input)
-
-    expect(result.model).toBe('sonnet')
-  })
-})
-
-// ─── Test Suite: CL-SCHEMA-003 ─────────────────────────────────────────────────
-
-describe('CL-SCHEMA-003: Backward compatibility', () => {
-  // @clause CL-SCHEMA-003
-  it('succeeds when CreatePhaseConfigSchema accepts anthropic provider', () => {
-    const input = { step: 1, model: 'test', provider: 'anthropic' as const }
-
-    expect(() => CreatePhaseConfigSchema.parse(input)).not.toThrow()
-
-    const result = CreatePhaseConfigSchema.parse(input)
-    expect(result.provider).toBe('anthropic')
-  })
-
-  // @clause CL-SCHEMA-003
-  it('succeeds when CreatePhaseConfigSchema accepts openai provider', () => {
-    const input = { step: 1, model: 'test', provider: 'openai' as const }
-
-    expect(() => CreatePhaseConfigSchema.parse(input)).not.toThrow()
-
-    const result = CreatePhaseConfigSchema.parse(input)
-    expect(result.provider).toBe('openai')
-  })
-
-  // @clause CL-SCHEMA-003
-  it('succeeds when CreatePhaseConfigSchema accepts mistral provider', () => {
-    const input = { step: 1, model: 'test', provider: 'mistral' as const }
-
-    expect(() => CreatePhaseConfigSchema.parse(input)).not.toThrow()
-
-    const result = CreatePhaseConfigSchema.parse(input)
-    expect(result.provider).toBe('mistral')
-  })
-
-  // @clause CL-SCHEMA-003
-  it('succeeds when all legacy providers are valid', () => {
-    for (const provider of LEGACY_PROVIDERS) {
-      const result = CreatePhaseConfigSchema.parse({
+  describe('RunSinglePhaseSchema', () => {
+    it('succeeds when RunSinglePhaseSchema accepts optional provider', () => {
+      const input = {
         step: 1,
-        model: 'test-model',
-        provider,
-      })
-      expect(result.provider).toBe(provider)
-    }
-  })
+        taskDescription: 'Test task description',
+        projectPath: '/test/path',
+      }
+      const result = RunSinglePhaseSchema.safeParse(input)
 
-  // @clause CL-SCHEMA-003
-  it('fails when invalid provider is specified', () => {
-    const input = { step: 1, model: 'test', provider: 'invalid-provider-xyz' }
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.provider).toBeUndefined()
+      }
+    })
 
-    expect(() => CreatePhaseConfigSchema.parse(input)).toThrow()
+    it('succeeds when RunSinglePhaseSchema accepts claude-code provider', () => {
+      const input = {
+        step: 1,
+        taskDescription: 'Test task description',
+        projectPath: '/test/path',
+        provider: 'claude-code',
+      }
+      const result = RunSinglePhaseSchema.safeParse(input)
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.provider).toBe('claude-code')
+      }
+    })
   })
 })
 
-// ─── Integration Tests ─────────────────────────────────────────────────────────
+describe('Provider Defaults - Controller Fallback Logic', () => {
+  let controller: AgentRunnerController
 
-describe('Integration: Schema and fallback chain behavior', () => {
-  // @clause CL-SCHEMA-001
-  // @clause CL-CTRL-001
-  // @clause CL-CTRL-002
-  it('succeeds when complete phase config uses all defaults correctly', () => {
-    const minimalInput = { step: 1, model: 'opus' }
-    const parsed = CreatePhaseConfigSchema.parse(minimalInput)
+  beforeEach(() => {
+    controller = new AgentRunnerController()
+  })
 
-    // Provider default
-    expect(parsed.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
-    // Schema defaults
-    expect(parsed.maxTokens).toBe(8192)
-    expect(parsed.maxIterations).toBe(30)
-    expect(parsed.maxInputTokensBudget).toBe(0)
-    expect(parsed.isActive).toBe(true)
+  // @clause CL-DEF-003
+  it('succeeds when fallback provider is claude-code without DB config', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Test task description for testing',
+        projectPath: '/test/project',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    expect(mockRes.status).toHaveBeenCalledWith(202)
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: expect.objectContaining({
+          provider: EXPECTED_DEFAULT_PROVIDER,
+        }),
+      })
+    )
+  })
+
+  // @clause CL-DEF-003
+  it('succeeds when fallback chain resolves to claude-code without request provider', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 2,
+        taskDescription: 'Another test task description',
+        projectPath: '/another/path',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
+  })
+
+  // @clause CL-DEF-003
+  it('succeeds when DB config is null and provider defaults to claude-code', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 3,
+        taskDescription: 'Testing DB null scenario',
+        projectPath: '/test/db-null',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
+  })
+
+  // @clause CL-DEF-004
+  it('succeeds when fallback model is opus without DB config', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Test task for model fallback',
+        projectPath: '/test/project',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: expect.objectContaining({
+          model: EXPECTED_DEFAULT_MODEL,
+        }),
+      })
+    )
+  })
+
+  // @clause CL-DEF-004
+  it('succeeds when fallback chain resolves to opus without request model', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 2,
+        taskDescription: 'Model fallback test task',
+        projectPath: '/model/fallback/test',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.model).toBe(EXPECTED_DEFAULT_MODEL)
+  })
+
+  // @clause CL-DEF-004
+  it('succeeds when DB config is null and model defaults to opus', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 4,
+        taskDescription: 'Testing model default with null DB',
+        projectPath: '/test/model-default',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.model).toBe(EXPECTED_DEFAULT_MODEL)
   })
 
   // @clause CL-INV-001
-  // @clause CL-INV-002
-  it('succeeds when explicit values override all defaults', () => {
-    const explicitInput = {
-      step: 1,
-      model: 'claude-sonnet-4-5-20250929',
-      provider: 'anthropic' as const,
-      maxTokens: 4096,
-      maxIterations: 10,
-    }
-    const parsed = CreatePhaseConfigSchema.parse(explicitInput)
+  it('succeeds when explicit provider anthropic is preserved', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
 
-    expect(parsed.provider).toBe('anthropic')
-    expect(parsed.model).toBe('claude-sonnet-4-5-20250929')
-    expect(parsed.maxTokens).toBe(4096)
-    expect(parsed.maxIterations).toBe(10)
-  })
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Test with explicit anthropic provider',
+        projectPath: '/test/project',
+        provider: 'anthropic',
+      },
+    } as any
 
-  // @clause CL-SCHEMA-002
-  // @clause CL-SCHEMA-003
-  it('succeeds when schema validates all supported providers', () => {
-    const allProviders = [...LEGACY_PROVIDERS, 'claude-code'] as const
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
 
-    for (const provider of allProviders) {
-      expect(() =>
-        CreatePhaseConfigSchema.parse({
-          step: 1,
-          model: 'test-model',
-          provider,
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: expect.objectContaining({
+          provider: 'anthropic',
         }),
-      ).not.toThrow()
-    }
+      })
+    )
   })
 
-  // @clause CL-CTRL-001
-  // @clause CL-CTRL-002
-  it('succeeds when controller fallback chain resolves both defaults', () => {
-    const data = {
-      step: 1,
-      taskDescription: 'Test task description for validation',
-      projectPath: '/test/project',
-    }
-    const dbConfig = null
+  // @clause CL-INV-001
+  it('succeeds when explicit provider openai is not overwritten by default', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
 
-    // Full fallback chain simulation
-    const resolvedPhase = {
-      step: data.step,
-      provider: data.provider ?? dbConfig?.provider ?? EXPECTED_DEFAULT_PROVIDER,
-      model: data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL,
-    }
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Test with explicit openai provider',
+        projectPath: '/test/project',
+        provider: 'openai',
+      },
+    } as any
 
-    expect(resolvedPhase.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
-    expect(resolvedPhase.model).toBe(EXPECTED_DEFAULT_MODEL)
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.provider).toBe('openai')
+    expect(jsonCall.phase.provider).not.toBe(EXPECTED_DEFAULT_PROVIDER)
   })
 
-  // @clause CL-SCHEMA-001
-  // @clause CL-SCHEMA-002
-  it('succeeds when RunSinglePhaseSchema validates minimal input', () => {
-    const input = {
+  // @clause CL-INV-001
+  it('succeeds when explicit provider mistral is preserved over default', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 2,
+        taskDescription: 'Test with explicit mistral provider',
+        projectPath: '/test/mistral',
+        provider: 'mistral',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.provider).toBe('mistral')
+  })
+
+  // @clause CL-INV-002
+  it('succeeds when explicit model sonnet is preserved', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Test with explicit sonnet model',
+        projectPath: '/test/project',
+        model: 'sonnet',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: expect.objectContaining({
+          model: 'sonnet',
+        }),
+      })
+    )
+  })
+
+  // @clause CL-INV-002
+  it('succeeds when explicit model haiku is not overwritten by default', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Test with explicit haiku model',
+        projectPath: '/test/project',
+        model: 'haiku',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.model).toBe('haiku')
+    expect(jsonCall.phase.model).not.toBe(EXPECTED_DEFAULT_MODEL)
+  })
+
+  // @clause CL-INV-002
+  it('succeeds when explicit model gpt-4 is preserved over default', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
+
+    const mockReq = {
+      body: {
+        step: 3,
+        taskDescription: 'Test with explicit gpt-4 model',
+        projectPath: '/test/gpt4',
+        model: 'gpt-4',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.model).toBe('gpt-4')
+  })
+
+  it('succeeds when DB config provider is used when request omits provider', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue({
       step: 1,
-      taskDescription: 'Valid task description',
-      projectPath: '/valid/path',
-    }
+      provider: 'openai',
+      model: 'gpt-4',
+      maxTokens: 8192,
+      maxIterations: 30,
+      maxInputTokensBudget: 0,
+      temperature: null,
+      fallbackProvider: null,
+      fallbackModel: null,
+    })
 
-    expect(() => RunSinglePhaseSchema.parse(input)).not.toThrow()
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Test with DB config',
+        projectPath: '/test/project',
+      },
+    } as any
 
-    const result = RunSinglePhaseSchema.parse(input)
-    expect(result.step).toBe(1)
-    expect(result.taskDescription).toBe('Valid task description')
-    expect(result.projectPath).toBe('/valid/path')
-    // provider and model are optional in RunSinglePhaseSchema
-    expect(result.provider).toBeUndefined()
-    expect(result.model).toBeUndefined()
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.provider).toBe('openai')
+  })
+
+  it('succeeds when request provider takes precedence over DB config', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue({
+      step: 1,
+      provider: 'openai',
+      model: 'gpt-4',
+      maxTokens: 8192,
+      maxIterations: 30,
+      maxInputTokensBudget: 0,
+      temperature: null,
+      fallbackProvider: null,
+      fallbackModel: null,
+    })
+
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Test with explicit provider over DB',
+        projectPath: '/test/project',
+        provider: 'claude-code',
+      },
+    } as any
+
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.provider).toBe('claude-code')
   })
 })
 
-// ─── Fallback Chain Order Tests ────────────────────────────────────────────────
+describe('Provider Defaults - Complete Fallback Chain', () => {
+  let controller: AgentRunnerController
 
-describe('Fallback chain: data.provider > dbConfig.provider > default', () => {
-  // @clause CL-CTRL-001
-  it('succeeds when data.provider has highest precedence', () => {
-    const data = { provider: 'mistral' as const }
-    const dbConfig = { provider: 'openai' }
-
-    const resolved = data.provider ?? dbConfig?.provider ?? EXPECTED_DEFAULT_PROVIDER
-
-    expect(resolved).toBe('mistral')
+  beforeEach(() => {
+    controller = new AgentRunnerController()
   })
 
-  // @clause CL-CTRL-001
-  it('succeeds when dbConfig.provider is used when data.provider is undefined', () => {
-    const data = {}
-    const dbConfig = { provider: 'openai' }
+  // @clause CL-DEF-003
+  // @clause CL-DEF-004
+  it('succeeds when complete fallback chain uses claude-code and opus defaults', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
 
-    const resolved = data.provider ?? dbConfig?.provider ?? EXPECTED_DEFAULT_PROVIDER
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Complete fallback chain test',
+        projectPath: '/test/fallback',
+      },
+    } as any
 
-    expect(resolved).toBe('openai')
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    const jsonCall = mockRes.json.mock.calls[0][0]
+    expect(jsonCall.phase.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
+    expect(jsonCall.phase.model).toBe(EXPECTED_DEFAULT_MODEL)
   })
 
-  // @clause CL-CTRL-001
-  it('succeeds when default is used when both are undefined', () => {
-    const data = {}
-    const dbConfig = null
+  // @clause CL-DEF-003
+  // @clause CL-DEF-004
+  it('succeeds when all steps use correct defaults without DB config', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
 
-    const resolved = data.provider ?? dbConfig?.provider ?? EXPECTED_DEFAULT_PROVIDER
+    const steps = [1, 2, 3, 4]
 
-    expect(resolved).toBe(EXPECTED_DEFAULT_PROVIDER)
-  })
-})
+    for (const step of steps) {
+      const mockReq = {
+        body: {
+          step,
+          taskDescription: `Test step ${step} defaults`,
+          projectPath: `/test/step/${step}`,
+        },
+      } as any
 
-describe('Fallback chain: data.model > dbConfig.model > default', () => {
-  // @clause CL-CTRL-002
-  it('succeeds when data.model has highest precedence', () => {
-    const data = { model: 'haiku' }
-    const dbConfig = { model: 'sonnet' }
+      const mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as any
 
-    const resolved = data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL
+      await controller.runSinglePhase(mockReq, mockRes)
 
-    expect(resolved).toBe('haiku')
-  })
-
-  // @clause CL-CTRL-002
-  it('succeeds when dbConfig.model is used when data.model is undefined', () => {
-    const data = {}
-    const dbConfig = { model: 'sonnet' }
-
-    const resolved = data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL
-
-    expect(resolved).toBe('sonnet')
+      const jsonCall = mockRes.json.mock.calls[0][0]
+      expect(jsonCall.phase.provider).toBe(EXPECTED_DEFAULT_PROVIDER)
+      expect(jsonCall.phase.model).toBe(EXPECTED_DEFAULT_MODEL)
+    }
   })
 
-  // @clause CL-CTRL-002
-  it('succeeds when default model is used when both are undefined', () => {
-    const data = {}
-    const dbConfig = null
+  // @clause CL-DEF-003
+  // @clause CL-DEF-004
+  it('succeeds when response contains correct defaults in phase object', async () => {
+    mockPrisma.agentPhaseConfig.findUnique.mockResolvedValue(null)
 
-    const resolved = data.model ?? dbConfig?.model ?? EXPECTED_DEFAULT_MODEL
+    const mockReq = {
+      body: {
+        step: 1,
+        taskDescription: 'Verify response structure',
+        projectPath: '/test/response',
+      },
+    } as any
 
-    expect(resolved).toBe(EXPECTED_DEFAULT_MODEL)
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any
+
+    await controller.runSinglePhase(mockReq, mockRes)
+
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: expect.any(String),
+        status: 'started',
+        phase: {
+          step: 1,
+          provider: EXPECTED_DEFAULT_PROVIDER,
+          model: EXPECTED_DEFAULT_MODEL,
+        },
+        eventsUrl: expect.stringContaining('/api/agent/events/'),
+      })
+    )
   })
 })

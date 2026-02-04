@@ -86,7 +86,7 @@ export function buildOrquiEasyblocksConfig(options: BuildConfigOptions) {
 // Re-exports
 export { orquiTokensToEasyblocks, generateTokenCSSVariables } from "./bridge/tokens";
 export { buildWidgetVariableContext, getOrquiCustomTypes } from "./bridge/variables";
-export { createOrquiBackend, hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry } from "./backend";
+export { createOrquiBackend, hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry, invalidateAllEntries } from "./backend";
 export {
   noCodeEntryToNodeDef,
   nodeDefToNoCodeEntry,

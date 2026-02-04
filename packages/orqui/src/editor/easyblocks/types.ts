@@ -55,13 +55,17 @@ export type StylesFunctionResult = {
 /** The editing function controls sidebar/canvas behavior */
 export interface EditingFunctionArgs {
   values: Record<string, any>;
-  editingInfo: Record<string, any>;
+  editingInfo: EditingInfo;
 }
 
-export type EditingFunctionResult = {
-  components?: Record<string, { visible?: boolean; label?: string }>;
-  fields?: Record<string, { visible?: boolean; label?: string }>;
-};
+/** Default editing info passed by Easyblocks — modify and return */
+export interface EditingInfo {
+  fields: Array<{ path: string; visible?: boolean; label?: string; [k: string]: any }>;
+  components?: Record<string, { visible?: boolean; label?: string; [k: string]: any }>;
+  [k: string]: any;
+}
+
+export type EditingFunctionResult = EditingInfo;
 
 /** A full No-Code Component Definition */
 export interface NoCodeComponentDefinition {

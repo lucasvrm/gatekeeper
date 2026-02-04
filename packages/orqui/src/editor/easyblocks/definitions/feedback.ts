@@ -6,9 +6,11 @@
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
+import { THUMB_ALERT, THUMB_PROGRESS, THUMB_SPINNER, THUMB_SKELETON } from "./thumbnails";
 
 export const alertDefinition: NoCodeComponentDefinition = {
   id: "OrquiAlert",
+  thumbnail: THUMB_ALERT,
   label: "Alert",
   type: "item",
   paletteLabel: "Feedback",
@@ -68,6 +70,7 @@ export const alertDefinition: NoCodeComponentDefinition = {
 
 export const progressDefinition: NoCodeComponentDefinition = {
   id: "OrquiProgress",
+  thumbnail: THUMB_PROGRESS,
   label: "Progress",
   type: "item",
   paletteLabel: "Feedback",
@@ -146,6 +149,7 @@ export const progressDefinition: NoCodeComponentDefinition = {
 
 export const spinnerDefinition: NoCodeComponentDefinition = {
   id: "OrquiSpinner",
+  thumbnail: THUMB_SPINNER,
   label: "Spinner",
   type: "item",
   paletteLabel: "Feedback",
@@ -179,6 +183,7 @@ export const spinnerDefinition: NoCodeComponentDefinition = {
 
 export const skeletonDefinition: NoCodeComponentDefinition = {
   id: "OrquiSkeleton",
+  thumbnail: THUMB_SKELETON,
   label: "Skeleton",
   type: "item",
   paletteLabel: "Feedback",

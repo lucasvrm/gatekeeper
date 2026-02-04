@@ -172,17 +172,22 @@ export class OpenAIProvider implements LLMProvider {
     // Tool calls (arguments come as JSON string → parse)
     if (choice.message.tool_calls) {
       for (const tc of choice.message.tool_calls) {
+        // SDK v6+ has a union: function tool calls have type 'function' with a function property;
+        // custom tool calls don't. We only handle function tool calls.
+        if (tc.type !== 'function' || !('function' in tc)) continue
+
+        const fn = tc.function
         let input: Record<string, unknown> = {}
         try {
-          input = JSON.parse(tc.function.arguments)
+          input = JSON.parse(fn.arguments)
         } catch {
-          input = { _raw: tc.function.arguments }
+          input = { _raw: fn.arguments }
         }
 
         content.push({
           type: 'tool_use',
           id: tc.id,
-          name: tc.function.name,
+          name: fn.name,
           input,
         })
       }

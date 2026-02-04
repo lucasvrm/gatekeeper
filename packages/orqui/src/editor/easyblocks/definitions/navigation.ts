@@ -227,11 +227,17 @@ export const linkDefinition: NoCodeComponentDefinition = {
       group: "Customização",
     },
   ],
-  editing: ({ values }: any) => ({
-    fields: [
-      { type: "field" as const, path: "customColor", visible: values.variant === "custom" },
-    ],
-  }),
+  editing: ({ editingInfo, values }: any) => {
+    return {
+      ...editingInfo,
+      fields: editingInfo.fields.map((field: any) => {
+        if (field.path === "customColor") {
+          return { ...field, visible: values.variant === "custom" };
+        }
+        return field;
+      }),
+    };
+  },
   styles: ({ values }) => {
     const colorMap: Record<string, string> = {
       default: "var(--orqui-accent, #6d9cff)",

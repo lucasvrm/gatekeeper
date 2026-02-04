@@ -44,12 +44,16 @@ interface WidgetProps {
   value: string;
   /** Callback to update the value */
   onChange: (value: string) => void;
-  /** Schema definition for this prop */
-  schema: {
-    prop: string;
+  /** Schema definition for this prop (may be undefined depending on Easyblocks version) */
+  schema?: {
+    prop?: string;
     label?: string;
     defaultValue?: unknown;
   };
+  /** Some Easyblocks versions pass id instead of schema.prop */
+  id?: string;
+  /** Some Easyblocks versions pass params from the schema definition */
+  params?: Record<string, any>;
 }
 
 // ============================================================================
@@ -74,7 +78,7 @@ function getVariableContext(): WidgetVariableContext {
 // Main Widget Component
 // ============================================================================
 
-export function TemplatePickerWidget({ value, onChange, schema }: WidgetProps) {
+export function TemplatePickerWidget({ value, onChange, schema, id }: WidgetProps) {
   const [focused, setFocused] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [formatterOpen, setFormatterOpen] = useState(false);
@@ -140,7 +144,7 @@ export function TemplatePickerWidget({ value, onChange, schema }: WidgetProps) {
             onChange={e => onChange(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder={schema.label || "Texto ou {{variável}}"}
+            placeholder={schema?.label || "Texto ou {{variável}}"}
             style={{
               ...inputStyle,
               borderColor: focused ? C.accent : C.border,

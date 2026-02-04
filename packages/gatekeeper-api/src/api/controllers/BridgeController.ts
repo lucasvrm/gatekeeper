@@ -24,7 +24,7 @@ import { AgentOrchestratorBridge, BridgeError } from '../../services/AgentOrches
 import { OrchestratorEventService } from '../../services/OrchestratorEventService.js'
 import { AgentRunPersistenceService } from '../../services/AgentRunPersistenceService.js'
 import { GatekeeperValidationBridge } from '../../services/GatekeeperValidationBridge.js'
-import type { AgentEvent } from '../../types/agent.types.js'
+import type { AgentEvent, ProviderName } from '../../types/agent.types.js'
 
 const persistence = new AgentRunPersistenceService(prisma)
 
@@ -51,6 +51,16 @@ function getValidationBridge(): GatekeeperValidationBridge {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
+const VALID_PROVIDERS = new Set<ProviderName>(['anthropic', 'openai', 'mistral', 'claude-code', 'codex-cli'])
+
+/** Validate and narrow a string from req.body to ProviderName. Returns undefined for invalid/missing values. */
+function asProvider(value: unknown): ProviderName | undefined {
+  if (typeof value === 'string' && VALID_PROVIDERS.has(value as ProviderName)) {
+    return value as ProviderName
+  }
+  return undefined
+}
+
 function handleBridgeError(error: unknown, res: Response): void {
   if (error instanceof BridgeError) {
     const status = error.code === 'MISSING_ARTIFACTS' ? 422 : 500
@@ -66,7 +76,7 @@ function handleBridgeError(error: unknown, res: Response): void {
 
 function makeEmitter(runId: string) {
   return (event: AgentEvent) => {
-    OrchestratorEventService.emitOrchestratorEvent(runId, event as Record<string, unknown>)
+    OrchestratorEventService.emitOrchestratorEvent(runId, event)
   }
 }
 
@@ -99,7 +109,8 @@ export class BridgeController {
    * SSE events: agent:bridge_start, agent:iteration, agent:tool_call, agent:complete, agent:bridge_complete
    */
   async generatePlan(req: Request, res: Response): Promise<void> {
-    const { taskDescription, projectPath, taskType, profileId, provider, model, attachments } = req.body
+    const { taskDescription, projectPath, taskType, profileId, model, attachments } = req.body
+    const provider = asProvider(req.body.provider)
 
     if (!taskDescription || !projectPath) {
       res.status(400).json({ error: 'taskDescription and projectPath are required' })
@@ -153,7 +164,8 @@ export class BridgeController {
    * Body: { outputId, projectPath, profileId?, provider?, model? }
    */
   async generateSpec(req: Request, res: Response): Promise<void> {
-    const { outputId, projectPath, profileId, provider, model } = req.body
+    const { outputId, projectPath, profileId, model } = req.body
+    const provider = asProvider(req.body.provider)
 
     if (!outputId || !projectPath) {
       res.status(400).json({ error: 'outputId and projectPath are required' })
@@ -191,8 +203,9 @@ export class BridgeController {
   async fixArtifacts(req: Request, res: Response): Promise<void> {
     const {
       outputId, projectPath, target, failedValidators,
-      runId: gkRunId, rejectionReport, profileId, provider, model,
+      runId: gkRunId, rejectionReport, profileId, model, taskPrompt,
     } = req.body
+    const provider = asProvider(req.body.provider)
 
     if (!outputId || !projectPath || !target || !failedValidators) {
       res.status(400).json({
@@ -207,7 +220,7 @@ export class BridgeController {
       const result = await bridge.fixArtifacts(
         {
           outputId, projectPath, target, failedValidators,
-          runId: gkRunId, rejectionReport, profileId, provider, model,
+          runId: gkRunId, rejectionReport, profileId, provider, model, taskPrompt,
         },
       )
 
@@ -219,6 +232,7 @@ export class BridgeController {
         })),
         corrections: result.corrections,
         tokensUsed: result.tokensUsed,
+        correctedTaskPrompt: result.correctedTaskPrompt,
       })
     } catch (err) {
       console.error('[Bridge] Fix failed:', err)
@@ -231,12 +245,10 @@ export class BridgeController {
    * POST /agent/bridge/execute
    *
    * Body: { outputId, projectPath, provider?, model? }
-   * Returns: 202 + { outputId, eventsUrl }
-   * Background: runs agent → saves artifacts to disk
-   * SSE events: agent:bridge_start, agent:iteration, agent:tool_call, agent:bridge_execute_done
    */
   async execute(req: Request, res: Response): Promise<void> {
-    const { outputId, projectPath, provider, model } = req.body
+    const { outputId, projectPath, model } = req.body
+    const provider = asProvider(req.body.provider)
 
     if (!outputId || !projectPath) {
       res.status(400).json({ error: 'outputId and projectPath are required' })
@@ -244,41 +256,26 @@ export class BridgeController {
     }
 
     const bridge = getBridge()
-    const emit = makeEmitter(outputId)
 
-    // Return immediately — execution runs in background with SSE progress
-    res.status(202).json({
-      outputId,
-      eventsUrl: `/api/orchestrator/events/${outputId}`,
-    })
+    try {
+      const result = await bridge.execute(
+        { outputId, projectPath, provider, model },
+      )
 
-    // Run in background
-    setImmediate(async () => {
-      try {
-        const result = await bridge.execute(
-          { outputId, projectPath, provider, model },
-          { onEvent: emit },
-        )
-
-        // Emit completion with full result
-        OrchestratorEventService.emitOrchestratorEvent(outputId, {
-          type: 'agent:bridge_execute_done',
-          outputId,
-          mode: 'agent',
-          artifacts: result.artifacts.map((a) => ({
-            filename: a.filename,
-            content: a.content,
-          })),
-          tokensUsed: result.tokensUsed,
-        })
-      } catch (err) {
-        console.error('[Bridge] Execute failed:', err)
-        OrchestratorEventService.emitOrchestratorEvent(outputId, {
-          type: 'agent:error',
-          error: (err as Error).message,
-        })
-      }
-    })
+      res.json({
+        outputId,
+        mode: 'agent',
+        artifacts: result.artifacts.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+        })),
+        tokensUsed: result.tokensUsed,
+      })
+    } catch (err) {
+      console.error('[Bridge] Execute failed:', err)
+      const errObj = err as Error
+      res.status(500).json({ error: errObj.message })
+    }
   }
 
   /**
@@ -290,8 +287,9 @@ export class BridgeController {
   async runFullPipeline(req: Request, res: Response): Promise<void> {
     const {
       taskDescription, projectPath, taskType, profileId,
-      projectId, provider, model, maxFixRetries = 3,
+      projectId, model, maxFixRetries = 3,
     } = req.body
+    const provider = asProvider(req.body.provider)
     const runId = nanoid(12)
 
     if (!taskDescription || !projectPath) {
@@ -332,8 +330,9 @@ export class BridgeController {
    */
   async resumePipeline(req: Request, res: Response): Promise<void> {
     const {
-      runId: dbRunId, projectId, provider, model, maxFixRetries = 3,
+      runId: dbRunId, projectId, model, maxFixRetries = 3,
     } = req.body
+    const provider = asProvider(req.body.provider)
 
     if (!dbRunId) {
       res.status(400).json({ error: 'runId is required (DB AgentRun ID)' })
@@ -416,7 +415,7 @@ export class BridgeController {
       taskType?: string
       profileId?: string
       projectId?: string
-      provider?: string
+      provider?: ProviderName
       model?: string
       maxFixRetries: number
       /** For checkpoint/resume: skip steps up to this number */
@@ -468,11 +467,7 @@ export class BridgeController {
         OrchestratorEventService.emitOrchestratorEvent(runId, {
           type: 'agent:bridge_plan_done',
           outputId: planResult.outputId,
-          artifacts: planResult.artifacts.map((a) => ({
-            filename: a.filename,
-            content: a.content,
-          })),
-          tokensUsed: planResult.tokensUsed,
+          artifacts: planResult.artifacts.map((a) => a.filename),
         })
 
         outputId = planResult.outputId
@@ -501,11 +496,7 @@ export class BridgeController {
         OrchestratorEventService.emitOrchestratorEvent(runId, {
           type: 'agent:bridge_spec_done',
           outputId,
-          artifacts: specResult.artifacts.map((a) => ({
-            filename: a.filename,
-            content: a.content,
-          })),
-          tokensUsed: specResult.tokensUsed,
+          artifacts: specResult.artifacts.map((a) => a.filename),
         })
       } else {
         console.log(`[Bridge] Resuming: skipping step 2 (spec) — already completed`)
@@ -592,10 +583,7 @@ export class BridgeController {
               attempt: attempt + 1,
               testsPass,
               validationMode: 'heuristic',
-              artifacts: executeResult.artifacts.map((a) => ({
-                filename: a.filename,
-                content: a.content,
-              })),
+              artifacts: executeResult.artifacts.map((a) => a.filename),
             })
             break
           }
@@ -608,10 +596,7 @@ export class BridgeController {
             testsPass: true,
             validationMode: 'gatekeeper',
             validationRunId: validation.validationRunId,
-            artifacts: executeResult.artifacts.map((a) => ({
-              filename: a.filename,
-              content: a.content,
-            })),
+            artifacts: executeResult.artifacts.map((a) => a.filename),
           })
           break
         }
@@ -627,10 +612,7 @@ export class BridgeController {
             validationMode: 'gatekeeper',
             validationRunId: validation.validationRunId,
             failedValidators: validation.failedValidatorCodes,
-            artifacts: executeResult.artifacts.map((a) => ({
-              filename: a.filename,
-              content: a.content,
-            })),
+            artifacts: executeResult.artifacts.map((a) => a.filename),
           })
           break
         }
@@ -686,10 +668,7 @@ export class BridgeController {
         totalAttempts: attempt + 1,
         validationPassed: lastValidation?.passed ?? false,
         validationRunId: lastValidation?.validationRunId,
-        artifacts: lastExecuteResult?.artifacts.map((a) => ({
-          filename: a.filename,
-          content: a.content,
-        })) ?? [],
+        artifacts: lastExecuteResult?.artifacts.map((a) => a.filename) ?? [],
       })
     } catch (err) {
       await persistence.failRun(dbRunId, (err as Error).message)

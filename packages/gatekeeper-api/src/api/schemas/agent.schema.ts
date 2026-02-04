@@ -43,6 +43,7 @@ export const CreateContentSchema = z.object({
 })
 
 export const UpdateContentSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
   content: z.string().min(1).optional(),
   order: z.number().int().optional(),
   isActive: z.boolean().optional(),
