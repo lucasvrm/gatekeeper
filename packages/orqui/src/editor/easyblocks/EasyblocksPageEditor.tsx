@@ -24,6 +24,8 @@ import { generateTokenCSSVariables } from "./bridge/tokens";
 import { ORQUI_COMPONENTS } from "./components";
 import { ORQUI_WIDGETS } from "./widgets/TemplatePickerWidget";
 import { buildWidgetVariableContext } from "./bridge/variables";
+import { PageSwitcher } from "./PageSwitcher";
+import { hasEbCachedEntry, removeEbCachedEntry } from "./backend";
 
 // ============================================================================
 // Iframe Detection
@@ -228,6 +230,13 @@ export function EasyblocksPageEditor({
 
 // ============================================================================
 // Parent Editor (extracted to separate component to avoid conditional hooks)
+//
+// Phase 5: Page selection with PageSwitcher. The editor loads either:
+//   - An existing page via ?document={id}  (backend.documents.get)
+//   - A new blank page via ?rootComponent=OrquiStack (backend.documents.create)
+//
+// Switching pages requires re-mounting <EasyblocksEditor> because it only
+// reads ?document= on initialization. We use the `key` prop to force this.
 // ============================================================================
 
 function EasyblocksParentEditor({
@@ -237,20 +246,38 @@ function EasyblocksParentEditor({
   variables,
   externalVariables,
 }: EasyblocksPageEditorProps) {
+  // ---- Page selection state ----
+  // null = new page (rootComponent mode), string = existing page (document mode)
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(() => {
+    const pageIds = Object.keys(pages);
+    return pageIds.length > 0 ? pageIds[0] : null;
+  });
+
   const [ready, setReady] = useState(false);
-  const [resetKey, setResetKey] = useState(0);
+  const [editorKey, setEditorKey] = useState(0);
 
   // ---- Inject URL params that EasyblocksEditor reads ----
+  // CRITICAL: We can only use ?document=xxx mode for pages that have a
+  // cached Easyblocks-native entry (from previous create/update calls).
+  // For pages never opened in Easyblocks, we MUST use ?rootComponent mode
+  // because we can't convert NodeDef → Easyblocks internal format.
   useEffect(() => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
 
     params.set("readOnly", "false");
 
-    // Always force rootComponent — legacy documents crash normalizeTokenValue
-    params.delete("document");
-    params.delete("rootTemplate");
-    params.set("rootComponent", ROOT_COMPONENT_ID);
+    if (selectedPageId && hasEbCachedEntry(selectedPageId)) {
+      // Page has cached Easyblocks entry → document mode (loads via get())
+      params.delete("rootComponent");
+      params.delete("rootTemplate");
+      params.set("document", selectedPageId);
+    } else {
+      // No cache → rootComponent mode (creates fresh OrquiStack)
+      params.delete("document");
+      params.delete("rootTemplate");
+      params.set("rootComponent", ROOT_COMPONENT_ID);
+    }
 
     window.history.replaceState({}, "", url.toString());
     setReady(true);
@@ -262,7 +289,7 @@ function EasyblocksParentEditor({
       );
       window.history.replaceState({}, "", cleanUrl.toString());
     };
-  }, []);
+  }, [selectedPageId, editorKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Expose variable context for template picker widgets ----
   useEffect(() => {
@@ -272,6 +299,80 @@ function EasyblocksParentEditor({
       delete (window as any).__orquiVariableContext;
     };
   }, [variables, externalVariables]);
+
+  // ---- Page switch handler (forces EasyblocksEditor re-mount) ----
+  const handleSelectPage = useCallback((pageId: string) => {
+    if (pageId === selectedPageId) return;
+    setReady(false);
+    setSelectedPageId(pageId);
+    setEditorKey(k => k + 1);
+  }, [selectedPageId]);
+
+  // ---- New page handler ----
+  const handleNewPage = useCallback(() => {
+    setReady(false);
+    setSelectedPageId(null);  // null → rootComponent mode → backend.create()
+    setEditorKey(k => k + 1);
+  }, []);
+
+  // ---- Delete page handler ----
+  const handleDeletePage = useCallback((pageId: string) => {
+    const pageIds = Object.keys(pages);
+    if (pageIds.length <= 1) return; // Don't allow deleting the last page
+
+    // Compute next page to navigate to
+    const idx = pageIds.indexOf(pageId);
+    const nextId = pageIds[idx === pageIds.length - 1 ? idx - 1 : idx + 1];
+
+    // Clean up cached Easyblocks entry
+    removeEbCachedEntry(pageId);
+
+    // Remove from pages
+    const { [pageId]: _removed, ...rest } = pages;
+    onPagesChange(rest);
+
+    // Navigate to adjacent page
+    setReady(false);
+    setSelectedPageId(nextId || null);
+    setEditorKey(k => k + 1);
+  }, [pages, onPagesChange]);
+
+  // ---- Track newly created pages ----
+  // When selectedPageId is null (new page mode), the backend.create() will
+  // generate a new ID and call onPageChange. We detect when a new page appears
+  // in the pages prop and auto-select it.
+  useEffect(() => {
+    if (selectedPageId !== null) return;
+    const pageIds = Object.keys(pages);
+    if (pageIds.length === 0) return;
+    // Find the newest page (highest timestamp in page-XXXXX format)
+    const newest = pageIds.reduce((a, b) => (a > b ? a : b));
+    if (newest.startsWith("page-")) {
+      setSelectedPageId(newest);
+    }
+  }, [pages, selectedPageId]);
+
+  // ---- Keyboard shortcuts ----
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+S — Force save (flush debounced changes)
+      if (ctrl && e.key === "s") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("orqui:force-save"));
+      }
+
+      // Ctrl+Shift+P — Focus page switcher (open new page prompt)
+      if (ctrl && e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        handleNewPage();
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleNewPage]);
 
   // ---- Build Easyblocks config ----
   const handlePageChange = useCallback((pageId: string, page: PageDef) => {
@@ -283,37 +384,58 @@ function EasyblocksParentEditor({
       tokens,
       pages,
       onPageChange: handlePageChange,
+      onPageDelete: handleDeletePage,
     }),
-    [tokens, pages, handlePageChange]
+    [tokens, pages, handlePageChange, handleDeletePage]
   );
+
+  // ---- Flush backend on Ctrl+S (force-save event) ----
+  useEffect(() => {
+    const handler = () => {
+      if (config.backend && typeof config.backend.flush === "function") {
+        config.backend.flush();
+      }
+    };
+    window.addEventListener("orqui:force-save", handler);
+    return () => window.removeEventListener("orqui:force-save", handler);
+  }, [config]);
 
   // ---- CSS variables for Orqui tokens ----
   const tokenCSS = useMemo(() => generateTokenCSSVariables(tokens), [tokens]);
 
   // ---- Error boundary reset ----
   const handleErrorReset = useCallback(() => {
-    setResetKey(k => k + 1);
+    setEditorKey(k => k + 1);
+    setReady(false);
   }, []);
-
-  // NOTE: Previous CSS overrides and MutationObserver for sidebar width
-  // have been removed. Run the diagnostic script (DIAGNOSTIC-SIDEBAR.js)
-  // in DevTools to identify the actual Easyblocks sidebar structure,
-  // then apply a minimal targeted fix based on findings.
 
   // Wait for URL params before rendering
   if (!ready) return null;
 
   return (
-    <div style={{ height: "100%", width: "100%", position: "relative" }}>
+    <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
       <style>{tokenCSS}</style>
-      <EasyblocksErrorBoundary onReset={handleErrorReset}>
-        <EasyblocksEditor
-          key={resetKey}
-          config={config}
-          components={ORQUI_COMPONENTS}
-          widgets={ORQUI_WIDGETS}
-        />
-      </EasyblocksErrorBoundary>
+
+      {/* Page switcher bar */}
+      <PageSwitcher
+        pages={pages}
+        currentPageId={selectedPageId}
+        onSelectPage={handleSelectPage}
+        onNewPage={handleNewPage}
+        onDeletePage={handleDeletePage}
+      />
+
+      {/* Easyblocks editor — re-mounted on page switch via key */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <EasyblocksErrorBoundary onReset={handleErrorReset}>
+          <EasyblocksEditor
+            key={editorKey}
+            config={config}
+            components={ORQUI_COMPONENTS}
+            widgets={ORQUI_WIDGETS}
+          />
+        </EasyblocksErrorBoundary>
+      </div>
     </div>
   );
 }

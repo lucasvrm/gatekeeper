@@ -22,15 +22,14 @@ export class AgentPromptAssembler {
   /**
    * Assemble the system prompt for a given pipeline step.
    *
-   * Queries PromptInstruction entries where step & kind are set,
-   * grouped by kind: 'instruction', 'doc', 'prompt'.
-   *
-   * Throws if no active content found for the step.
+   * Queries PromptInstruction entries where step is set,
+   * concatenated in order. The kind field is ignored for assembly —
+   * all active entries for the step are joined as a single prompt.
    */
   async assembleForStep(step: number): Promise<string> {
     const contents = await this.prisma.promptInstruction.findMany({
-      where: { step, isActive: true, kind: { not: null } },
-      orderBy: [{ kind: 'asc' }, { order: 'asc' }],
+      where: { step, isActive: true },
+      orderBy: [{ order: 'asc' }, { name: 'asc' }],
     })
 
     if (!contents || contents.length === 0) {
@@ -40,31 +39,8 @@ export class AgentPromptAssembler {
       )
     }
 
-    const instructions = contents
-      .filter((c) => c.kind === 'instruction')
-      .map((c) => c.content)
+    const assembled = contents.map((c) => c.content).join('\n\n')
 
-    const docs = contents
-      .filter((c) => c.kind === 'doc')
-      .map((c) => c.content)
-
-    const prompts = contents
-      .filter((c) => c.kind === 'prompt')
-      .map((c) => c.content)
-
-    const parts: string[] = []
-
-    if (instructions.length > 0) {
-      parts.push(instructions.join('\n\n'))
-    }
-    if (docs.length > 0) {
-      parts.push('## Reference Documentation\n\n' + docs.join('\n\n---\n\n'))
-    }
-    if (prompts.length > 0) {
-      parts.push(prompts.join('\n\n'))
-    }
-
-    const assembled = parts.join('\n\n')
     if (!assembled) {
       throw new Error(
         `Prompt content for step ${step} exists but assembled to empty string. ` +

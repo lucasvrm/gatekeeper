@@ -501,6 +501,14 @@ export function RunDetailsPageV2() {
             <span className="text-xs font-medium text-muted-foreground">Gates 0 e 1 aprovados</span>
             <Button
               size="sm"
+              variant="outline"
+              onClick={() => navigate(`/orchestrator?outputId=${contractRun?.outputId}&step=3`)}
+              className="h-7"
+            >
+              Continuar no Orchestrator →
+            </Button>
+            <Button
+              size="sm"
               onClick={handleStartExecution}
               disabled={executionLoading}
               data-testid="start-execution-banner"
@@ -705,15 +713,25 @@ export function RunDetailsPageV2() {
 
                 {/* Start execution CTA (only in gate 2 column when no execution run) */}
                 {!isCommitted && gate.gateNumber === 2 && canStartExecution && (
-                  <Button
-                    size="sm"
-                    onClick={handleStartExecution}
-                    disabled={executionLoading}
-                    className="w-full justify-center mt-1 h-7"
-                  >
-                    <Play className="w-3 h-3 mr-1" />
-                    {executionLoading ? "..." : "Iniciar Execução"}
-                  </Button>
+                  <div className="flex flex-col gap-1 mt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/orchestrator?outputId=${contractRun?.outputId}&step=3`)}
+                      className="w-full justify-center h-7"
+                    >
+                      Continuar no Orchestrator →
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleStartExecution}
+                      disabled={executionLoading}
+                      className="w-full justify-center h-7"
+                    >
+                      <Play className="w-3 h-3 mr-1" />
+                      {executionLoading ? "..." : "Iniciar Execução"}
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

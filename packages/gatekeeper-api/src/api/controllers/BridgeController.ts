@@ -70,6 +70,23 @@ function makeEmitter(runId: string) {
   }
 }
 
+/** Generate an outputId (same logic as AgentOrchestratorBridge.generateOutputId) */
+function generateOutputId(taskDescription: string): string {
+  const now = new Date()
+  const yyyy = now.getFullYear()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  const nnn = String(Math.floor(Math.random() * 900) + 100)
+  const slug = taskDescription
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 40)
+    .replace(/-$/, '')
+  return `${yyyy}_${mm}_${dd}_${nnn}_${slug}`
+}
+
 // ─── Controller ────────────────────────────────────────────────────────────
 
 export class BridgeController {
@@ -79,10 +96,10 @@ export class BridgeController {
    * Body: { taskDescription, projectPath, taskType?, profileId?, provider?, model? }
    * Returns: 202 + { runId, outputId, eventsUrl }
    * Background: runs agent → saves artifacts to disk
-   * Final SSE event: { type: 'agent:bridge_plan_done', outputId, artifacts }
+   * SSE events: agent:bridge_start, agent:iteration, agent:tool_call, agent:complete, agent:bridge_complete
    */
   async generatePlan(req: Request, res: Response): Promise<void> {
-    const { taskDescription, projectPath, taskType, profileId, provider, model } = req.body
+    const { taskDescription, projectPath, taskType, profileId, provider, model, attachments } = req.body
 
     if (!taskDescription || !projectPath) {
       res.status(400).json({ error: 'taskDescription and projectPath are required' })
@@ -91,24 +108,43 @@ export class BridgeController {
 
     const bridge = getBridge()
 
-    try {
-      const result = await bridge.generatePlan(
-        { taskDescription, projectPath, taskType, profileId, provider, model },
-      )
+    // Generate outputId early so the client can connect SSE before work starts
+    const outputId = generateOutputId(taskDescription)
 
-      res.status(201).json({
-        outputId: result.outputId,
-        artifacts: result.artifacts.map((a) => ({
-          filename: a.filename,
-          content: a.content,
-        })),
-        tokensUsed: result.tokensUsed,
-      })
-    } catch (err) {
-      console.error('[Bridge] Plan failed:', err)
-      const errObj = err as Error
-      res.status(500).json({ error: errObj.message })
-    }
+    const emit = makeEmitter(outputId)
+
+    // Return immediately so the client can connect SSE
+    res.status(202).json({
+      outputId,
+      eventsUrl: `/api/orchestrator/events/${outputId}`,
+    })
+
+    // Run in background
+    setImmediate(async () => {
+      try {
+        const result = await bridge.generatePlan(
+          { taskDescription, projectPath, taskType, profileId, provider, model, outputId, attachments },
+          { onEvent: emit },
+        )
+
+        // Emit completion with full result
+        OrchestratorEventService.emitOrchestratorEvent(outputId, {
+          type: 'agent:bridge_plan_done',
+          outputId: result.outputId,
+          artifacts: result.artifacts.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+          })),
+          tokensUsed: result.tokensUsed,
+        })
+      } catch (err) {
+        console.error('[Bridge] Plan failed:', err)
+        OrchestratorEventService.emitOrchestratorEvent(outputId, {
+          type: 'agent:error',
+          error: (err as Error).message,
+        })
+      }
+    })
   }
 
   /**

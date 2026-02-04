@@ -42,6 +42,10 @@ export interface BridgePlanInput {
   profileId?: string
   provider?: ProviderName
   model?: string
+  /** Pre-generated outputId (allows the caller to know the ID before the plan starts) */
+  outputId?: string
+  /** Ad-hoc file attachments for additional context (not persistent config) */
+  attachments?: Array<{ name: string; type: string; content: string }>
 }
 
 export interface BridgePlanOutput {
@@ -125,7 +129,7 @@ export class AgentOrchestratorBridge {
     input: BridgePlanInput,
     callbacks: BridgeCallbacks = {},
   ): Promise<BridgePlanOutput> {
-    const outputId = this.generateOutputId(input.taskDescription)
+    const outputId = input.outputId || this.generateOutputId(input.taskDescription)
     const emit = callbacks.onEvent ?? (() => {})
 
     emit({ type: 'agent:bridge_start', step: 1, outputId } as AgentEvent)
@@ -135,7 +139,7 @@ export class AgentOrchestratorBridge {
 
     // Build system prompt from DB + session context
     const sessionContext = await this.fetchSessionContext(input.profileId)
-    const basePrompt = await this.safeAssembleForStep(1)
+    const basePrompt = await this.assembler.assembleForStep(1)
     let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     // Run agent
@@ -147,15 +151,48 @@ export class AgentOrchestratorBridge {
     let tools = [...READ_TOOLS, SAVE_ARTIFACT_TOOL]
     let outputDir: string | undefined
 
-    if (this.isClaudeCode(phase)) {
+    if (this.isCliProvider(phase)) {
       // Claude Code: write files directly via its Write tool
       outputDir = await this.resolveOutputDir(outputId, input.projectPath)
       systemPrompt += `\n\nIMPORTANT: You must write each artifact as a file using your Write tool.\nWrite artifacts to this directory: ${outputDir}/\nRequired files: plan.json, contract.md, task.spec.md`
       userMessage = this.buildPlanUserMessage(input.taskDescription, outputId, input.taskType)
         .replace('Use the save_artifact tool for each one.', `Write each artifact file to: ${outputDir}/`)
       tools = [...READ_TOOLS] // no save_artifact for claude-code
+
+      // Save image attachments to disk so Claude Code can Read them
+      if (input.attachments?.length) {
+        const attachDir = path.join(outputDir, '_attachments')
+        fs.mkdirSync(attachDir, { recursive: true })
+        const attachParts: string[] = ['\n\n## Attached Reference Files']
+        for (const att of input.attachments) {
+          if (att.type.startsWith('image/')) {
+            // Save base64 image to disk
+            const base64Data = att.content.replace(/^data:[^;]+;base64,/, '')
+            const filePath = path.join(attachDir, att.name)
+            fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'))
+            attachParts.push(`- Image: ${filePath} (use Read tool to view)`)
+          } else {
+            // Inline text content
+            attachParts.push(`### ${att.name}\n\`\`\`\n${att.content.slice(0, 50_000)}\n\`\`\``)
+          }
+        }
+        userMessage += attachParts.join('\n')
+      }
     } else {
       userMessage = this.buildPlanUserMessage(input.taskDescription, outputId, input.taskType)
+
+      // Inline attachments for API providers
+      if (input.attachments?.length) {
+        const attachParts: string[] = ['\n\n## Attached Reference Files']
+        for (const att of input.attachments) {
+          if (att.type.startsWith('image/')) {
+            attachParts.push(`### ${att.name}\n(Image attachment — base64 content omitted for API providers. Description: ${att.name})`)
+          } else {
+            attachParts.push(`### ${att.name}\n\`\`\`\n${att.content.slice(0, 50_000)}\n\`\`\``)
+          }
+        }
+        userMessage += attachParts.join('\n')
+      }
     }
 
     const result = await runner.run({
@@ -170,7 +207,7 @@ export class AgentOrchestratorBridge {
     // Collect artifacts
     let memoryArtifacts = toolExecutor.getArtifacts()
 
-    if (memoryArtifacts.size === 0 && this.isClaudeCode(phase) && outputDir) {
+    if (memoryArtifacts.size === 0 && this.isCliProvider(phase) && outputDir) {
       // Claude Code wrote files directly — read them from disk
       console.log(`[Bridge] Claude Code: scanning ${outputDir} for artifacts...`)
       memoryArtifacts = this.readArtifactsFromDir(outputDir)
@@ -226,7 +263,7 @@ export class AgentOrchestratorBridge {
 
     const phase = await this.resolvePhaseConfig(2, input.provider, input.model)
     const sessionContext = await this.fetchSessionContext(input.profileId)
-    const basePrompt = await this.safeAssembleForStep(2)
+    const basePrompt = await this.assembler.assembleForStep(2)
     let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     const toolExecutor = new AgentToolExecutor()
@@ -237,7 +274,7 @@ export class AgentOrchestratorBridge {
     let tools = [...READ_TOOLS, SAVE_ARTIFACT_TOOL]
     let outputDir: string | undefined
 
-    if (this.isClaudeCode(phase)) {
+    if (this.isCliProvider(phase)) {
       outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
       systemPrompt += `\n\nIMPORTANT: Write test file(s) using your Write tool to: ${outputDir}/`
       userMessage = userMessage.replace(
@@ -258,7 +295,7 @@ export class AgentOrchestratorBridge {
 
     let memoryArtifacts = toolExecutor.getArtifacts()
 
-    if (memoryArtifacts.size === 0 && this.isClaudeCode(phase) && outputDir) {
+    if (memoryArtifacts.size === 0 && this.isCliProvider(phase) && outputDir) {
       console.log(`[Bridge] Claude Code spec: scanning ${outputDir} for new artifacts...`)
       memoryArtifacts = this.readArtifactsFromDir(outputDir)
       // Filter to only new spec files (exclude plan artifacts)
@@ -313,7 +350,7 @@ export class AgentOrchestratorBridge {
     }
 
     const phase = await this.resolvePhaseConfig(4, input.provider, input.model)
-    const basePrompt = await this.safeAssembleForStep(4)
+    const basePrompt = await this.assembler.assembleForStep(4)
     const sessionContext = await this.fetchSessionContext()
     const systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
@@ -373,7 +410,7 @@ export class AgentOrchestratorBridge {
       input.model,
     )
     const sessionContext = await this.fetchSessionContext(input.profileId)
-    const basePrompt = await this.safeAssembleForStep(3)
+    const basePrompt = await this.assembler.assembleForStep(3)
     const systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     const toolExecutor = new AgentToolExecutor()
@@ -572,52 +609,11 @@ export class AgentOrchestratorBridge {
 
   // ─── Claude Code Helpers ──────────────────────────────────────────
 
-  private static readonly FALLBACK_PROMPTS: Record<number, string> = {
-    1: [
-      'You are a senior software architect and TDD planning assistant.',
-      'Analyze the codebase and produce these artifacts:',
-      '- plan.json: implementation plan with files, dependencies, and steps',
-      '- contract.md: behavioral contract describing inputs, outputs, and constraints',
-      '- task.spec.md: human-readable specification of the task',
-      'Be thorough but concise. Focus on testable behaviors.',
-    ].join('\n'),
-    2: [
-      'You are a senior test engineer.',
-      'Generate comprehensive test files based on the plan and contract provided.',
-      'Follow existing project test conventions. Cover edge cases.',
-    ].join('\n'),
-    3: [
-      'You are a senior software engineer fixing rejected artifacts.',
-      'Correct the artifacts based on the failed validators and rejection report.',
-    ].join('\n'),
-    4: [
-      'You are a senior software engineer.',
-      'Implement the code to make all tests pass.',
-      'Follow existing project conventions and patterns.',
-    ].join('\n'),
-  }
-
-  /**
-   * Safely assemble a system prompt for a pipeline step.
-   * Never throws — falls back to a hardcoded default if the assembler fails.
-   */
-  private async safeAssembleForStep(step: number): Promise<string> {
-    try {
-      const prompt = await this.assembler.assembleForStep(step)
-      if (prompt && prompt.trim()) return prompt
-    } catch (err) {
-      console.warn(`[Bridge] assembleForStep(${step}) threw:`, err)
-    }
-    console.log(`[Bridge] Using hardcoded fallback prompt for step ${step}`)
-    return AgentOrchestratorBridge.FALLBACK_PROMPTS[step]
-      || 'You are a helpful software engineering assistant.'
-  }
-
   /**
    * Whether the resolved phase config uses Claude Code CLI provider.
    */
-  private isClaudeCode(phase: PhaseConfig): boolean {
-    return phase.provider === 'claude-code'
+  private isCliProvider(phase: PhaseConfig): boolean {
+    return phase.provider === 'claude-code' || phase.provider === 'codex-cli'
   }
 
   /**
@@ -748,7 +744,8 @@ export class AgentOrchestratorBridge {
 
       if (activePrompts.length === 0) {
         try {
-          const promptsRes = await fetch(`${this.gatekeeperApiUrl}/mcp/prompts`)
+          // Only load session-level prompts (step=null), NOT pipeline entries
+          const promptsRes = await fetch(`${this.gatekeeperApiUrl}/mcp/prompts?scope=session&full=true`)
           if (promptsRes.ok) {
             const promptsData = (await promptsRes.json()) as { data?: Array<{ name: string; content: string; isActive: boolean }> }
             activePrompts = (promptsData.data || []).filter((p) => p.isActive)

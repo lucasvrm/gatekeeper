@@ -635,7 +635,7 @@ function PromptInstructionsSection({
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await api.mcp.prompts.list()
+      const data = await api.mcp.prompts.list('session')
       setPrompts(data)
     } catch {
       toast.error("Falha ao carregar prompts")

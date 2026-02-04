@@ -227,10 +227,10 @@ export const linkDefinition: NoCodeComponentDefinition = {
       group: "Customização",
     },
   ],
-  editing: ({ values }) => ({
-    fields: {
-      customColor: { visible: values.variant === "custom" },
-    },
+  editing: ({ values }: any) => ({
+    fields: [
+      { type: "field" as const, path: "customColor", visible: values.variant === "custom" },
+    ],
   }),
   styles: ({ values }) => {
     const colorMap: Record<string, string> = {

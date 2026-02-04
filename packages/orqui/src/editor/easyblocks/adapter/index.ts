@@ -71,8 +71,12 @@ function unwrapResponsive(val: unknown): unknown {
 /**
  * Prop keys that are Easyblocks metadata (not Orqui props).
  * These are stripped when converting to NodeDef.
+ *
+ * Phase 5: Easyblocks normalization on documents.get() may add additional
+ * meta-fields (_master, __editing, _itemProps, etc). We skip any key
+ * that starts with _ or $ to be future-proof.
  */
-const EB_META_KEYS = new Set(["_id", "_component", "_itemProps"]);
+const EB_META_KEYS = new Set(["_id", "_component", "_itemProps", "_master", "__editing"]);
 
 /**
  * Props that hold children (component-collection slots).
@@ -120,6 +124,9 @@ export function noCodeEntryToNodeDef(entry: NoCodeEntry): NodeDef {
 
   for (const [key, rawValue] of Object.entries(entry)) {
     if (EB_META_KEYS.has(key)) continue;
+
+    // Skip any unknown meta/internal keys (Easyblocks normalization extras)
+    if (key.startsWith("_") || key.startsWith("__")) continue;
 
     // Children slot → will be handled separately
     if (key === CHILDREN_SLOT_KEY) continue;

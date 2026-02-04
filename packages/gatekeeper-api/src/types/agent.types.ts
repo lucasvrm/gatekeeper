@@ -91,6 +91,13 @@ export interface ChatParams {
   enableCache?: boolean
   /** Working directory for process-spawning providers (e.g., claude-code). Ignored by API providers. */
   cwd?: string
+  /**
+   * Stream event callback for providers that manage their own agent loop (e.g., claude-code).
+   * Allows the provider to emit granular events (tool_call, iteration, etc.) in real-time
+   * instead of only returning results at the end.
+   * API providers ignore this — the AgentRunnerService emits events from its own loop.
+   */
+  onEvent?: (event: AgentEvent) => void
 }
 
 export interface LLMProvider {
@@ -100,7 +107,7 @@ export interface LLMProvider {
 
 // ─── Provider Names & Config ─────────────────────────────────────────────────
 
-export type ProviderName = 'anthropic' | 'openai' | 'mistral' | 'claude-code'
+export type ProviderName = 'anthropic' | 'openai' | 'mistral' | 'claude-code' | 'codex-cli'
 
 export interface PhaseConfig {
   step: number

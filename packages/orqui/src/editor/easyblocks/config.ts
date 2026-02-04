@@ -2,12 +2,13 @@
 // Easyblocks Config Builder
 //
 // Constructs the complete Easyblocks Config object from Orqui state.
+// Phase 6: All device breakpoints enabled, config comment updated.
 // ============================================================================
 
 import { ALL_DEFINITIONS } from "./definitions";
 import { orquiTokensToEasyblocks } from "./bridge/tokens";
 import { getOrquiCustomTypes } from "./bridge/variables";
-import { createOrquiBackend, type OrquiBackendOptions } from "./backend";
+import { createOrquiBackend } from "./backend";
 import type { PageDef } from "../page-editor/nodeDefaults";
 
 export interface BuildConfigOptions {
@@ -18,12 +19,6 @@ export interface BuildConfigOptions {
 }
 
 export function buildOrquiEasyblocksConfig(options: BuildConfigOptions) {
-  const backend = createOrquiBackend({
-    pages: options.pages,
-    onPageChange: options.onPageChange,
-    onPageDelete: options.onPageDelete,
-  });
-
   const tokens = orquiTokensToEasyblocks(options.tokens);
 
   // Ensure at least one space token exists (Easyblocks breaks with empty space tokens)
@@ -59,24 +54,31 @@ export function buildOrquiEasyblocksConfig(options: BuildConfigOptions) {
     ];
   }
 
+  const backend = createOrquiBackend({
+    pages: options.pages,
+    onPageChange: options.onPageChange,
+    onPageDelete: options.onPageDelete,
+  });
+
   return {
     backend,
     components: ALL_DEFINITIONS,
     tokens,
 
-    // Custom types: borderRadius token type + orqui-template (Phase 5)
+    // Custom types: borderRadius token type + orqui-template
     types: getOrquiCustomTypes(),
 
     locales: [
       { code: "pt-BR", isDefault: true },
     ],
 
+    // Device breakpoints — all enabled, mapped to Orqui standard sizes
     devices: {
-      xs: { hidden: true },
-      sm: { hidden: false },
-      md: { hidden: true },
-      lg: { hidden: false },
-      xl: { hidden: true },
+      xs: { hidden: false, w: 375,  h: 667,  label: "Mobile" },
+      sm: { hidden: false, w: 640,  h: 960,  label: "Mobile L" },
+      md: { hidden: false, w: 768,  h: 1024, label: "Tablet" },
+      lg: { hidden: false, w: 1024, h: 768,  label: "Desktop" },
+      xl: { hidden: false, w: 1440, h: 900,  label: "Wide" },
     },
   };
 }
@@ -84,7 +86,7 @@ export function buildOrquiEasyblocksConfig(options: BuildConfigOptions) {
 // Re-exports
 export { orquiTokensToEasyblocks, generateTokenCSSVariables } from "./bridge/tokens";
 export { buildWidgetVariableContext, getOrquiCustomTypes } from "./bridge/variables";
-export { createOrquiBackend } from "./backend";
+export { createOrquiBackend, hasEbCachedEntry, removeEbCachedEntry } from "./backend";
 export {
   noCodeEntryToNodeDef,
   nodeDefToNoCodeEntry,

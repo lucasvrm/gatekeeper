@@ -262,6 +262,19 @@ router.get('/events/:runId', (req, res) => {
 
   res.write(': connected\n\n')
 
+  // Replay buffered events that were emitted before this client connected
+  const buffered = OrchestratorEventService.getBufferedEvents(runId)
+  if (buffered.length > 0) {
+    console.log(`[SSE] Replaying ${buffered.length} buffered event(s) for: ${runId}`)
+    for (const event of buffered) {
+      res.write(`data: ${JSON.stringify(event)}\n\n`)
+    }
+    const resWithFlush = res as unknown as { flush?: () => void }
+    if (typeof resWithFlush.flush === 'function') {
+      resWithFlush.flush()
+    }
+  }
+
   const onEvent = (payload: OrchestratorStreamEvent) => {
     if (payload.outputId === runId) {
       const data = `data: ${JSON.stringify(payload.event)}\n\n`

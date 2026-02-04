@@ -844,8 +844,11 @@ export const api = {
     },
 
     prompts: {
-      list: async (): Promise<PromptInstruction[]> => {
-        const response = await fetch(`${API_BASE}/mcp/prompts`)
+      list: async (scope?: 'session' | 'pipeline'): Promise<PromptInstruction[]> => {
+        const params = new URLSearchParams()
+        if (scope) params.set('scope', scope)
+        params.set('full', 'true')
+        const response = await fetch(`${API_BASE}/mcp/prompts?${params}`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch prompts")
@@ -1094,6 +1097,47 @@ export const api = {
         throw new Error(err?.error || "Failed to resume pipeline")
       }
       return response.json()
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bridge Artifacts (load artifacts from disk by outputId)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  bridgeArtifacts: {
+    list: async (outputId: string, projectPath?: string): Promise<{
+      outputId: string
+      path: string
+      artifacts: Array<{ filename: string; size: number; modified: string }>
+    }> => {
+      const params = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : ""
+      const response = await fetch(`${AGENT_BASE}/bridge/artifacts/${outputId}${params}`)
+      if (!response.ok) throw new Error(`Failed to list artifacts for: ${outputId}`)
+      return response.json()
+    },
+
+    read: async (outputId: string, filename: string, projectPath?: string): Promise<{
+      outputId: string
+      filename: string
+      content: string
+      size: number
+    }> => {
+      const params = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : ""
+      const response = await fetch(`${AGENT_BASE}/bridge/artifacts/${outputId}/${filename}${params}`)
+      if (!response.ok) throw new Error(`Failed to read artifact: ${outputId}/${filename}`)
+      return response.json()
+    },
+
+    /** Load all artifact contents for an outputId */
+    readAll: async (outputId: string, projectPath?: string): Promise<Array<{ filename: string; content: string }>> => {
+      const listing = await api.bridgeArtifacts.list(outputId, projectPath)
+      const contents = await Promise.all(
+        listing.artifacts.map(async (a) => {
+          const data = await api.bridgeArtifacts.read(outputId, a.filename, projectPath)
+          return { filename: data.filename, content: data.content }
+        })
+      )
+      return contents
     },
   },
 

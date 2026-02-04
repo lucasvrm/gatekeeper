@@ -30,6 +30,15 @@ export class MCPPromptController {
   async list(req: Request, res: Response): Promise<void> {
     const where: Record<string, unknown> = {}
 
+    // scope=session → only session-level prompts (step IS NULL)
+    // scope=pipeline → only pipeline entries (step IS NOT NULL)
+    // omit → all
+    if (req.query.scope === 'session') {
+      where.step = null
+    } else if (req.query.scope === 'pipeline') {
+      where.step = { not: null }
+    }
+
     if (req.query.step !== undefined) {
       const step = parseInt(req.query.step as string, 10)
       if (!isNaN(step)) where.step = step

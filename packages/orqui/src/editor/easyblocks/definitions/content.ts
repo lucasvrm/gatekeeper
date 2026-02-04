@@ -183,11 +183,11 @@ export const buttonDefinition: NoCodeComponentDefinition = {
       group: "Avançado",
     },
   ],
-  editing: ({ values }) => ({
-    fields: {
-      customBg: { visible: values.variant === "custom" },
-      customColor: { visible: values.variant === "custom" },
-    },
+  editing: ({ values }: any) => ({
+    fields: [
+      { type: "field" as const, path: "customBg", visible: values.variant === "custom" },
+      { type: "field" as const, path: "customColor", visible: values.variant === "custom" },
+    ],
   }),
   styles: ({ values }: any) => {
     const variants: Record<string, any> = {

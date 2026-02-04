@@ -19,6 +19,7 @@ import { AnthropicProvider } from './AnthropicProvider.js'
 import { OpenAIProvider } from './OpenAIProvider.js'
 import { MistralProvider } from './MistralProvider.js'
 import { ClaudeCodeProvider } from './ClaudeCodeProvider.js'
+import { CodexCliProvider } from './CodexCliProvider.js'
 import type { ClaudeCodeProviderConfig } from './ClaudeCodeProvider.js'
 import type { LLMProvider, ProviderName } from '../../types/agent.types.js'
 
@@ -45,6 +46,7 @@ export interface ProviderRegistryConfig {
   openai?: ProviderCredentials
   mistral?: ProviderCredentials
   'claude-code'?: ClaudeCodeCredentials
+  'codex-cli'?: { enabled: true; codexPath?: string; timeoutMs?: number; approvalMode?: string }
 }
 
 export class LLMProviderRegistry {
@@ -68,6 +70,14 @@ export class LLMProviderRegistry {
         permissionMode: cc.permissionMode,
         allowedTools: cc.allowedTools,
         disallowedTools: cc.disallowedTools,
+      }))
+    }
+    if (config['codex-cli']?.enabled) {
+      const cx = config['codex-cli']
+      this.providers.set('codex-cli', new CodexCliProvider({
+        codexPath: cx.codexPath,
+        timeoutMs: cx.timeoutMs,
+        approvalMode: cx.approvalMode as 'suggest' | 'auto-edit' | 'full-auto' | undefined,
       }))
     }
   }
@@ -129,6 +139,12 @@ export class LLMProviderRegistry {
         ? {
             enabled: true as const,
             claudePath: env.CLAUDE_CODE_PATH || undefined,
+          }
+        : undefined,
+      'codex-cli': env.CODEX_CLI_ENABLED === 'true'
+        ? {
+            enabled: true as const,
+            codexPath: env.CODEX_CLI_PATH || undefined,
           }
         : undefined,
     })

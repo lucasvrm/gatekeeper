@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useCallback, useRef } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { api, API_BASE } from "@/lib/api"
-import type { Project } from "@/lib/types"
+import type { Project, RunWithResults, ValidatorResult, GateResult } from "@/lib/types"
 import { useEffect } from "react"
 import { useOrchestratorEvents, type OrchestratorEvent } from "@/hooks/useOrchestratorEvents"
+import { useRunEvents } from "@/hooks/useRunEvents"
 import { usePageShell } from "@/hooks/use-page-shell"
 import { OrchestratorConfigPanel } from "@/components/orchestrator-config-panel"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
@@ -19,6 +20,54 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Session persistence
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SESSION_KEY = "gk-orchestrator-session"
+
+interface OrchestratorSession {
+  outputId?: string
+  step: number
+  completedSteps: number[]
+  taskDescription: string
+  taskType?: string
+  selectedProjectId: string | null
+  provider: string
+  model: string
+  stepLLMs?: Record<number, { provider: string; model: string }>
+  planArtifacts: ParsedArtifact[]
+  specArtifacts: ParsedArtifact[]
+  runId: string | null
+  savedAt: number
+}
+
+function saveSession(session: OrchestratorSession) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  } catch { /* sessionStorage full or unavailable */ }
+}
+
+function loadSession(): OrchestratorSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    const session = JSON.parse(raw) as OrchestratorSession
+    // Expire sessions older than 4 hours
+    if (Date.now() - session.savedAt > 4 * 60 * 60 * 1000) {
+      sessionStorage.removeItem(SESSION_KEY)
+      return null
+    }
+    return session
+  } catch {
+    return null
+  }
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY)
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -147,25 +196,64 @@ function LogPanel({ logs }: { logs: LogEntry[] }) {
 
 export function OrchestratorPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const headerPortals = usePageShell({ page: "orchestrator" })
+
+  // ── Restore session from sessionStorage or URL params ────────────────
+  const saved = useRef(loadSession()).current
+  const resumeOutputId = searchParams.get("outputId")
+  const resumeStep = searchParams.get("step") ? Number(searchParams.get("step")) : undefined
 
   // ── Tab state ──────────────────────────────────────────────────────────
   const [tab, setTab] = useState<PageTab>("pipeline")
 
-  // ── Pipeline state ─────────────────────────────────────────────────────
-  const [step, setStep] = useState<WizardStep>(0)
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
+  // ── Pipeline state (initialized from saved session) ────────────────────
+  const [step, setStep] = useState<WizardStep>(() =>
+    (resumeStep ?? saved?.step ?? 0) as WizardStep
+  )
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(() =>
+    new Set(saved?.completedSteps ?? [])
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
+  const [resuming, setResuming] = useState(false)
 
   // Step 0
-  const [taskDescription, setTaskDescription] = useState("")
-  const [taskType, setTaskType] = useState<string | undefined>(undefined)
+  const [taskDescription, setTaskDescription] = useState(saved?.taskDescription ?? "")
+  const [taskType, setTaskType] = useState<string | undefined>(saved?.taskType)
   const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const [provider, setProvider] = useState<string>("anthropic")
-  const [model, setModel] = useState<string>("claude-sonnet-4-5-20250929")
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(saved?.selectedProjectId ?? null)
+
+  // ── Per-step LLM configuration ─────────────────────────────────────────
+  // CRITICAL: Each pipeline step MUST use a different LLM to prevent bias.
+  // Per-step LLM configuration — allows choosing different models per step.
+  // Session isolation is guaranteed by the backend: each step spawns
+  // a fresh CLI process with its own session_id.
+  interface StepLLMConfig { provider: string; model: string }
+
+  const [stepLLMs, setStepLLMs] = useState<Record<number, StepLLMConfig>>(
+    saved?.stepLLMs ?? {
+      1: { provider: "claude-code", model: "sonnet" },
+      2: { provider: "claude-code", model: "sonnet" },
+      4: { provider: "claude-code", model: "sonnet" },
+    }
+  )
+
+  const setStepLLM = (step: number, field: "provider" | "model", value: string) => {
+    setStepLLMs((prev) => {
+      const updated = { ...prev, [step]: { ...prev[step], [field]: value } }
+      if (field === "provider") {
+        const models = PROVIDER_MODELS[value]?.models
+        if (models?.length) updated[step].model = models[0].value
+      }
+      return updated
+    })
+  }
+
+  // Convenience aliases
+  const provider = stepLLMs[1]?.provider ?? "claude-code"
+  const model = stepLLMs[1]?.model ?? "sonnet"
 
   const PROVIDER_MODELS: Record<string, { label: string; models: { value: string; label: string }[] }> = {
     "anthropic": {
@@ -192,28 +280,119 @@ export function OrchestratorPage() {
       ],
     },
     "claude-code": {
-      label: "Claude Code (Max/Pro u2014 sem API Key)",
+      label: "Claude Code (Max/Pro \u2014 sem API Key)",
       models: [
         { value: "sonnet", label: "Sonnet" },
         { value: "opus", label: "Opus" },
         { value: "haiku", label: "Haiku" },
       ],
     },
+    "codex-cli": {
+      label: "Codex CLI (OpenAI \u2014 sem API Key)",
+      models: [
+        { value: "o3-mini", label: "o3-mini" },
+        { value: "o4-mini", label: "o4-mini" },
+        { value: "gpt-4.1", label: "GPT-4.1" },
+        { value: "codex-mini", label: "Codex Mini" },
+      ],
+    },
   }
 
   // Step 1 result
-  const [outputId, setOutputId] = useState<string | undefined>()
-  const [planArtifacts, setPlanArtifacts] = useState<ParsedArtifact[]>([])
+  const [outputId, setOutputId] = useState<string | undefined>(resumeOutputId ?? saved?.outputId)
+  const [planArtifacts, setPlanArtifacts] = useState<ParsedArtifact[]>(saved?.planArtifacts ?? [])
 
   // Step 2 result
-  const [specArtifacts, setSpecArtifacts] = useState<ParsedArtifact[]>([])
+  const [specArtifacts, setSpecArtifacts] = useState<ParsedArtifact[]>(saved?.specArtifacts ?? [])
 
   // Step 3 result
-  const [runId, setRunId] = useState<string | null>(null)
+  const [runId, setRunId] = useState<string | null>(saved?.runId ?? null)
   const [validationStatus, setValidationStatus] = useState<string | null>(null)
+  const [runResults, setRunResults] = useState<RunWithResults | null>(null)
 
   // Step 4 result
   const [executeResult, setExecuteResult] = useState<{ mode: string; command?: string } | null>(null)
+
+  // Attachments (ad-hoc files for plan generation context)
+  const [attachments, setAttachments] = useState<Array<{ name: string; type: string; content: string; size: number }>>([])
+
+  // ── Persist session on state changes ───────────────────────────────────
+  useEffect(() => {
+    if (!outputId && step === 0) return // nothing to persist
+    saveSession({
+      outputId,
+      step,
+      completedSteps: [...completedSteps],
+      taskDescription,
+      taskType,
+      selectedProjectId,
+      provider,
+      model,
+      stepLLMs,
+      planArtifacts,
+      specArtifacts,
+      runId,
+      savedAt: Date.now(),
+    })
+  }, [outputId, step, completedSteps, taskDescription, taskType, selectedProjectId, provider, model, stepLLMs, planArtifacts, specArtifacts, runId])
+
+  // ── Resume from URL ?outputId=xxx — reload artifacts from disk ─────────
+  useEffect(() => {
+    if (!resumeOutputId || planArtifacts.length > 0) return
+    // Clean URL params after reading
+    setSearchParams({}, { replace: true })
+
+    setResuming(true)
+    const projectPath = projects.find((p) => p.id === selectedProjectId)?.workspace?.rootPath
+
+    api.bridgeArtifacts.readAll(resumeOutputId, projectPath).then((artifacts) => {
+      const plan = artifacts.filter((a) =>
+        ["plan.json", "contract.md", "task.spec.md"].includes(a.filename)
+      )
+      const specs = artifacts.filter((a) =>
+        a.filename.endsWith(".spec.ts") || a.filename.endsWith(".spec.tsx") || a.filename.endsWith(".test.ts") || a.filename.endsWith(".test.tsx")
+      )
+
+      if (plan.length > 0) setPlanArtifacts(plan)
+      if (specs.length > 0) setSpecArtifacts(specs)
+
+      // Determine which step to show
+      const targetStep = (resumeStep ?? (specs.length > 0 ? 3 : plan.length > 0 ? 2 : 0)) as WizardStep
+      setStep(targetStep)
+
+      const completed = new Set<number>()
+      if (plan.length > 0) { completed.add(0); completed.add(1) }
+      if (specs.length > 0) { completed.add(2) }
+      setCompletedSteps(completed)
+
+      addLog("info", `Sessão restaurada: ${resumeOutputId} (${artifacts.length} artefatos)`)
+      toast.success("Sessão restaurada")
+    }).catch((err) => {
+      addLog("error", `Falha ao restaurar: ${err.message}`)
+      toast.error("Não foi possível carregar artefatos do outputId")
+    }).finally(() => {
+      setResuming(false)
+    })
+  }, [resumeOutputId, projects]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Reset all state ────────────────────────────────────────────────────
+  const handleReset = useCallback(() => {
+    clearSession()
+    setStep(0)
+    setCompletedSteps(new Set())
+    setOutputId(undefined)
+    setPlanArtifacts([])
+    setSpecArtifacts([])
+    setRunId(null)
+    setValidationStatus(null)
+    setRunResults(null)
+    setExecuteResult(null)
+    setError(null)
+    setLogs([])
+    setTaskDescription("")
+    setTaskType(undefined)
+    toast.success("Sessão resetada")
+  }, [])
 
   // ── Load projects ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -235,16 +414,91 @@ export function OrchestratorPage() {
 
   const handleSSE = useCallback(
     (event: OrchestratorEvent) => {
-      addLog(event.type, typeof event.text === "string" ? event.text : JSON.stringify(event))
+      // ── User-friendly log messages ─────────────────────────────────────
+      switch (event.type) {
+        case "agent:bridge_start":
+          addLog("info", `Iniciando etapa ${event.step}...`)
+          break
+        case "agent:start":
+          addLog("info", `LLM ${event.provider}/${event.model} conectado`)
+          break
+        case "agent:iteration":
+          addLog("info", `Iteração ${event.iteration} — ${(event.tokensUsed as any)?.inputTokens?.toLocaleString() ?? "?"} tokens in`)
+          break
+        case "agent:tool_call":
+          addLog("info", `🔧 ${event.tool}`)
+          break
+        case "agent:tool_result":
+          addLog(event.isError ? "error" : "info", `${event.tool} (${event.durationMs}ms)`)
+          break
+        case "agent:budget_warning":
+          addLog("warning", `⚠️ Budget ${event.percentUsed}% usado (${event.usedTokens}/${event.budgetTokens})`)
+          break
+        case "agent:complete":
+          addLog("info", `LLM finalizado`)
+          break
+        case "agent:bridge_plan_done": {
+          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
+          setPlanArtifacts(artifacts)
+          markComplete(0)
+          markComplete(1)
+          setStep(2)
+          setLoading(false)
+          addLog("success", `Plano gerado: ${event.outputId} (${artifacts.length} artefatos${tokens ? `, ${tokens.inputTokens.toLocaleString()} tokens` : ""})`)
+          toast.success("Plano gerado com sucesso")
+          break
+        }
+        case "agent:error":
+          setError(String(event.error))
+          setLoading(false)
+          addLog("error", String(event.error))
+          toast.error(String(event.error))
+          break
+        default:
+          addLog(event.type, typeof event.text === "string" ? event.text : JSON.stringify(event))
+      }
     },
     [addLog]
   )
 
   useOrchestratorEvents(outputId, handleSSE)
 
+  // ── Run validation SSE — polls run status inline ──────────────────────
+  const handleRunEvent = useCallback(async () => {
+    if (!runId) return
+    try {
+      const results = await api.runs.getWithResults(runId)
+      setRunResults(results)
+
+      const status = results.status
+      if (status === "COMPLETED" || status === "FAILED") {
+        const passed = results.gateResults?.every((g: GateResult) => g.passed) ?? false
+        setValidationStatus(passed ? "PASSED" : "FAILED")
+        setLoading(false)
+
+        if (passed) {
+          markComplete(3)
+          addLog("success", "Validação aprovada — gates 0 e 1 passaram")
+          toast.success("Validação aprovada!")
+        } else {
+          const failedGates = results.gateResults?.filter((g: GateResult) => !g.passed).map((g: GateResult) => g.gateName)
+          addLog("error", `Validação falhou: ${failedGates?.join(", ")}`)
+          toast.error("Validação falhou")
+        }
+      }
+    } catch (err) {
+      console.error("Failed to refresh run:", err)
+    }
+  }, [runId, addLog]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shouldConnectRunEvents = validationStatus === "RUNNING" && !!runId
+  useRunEvents(shouldConnectRunEvents ? runId ?? undefined : undefined, handleRunEvent)
+
   // ── Helpers ────────────────────────────────────────────────────────────
   const markComplete = (s: number) => setCompletedSteps((prev) => new Set([...prev, s]))
 
+  // Check LLM isolation: step 1 model must differ from step 2, and both from step 4
   const apiPost = async (endpoint: string, body: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/agent/bridge/${endpoint}`, {
       method: "POST",
@@ -264,27 +518,80 @@ export function OrchestratorPage() {
   }
 
   // ── Step 1: Generate Plan ──────────────────────────────────────────────
+  // ── File drop handler ────────────────────────────────────────────────
+  const handleFileDrop = useCallback((files: File[]) => {
+    const MAX_SIZE = 5 * 1024 * 1024 // 5MB per file
+    const MAX_FILES = 10
+
+    for (const file of files) {
+      if (attachments.length >= MAX_FILES) {
+        toast.error(`Máximo de ${MAX_FILES} anexos`)
+        break
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error(`${file.name} excede 5MB`)
+        continue
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        const isImage = file.type.startsWith("image/")
+        const content = isImage
+          ? (reader.result as string) // data URL (base64)
+          : (reader.result as string) // text content
+
+        setAttachments((prev) => {
+          if (prev.some((a) => a.name === file.name)) return prev // dedupe
+          return [...prev, { name: file.name, type: file.type, content, size: file.size }]
+        })
+      }
+
+      if (file.type.startsWith("image/")) {
+        reader.readAsDataURL(file)
+      } else {
+        reader.readAsText(file)
+      }
+    }
+  }, [attachments.length])
+
   const handleGeneratePlan = async () => {
     setError(null)
     setLoading(true)
     addLog("info", "Gerando plano...")
 
     try {
-      const result: StepResult = await apiPost("plan", { taskDescription, taskType, provider, model, projectPath: getProjectPath() })
+      // POST returns 202 immediately with outputId — plan runs in background
+      const payload: Record<string, unknown> = {
+        taskDescription,
+        taskType,
+        provider: stepLLMs[1].provider,
+        model: stepLLMs[1].model,
+        projectPath: getProjectPath(),
+      }
 
+      // Include attachments as context
+      if (attachments.length > 0) {
+        payload.attachments = attachments.map((a) => ({
+          name: a.name,
+          type: a.type,
+          content: a.content,
+        }))
+        addLog("info", `${attachments.length} anexo(s) incluído(s)`)
+      }
+
+      const result = await apiPost("plan", payload)
+
+      // Set outputId immediately so SSE connects and starts receiving events
       setOutputId(result.outputId)
-      setPlanArtifacts(result.artifacts || [])
-      markComplete(0)
-      markComplete(1)
-      setStep(2)
-      addLog("success", `Plano gerado: ${result.outputId}`)
-      toast.success("Plano gerado com sucesso")
+      addLog("info", `Conectado: ${result.outputId}`)
+
+      // Completion is handled by handleSSE when it receives 'agent:bridge_plan_done'
+      // loading=false is also set there
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao gerar plano"
       setError(msg)
       addLog("error", msg)
       toast.error(msg)
-    } finally {
       setLoading(false)
     }
   }
@@ -297,7 +604,7 @@ export function OrchestratorPage() {
     addLog("info", "Gerando testes...")
 
     try {
-      const result: StepResult = await apiPost("spec", { outputId, provider, model, projectPath: getProjectPath() })
+      const result: StepResult = await apiPost("spec", { outputId, provider: stepLLMs[2].provider, model: stepLLMs[2].model, projectPath: getProjectPath() })
 
       setSpecArtifacts(result.artifacts || [])
       markComplete(2)
@@ -320,6 +627,7 @@ export function OrchestratorPage() {
     setError(null)
     setLoading(true)
     setValidationStatus("RUNNING")
+    setRunResults(null)
     addLog("info", "Iniciando validação Gatekeeper...")
 
     try {
@@ -328,10 +636,18 @@ export function OrchestratorPage() {
 
       const plan = JSON.parse(planArtifact.content)
 
-      const manifest = {
-        files: plan.files || [],
-        testFile: plan.testFile || specArtifacts[0]?.filename || "spec.test.ts",
+      // plan.json can follow LLMPlanOutput schema (manifest.files) or be flat (files at root)
+      const files = plan.manifest?.files || plan.files || []
+      const testFile = plan.manifest?.testFile || plan.testFile || specArtifacts[0]?.filename || "spec.test.ts"
+
+      if (files.length === 0) {
+        throw new Error(
+          "plan.json não contém arquivos no manifest. " +
+          "Verifique se o plano gerado inclui 'manifest.files' com pelo menos um arquivo."
+        )
       }
+
+      const manifest = { files, testFile }
 
       const response = await api.runs.create({
         projectId: selectedProjectId,
@@ -352,16 +668,14 @@ export function OrchestratorPage() {
         await api.runs.uploadFiles(response.runId, formData)
       }
 
-      addLog("success", `Run criada: ${response.runId}`)
-      toast.success("Validação iniciada")
-      navigate(`/runs/${response.runId}/v2`)
+      addLog("success", `Run criada: ${response.runId} — aguardando resultado...`)
+      // SSE via useRunEvents will pick up the run and update results inline
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao iniciar validação"
       setError(msg)
       setValidationStatus("FAILED")
       addLog("error", msg)
       toast.error(msg)
-    } finally {
       setLoading(false)
     }
   }
@@ -371,16 +685,29 @@ export function OrchestratorPage() {
     if (!outputId || !runId) return
     setError(null)
     setLoading(true)
-    addLog("info", `Corrigindo ${target}...`)
+    addLog("info", `Corrigindo ${target} com erros dos validators...`)
 
     try {
+      // Extract actual failed validator codes from run results
+      const failedValidators = (runResults?.validatorResults ?? [])
+        .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
+        .map((v: ValidatorResult) => v.validatorCode)
+
+      if (failedValidators.length === 0) {
+        failedValidators.push("unknown")
+      }
+
+      // Fix uses the same LLM as the step that produced the target artifact
+      const fixStep = target === "plan" ? 1 : 2
+      const fixLLM = stepLLMs[fixStep]
       const result: StepResult = await apiPost("fix", {
         outputId,
         target,
         runId,
-        failedValidators: ["manual-fix"],
-        provider,
-        model,
+        failedValidators,
+        // rejectionReport is built server-side from runId via fetchRejectionReport
+        provider: fixLLM.provider,
+        model: fixLLM.model,
         projectPath: getProjectPath(),
       })
 
@@ -389,7 +716,13 @@ export function OrchestratorPage() {
       } else {
         setSpecArtifacts(result.artifacts || specArtifacts)
       }
-      addLog("success", `${target} corrigido`)
+
+      // Reset validation state so user can re-validate
+      setValidationStatus(null)
+      setRunResults(null)
+      setRunId(null)
+
+      addLog("success", `${target} corrigido — pronto para re-validar`)
       toast.success(`${target === "plan" ? "Plano" : "Testes"} corrigido`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : `Erro ao corrigir ${target}`
@@ -412,7 +745,7 @@ export function OrchestratorPage() {
     const projectPath = project?.workspace?.rootPath || ""
 
     try {
-      const result = await apiPost("execute", { outputId, projectPath, provider, model })
+      const result = await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4].provider, model: stepLLMs[4].model })
       setExecuteResult(result)
       markComplete(3)
       markComplete(4)
@@ -456,9 +789,34 @@ export function OrchestratorPage() {
         </div>
 
         {tab === "pipeline" && outputId && (
-          <Badge variant="outline" className="font-mono text-xs">
-            {outputId}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="font-mono text-xs">
+              {outputId}
+            </Badge>
+            <Button variant="ghost" size="sm" onClick={handleReset} className="h-7 text-xs text-muted-foreground hover:text-destructive">
+              ✕ Resetar
+            </Button>
+          </div>
+        )}
+        {tab === "pipeline" && !outputId && saved?.outputId && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => {
+              // Restore from last session
+              if (saved.outputId) setOutputId(saved.outputId)
+              if (saved.planArtifacts?.length) setPlanArtifacts(saved.planArtifacts)
+              if (saved.specArtifacts?.length) setSpecArtifacts(saved.specArtifacts)
+              setStep((saved.step ?? 0) as WizardStep)
+              setCompletedSteps(new Set(saved.completedSteps ?? []))
+              if (saved.taskDescription) setTaskDescription(saved.taskDescription)
+              if (saved.runId) setRunId(saved.runId)
+              addLog("info", `Sessão anterior restaurada: ${saved.outputId}`)
+            }}
+          >
+            Retomar sessão ({saved.outputId?.slice(-20)})
+          </Button>
         )}
       </div>
 
@@ -471,10 +829,21 @@ export function OrchestratorPage() {
           {/* Step indicator */}
           <StepIndicator current={step} completed={completedSteps} />
 
+          {/* Resuming indicator */}
+          {resuming && (
+            <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-sm text-blue-400 flex items-center gap-2">
+              <span className="animate-spin">⏳</span>
+              Restaurando sessão...
+            </div>
+          )}
+
           {/* Error banner */}
           {error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {error}
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive flex items-center justify-between">
+              <span>{error}</span>
+              <Button variant="ghost" size="sm" onClick={handleReset} className="h-6 text-xs">
+                Resetar
+              </Button>
             </div>
           )}
 
@@ -525,32 +894,55 @@ export function OrchestratorPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Provider</Label>
-                    <Select value={provider} onValueChange={(v) => { setProvider(v); setModel(PROVIDER_MODELS[v]?.models[0]?.value || "") }}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(PROVIDER_MODELS).map(([key, cfg]) => (
-                          <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* Per-step LLM configuration */}
+                  <div className="col-span-2 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Label>LLMs por Etapa</Label>
+                      <span className="text-[10px] text-muted-foreground font-medium px-1.5 py-0.5 bg-muted rounded">
+                        Sessões isoladas
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Cada etapa roda em sessão independente. Você pode usar o mesmo ou diferentes modelos por etapa.
+                    </p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {([
+                        { step: 1, label: "Planejamento", desc: "plan + contract" },
+                        { step: 2, label: "Testes", desc: "spec file" },
+                        { step: 4, label: "Execução", desc: "implementation" },
+                      ] as const).map(({ step: s, label, desc }) => {
+                        const cfg = stepLLMs[s]
 
-                  <div className="space-y-2">
-                    <Label>Modelo</Label>
-                    <Select value={model} onValueChange={setModel}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(PROVIDER_MODELS[provider]?.models || []).map((m) => (
-                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        return (
+                          <div key={s} className="space-y-1.5 p-2.5 rounded-lg border border-border">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium">{label}</span>
+                              <span className="text-[10px] text-muted-foreground">{desc}</span>
+                            </div>
+                            <Select value={cfg.provider} onValueChange={(v) => setStepLLM(s, "provider", v)}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
+                                  <SelectItem key={key} value={key}>{c.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Select value={cfg.model} onValueChange={(v) => setStepLLM(s, "model", v)}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(PROVIDER_MODELS[cfg.provider]?.models || []).map((m) => (
+                                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -563,6 +955,62 @@ export function OrchestratorPage() {
                     rows={6}
                     className="font-mono text-sm"
                   />
+                </div>
+
+                {/* Attachments */}
+                <div className="space-y-2">
+                  <Label>Anexos (opcional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Imagens, documentos ou arquivos de referência que não são recorrentes. Serão incluídos como contexto para o LLM.
+                  </p>
+                  <div
+                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                    onClick={() => document.getElementById("orchestrator-file-input")?.click()}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleFileDrop(Array.from(e.dataTransfer.files))
+                    }}
+                  >
+                    <input
+                      id="orchestrator-file-input"
+                      type="file"
+                      multiple
+                      className="hidden"
+                      accept=".txt,.md,.json,.ts,.tsx,.js,.jsx,.py,.html,.css,.yml,.yaml,.toml,.csv,.png,.jpg,.jpeg,.gif,.webp,.svg,.pdf"
+                      onChange={(e) => handleFileDrop(Array.from(e.target.files || []))}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      {attachments.length === 0
+                        ? "Arraste arquivos aqui ou clique para selecionar"
+                        : `${attachments.length} arquivo(s) anexado(s)`}
+                    </p>
+                  </div>
+                  {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {attachments.map((att, i) => (
+                        <Badge key={i} variant="secondary" className="gap-1 pr-1">
+                          <span className="text-xs font-mono truncate max-w-[200px]">{att.name}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            ({att.type.startsWith("image/") ? "img" : (att.size / 1024).toFixed(0) + "KB"})
+                          </span>
+                          <button
+                            className="ml-1 rounded-full hover:bg-destructive/20 px-1 text-xs"
+                            onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                          >
+                            ✕
+                          </button>
+                        </Badge>
+                      ))}
+                      <button
+                        className="text-xs text-muted-foreground hover:text-destructive"
+                        onClick={() => setAttachments([])}
+                      >
+                        Limpar todos
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <Button
@@ -619,6 +1067,7 @@ export function OrchestratorPage() {
                 </CardContent>
               </Card>
 
+              {/* Actions: Validate / Execute / View Run */}
               <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -628,8 +1077,12 @@ export function OrchestratorPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button onClick={handleValidate} disabled={loading || !selectedProjectId} className="w-full">
-                      {loading ? "Validando..." : "Validar →"}
+                    <Button
+                      onClick={handleValidate}
+                      disabled={loading || !selectedProjectId || validationStatus === "RUNNING"}
+                      className="w-full"
+                    >
+                      {validationStatus === "RUNNING" ? "Validando..." : validationStatus === "FAILED" ? "Re-validar →" : "Validar →"}
                     </Button>
                   </CardContent>
                 </Card>
@@ -641,29 +1094,122 @@ export function OrchestratorPage() {
                       Pular validação e executar via Claude Agent SDK.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-2">
                     <Button onClick={handleExecute} disabled={loading} variant="outline" className="w-full">
-                      {loading ? "Executando..." : "Executar sem validar →"}
+                      {loading && validationStatus !== "RUNNING" ? "Executando..." : "Executar sem validar →"}
                     </Button>
+                    {runId && (
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)} className="w-full text-xs text-muted-foreground">
+                        Ver detalhes da run →
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               </div>
 
-              {validationStatus === "FAILED" && runId && (
-                <Card>
+              {/* ── Inline validation results ─────────────────────────── */}
+              {validationStatus === "RUNNING" && (
+                <Card className="border-blue-500/30">
                   <CardHeader>
-                    <CardTitle className="text-destructive">Validação Falhou</CardTitle>
+                    <CardTitle className="text-blue-400 flex items-center gap-2">
+                      <span className="animate-spin inline-block w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full" />
+                      Validação em andamento...
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="flex gap-2">
-                    <Button variant="outline" onClick={() => handleFix("plan")} disabled={loading}>
-                      Corrigir Plano
+                  {runResults && (
+                    <CardContent>
+                      <div className="space-y-2">
+                        {(runResults.gateResults ?? []).map((gate: GateResult) => (
+                          <div key={gate.gateNumber} className="flex items-center gap-2 text-sm">
+                            <span className={gate.passed ? "text-green-400" : gate.status === "RUNNING" ? "text-blue-400" : "text-muted-foreground"}>
+                              {gate.passed ? "✓" : gate.status === "RUNNING" ? "⟳" : "○"}
+                            </span>
+                            <span>Gate {gate.gateNumber}: {gate.gateName}</span>
+                            {gate.passed && <Badge variant="outline" className="text-green-400 text-[10px]">OK</Badge>}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              )}
+
+              {validationStatus === "PASSED" && runId && (
+                <Card className="border-green-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-green-400">✓ Validação Aprovada</CardTitle>
+                    <CardDescription>
+                      Gates 0 e 1 passaram. Pronto para executar.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button onClick={handleExecute} disabled={loading} className="w-full">
+                      {loading ? "Executando..." : "Executar Implementação →"}
                     </Button>
-                    <Button variant="outline" onClick={() => handleFix("spec")} disabled={loading}>
-                      Corrigir Testes
-                    </Button>
-                    <Button variant="outline" onClick={() => navigate(`/runs/${runId}/v2`)}>
-                      Ver Resultados
-                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {validationStatus === "FAILED" && runId && runResults && (
+                <Card className="border-destructive/30">
+                  <CardHeader>
+                    <CardTitle className="text-destructive">✗ Validação Falhou</CardTitle>
+                    <CardDescription>
+                      Os erros dos validators serão enviados para a LLM corrigir os artefatos.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Gate results summary */}
+                    <div className="space-y-2">
+                      {(runResults.gateResults ?? []).map((gate: GateResult) => (
+                        <div key={gate.gateNumber} className="flex items-center gap-2 text-sm">
+                          <span className={gate.passed ? "text-green-400" : "text-destructive"}>
+                            {gate.passed ? "✓" : "✗"}
+                          </span>
+                          <span>Gate {gate.gateNumber}: {gate.gateName}</span>
+                          <Badge variant="outline" className={`text-[10px] ${gate.passed ? "text-green-400" : "text-destructive"}`}>
+                            {gate.passed ? "OK" : "FAIL"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Failed validators with details */}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Validators que falharam:</Label>
+                      {(runResults.validatorResults ?? [])
+                        .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
+                        .map((v: ValidatorResult) => (
+                          <div key={v.validatorCode} className="p-3 rounded-lg border border-destructive/20 bg-destructive/5 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono font-medium text-destructive">{v.validatorCode}</span>
+                              <span className="text-xs text-muted-foreground">{v.validatorName}</span>
+                              {v.isHardBlock && <Badge variant="destructive" className="text-[10px]">HARD BLOCK</Badge>}
+                            </div>
+                            {v.message && (
+                              <p className="text-xs text-foreground">{v.message}</p>
+                            )}
+                            {v.details && (
+                              <pre className="text-[11px] font-mono text-muted-foreground bg-muted/50 rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">
+                                {typeof v.details === "string" ? v.details : JSON.stringify(v.details, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+
+                    {/* Fix actions */}
+                    <div className="flex gap-2 pt-2">
+                      <Button onClick={() => handleFix("plan")} disabled={loading} variant="outline">
+                        {loading ? "Corrigindo..." : "Corrigir Plano"}
+                      </Button>
+                      <Button onClick={() => handleFix("spec")} disabled={loading} variant="outline">
+                        {loading ? "Corrigindo..." : "Corrigir Testes"}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)} className="ml-auto text-xs text-muted-foreground">
+                        Ver run completa →
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -691,14 +1237,7 @@ export function OrchestratorPage() {
                   </p>
                 )}
                 <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setStep(0)
-                      setCompletedSteps(new Set())
-                      setOutputId(undefined)
-                      setLogs([])
-                    }}
-                  >
+                  <Button onClick={handleReset}>
                     Nova Tarefa
                   </Button>
                   {runId && (

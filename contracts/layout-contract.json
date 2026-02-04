@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:cbfcd97df1106696042b044c1e6807bfd820c9c0131fea8b0f09dc421fa194cd",
-    "generatedAt": "2026-02-04T05:07:59.750Z"
+    "hash": "sha256:e86c2bd1bc49a707f6545b7d2eded0a5254faf17abba834ecc4ea80028145ab5",
+    "generatedAt": "2026-02-04T05:36:21.426Z"
   },
   "structure": {
     "regions": {
@@ -92,13 +92,13 @@
             {
               "id": "dashboard",
               "label": "Dashboard",
-              "icon": "ph:chart-bar",
+              "icon": "ph:gauge-duotone",
               "route": "/dashboard"
             },
             {
               "id": "runs",
               "label": "Runs",
-              "icon": "ph:airplane-takeoff-duotone",
+              "icon": "ph:arrows-clockwise-duotone",
               "route": "/runs"
             },
             {
@@ -110,13 +110,13 @@
             {
               "id": "workspaces",
               "label": "Workspaces",
-              "icon": "ph:folder",
+              "icon": "ph:squares-four-duotone",
               "route": "/workspaces"
             },
             {
               "id": "projects",
               "label": "Projects",
-              "icon": "ph:squares-four",
+              "icon": "ph:kanban-duotone",
               "route": "/projects"
             },
             {
@@ -347,7 +347,7 @@
     "logo": {
       "type": "icon-text",
       "text": "Gatekeeper",
-      "icon": "ph:skull-duotone",
+      "icon": "ph:alien-duotone",
       "iconUrl": "",
       "imageUrl": "",
       "position": "header",
@@ -374,7 +374,7 @@
     "favicon": {
       "type": "emoji",
       "url": "",
-      "emoji": "ph:skull-duotone",
+      "emoji": "ph:alien-duotone",
       "color": "#3a6ab5"
     },
     "headerElements": {
@@ -415,7 +415,7 @@
           "label": "Nova Run",
           "variant": "outline",
           "route": "/runs/new",
-          "icon": "ph:airplane-takeoff-duotone"
+          "icon": "ph:arrows-clockwise-duotone"
         }
       ],
       "order": [
@@ -1299,6 +1299,55 @@
             "widgetId": "@easyblocks/space"
           }
         }
+      }
+    },
+    "page-1770182980004": {
+      "id": "page-1770182980004",
+      "label": "Página 3",
+      "route": "/page-1770182980004",
+      "content": {
+        "id": "3b81b58f-c9ef-4bf6-b158-b37f2a712d5e",
+        "type": "stack",
+        "props": {
+          "gap": {
+            "value": "14px",
+            "tokenId": "md",
+            "widgetId": "@easyblocks/space"
+          },
+          "padding": {
+            "value": "14px",
+            "tokenId": "md",
+            "widgetId": "@easyblocks/space"
+          },
+          "background": {
+            "value": "#5c7fa8",
+            "tokenId": "accent",
+            "widgetId": "@easyblocks/color"
+          }
+        },
+        "children": [
+          {
+            "id": "1aa53d60-a640-45b1-9b3d-0a24950d1003",
+            "type": "stack",
+            "props": {
+              "gap": {
+                "value": "14px",
+                "tokenId": "md",
+                "widgetId": "@easyblocks/space"
+              },
+              "padding": {
+                "value": "14px",
+                "tokenId": "md",
+                "widgetId": "@easyblocks/space"
+              },
+              "background": {
+                "tokenId": "info-dim",
+                "value": "#d6e4f0",
+                "widgetId": "@easyblocks/color"
+              }
+            }
+          }
+        ]
       }
     }
   }
