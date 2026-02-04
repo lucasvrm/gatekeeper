@@ -4,7 +4,7 @@
 //
 // Phase 3: color tokens on Heading/Text, font tokens on Heading,
 // borderRadius tokens on Button/Image, space tokens on Spacer.
-// orqui-template still falls back to string until Phase 5 widget.
+// Phase 4: orqui-template type on Heading/Text/Button/Badge content props.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -17,7 +17,7 @@ export const headingDefinition: NoCodeComponentDefinition = {
   schema: [
     {
       prop: "content",
-      type: "string",  // was orqui-template — fallback until Phase 5
+      type: "orqui-template",
       label: "Conteúdo",
       defaultValue: "Título",
     },
@@ -89,7 +89,7 @@ export const textDefinition: NoCodeComponentDefinition = {
   schema: [
     {
       prop: "content",
-      type: "string",  // was orqui-template
+      type: "orqui-template",
       label: "Conteúdo",
       defaultValue: "Texto de exemplo",
     },
@@ -130,7 +130,7 @@ export const buttonDefinition: NoCodeComponentDefinition = {
   schema: [
     {
       prop: "label",
-      type: "string",  // was orqui-template
+      type: "orqui-template",
       label: "Label",
       defaultValue: "Botão",
     },
@@ -229,7 +229,7 @@ export const badgeDefinition: NoCodeComponentDefinition = {
   schema: [
     {
       prop: "content",
-      type: "string",  // was orqui-template
+      type: "orqui-template",
       label: "Conteúdo",
       defaultValue: "Status",
     },

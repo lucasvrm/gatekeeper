@@ -30,7 +30,7 @@ export class OrchestratorContentController {
       orderBy: [{ step: 'asc' }, { kind: 'asc' }, { order: 'asc' }],
     })
 
-    res.json(contents)
+    res.json({ data: contents })
   }
 
   /**
@@ -131,6 +131,19 @@ export class OrchestratorContentController {
     if (!existing) {
       res.status(404).json({ error: 'Content não encontrado' })
       return
+    }
+
+    // Check name uniqueness (excluding self)
+    if (data.name && data.name !== existing.name) {
+      const conflict = await prisma.promptInstruction.findUnique({
+        where: { name: data.name },
+      })
+      if (conflict) {
+        res.status(409).json({
+          error: `PromptInstruction com name="${data.name}" já existe.`,
+        })
+        return
+      }
     }
 
     const content = await prisma.promptInstruction.update({

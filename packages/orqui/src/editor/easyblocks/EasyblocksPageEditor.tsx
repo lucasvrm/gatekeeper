@@ -23,6 +23,7 @@ import { buildOrquiEasyblocksConfig } from "./config";
 import { generateTokenCSSVariables } from "./bridge/tokens";
 import { ORQUI_COMPONENTS } from "./components";
 import { ORQUI_WIDGETS } from "./widgets/TemplatePickerWidget";
+import { buildWidgetVariableContext } from "./bridge/variables";
 
 // ============================================================================
 // Iframe Detection
@@ -233,6 +234,8 @@ function EasyblocksParentEditor({
   pages,
   onPagesChange,
   tokens = {},
+  variables,
+  externalVariables,
 }: EasyblocksPageEditorProps) {
   const [ready, setReady] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -260,6 +263,15 @@ function EasyblocksParentEditor({
       window.history.replaceState({}, "", cleanUrl.toString());
     };
   }, []);
+
+  // ---- Expose variable context for template picker widgets ----
+  useEffect(() => {
+    const ctx = buildWidgetVariableContext(variables, externalVariables);
+    (window as any).__orquiVariableContext = ctx;
+    return () => {
+      delete (window as any).__orquiVariableContext;
+    };
+  }, [variables, externalVariables]);
 
   // ---- Build Easyblocks config ----
   const handlePageChange = useCallback((pageId: string, page: PageDef) => {

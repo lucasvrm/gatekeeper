@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:6c3e0e2fd462e1cc69998456f1ab3dafebe58c3da0cba939585e602755a3ad51",
-    "generatedAt": "2026-02-04T04:20:24.616Z"
+    "hash": "sha256:cbfcd97df1106696042b044c1e6807bfd820c9c0131fea8b0f09dc421fa194cd",
+    "generatedAt": "2026-02-04T05:07:59.750Z"
   },
   "structure": {
     "regions": {
@@ -98,7 +98,7 @@
             {
               "id": "runs",
               "label": "Runs",
-              "icon": "ph:hurricane-duotone",
+              "icon": "ph:airplane-takeoff-duotone",
               "route": "/runs"
             },
             {
@@ -122,7 +122,7 @@
             {
               "id": "mcp",
               "label": "Orchestrator",
-              "icon": "ph:meteor-duotone",
+              "icon": "ph:brain-duotone",
               "route": "/orchestrator"
             },
             {
@@ -408,13 +408,14 @@
           "label": "Orch",
           "variant": "default",
           "route": "/mcp",
-          "icon": "ph:meteor-duotone"
+          "icon": "ph:brain-duotone"
         },
         {
           "id": "cta-new-validation",
-          "label": "+ Run",
+          "label": "Nova Run",
           "variant": "outline",
-          "route": "/runs/new"
+          "route": "/runs/new",
+          "icon": "ph:airplane-takeoff-duotone"
         }
       ],
       "order": [

@@ -997,7 +997,7 @@ export const api = {
       const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}?${params}`)
       if (!response.ok) throw new Error(`Failed to fetch orchestrator ${kindPlural}`)
       const json = await response.json()
-      return json.data
+      return json.data ?? []
     },
 
     get: async (kind: OrchestratorContentKind, id: string): Promise<OrchestratorContent> => {

@@ -74,16 +74,16 @@ export class ClaudeCodeProvider implements LLMProvider {
 
   async chat(params: ChatParams): Promise<LLMResponse> {
     const prompt = this.buildPrompt(params)
-    const args = this.buildArgs(params, prompt)
+    const args = this.buildArgs(params)
 
     console.log(
-      `[ClaudeCode] Spawning: ${this.claudePath} -p "..." ` +
+      `[ClaudeCode] Spawning: ${this.claudePath} (stdin pipe) ` +
       `--model ${this.mapModel(params.model)} ` +
       `(cwd: ${params.cwd || 'inherit'})`,
     )
 
     const startMs = Date.now()
-    const result = await this.spawnAndCollect(args, params.cwd)
+    const result = await this.spawnAndCollect(args, prompt, params.system, params.cwd)
     const durationMs = Date.now() - startMs
 
     console.log(
@@ -147,11 +147,10 @@ export class ClaudeCodeProvider implements LLMProvider {
 
   // ─── CLI Arguments ────────────────────────────────────────────────────
 
-  private buildArgs(params: ChatParams, prompt: string): string[] {
+  private buildArgs(params: ChatParams): string[] {
     const args: string[] = [
-      '-p', prompt,
+      '-p', '-',                    // read prompt from stdin
       '--output-format', 'json',
-      '--append-system-prompt', params.system,
       '--permission-mode', this.permissionMode,
     ]
 
@@ -188,13 +187,19 @@ export class ClaudeCodeProvider implements LLMProvider {
   // ─── Process Management ───────────────────────────────────────────────
 
   /**
-   * Spawn `claude -p` with JSON output and collect the result.
+   * Spawn `claude` with JSON output and collect the result.
    *
-   * With `--output-format json`, Claude Code outputs a single JSON object
-   * on stdout when done. We collect all stdout, parse it on exit.
+   * Uses adaptive strategy to avoid ENAMETOOLONG on Windows (~32KB limit):
+   * - If total args < 30KB: passes prompt and system prompt as CLI args (original behavior)
+   * - If total args >= 30KB: pipes everything via stdin with `-p -`
+   *
+   * When using stdin, system prompt is wrapped in <system_instructions> tags
+   * and prepended to the user prompt.
    */
   private spawnAndCollect(
     args: string[],
+    prompt: string,
+    systemPrompt: string,
     cwd?: string,
   ): Promise<{
     resultText: string
@@ -209,8 +214,25 @@ export class ClaudeCodeProvider implements LLMProvider {
       cacheReadTokens: number
     }
   }> {
+    const SAFE_ARG_LIMIT = 30_000 // Windows limit ~32KB, leave margin
+    const totalArgLength = args.join(' ').length + systemPrompt.length + prompt.length
+
+    let finalArgs: string[]
+    let stdinPayload: string
+
+    if (totalArgLength < SAFE_ARG_LIMIT) {
+      // Small enough: use normal args (original behavior, keeps system prompt in proper slot)
+      finalArgs = [...args.filter(a => a !== '-p' && a !== '-'), '-p', prompt, '--append-system-prompt', systemPrompt]
+      stdinPayload = ''
+    } else {
+      // Too large for CLI args: pipe everything via stdin to avoid ENAMETOOLONG
+      console.log(`[ClaudeCode] Args too large (${totalArgLength} chars), using stdin pipe`)
+      finalArgs = [...args]
+      stdinPayload = `<system_instructions>\n${systemPrompt}\n</system_instructions>\n\n${prompt}`
+    }
+
     return new Promise((resolve, reject) => {
-      const child = spawn(this.claudePath, args, {
+      const child = spawn(this.claudePath, finalArgs, {
         cwd: cwd || process.cwd(),
         env: { ...process.env },
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -300,7 +322,10 @@ export class ClaudeCodeProvider implements LLMProvider {
         }
       })
 
-      // Close stdin immediately (we pass prompt via args, not stdin)
+      // Pipe prompt via stdin (or close if using args)
+      if (stdinPayload) {
+        child.stdin.write(stdinPayload)
+      }
       child.stdin.end()
     })
   }

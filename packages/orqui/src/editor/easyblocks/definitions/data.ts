@@ -3,6 +3,7 @@
 //
 // Phase 3: color tokens for backgrounds, space tokens for padding/gap,
 // borderRadius tokens for card/table shapes.
+// Phase 4: orqui-template type on StatCard label/value, Card title.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -14,8 +15,8 @@ export const statCardDefinition: NoCodeComponentDefinition = {
   type: "item",
   paletteLabel: "Dados",
   schema: [
-    { prop: "label", type: "string", label: "Label", defaultValue: "Métrica" },
-    { prop: "value", type: "string", label: "Valor", defaultValue: "0" },
+    { prop: "label", type: "orqui-template", label: "Label", defaultValue: "Métrica" },
+    { prop: "value", type: "orqui-template", label: "Valor", defaultValue: "0" },
     { prop: "icon", type: "string", label: "Ícone (Phosphor)", defaultValue: "TrendUp" },
     { prop: "trend", type: "string", label: "Trend", group: "Avançado" },
     {
@@ -69,7 +70,7 @@ export const cardDefinition: NoCodeComponentDefinition = {
   type: "item",
   paletteLabel: "Dados",
   schema: [
-    { prop: "title", type: "string", label: "Título", defaultValue: "Card" },
+    { prop: "title", type: "orqui-template", label: "Título", defaultValue: "Card" },
     { prop: "padding", type: "space", label: "Padding" },
     {
       prop: "background",
