@@ -278,166 +278,22 @@ function EasyblocksParentEditor({
   // ---- CSS variables for Orqui tokens ----
   const tokenCSS = useMemo(() => generateTokenCSSVariables(tokens), [tokens]);
 
-  // ---- CSS overrides for Easyblocks editor layout ----
-  // Increase right sidebar panel width by 40% (default ~300px → ~420px)
-  const editorOverrideCSS = `
-    /* ================================================================
-     * Easyblocks Right Sidebar Panel — 40% wider
-     * The editor uses a 3-column grid: [left] [canvas] [right-sidebar]
-     * We target all known panel selectors from Easyblocks/Shopstory
-     * ================================================================ */
-
-    /* Approach 1: Override grid-template-columns on the editor root layout */
-    [class*="EditorRoot"] > div,
-    [class*="editor-root"] > div,
-    [data-testid="editor-root"] > div,
-    [class*="Editor__"] > div {
-      grid-template-columns: auto 1fr 420px !important;
-    }
-
-    /* Approach 2: Target the right sidebar panel directly by position */
-    [class*="SidebarRight"],
-    [class*="sidebar-right"],
-    [class*="RightPanel"],
-    [class*="right-panel"],
-    [class*="PropertiesPanel"],
-    [class*="SidePanel"],
-    [data-testid*="sidebar"],
-    [data-testid*="right-panel"] {
-      width: 420px !important;
-      min-width: 420px !important;
-      max-width: 420px !important;
-    }
-
-    /* Approach 3: Easyblocks/Shopstory uses inline styles with fixed widths.
-     * Target last-child div siblings in the editor layout that look like sidebars.
-     * The editor typically renders: [left 260px] [canvas flex] [right 300px]
-     * We catch the right panel via the :last-child of the main grid. */
-    [class*="Editor"] > div > div:last-child:not([class*="canvas"]):not([class*="Canvas"]):not(iframe) {
-      width: 420px !important;
-      min-width: 420px !important;
-      flex-shrink: 0 !important;
-    }
-
-    /* Approach 4: Direct override for known Shopstory/Easyblocks panel containers.
-     * Shopstory sets the sidebar width via CSS custom property. */
-    :root {
-      --easyblocks-sidebar-width: 420px;
-      --shopstory-sidebar-width: 420px;
-      --editor-right-panel-width: 420px;
-    }
-
-    /* Approach 5: Catch-all — any fixed-width element (~290-310px range)
-     * sitting at the right edge of the editor grid. */
-    [class*="Editor"] > div[style*="grid"] > div:last-child[style*="width"] {
-      width: 420px !important;
-      min-width: 420px !important;
-    }
-  `;
-
   // ---- Error boundary reset ----
   const handleErrorReset = useCallback(() => {
     setResetKey(k => k + 1);
   }, []);
 
-  // ---- Force sidebar width via DOM observation ----
-  // Easyblocks sets sidebar width via inline styles (JS-controlled),
-  // so CSS !important alone may not be enough. MutationObserver ensures
-  // the width is enforced even after Easyblocks re-renders.
-  useEffect(() => {
-    const SIDEBAR_WIDTH = 420; // 40% wider than default ~300px
-    let observer: MutationObserver | null = null;
-
-    function findAndResizeRightPanel() {
-      // Strategy 1: Look for the Easyblocks editor grid container
-      // and resize the last column (right sidebar)
-      const editorRoot = document.querySelector('[class*="Editor"]') 
-        || document.querySelector('[data-testid*="editor"]');
-      
-      if (!editorRoot) return;
-
-      // The Easyblocks editor layout is typically:
-      //   div (grid root)
-      //     div (left panel ~260px)
-      //     div/iframe (canvas)  
-      //     div (right sidebar ~300px)
-      const gridContainer = editorRoot.querySelector(':scope > div[style*="grid"], :scope > div[style*="display"]');
-      if (gridContainer) {
-        const children = Array.from(gridContainer.children) as HTMLElement[];
-        if (children.length >= 3) {
-          const rightPanel = children[children.length - 1] as HTMLElement;
-          // Only resize if it looks like a sidebar (narrow, not canvas/iframe)
-          const currentWidth = rightPanel.getBoundingClientRect().width;
-          if (currentWidth > 200 && currentWidth < 400 && currentWidth !== SIDEBAR_WIDTH) {
-            rightPanel.style.setProperty('width', `${SIDEBAR_WIDTH}px`, 'important');
-            rightPanel.style.setProperty('min-width', `${SIDEBAR_WIDTH}px`, 'important');
-            rightPanel.style.setProperty('max-width', `${SIDEBAR_WIDTH}px`, 'important');
-          }
-        }
-        // Also override grid-template-columns if it uses grid
-        const style = gridContainer.getAttribute('style') || '';
-        if (style.includes('grid')) {
-          const newStyle = style.replace(
-            /grid-template-columns:\s*[^;]+/,
-            `grid-template-columns: auto 1fr ${SIDEBAR_WIDTH}px`
-          );
-          if (newStyle !== style) {
-            gridContainer.setAttribute('style', newStyle);
-          }
-        }
-      }
-
-      // Strategy 2: Find any panel-looking element on the right side
-      // that has a width around 280-320px
-      const allDivs = editorRoot.querySelectorAll('div');
-      for (const div of allDivs) {
-        const rect = div.getBoundingClientRect();
-        const parentRect = editorRoot.getBoundingClientRect();
-        // Is this div on the right edge and sidebar-width-ish?
-        if (
-          rect.right >= parentRect.right - 5 &&
-          rect.width >= 250 && rect.width <= 380 &&
-          rect.height > parentRect.height * 0.5 &&
-          rect.width !== SIDEBAR_WIDTH
-        ) {
-          div.style.setProperty('width', `${SIDEBAR_WIDTH}px`, 'important');
-          div.style.setProperty('min-width', `${SIDEBAR_WIDTH}px`, 'important');
-          break; // Found the right panel, stop
-        }
-      }
-    }
-
-    // Run after initial render
-    const initialTimer = setTimeout(findAndResizeRightPanel, 500);
-    const secondTimer = setTimeout(findAndResizeRightPanel, 1500);
-
-    // Observe DOM changes (Easyblocks re-renders can reset widths)
-    observer = new MutationObserver(() => {
-      // Debounce — don't run on every tiny mutation
-      clearTimeout((observer as any).__debounce);
-      (observer as any).__debounce = setTimeout(findAndResizeRightPanel, 100);
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['style'],
-    });
-
-    return () => {
-      clearTimeout(initialTimer);
-      clearTimeout(secondTimer);
-      observer?.disconnect();
-    };
-  }, [resetKey]);
+  // NOTE: Previous CSS overrides and MutationObserver for sidebar width
+  // have been removed. Run the diagnostic script (DIAGNOSTIC-SIDEBAR.js)
+  // in DevTools to identify the actual Easyblocks sidebar structure,
+  // then apply a minimal targeted fix based on findings.
 
   // Wait for URL params before rendering
   if (!ready) return null;
 
   return (
     <div style={{ height: "100%", width: "100%", position: "relative" }}>
-      <style>{tokenCSS}{editorOverrideCSS}</style>
+      <style>{tokenCSS}</style>
       <EasyblocksErrorBoundary onReset={handleErrorReset}>
         <EasyblocksEditor
           key={resetKey}

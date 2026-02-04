@@ -358,8 +358,7 @@ model SessionProfilePrompt {
 /// Per-phase LLM configuration: which provider/model to use, limits, fallbacks.
 /// Queried by AgentRunnerService to build PhaseConfig for each pipeline step.
 model AgentPhaseConfig {
-  id                    String   @id @default(cuid())
-  step                  Int      @unique         // 1, 2, 3, 4
+  step                  Int      @id @default(autoincrement())  // 1, 2, 3, 4
   provider              String   @default("anthropic")  // 'anthropic' | 'openai' | 'mistral'
   model                 String   @default("claude-sonnet-4-5-20250929")
   maxTokens             Int      @default(8192)
@@ -368,7 +367,6 @@ model AgentPhaseConfig {
   temperature           Float?
   fallbackProvider      String?  // fallback provider if primary fails
   fallbackModel         String?
-  isActive              Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -378,7 +376,9 @@ model AgentRun {
   id                String    @id @default(cuid())
   taskDescription   String
   projectPath       String
+  outputId          String?                         // pipeline outputId (for checkpoint/resume)
   status            String    @default("running")   // 'running' | 'completed' | 'failed'
+  lastCompletedStep Int       @default(0)           // 0=none, 1=plan, 2=spec, 3=fix, 4=execute
   provider          String                          // primary provider used
   model             String                          // primary model used
   totalInputTokens  Int       @default(0)

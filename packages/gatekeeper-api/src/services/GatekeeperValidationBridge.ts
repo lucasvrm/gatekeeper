@@ -19,7 +19,7 @@
  * "tests passed" from agent text output.
  */
 
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { readFileSync, existsSync } from 'node:fs'
 import { prisma } from '../db/client.js'
 import { ValidationOrchestrator } from './ValidationOrchestrator.js'
@@ -101,7 +101,7 @@ export class GatekeeperValidationBridge {
     let contractJson = input.contractJson
 
     if (!manifestJson) {
-      const artifactData = this.readArtifactData(input.outputId, input.projectPath)
+      const artifactData = await this.readArtifactData(input.outputId, input.projectPath)
       manifestJson = manifestJson || artifactData.manifestJson
       contractJson = contractJson || artifactData.contractJson
       testFilePath = testFilePath || artifactData.testFilePath
@@ -321,18 +321,78 @@ export class GatekeeperValidationBridge {
   // ─── Artifact Reading ─────────────────────────────────────────────────────
 
   /**
-   * Read manifest and contract from pipeline artifacts on disk.
-   *
-   * Walks up from projectPath looking for artifacts/{outputId}/plan.json,
-   * which mirrors how AgentOrchestratorBridge resolves workspace root.
+   * Resolve the artifacts directory name from Workspace model in DB.
+   * Falls back to "artifacts" if no workspace found.
    */
-  private readArtifactData(outputId: string, projectPath: string): {
+  private async resolveArtifactsDirName(projectPath: string): Promise<string> {
+    try {
+      // 1. Try DB: find workspace that contains this projectPath
+      const workspaces = await prisma.workspace.findMany({
+        where: { isActive: true },
+      })
+      for (const ws of workspaces) {
+        const normalizedRoot = resolve(ws.rootPath)
+        const normalizedProject = resolve(projectPath)
+        if (normalizedProject.startsWith(normalizedRoot)) {
+          return ws.artifactsDir || 'artifacts'
+        }
+      }
+    } catch {
+      // DB not available — fall through
+    }
+    return 'artifacts'
+  }
+
+  /**
+   * Resolve workspace root from DB or filesystem.
+   * Mirrors AgentOrchestratorBridge.resolveWorkspaceRoot().
+   */
+  private async resolveWorkspaceRoot(projectPath: string): Promise<string> {
+    try {
+      const workspaces = await prisma.workspace.findMany({
+        where: { isActive: true },
+      })
+      for (const ws of workspaces) {
+        const normalizedRoot = resolve(ws.rootPath)
+        const normalizedProject = resolve(projectPath)
+        if (normalizedProject.startsWith(normalizedRoot)) {
+          return normalizedRoot
+        }
+      }
+    } catch {
+      // DB not available
+    }
+
+    // Fallback: walk up to .git
+    let current = resolve(projectPath)
+    const root = current.split('/')[0] || '/'
+    while (current !== root) {
+      if (existsSync(join(current, '.git'))) return current
+      const parent = resolve(current, '..')
+      if (parent === current) break
+      current = parent
+    }
+
+    return projectPath
+  }
+
+  /**
+   * Read manifest and contract from pipeline artifacts on disk.
+   * Uses DB workspace resolution instead of blind filesystem walk-up.
+   */
+  private async readArtifactData(outputId: string, projectPath: string): Promise<{
     manifestJson?: string
     contractJson?: string
     testFilePath?: string
-  } {
-    const artifactDir = this.findArtifactDir(outputId, projectPath)
-    if (!artifactDir) return {}
+  }> {
+    const workspaceRoot = await this.resolveWorkspaceRoot(projectPath)
+    const artifactsDirName = await this.resolveArtifactsDirName(projectPath)
+    const artifactDir = join(workspaceRoot, artifactsDirName, outputId)
+
+    if (!existsSync(artifactDir)) {
+      console.warn(`[GatekeeperValidationBridge] Artifact dir not found: ${artifactDir}`)
+      return {}
+    }
 
     const result: {
       manifestJson?: string
@@ -372,36 +432,6 @@ export class GatekeeperValidationBridge {
     }
 
     return result
-  }
-
-  /**
-   * Walk up from projectPath to find the artifacts directory.
-   * Checks: {dir}/artifacts/{outputId}/ at each level, stopping at .git or root.
-   */
-  private findArtifactDir(outputId: string, startPath: string): string | null {
-    let current = startPath
-
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const candidate = join(current, 'artifacts', outputId)
-      if (existsSync(candidate)) {
-        return candidate
-      }
-
-      const parent = join(current, '..')
-      // Stop at filesystem root
-      if (parent === current) break
-
-      // Stop if we've passed .git (monorepo root)
-      if (existsSync(join(current, '.git'))) {
-        // Check one last time at .git level (already done above)
-        break
-      }
-
-      current = parent
-    }
-
-    return null
   }
 
   // ─── Fallback ─────────────────────────────────────────────────────────────

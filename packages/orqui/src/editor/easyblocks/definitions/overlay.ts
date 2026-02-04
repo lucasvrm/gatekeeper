@@ -1,5 +1,8 @@
 // ============================================================================
 // Overlay Component Definitions — Modal, Drawer, Tooltip
+//
+// Phase 3: color tokens for backgrounds, space for padding,
+// borderRadius for container shapes.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -28,6 +31,24 @@ export const modalDefinition: NoCodeComponentDefinition = {
     },
     { prop: "showClose", type: "boolean", label: "Botão fechar", defaultValue: true },
     {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
+    {
       prop: "Children",
       type: "component-collection",
       accepts: ALL_COMPONENT_IDS,
@@ -41,10 +62,10 @@ export const modalDefinition: NoCodeComponentDefinition = {
     return {
       styled: {
         Root: {
-          background: "var(--orqui-surface-2, #1c1c21)",
+          background: values.background || "var(--orqui-surface-2, #1c1c21)",
           border: "1px solid var(--orqui-border, #2a2a33)",
-          borderRadius: "12px",
-          padding: "24px",
+          borderRadius: values.borderRadius || "12px",
+          padding: values.padding || "24px",
           width: widthMap[values.size] || "560px",
           maxWidth: "90vw",
           boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
@@ -87,6 +108,24 @@ export const drawerDefinition: NoCodeComponentDefinition = {
       defaultValue: "360px",
     },
     {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Estilo",
+    },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap",
+      group: "Estilo",
+    },
+    {
       prop: "Children",
       type: "component-collection",
       accepts: ALL_COMPONENT_IDS,
@@ -96,15 +135,15 @@ export const drawerDefinition: NoCodeComponentDefinition = {
   styles: ({ values }) => ({
     styled: {
       Root: {
-        background: "var(--orqui-surface-2, #1c1c21)",
+        background: values.background || "var(--orqui-surface-2, #1c1c21)",
         border: "1px solid var(--orqui-border, #2a2a33)",
         borderRadius: values.position === "right" ? "12px 0 0 12px" : "0 12px 12px 0",
-        padding: "20px",
+        padding: values.padding || "20px",
         width: values.width || "360px",
         height: "100%",
         display: "flex",
         flexDirection: "column" as const,
-        gap: "16px",
+        gap: values.gap || "16px",
       },
     },
   }),
@@ -130,6 +169,12 @@ export const tooltipDefinition: NoCodeComponentDefinition = {
         ],
       },
       defaultValue: "top",
+    },
+    {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
     },
     {
       prop: "Children",

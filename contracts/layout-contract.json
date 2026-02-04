@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:6e7d7011d572c0c8347ddcaafc3d320c29b3e8d75baa405dbbd6f67fbd103efc",
-    "generatedAt": "2026-02-03T17:51:16.397Z"
+    "hash": "sha256:6c3e0e2fd462e1cc69998456f1ab3dafebe58c3da0cba939585e602755a3ad51",
+    "generatedAt": "2026-02-04T04:20:24.616Z"
   },
   "structure": {
     "regions": {
@@ -98,7 +98,7 @@
             {
               "id": "runs",
               "label": "Runs",
-              "icon": "ph:flow-arrow",
+              "icon": "ph:hurricane-duotone",
               "route": "/runs"
             },
             {
@@ -121,9 +121,9 @@
             },
             {
               "id": "mcp",
-              "label": "MCP",
-              "icon": "ph:lightning",
-              "route": "/mcp"
+              "label": "Orchestrator",
+              "icon": "ph:meteor-duotone",
+              "route": "/orchestrator"
             },
             {
               "id": "config",
@@ -405,23 +405,23 @@
       "ctas": [
         {
           "id": "cta-mcp",
-          "label": "MCP",
-          "variant": "outline",
+          "label": "Orch",
+          "variant": "default",
           "route": "/mcp",
-          "icon": "ph:hard-drives"
+          "icon": "ph:meteor-duotone"
         },
         {
           "id": "cta-new-validation",
-          "label": "Nova Validação",
-          "variant": "default",
+          "label": "+ Run",
+          "variant": "outline",
           "route": "/runs/new"
         }
       ],
       "order": [
-        "cta:cta-mcp",
+        "icons",
         "search",
         "cta:cta-new-validation",
-        "icons"
+        "cta:cta-mcp"
       ]
     },
     "pages": {
@@ -461,17 +461,18 @@
         "description": "Gerenciar projetos de validação",
         "browserTitle": "Projects / Gatekeeper"
       },
-      "mcp": {
-        "label": "MCP",
-        "route": "/mcp",
-        "description": "Model Context Protocol — sessões e ferramentas",
-        "browserTitle": "MCP Server / Gatekeeper"
-      },
       "config": {
         "label": "Config",
         "route": "/config",
         "description": "Configurações gerais do Gatekeeper",
         "browserTitle": "Config / Gatekeeper"
+      },
+      "orchestrator": {
+        "label": "Orchestrator",
+        "route": "/orchestrator",
+        "description": "LLM-Driven Coding Pipeline",
+        "overrides": {},
+        "browserTitle": "Orchestrator / Gatekeeper"
       }
     },
     "contentLayout": {
@@ -605,7 +606,7 @@
     },
     "sizing": {
       "sidebar-width": {
-        "value": 260,
+        "value": 225,
         "unit": "px"
       },
       "sidebar-min": {
@@ -1281,6 +1282,22 @@
             }
           }
         ]
+      }
+    },
+    "page-1770173683738": {
+      "id": "page-1770173683738",
+      "label": "Página 2",
+      "route": "/page-1770173683738",
+      "content": {
+        "id": "5ba8ce18-b380-42d2-ac81-bdfc9e10bb17",
+        "type": "stack",
+        "props": {
+          "gap": {
+            "value": "16px",
+            "tokenId": "md",
+            "widgetId": "@easyblocks/space"
+          }
+        }
       }
     }
   }

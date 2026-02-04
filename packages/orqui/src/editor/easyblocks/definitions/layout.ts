@@ -1,8 +1,8 @@
 // ============================================================================
 // Layout Component Definitions — Stack, Row, Grid, Container
 //
-// FIX: select type uses params: { options: [...] } (not top-level options)
-// FIX: space and color are inherently responsive, removed redundant flag
+// Phase 3: All spacing uses `space` tokens, all colors use `color` tokens,
+// Container borderRadius uses custom `orqui-border-radius` token type.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -20,6 +20,18 @@ export const stackDefinition: NoCodeComponentDefinition = {
       label: "Gap",
     },
     {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Espaçamento",
+    },
+    {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
       prop: "Children",
       type: "component-collection",
       accepts: ALL_COMPONENT_IDS,
@@ -32,6 +44,8 @@ export const stackDefinition: NoCodeComponentDefinition = {
         display: "flex",
         flexDirection: "column" as const,
         gap: values.gap,
+        padding: values.padding || undefined,
+        background: values.background || undefined,
         width: "100%",
       },
     },
@@ -90,6 +104,18 @@ export const rowDefinition: NoCodeComponentDefinition = {
       defaultValue: false,
     },
     {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Espaçamento",
+    },
+    {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
       prop: "Children",
       type: "component-collection",
       accepts: ALL_COMPONENT_IDS,
@@ -105,6 +131,8 @@ export const rowDefinition: NoCodeComponentDefinition = {
         alignItems: values.align,
         justifyContent: values.justify,
         flexWrap: values.wrap ? ("wrap" as const) : ("nowrap" as const),
+        padding: values.padding || undefined,
+        background: values.background || undefined,
         width: "100%",
       },
     },
@@ -140,6 +168,18 @@ export const gridDefinition: NoCodeComponentDefinition = {
       label: "Gap",
     },
     {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Espaçamento",
+    },
+    {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
       prop: "Children",
       type: "component-collection",
       accepts: ALL_COMPONENT_IDS,
@@ -152,6 +192,8 @@ export const gridDefinition: NoCodeComponentDefinition = {
         display: "grid",
         gridTemplateColumns: `repeat(${values.columns || 2}, 1fr)`,
         gap: values.gap,
+        padding: values.padding || undefined,
+        background: values.background || undefined,
         width: "100%",
       },
     },
@@ -176,18 +218,8 @@ export const containerDefinition: NoCodeComponentDefinition = {
     },
     {
       prop: "borderRadius",
-      type: "select",
+      type: "orqui-border-radius",
       label: "Border radius",
-      params: {
-        options: [
-          { value: "0", label: "Nenhum" },
-          { value: "4px", label: "sm (4px)" },
-          { value: "6px", label: "md (6px)" },
-          { value: "8px", label: "lg (8px)" },
-          { value: "12px", label: "xl (12px)" },
-        ],
-      },
-      defaultValue: "0",
     },
     {
       prop: "Children",

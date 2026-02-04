@@ -1,13 +1,15 @@
 // ============================================================================
 // Navigation, Input & Special Component Definitions
 // Tabs, Search, Select, Slot
+//
+// Phase 3: color tokens on Search/Select backgrounds, space tokens for gaps,
+// borderRadius on Slot/Search/Select.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
 
 // ============================================================================
 // OrquiTabs — tabbed content
-// Orqui: { type: "tabs", props: { items: [{ id, label }], defaultTab } }
 // ============================================================================
 
 export const tabsDefinition: NoCodeComponentDefinition = {
@@ -31,8 +33,14 @@ export const tabsDefinition: NoCodeComponentDefinition = {
       label: "Tab padrão",
       defaultValue: "tab1",
     },
+    {
+      prop: "activeColor",
+      type: "color",
+      label: "Cor ativa",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
@@ -56,8 +64,8 @@ export const tabsDefinition: NoCodeComponentDefinition = {
         border: "none",
       },
       TabActive: {
-        color: "var(--orqui-accent, #6d9cff)",
-        borderBottomColor: "var(--orqui-accent, #6d9cff)",
+        color: values.activeColor || "var(--orqui-accent, #6d9cff)",
+        borderBottomColor: values.activeColor || "var(--orqui-accent, #6d9cff)",
       },
       Content: {
         padding: "16px 0",
@@ -68,7 +76,6 @@ export const tabsDefinition: NoCodeComponentDefinition = {
 
 // ============================================================================
 // OrquiSearch — search input
-// Orqui: { type: "search", props: { placeholder } }
 // ============================================================================
 
 export const searchDefinition: NoCodeComponentDefinition = {
@@ -83,17 +90,29 @@ export const searchDefinition: NoCodeComponentDefinition = {
       label: "Placeholder",
       defaultValue: "Buscar...",
     },
+    {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
         alignItems: "center",
         gap: "8px",
         padding: "8px 12px",
-        borderRadius: "6px",
+        borderRadius: values.borderRadius || "6px",
         border: "1px solid var(--orqui-input-border, #2a2a33)",
-        background: "var(--orqui-input-bg, #1c1c21)",
+        background: values.background || "var(--orqui-input-bg, #1c1c21)",
         fontSize: "13px",
         color: "var(--orqui-text, #e4e4e7)",
         width: "100%",
@@ -118,7 +137,6 @@ export const searchDefinition: NoCodeComponentDefinition = {
 
 // ============================================================================
 // OrquiSelect — dropdown select
-// Orqui: { type: "select", props: { placeholder, options: [{ value, label }] } }
 // ============================================================================
 
 export const selectDefinition: NoCodeComponentDefinition = {
@@ -142,14 +160,26 @@ export const selectDefinition: NoCodeComponentDefinition = {
         { value: "opt2", label: "Opção 2" },
       ]),
     },
+    {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         padding: "8px 12px",
-        borderRadius: "6px",
+        borderRadius: values.borderRadius || "6px",
         border: "1px solid var(--orqui-input-border, #2a2a33)",
-        background: "var(--orqui-input-bg, #1c1c21)",
+        background: values.background || "var(--orqui-input-bg, #1c1c21)",
         fontSize: "13px",
         color: "var(--orqui-text, #e4e4e7)",
         width: "100%",
@@ -162,7 +192,6 @@ export const selectDefinition: NoCodeComponentDefinition = {
 
 // ============================================================================
 // OrquiSlot — named slot for custom component injection
-// Orqui: { type: "slot", props: { name } }
 // ============================================================================
 
 export const slotDefinition: NoCodeComponentDefinition = {
@@ -177,13 +206,25 @@ export const slotDefinition: NoCodeComponentDefinition = {
       label: "Nome do slot",
       defaultValue: "custom-slot",
     },
+    {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         border: "2px dashed var(--orqui-border-2, #3a3a45)",
-        borderRadius: "8px",
-        padding: "16px",
+        borderRadius: values.borderRadius || "8px",
+        padding: values.padding || "16px",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

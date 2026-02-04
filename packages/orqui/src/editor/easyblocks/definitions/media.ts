@@ -1,5 +1,7 @@
 // ============================================================================
 // Media Component Definitions — Avatar, Video, Carousel
+//
+// Phase 3: color tokens for Avatar background, borderRadius tokens on Video/Carousel.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -41,6 +43,18 @@ export const avatarDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "circle",
     },
+    {
+      prop: "background",
+      type: "color",
+      label: "Cor de fundo",
+      group: "Estilo",
+    },
+    {
+      prop: "color",
+      type: "color",
+      label: "Cor do texto",
+      group: "Estilo",
+    },
   ],
   styles: ({ values }) => {
     const sizeMap: Record<string, string> = {
@@ -60,8 +74,8 @@ export const avatarDefinition: NoCodeComponentDefinition = {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "var(--orqui-surface-3, #2a2a33)",
-          color: "var(--orqui-text, #e4e4e7)",
+          background: values.background || "var(--orqui-surface-3, #2a2a33)",
+          color: values.color || "var(--orqui-text, #e4e4e7)",
           fontSize: parseInt(sz) * 0.4 + "px",
           fontWeight: 600,
           flexShrink: 0,
@@ -97,13 +111,19 @@ export const videoDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "16/9",
     },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
   styles: ({ values }) => ({
     styled: {
       Root: {
         width: "100%",
         aspectRatio: values.aspectRatio || "16/9",
-        borderRadius: "8px",
+        borderRadius: values.borderRadius || "8px",
         overflow: "hidden",
         background: "#000",
       },
@@ -136,19 +156,31 @@ export const carouselDefinition: NoCodeComponentDefinition = {
     { prop: "showDots", type: "boolean", label: "Indicadores", defaultValue: true },
     { prop: "showArrows", type: "boolean", label: "Setas", defaultValue: true },
     {
+      prop: "gap",
+      type: "space",
+      label: "Gap entre slides",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
+    {
       prop: "Children",
       type: "component-collection",
       accepts: ALL_COMPONENT_IDS,
       placeholderAppearance: { height: 120, width: 200, label: "Slide" },
     },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         position: "relative" as const,
         width: "100%",
         overflow: "hidden",
-        borderRadius: "8px",
+        borderRadius: values.borderRadius || "8px",
       },
     },
   }),

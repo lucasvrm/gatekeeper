@@ -46,15 +46,26 @@ export function buildOrquiEasyblocksConfig(options: BuildConfigOptions) {
     }];
   }
 
+  // Ensure borderRadius tokens (custom token type)
+  if (!tokens.borderRadius || tokens.borderRadius.length === 0) {
+    tokens.borderRadius = [
+      { id: "none", label: "Nenhum", value: "0px", isDefault: false },
+      { id: "sm", label: "sm", value: "4px", isDefault: false },
+      { id: "md", label: "md", value: "6px", isDefault: true },
+      { id: "lg", label: "lg", value: "8px", isDefault: false },
+      { id: "xl", label: "xl", value: "12px", isDefault: false },
+      { id: "2xl", label: "2xl", value: "16px", isDefault: false },
+      { id: "full", label: "Full", value: "9999px", isDefault: false },
+    ];
+  }
+
   return {
     backend,
     components: ALL_DEFINITIONS,
     tokens,
 
-    // NOTE: Disabling custom types for now — orqui-template props
-    // have been changed to "string" type as fallback.
-    // Re-enable in Phase 5 when the TemplatePickerWidget is validated.
-    // types: getOrquiCustomTypes(),
+    // Custom types: borderRadius token type + orqui-template (Phase 5)
+    types: getOrquiCustomTypes(),
 
     locales: [
       { code: "pt-BR", isDefault: true },

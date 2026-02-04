@@ -267,6 +267,7 @@ export class AgentRunnerService {
         maxTokens: phase.maxTokens,
         temperature: phase.temperature,
         enableCache: true,
+        cwd: projectRoot,
       })
 
       totalTokens.inputTokens += response.usage.inputTokens

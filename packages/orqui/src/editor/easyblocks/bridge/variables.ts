@@ -57,12 +57,28 @@ export const orquiEntityRefType: EasyblocksCustomType = {
 };
 
 /**
+ * Custom token type for border radius.
+ *
+ * borderRadius is NOT a built-in Easyblocks token type, so we register it
+ * as a custom "token" type that maps to Config.tokens.borderRadius.
+ * This gives us the standard token picker in the sidebar with allowCustom
+ * for freeform CSS values.
+ */
+export const orquiBorderRadiusType: EasyblocksCustomType = {
+  type: "token",
+  token: "borderRadius",
+  allowCustom: true,
+  defaultValue: { tokenId: "md" },
+};
+
+/**
  * Returns all custom types to register in Easyblocks Config.types.
  */
 export function getOrquiCustomTypes(): Record<string, EasyblocksCustomType> {
   return {
     "orqui-template": orquiTemplateType,
     "orqui-entity-ref": orquiEntityRefType,
+    "orqui-border-radius": orquiBorderRadiusType,
   };
 }
 

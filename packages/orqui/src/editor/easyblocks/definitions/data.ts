@@ -1,9 +1,8 @@
 // ============================================================================
 // Data Component Definitions — StatCard, Card, Table, List, KeyValue
 //
-// FIX: select → params: { options: [...] }
-// FIX: orqui-template → string (fallback until Phase 5)
-// FIX: space doesn't need responsive: true
+// Phase 3: color tokens for backgrounds, space tokens for padding/gap,
+// borderRadius tokens for card/table shapes.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -33,14 +32,32 @@ export const statCardDefinition: NoCodeComponentDefinition = {
       defaultValue: "up",
       group: "Avançado",
     },
+    {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Estilo",
+    },
+    {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
-        background: "var(--orqui-card-bg, #141417)",
+        background: values.background || "var(--orqui-card-bg, #141417)",
         border: "1px solid var(--orqui-card-border, #2a2a33)",
-        borderRadius: "8px",
-        padding: "16px",
+        borderRadius: values.borderRadius || "8px",
+        padding: values.padding || "16px",
       },
     },
   }),
@@ -55,6 +72,18 @@ export const cardDefinition: NoCodeComponentDefinition = {
     { prop: "title", type: "string", label: "Título", defaultValue: "Card" },
     { prop: "padding", type: "space", label: "Padding" },
     {
+      prop: "background",
+      type: "color",
+      label: "Background",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
+    {
       prop: "Children",
       type: "component-collection",
       accepts: ALL_COMPONENT_IDS,
@@ -64,9 +93,9 @@ export const cardDefinition: NoCodeComponentDefinition = {
   styles: ({ values }) => ({
     styled: {
       Root: {
-        background: "var(--orqui-card-bg, #141417)",
+        background: values.background || "var(--orqui-card-bg, #141417)",
         border: "1px solid var(--orqui-card-border, #2a2a33)",
-        borderRadius: "8px",
+        borderRadius: values.borderRadius || "8px",
         overflow: "hidden",
         padding: values.padding,
       },
@@ -92,13 +121,19 @@ export const tableDefinition: NoCodeComponentDefinition = {
     },
     { prop: "striped", type: "boolean", label: "Linhas alternadas", defaultValue: false, group: "Estilo" },
     { prop: "compact", type: "boolean", label: "Compacto", defaultValue: false, group: "Estilo" },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         width: "100%",
         border: "1px solid var(--orqui-border, #2a2a33)",
-        borderRadius: "8px",
+        borderRadius: values.borderRadius || "8px",
         overflow: "hidden",
       },
     },
@@ -126,14 +161,26 @@ export const listDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "10",
     },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap entre itens",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
         flexDirection: "column" as const,
-        gap: "1px",
-        borderRadius: "8px",
+        gap: values.gap || "1px",
+        borderRadius: values.borderRadius || "8px",
         overflow: "hidden",
         border: "1px solid var(--orqui-border, #2a2a33)",
       },
@@ -165,13 +212,19 @@ export const keyValueDefinition: NoCodeComponentDefinition = {
       label: "Items (JSON)",
       defaultValue: JSON.stringify([{ label: "Chave", value: "Valor" }]),
     },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap entre itens",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
         flexDirection: "column" as const,
-        gap: "4px",
+        gap: values.gap || "4px",
       },
     },
   }),

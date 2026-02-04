@@ -1,5 +1,7 @@
 // ============================================================================
 // Navigation Component Definitions — Breadcrumb, Pagination, NavMenu, Link
+//
+// Phase 3: color tokens on Link/Breadcrumb, space tokens for gaps.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -34,15 +36,27 @@ export const breadcrumbDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "/",
     },
+    {
+      prop: "color",
+      type: "color",
+      label: "Cor do texto",
+      group: "Estilo",
+    },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
         alignItems: "center",
-        gap: "6px",
+        gap: values.gap || "6px",
         fontSize: "13px",
-        color: "var(--orqui-text-muted, #8b8b96)",
+        color: values.color || "var(--orqui-text-muted, #8b8b96)",
       },
     },
   }),
@@ -95,13 +109,25 @@ export const paginationDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "md",
     },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap",
+      group: "Estilo",
+    },
+    {
+      prop: "accentColor",
+      type: "color",
+      label: "Cor ativa",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
         alignItems: "center",
-        gap: "4px",
+        gap: values.gap || "4px",
       },
     },
   }),
@@ -135,13 +161,25 @@ export const navMenuDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "vertical",
     },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap",
+      group: "Estilo",
+    },
+    {
+      prop: "activeColor",
+      type: "color",
+      label: "Cor do item ativo",
+      group: "Estilo",
+    },
   ],
   styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
         flexDirection: values.direction === "horizontal" ? "row" as const : "column" as const,
-        gap: "2px",
+        gap: values.gap || "2px",
         width: values.direction === "vertical" ? "100%" : "auto",
       },
     },
@@ -177,16 +215,29 @@ export const linkDefinition: NoCodeComponentDefinition = {
           { value: "default", label: "Padrão" },
           { value: "muted", label: "Discreto" },
           { value: "accent", label: "Destaque" },
+          { value: "custom", label: "Customizado" },
         ],
       },
       defaultValue: "default",
     },
+    {
+      prop: "customColor",
+      type: "color",
+      label: "Cor customizada",
+      group: "Customização",
+    },
   ],
+  editing: ({ values }) => ({
+    fields: {
+      customColor: { visible: values.variant === "custom" },
+    },
+  }),
   styles: ({ values }) => {
     const colorMap: Record<string, string> = {
       default: "var(--orqui-accent, #6d9cff)",
       muted: "var(--orqui-text-muted, #8b8b96)",
       accent: "var(--orqui-accent, #6d9cff)",
+      custom: values.customColor || "var(--orqui-accent, #6d9cff)",
     };
     return {
       styled: {

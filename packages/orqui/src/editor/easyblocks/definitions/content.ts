@@ -2,9 +2,9 @@
 // Content Component Definitions
 // Heading, Text, Button, Badge, Icon, Image, Divider, Spacer
 //
-// FIX: select → params: { options: [...] }
-// FIX: orqui-template → string (fallback until custom type is validated)
-// FIX: space/color don't need responsive: true (inherently responsive)
+// Phase 3: color tokens on Heading/Text, font tokens on Heading,
+// borderRadius tokens on Button/Image, space tokens on Spacer.
+// orqui-template still falls back to string until Phase 5 widget.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -37,6 +37,17 @@ export const headingDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "2",
     },
+    {
+      prop: "color",
+      type: "color",
+      label: "Cor do texto",
+    },
+    {
+      prop: "font",
+      type: "font",
+      label: "Fonte",
+      group: "Tipografia",
+    },
   ],
   styles: ({ values }) => {
     const sizeMap: Record<string, string> = {
@@ -47,15 +58,20 @@ export const headingDefinition: NoCodeComponentDefinition = {
       "1": 700, "2": 600, "3": 600,
       "4": 600, "5": 500, "6": 500,
     };
+
+    // Font token overrides individual properties when set
+    const fontValue = values.font && typeof values.font === "object" ? values.font : null;
+
     return {
       styled: {
         Root: {
-          fontSize: sizeMap[values.level] || "22px",
-          fontWeight: weightMap[values.level] || 600,
-          lineHeight: 1.2,
+          fontFamily: fontValue?.fontFamily || "inherit",
+          fontSize: fontValue?.fontSize ? `${fontValue.fontSize}px` : (sizeMap[values.level] || "22px"),
+          fontWeight: fontValue?.fontWeight || (weightMap[values.level] || 600),
+          lineHeight: fontValue?.lineHeight || 1.2,
           letterSpacing: "-0.02em",
           margin: 0,
-          color: "inherit",
+          color: values.color || "inherit",
         },
       },
       props: {
@@ -77,17 +93,33 @@ export const textDefinition: NoCodeComponentDefinition = {
       label: "Conteúdo",
       defaultValue: "Texto de exemplo",
     },
-  ],
-  styles: () => ({
-    styled: {
-      Root: {
-        fontSize: "14px",
-        lineHeight: 1.5,
-        color: "inherit",
-        margin: 0,
-      },
+    {
+      prop: "color",
+      type: "color",
+      label: "Cor do texto",
     },
-  }),
+    {
+      prop: "font",
+      type: "font",
+      label: "Fonte",
+      group: "Tipografia",
+    },
+  ],
+  styles: ({ values }) => {
+    const fontValue = values.font && typeof values.font === "object" ? values.font : null;
+    return {
+      styled: {
+        Root: {
+          fontFamily: fontValue?.fontFamily || "inherit",
+          fontSize: fontValue?.fontSize ? `${fontValue.fontSize}px` : "14px",
+          fontWeight: fontValue?.fontWeight || 400,
+          lineHeight: fontValue?.lineHeight || 1.5,
+          color: values.color || "inherit",
+          margin: 0,
+        },
+      },
+    };
+  },
 };
 
 export const buttonDefinition: NoCodeComponentDefinition = {
@@ -113,23 +145,50 @@ export const buttonDefinition: NoCodeComponentDefinition = {
           { value: "outline", label: "Outline" },
           { value: "ghost", label: "Ghost" },
           { value: "destructive", label: "Destructive" },
+          { value: "custom", label: "Customizado" },
         ],
       },
       defaultValue: "primary",
+    },
+    {
+      prop: "customBg",
+      type: "color",
+      label: "Cor de fundo",
+      group: "Customização",
+    },
+    {
+      prop: "customColor",
+      type: "color",
+      label: "Cor do texto",
+      group: "Customização",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
     },
     {
       prop: "icon",
       type: "string",
       label: "Ícone",
       defaultValue: "",
+      group: "Avançado",
     },
     {
       prop: "route",
       type: "string",
       label: "Rota",
       defaultValue: "",
+      group: "Avançado",
     },
   ],
+  editing: ({ values }) => ({
+    fields: {
+      customBg: { visible: values.variant === "custom" },
+      customColor: { visible: values.variant === "custom" },
+    },
+  }),
   styles: ({ values }: any) => {
     const variants: Record<string, any> = {
       primary: { background: "var(--orqui-accent, #6d9cff)", color: "#fff", border: "none" },
@@ -137,6 +196,11 @@ export const buttonDefinition: NoCodeComponentDefinition = {
       outline: { background: "transparent", color: "var(--orqui-text, #e4e4e7)", border: "1px solid var(--orqui-border, #2a2a33)" },
       ghost: { background: "transparent", color: "var(--orqui-text-muted, #8b8b96)", border: "none" },
       destructive: { background: "var(--orqui-danger, #ff6b6b)", color: "#fff", border: "none" },
+      custom: {
+        background: values.customBg || "var(--orqui-accent, #6d9cff)",
+        color: values.customColor || "#fff",
+        border: "none",
+      },
     };
     const variantStyle = variants[values.variant] || variants.primary;
     return {
@@ -144,7 +208,7 @@ export const buttonDefinition: NoCodeComponentDefinition = {
         Root: {
           ...variantStyle,
           padding: "8px 16px",
-          borderRadius: "6px",
+          borderRadius: values.borderRadius || "6px",
           fontSize: "13px",
           fontWeight: 600,
           cursor: "pointer",
@@ -184,6 +248,12 @@ export const badgeDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "accent",
     },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
   styles: ({ values }) => {
     const colorMap: Record<string, { bg: string; fg: string }> = {
@@ -198,7 +268,8 @@ export const badgeDefinition: NoCodeComponentDefinition = {
       styled: {
         Root: {
           background: c.bg, color: c.fg,
-          padding: "2px 8px", borderRadius: "4px",
+          padding: "2px 8px",
+          borderRadius: values.borderRadius || "4px",
           fontSize: "11px", fontWeight: 600,
           display: "inline-block", lineHeight: 1.5,
         },
@@ -231,12 +302,18 @@ export const iconDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "20",
     },
+    {
+      prop: "color",
+      type: "color",
+      label: "Cor",
+    },
   ],
   styles: ({ values }) => ({
     styled: {
       Root: {
         width: `${values.size}px`, height: `${values.size}px`,
         display: "inline-flex", alignItems: "center", justifyContent: "center",
+        color: values.color || "inherit",
         flexShrink: 0,
       },
     },
@@ -268,13 +345,17 @@ export const imageDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "48",
     },
-    { prop: "rounded", type: "boolean", label: "Arredondado", defaultValue: false },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+    },
   ],
   styles: ({ values }) => ({
     styled: {
       Root: {
         width: `${values.size}px`, height: `${values.size}px`,
-        borderRadius: values.rounded ? "9999px" : "4px",
+        borderRadius: values.borderRadius || "4px",
         flexShrink: 0,
       },
     },

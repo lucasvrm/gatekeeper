@@ -94,9 +94,15 @@ export interface EasyblocksTokens {
 
 /** Easyblocks custom type definition */
 export interface EasyblocksCustomType {
-  type: "inline" | "external";
+  type: "inline" | "external" | "token";
+  /** For inline types — single widget */
   widget?: { id: string; label: string };
+  /** For external types — multiple widgets */
   widgets?: Array<{ id: string; label: string }>;
+  /** For token types — which Config.tokens key to use */
+  token?: string;
+  /** Allow freeform custom values beyond the token list */
+  allowCustom?: boolean;
   defaultValue?: unknown;
   validate?: (value: unknown) => boolean;
 }

@@ -138,6 +138,16 @@ export class AgentPhaseConfigController {
           'codestral-latest',
         ],
       },
+      {
+        name: 'claude-code',
+        configured: process.env.CLAUDE_CODE_ENABLED === 'true',
+        models: [
+          'sonnet',
+          'opus',
+          'haiku',
+        ],
+        note: 'Uses Claude Code CLI (Max/Pro subscription). No API key required.',
+      },
     ]
 
     res.json(providers)

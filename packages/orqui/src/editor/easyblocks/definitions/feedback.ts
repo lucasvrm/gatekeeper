@@ -1,5 +1,8 @@
 // ============================================================================
 // Feedback Component Definitions — Alert, Progress, Spinner, Skeleton
+//
+// Phase 3: borderRadius tokens on Alert/Skeleton, color on Spinner/Progress,
+// space tokens for padding.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -27,6 +30,18 @@ export const alertDefinition: NoCodeComponentDefinition = {
     { prop: "title", type: "string", label: "Título", defaultValue: "Atenção" },
     { prop: "message", type: "string", label: "Mensagem", defaultValue: "Esta é uma mensagem de alerta." },
     { prop: "dismissible", type: "boolean", label: "Dispensável", defaultValue: false },
+    {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Estilo",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
   styles: ({ values }) => {
     const colorMap: Record<string, { bg: string; border: string; text: string }> = {
@@ -39,8 +54,8 @@ export const alertDefinition: NoCodeComponentDefinition = {
     return {
       styled: {
         Root: {
-          padding: "12px 16px",
-          borderRadius: "8px",
+          padding: values.padding || "12px 16px",
+          borderRadius: values.borderRadius || "8px",
           border: `1px solid ${c.border}`,
           background: c.bg,
           color: c.text,
@@ -91,6 +106,12 @@ export const progressDefinition: NoCodeComponentDefinition = {
       defaultValue: "default",
     },
     {
+      prop: "barColor",
+      type: "color",
+      label: "Cor da barra",
+      group: "Customização",
+    },
+    {
       prop: "size",
       type: "select",
       label: "Tamanho",
@@ -104,8 +125,14 @@ export const progressDefinition: NoCodeComponentDefinition = {
       defaultValue: "md",
     },
     { prop: "showLabel", type: "boolean", label: "Mostrar percentual", defaultValue: true },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
@@ -200,11 +227,18 @@ export const skeletonDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "16px",
     },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "block",
+        borderRadius: values.variant === "circular" ? "50%" : (values.borderRadius || "4px"),
       },
     },
   }),

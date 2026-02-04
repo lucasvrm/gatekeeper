@@ -38,7 +38,7 @@ export class AgentRunnerController {
 
     // Load phase configs from DB
     const dbConfigs = await prisma.agentPhaseConfig.findMany({
-      where: { isActive: true },
+      where: {},
       orderBy: { step: 'asc' },
     })
 
@@ -144,7 +144,7 @@ export class AgentRunnerController {
     const registry = getRegistry()
 
     const phases = await prisma.agentPhaseConfig.findMany({
-      where: { isActive: true },
+      where: {},
       orderBy: { step: 'asc' },
     })
 

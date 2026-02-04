@@ -1078,6 +1078,23 @@ export const api = {
       if (!response.ok) throw new Error(`Failed to fetch agent run: ${id}`)
       return response.json()
     },
+
+    resume: async (dbRunId: string, params?: {
+      provider?: string
+      model?: string
+      maxFixRetries?: number
+    }): Promise<{ runId: string; dbRunId: string; resumeFromStep: number; outputId: string }> => {
+      const response = await fetch(`${AGENT_BASE}/bridge/pipeline/resume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId: dbRunId, ...params }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => null)
+        throw new Error(err?.error || "Failed to resume pipeline")
+      }
+      return response.json()
+    },
   },
 
 }

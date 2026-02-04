@@ -1,5 +1,8 @@
 // ============================================================================
 // Extra Layout Component Definitions — Accordion, Sidebar
+//
+// Phase 3: space tokens for gaps/padding, color for backgrounds,
+// borderRadius for sidebar/accordion containers.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -35,12 +38,26 @@ export const accordionDefinition: NoCodeComponentDefinition = {
       },
       defaultValue: "default",
     },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap entre itens",
+      group: "Espaçamento",
+    },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
         flexDirection: "column" as const,
+        gap: values.gap || undefined,
+        borderRadius: values.borderRadius || undefined,
         width: "100%",
       },
     },
@@ -80,6 +97,18 @@ export const sidebarDefinition: NoCodeComponentDefinition = {
       defaultValue: "left",
     },
     { prop: "background", type: "color", label: "Background" },
+    {
+      prop: "padding",
+      type: "space",
+      label: "Padding",
+      group: "Espaçamento",
+    },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap entre itens",
+      group: "Espaçamento",
+    },
     { prop: "collapsible", type: "boolean", label: "Recolhível", defaultValue: false },
     {
       prop: "Children",
@@ -98,8 +127,8 @@ export const sidebarDefinition: NoCodeComponentDefinition = {
         background: values.background || "var(--orqui-surface-2, #1c1c21)",
         borderRight: values.position === "left" ? "1px solid var(--orqui-border, #2a2a33)" : "none",
         borderLeft: values.position === "right" ? "1px solid var(--orqui-border, #2a2a33)" : "none",
-        padding: "16px",
-        gap: "8px",
+        padding: values.padding || "16px",
+        gap: values.gap || "8px",
         flexShrink: 0,
       },
     },

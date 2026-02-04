@@ -89,6 +89,8 @@ export interface ChatParams {
   temperature?: number
   /** Enable prompt caching (Anthropic only — ignored by other providers) */
   enableCache?: boolean
+  /** Working directory for process-spawning providers (e.g., claude-code). Ignored by API providers. */
+  cwd?: string
 }
 
 export interface LLMProvider {
@@ -98,7 +100,7 @@ export interface LLMProvider {
 
 // ─── Provider Names & Config ─────────────────────────────────────────────────
 
-export type ProviderName = 'anthropic' | 'openai' | 'mistral'
+export type ProviderName = 'anthropic' | 'openai' | 'mistral' | 'claude-code'
 
 export interface PhaseConfig {
   step: number

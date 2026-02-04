@@ -136,24 +136,57 @@ export class AgentOrchestratorBridge {
     // Build system prompt from DB + session context
     const sessionContext = await this.fetchSessionContext(input.profileId)
     const basePrompt = await this.assembler.assembleForStep(1)
-    const systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
+    let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     // Run agent
     const toolExecutor = new AgentToolExecutor()
+    await toolExecutor.loadSafetyConfig()
     const runner = new AgentRunnerService(this.registry, toolExecutor)
+
+    let userMessage: string
+    let tools = [...READ_TOOLS, SAVE_ARTIFACT_TOOL]
+    let outputDir: string | undefined
+
+    if (this.isClaudeCode(phase)) {
+      // Claude Code: write files directly via its Write tool
+      outputDir = await this.resolveOutputDir(outputId, input.projectPath)
+      systemPrompt += `\n\nIMPORTANT: You must write each artifact as a file using your Write tool.\nWrite artifacts to this directory: ${outputDir}/\nRequired files: plan.json, contract.md, task.spec.md`
+      userMessage = this.buildPlanUserMessage(input.taskDescription, outputId, input.taskType)
+        .replace('Use the save_artifact tool for each one.', `Write each artifact file to: ${outputDir}/`)
+      tools = [...READ_TOOLS] // no save_artifact for claude-code
+    } else {
+      userMessage = this.buildPlanUserMessage(input.taskDescription, outputId, input.taskType)
+    }
 
     const result = await runner.run({
       phase,
       systemPrompt,
-      userMessage: this.buildPlanUserMessage(input.taskDescription, outputId, input.taskType),
-      tools: [...READ_TOOLS, SAVE_ARTIFACT_TOOL],
+      userMessage,
+      tools,
       projectRoot: input.projectPath,
       onEvent: emit,
     })
 
+    // Collect artifacts
+    let memoryArtifacts = toolExecutor.getArtifacts()
+
+    if (memoryArtifacts.size === 0 && this.isClaudeCode(phase) && outputDir) {
+      // Claude Code wrote files directly — read them from disk
+      console.log(`[Bridge] Claude Code: scanning ${outputDir} for artifacts...`)
+      memoryArtifacts = this.readArtifactsFromDir(outputDir)
+      console.log(`[Bridge] Found ${memoryArtifacts.size} file(s) on disk`)
+    }
+
+    if (memoryArtifacts.size === 0 && result.text) {
+      // Fallback: try parsing artifacts from text response
+      console.log('[Bridge] No artifacts found, trying text parse fallback...')
+      memoryArtifacts = this.parseArtifactsFromText(result.text)
+      console.log(`[Bridge] Parsed ${memoryArtifacts.size} artifact(s) from text`)
+    }
+
     // Persist artifacts to disk
     const artifacts = await this.persistArtifacts(
-      toolExecutor.getArtifacts(),
+      memoryArtifacts,
       outputId,
       input.projectPath,
     )
@@ -194,24 +227,57 @@ export class AgentOrchestratorBridge {
     const phase = await this.resolvePhaseConfig(2, input.provider, input.model)
     const sessionContext = await this.fetchSessionContext(input.profileId)
     const basePrompt = await this.assembler.assembleForStep(2)
-    const systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
+    let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     const toolExecutor = new AgentToolExecutor()
+    await toolExecutor.loadSafetyConfig()
     const runner = new AgentRunnerService(this.registry, toolExecutor)
 
-    const userMessage = this.buildSpecUserMessage(input.outputId, existingArtifacts)
+    let userMessage = this.buildSpecUserMessage(input.outputId, existingArtifacts)
+    let tools = [...READ_TOOLS, SAVE_ARTIFACT_TOOL]
+    let outputDir: string | undefined
+
+    if (this.isClaudeCode(phase)) {
+      outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
+      systemPrompt += `\n\nIMPORTANT: Write test file(s) using your Write tool to: ${outputDir}/`
+      userMessage = userMessage.replace(
+        'Use the save_artifact tool to save the test file.',
+        `Write the test file to: ${outputDir}/`,
+      )
+      tools = [...READ_TOOLS]
+    }
 
     const result = await runner.run({
       phase,
       systemPrompt,
       userMessage,
-      tools: [...READ_TOOLS, SAVE_ARTIFACT_TOOL],
+      tools,
       projectRoot: input.projectPath,
       onEvent: emit,
     })
 
+    let memoryArtifacts = toolExecutor.getArtifacts()
+
+    if (memoryArtifacts.size === 0 && this.isClaudeCode(phase) && outputDir) {
+      console.log(`[Bridge] Claude Code spec: scanning ${outputDir} for new artifacts...`)
+      memoryArtifacts = this.readArtifactsFromDir(outputDir)
+      // Filter to only new spec files (exclude plan artifacts)
+      const existingNames = new Set(Object.keys(existingArtifacts))
+      const specOnly = new Map<string, string>()
+      for (const [name, content] of memoryArtifacts) {
+        if (!existingNames.has(name)) specOnly.set(name, content)
+      }
+      if (specOnly.size > 0) memoryArtifacts = specOnly
+      console.log(`[Bridge] Found ${memoryArtifacts.size} new spec file(s)`)
+    }
+
+    if (memoryArtifacts.size === 0 && result.text) {
+      console.log('[Bridge] No spec artifacts found, trying text parse fallback...')
+      memoryArtifacts = this.parseArtifactsFromText(result.text)
+    }
+
     const artifacts = await this.persistArtifacts(
-      toolExecutor.getArtifacts(),
+      memoryArtifacts,
       input.outputId,
       input.projectPath,
     )
@@ -252,6 +318,7 @@ export class AgentOrchestratorBridge {
     const systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     const toolExecutor = new AgentToolExecutor()
+    await toolExecutor.loadSafetyConfig()
     const runner = new AgentRunnerService(this.registry, toolExecutor)
 
     const userMessage = this.buildExecuteUserMessage(input.outputId, existingArtifacts)
@@ -310,6 +377,7 @@ export class AgentOrchestratorBridge {
     const systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     const toolExecutor = new AgentToolExecutor()
+    await toolExecutor.loadSafetyConfig()
     const runner = new AgentRunnerService(this.registry, toolExecutor)
 
     const userMessage = this.buildFixUserMessage(
@@ -501,6 +569,72 @@ export class AgentOrchestratorBridge {
     return path.join(workspaceRoot, artifactsDirName, outputId)
   }
 
+
+  // ─── Claude Code Helpers ──────────────────────────────────────────
+
+  /**
+   * Whether the resolved phase config uses Claude Code CLI provider.
+   */
+  private isClaudeCode(phase: PhaseConfig): boolean {
+    return phase.provider === 'claude-code'
+  }
+
+  /**
+   * Pre-create and return the output directory for artifacts.
+   * Used when Claude Code needs to write files directly via its Write tool.
+   */
+  private async resolveOutputDir(outputId: string, projectPath: string): Promise<string> {
+    const workspaceRoot = await this.resolveWorkspaceRoot(projectPath)
+    const artifactsDirName = await this.resolveArtifactsDirName(workspaceRoot)
+    const outputDir = path.join(workspaceRoot, artifactsDirName, outputId)
+    fs.mkdirSync(outputDir, { recursive: true })
+    return outputDir
+  }
+
+  /**
+   * Read artifacts that Claude Code wrote to disk via its Write tool.
+   * Converts the disk files to the same format as toolExecutor.getArtifacts().
+   */
+  private readArtifactsFromDir(outputDir: string): Map<string, string> {
+    const result = new Map<string, string>()
+    try {
+      const readDir = (dir: string, prefix: string) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true })
+        for (const entry of entries) {
+          const name = prefix ? `${prefix}/${entry.name}` : entry.name
+          if (entry.isDirectory()) {
+            readDir(path.join(dir, entry.name), name)
+          } else {
+            result.set(name, fs.readFileSync(path.join(dir, entry.name), 'utf-8'))
+          }
+        }
+      }
+      readDir(outputDir, '')
+    } catch {
+      // Directory might not exist yet or be empty
+    }
+    return result
+  }
+
+  /**
+   * Parse artifacts from Claude Code's text response as a fallback.
+   * Looks for fenced code blocks with filenames.
+   * Pattern: ```filename or ```json // filename
+   */
+  private parseArtifactsFromText(text: string): Map<string, string> {
+    const result = new Map<string, string>()
+    // Match patterns like: ```plan.json or ```json plan.json or === plan.json ===
+    const regex = /(?:^|\n)(?:={3,}\s*([\w.-]+)\s*={3,}|`{3}(?:\w+\s+)?([\w.-]+)\s*\n)([\s\S]*?)(?:`{3}|={3,}|$)/g
+    let match
+    while ((match = regex.exec(text)) !== null) {
+      const filename = match[1] || match[2]
+      const content = match[3]?.trim()
+      if (filename && content) {
+        result.set(filename, content)
+      }
+    }
+    return result
+  }
   // ─── Phase Config ────────────────────────────────────────────────────
 
   /**

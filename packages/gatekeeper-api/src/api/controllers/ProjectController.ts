@@ -26,6 +26,8 @@ export class ProjectController {
             select: {
               id: true,
               name: true,
+              rootPath: true,
+              artifactsDir: true,
             },
           },
           _count: {
@@ -107,6 +109,8 @@ export class ProjectController {
             select: {
               id: true,
               name: true,
+              rootPath: true,
+              artifactsDir: true,
             },
           },
         },
@@ -148,6 +152,8 @@ export class ProjectController {
             select: {
               id: true,
               name: true,
+              rootPath: true,
+              artifactsDir: true,
             },
           },
         },

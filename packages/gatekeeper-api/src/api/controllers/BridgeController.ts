@@ -83,68 +83,31 @@ export class BridgeController {
    */
   async generatePlan(req: Request, res: Response): Promise<void> {
     const { taskDescription, projectPath, taskType, profileId, provider, model } = req.body
-    const runId = nanoid(12)
 
     if (!taskDescription || !projectPath) {
       res.status(400).json({ error: 'taskDescription and projectPath are required' })
       return
     }
 
-    // Return immediately — work happens in background
-    res.status(202).json({
-      runId,
-      status: 'started',
-      step: 1,
-      eventsUrl: `/api/agent/events/${runId}`,
-    })
-
-    // Background execution
     const bridge = getBridge()
-    const dbRunId = await persistence.createRun({
-      taskDescription,
-      projectPath,
-      provider: provider || 'anthropic',
-      model: model || 'claude-sonnet-4-5-20250929',
-    })
-    const stepId = await persistence.startStep({
-      runId: dbRunId,
-      step: 1,
-      provider: provider || 'anthropic',
-      model: model || 'claude-sonnet-4-5-20250929',
-    })
 
     try {
       const result = await bridge.generatePlan(
         { taskDescription, projectPath, taskType, profileId, provider, model },
-        { onEvent: makeEmitter(runId) },
       )
 
-      await persistence.completeStep({
-        stepId,
-        tokensUsed: result.tokensUsed,
-        iterations: result.agentResult.iterations,
-        model: result.agentResult.model,
-      })
-      await persistence.completeRun(dbRunId)
-
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:bridge_plan_done',
-        dbRunId,
+      res.status(201).json({
         outputId: result.outputId,
-        artifacts: result.artifacts.map((a) => a.filename),
+        artifacts: result.artifacts.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+        })),
         tokensUsed: result.tokensUsed,
-        iterations: result.agentResult.iterations,
-        provider: result.agentResult.provider,
-        model: result.agentResult.model,
       })
     } catch (err) {
-      console.error(`[Bridge] Plan ${runId} failed:`, err)
-      await persistence.failStep(stepId, (err as Error).message)
-      await persistence.failRun(dbRunId, (err as Error).message)
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:error',
-        error: (err as Error).message,
-      })
+      console.error('[Bridge] Plan failed:', err)
+      const errObj = err as Error
+      res.status(500).json({ error: errObj.message })
     }
   }
 
@@ -155,76 +118,32 @@ export class BridgeController {
    */
   async generateSpec(req: Request, res: Response): Promise<void> {
     const { outputId, projectPath, profileId, provider, model } = req.body
-    const runId = nanoid(12)
 
     if (!outputId || !projectPath) {
       res.status(400).json({ error: 'outputId and projectPath are required' })
       return
     }
 
-    res.status(202).json({
-      runId,
-      status: 'started',
-      step: 2,
-      outputId,
-      eventsUrl: `/api/agent/events/${runId}`,
-    })
-
     const bridge = getBridge()
-    const dbRunId = await persistence.createRun({
-      taskDescription: `spec for ${outputId}`,
-      projectPath,
-      provider: provider || 'anthropic',
-      model: model || 'claude-sonnet-4-5-20250929',
-    })
-    const stepId = await persistence.startStep({
-      runId: dbRunId,
-      step: 2,
-      provider: provider || 'anthropic',
-      model: model || 'claude-sonnet-4-5-20250929',
-    })
 
     try {
       const result = await bridge.generateSpec(
         { outputId, projectPath, profileId, provider, model },
-        { onEvent: makeEmitter(runId) },
       )
 
-      await persistence.completeStep({
-        stepId,
-        tokensUsed: result.tokensUsed,
-        iterations: result.agentResult.iterations,
-        model: result.agentResult.model,
-      })
-      await persistence.completeRun(dbRunId)
-
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:bridge_spec_done',
-        dbRunId,
+      res.status(201).json({
         outputId,
-        artifacts: result.artifacts.map((a) => a.filename),
+        artifacts: result.artifacts.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+        })),
         tokensUsed: result.tokensUsed,
-        iterations: result.agentResult.iterations,
-        provider: result.agentResult.provider,
-        model: result.agentResult.model,
       })
     } catch (err) {
-      console.error(`[Bridge] Spec ${runId} failed:`, err)
-      await persistence.failStep(stepId, (err as Error).message)
-      await persistence.failRun(dbRunId, (err as Error).message)
+      console.error('[Bridge] Spec failed:', err)
       const errObj = err as Error
-      if (err instanceof BridgeError) {
-        OrchestratorEventService.emitOrchestratorEvent(runId, {
-          type: 'agent:error',
-          error: errObj.message,
-          code: (err as BridgeError).code,
-        })
-      } else {
-        OrchestratorEventService.emitOrchestratorEvent(runId, {
-          type: 'agent:error',
-          error: errObj.message,
-        })
-      }
+      const status = (err as any)?.code === 'MISSING_ARTIFACTS' ? 400 : 500
+      res.status(status).json({ error: errObj.message })
     }
   }
 
@@ -238,7 +157,6 @@ export class BridgeController {
       outputId, projectPath, target, failedValidators,
       runId: gkRunId, rejectionReport, profileId, provider, model,
     } = req.body
-    const runId = nanoid(12)
 
     if (!outputId || !projectPath || !target || !failedValidators) {
       res.status(400).json({
@@ -247,27 +165,7 @@ export class BridgeController {
       return
     }
 
-    res.status(202).json({
-      runId,
-      status: 'started',
-      step: 3,
-      outputId,
-      eventsUrl: `/api/agent/events/${runId}`,
-    })
-
     const bridge = getBridge()
-    const dbRunId = await persistence.createRun({
-      taskDescription: `fix ${target} for ${outputId}`,
-      projectPath,
-      provider: provider || 'anthropic',
-      model: model || 'claude-sonnet-4-5-20250929',
-    })
-    const stepId = await persistence.startStep({
-      runId: dbRunId,
-      step: 3,
-      provider: provider || 'anthropic',
-      model: model || 'claude-sonnet-4-5-20250929',
-    })
 
     try {
       const result = await bridge.fixArtifacts(
@@ -275,33 +173,21 @@ export class BridgeController {
           outputId, projectPath, target, failedValidators,
           runId: gkRunId, rejectionReport, profileId, provider, model,
         },
-        { onEvent: makeEmitter(runId) },
       )
 
-      await persistence.completeStep({
-        stepId,
-        tokensUsed: result.tokensUsed,
-        iterations: result.agentResult.iterations,
-        model: result.agentResult.model,
-      })
-      await persistence.completeRun(dbRunId)
-
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:bridge_fix_done',
-        dbRunId,
+      res.json({
         outputId,
-        artifacts: result.artifacts.map((a) => a.filename),
+        artifacts: result.artifacts.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+        })),
         corrections: result.corrections,
         tokensUsed: result.tokensUsed,
       })
     } catch (err) {
-      console.error(`[Bridge] Fix ${runId} failed:`, err)
-      await persistence.failStep(stepId, (err as Error).message)
-      await persistence.failRun(dbRunId, (err as Error).message)
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:error',
-        error: (err as Error).message,
-      })
+      console.error('[Bridge] Fix failed:', err)
+      const errObj = err as Error
+      res.status(500).json({ error: errObj.message })
     }
   }
 
@@ -312,67 +198,32 @@ export class BridgeController {
    */
   async execute(req: Request, res: Response): Promise<void> {
     const { outputId, projectPath, provider, model } = req.body
-    const runId = nanoid(12)
 
     if (!outputId || !projectPath) {
       res.status(400).json({ error: 'outputId and projectPath are required' })
       return
     }
 
-    res.status(202).json({
-      runId,
-      status: 'started',
-      step: 4,
-      outputId,
-      eventsUrl: `/api/agent/events/${runId}`,
-    })
-
     const bridge = getBridge()
-    const dbRunId = await persistence.createRun({
-      taskDescription: `execute ${outputId}`,
-      projectPath,
-      provider: provider || 'anthropic',
-      model: model || 'claude-sonnet-4-5-20250929',
-    })
-    const stepId = await persistence.startStep({
-      runId: dbRunId,
-      step: 4,
-      provider: provider || 'anthropic',
-      model: model || 'claude-sonnet-4-5-20250929',
-    })
 
     try {
       const result = await bridge.execute(
         { outputId, projectPath, provider, model },
-        { onEvent: makeEmitter(runId) },
       )
 
-      await persistence.completeStep({
-        stepId,
-        tokensUsed: result.tokensUsed,
-        iterations: result.agentResult.iterations,
-        model: result.agentResult.model,
-      })
-      await persistence.completeRun(dbRunId)
-
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:bridge_execute_done',
-        dbRunId,
+      res.json({
         outputId,
-        artifacts: result.artifacts.map((a) => a.filename),
+        mode: 'agent',
+        artifacts: result.artifacts.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+        })),
         tokensUsed: result.tokensUsed,
-        iterations: result.agentResult.iterations,
-        provider: result.agentResult.provider,
-        model: result.agentResult.model,
       })
     } catch (err) {
-      console.error(`[Bridge] Execute ${runId} failed:`, err)
-      await persistence.failStep(stepId, (err as Error).message)
-      await persistence.failRun(dbRunId, (err as Error).message)
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:error',
-        error: (err as Error).message,
-      })
+      console.error('[Bridge] Execute failed:', err)
+      const errObj = err as Error
+      res.status(500).json({ error: errObj.message })
     }
   }
 
@@ -415,6 +266,92 @@ export class BridgeController {
     })
   }
 
+
+  /**
+   * POST /agent/bridge/pipeline/resume
+   *
+   * Resume a previously failed pipeline run from its last checkpoint.
+   * Body: { runId: string (DB run ID), provider?, model?, maxFixRetries? }
+   *
+   * Finds the last completed step and restarts from the next one,
+   * reusing existing plan/spec artifacts.
+   */
+  async resumePipeline(req: Request, res: Response): Promise<void> {
+    const {
+      runId: dbRunId, projectId, provider, model, maxFixRetries = 3,
+    } = req.body
+
+    if (!dbRunId) {
+      res.status(400).json({ error: 'runId is required (DB AgentRun ID)' })
+      return
+    }
+
+    // Find the run and its checkpoint
+    const resumable = await persistence.findResumableRun({ projectPath: '', outputId: undefined })
+    
+    // Direct DB lookup for the specific run
+    const run = await prisma.agentRun.findUnique({
+      where: { id: dbRunId },
+      select: {
+        id: true,
+        outputId: true,
+        lastCompletedStep: true,
+        taskDescription: true,
+        projectPath: true,
+        status: true,
+      },
+    })
+
+    if (!run) {
+      res.status(404).json({ error: `Run not found: ${dbRunId}` })
+      return
+    }
+
+    if (run.status !== 'failed') {
+      res.status(400).json({
+        error: `Run ${dbRunId} is not in a resumable state (status: ${run.status}). Only failed runs can be resumed.`,
+      })
+      return
+    }
+
+    if (run.lastCompletedStep < 1 || !run.outputId) {
+      res.status(400).json({
+        error: `Run ${dbRunId} has no checkpoint to resume from (lastCompletedStep: ${run.lastCompletedStep}). Start a new pipeline instead.`,
+      })
+      return
+    }
+
+    const sseRunId = nanoid(12)
+
+    res.status(202).json({
+      runId: sseRunId,
+      dbRunId: run.id,
+      status: 'resuming',
+      resumeFromStep: run.lastCompletedStep,
+      outputId: run.outputId,
+      eventsUrl: `/api/agent/events/${sseRunId}`,
+    })
+
+    // Background execution with resume
+    this.executeFullPipeline(sseRunId, {
+      taskDescription: run.taskDescription,
+      projectPath: run.projectPath,
+      projectId,
+      provider,
+      model,
+      maxFixRetries,
+      resumeFromStep: run.lastCompletedStep,
+      existingOutputId: run.outputId,
+      existingDbRunId: run.id,
+    }).catch((err) => {
+      console.error(`[Bridge] Pipeline resume ${sseRunId} failed:`, err)
+      OrchestratorEventService.emitOrchestratorEvent(sseRunId, {
+        type: 'agent:error',
+        error: (err as Error).message,
+      })
+    })
+  }
+
   // ─── Full Pipeline Background Execution ──────────────────────────────
 
   private async executeFullPipeline(
@@ -428,56 +365,94 @@ export class BridgeController {
       provider?: string
       model?: string
       maxFixRetries: number
+      /** For checkpoint/resume: skip steps up to this number */
+      resumeFromStep?: number
+      /** For checkpoint/resume: reuse existing outputId */
+      existingOutputId?: string
+      /** For checkpoint/resume: reuse existing DB run ID */
+      existingDbRunId?: string
     },
   ): Promise<void> {
     const bridge = getBridge()
     const validationBridge = getValidationBridge()
     const emit = makeEmitter(runId)
-    const { taskDescription, projectPath, taskType, profileId, projectId, provider, model, maxFixRetries } = params
+    const {
+      taskDescription, projectPath, taskType, profileId, projectId,
+      provider, model, maxFixRetries,
+      resumeFromStep = 0, existingOutputId, existingDbRunId,
+    } = params
 
-    const dbRunId = await persistence.createRun({
+    const dbRunId = existingDbRunId || await persistence.createRun({
       taskDescription,
       projectPath,
       provider: provider || 'anthropic',
       model: model || 'claude-sonnet-4-5-20250929',
+      outputId: existingOutputId,
     })
+
+    // If resuming, update run status back to running
+    if (existingDbRunId) {
+      await persistence.resumeRun(dbRunId)
+    }
+
+    let outputId = existingOutputId || ''
 
     try {
       // ── Step 1: Plan ──────────────────────────────────────────────────
-      emit({ type: 'agent:bridge_start', step: 1 } as AgentEvent)
-      const step1Id = await persistence.startStep({ runId: dbRunId, step: 1, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
+      if (resumeFromStep < 1) {
+        emit({ type: 'agent:bridge_start', step: 1 } as AgentEvent)
+        const step1Id = await persistence.startStep({ runId: dbRunId, step: 1, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
 
-      const planResult = await bridge.generatePlan(
-        { taskDescription, projectPath, taskType, profileId, provider, model },
-        { onEvent: emit },
-      )
+        const planResult = await bridge.generatePlan(
+          { taskDescription, projectPath, taskType, profileId, provider, model },
+          { onEvent: emit },
+        )
 
-      await persistence.completeStep({ stepId: step1Id, tokensUsed: planResult.tokensUsed, iterations: planResult.agentResult.iterations, model: planResult.agentResult.model })
+        await persistence.completeStep({ stepId: step1Id, tokensUsed: planResult.tokensUsed, iterations: planResult.agentResult.iterations, model: planResult.agentResult.model })
+        await persistence.updateCheckpoint(dbRunId, 1, planResult.outputId)
 
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:bridge_plan_done',
-        outputId: planResult.outputId,
-        artifacts: planResult.artifacts.map((a) => a.filename),
-      })
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:bridge_plan_done',
+          outputId: planResult.outputId,
+          artifacts: planResult.artifacts.map((a) => a.filename),
+        })
 
-      const outputId = planResult.outputId
+        outputId = planResult.outputId
+      } else {
+        console.log(`[Bridge] Resuming: skipping step 1 (plan) — already completed`)
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:step_skipped',
+          step: 1,
+          reason: 'checkpoint_resume',
+        })
+      }
 
       // ── Step 2: Spec ──────────────────────────────────────────────────
-      emit({ type: 'agent:bridge_start', step: 2 } as AgentEvent)
-      const step2Id = await persistence.startStep({ runId: dbRunId, step: 2, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
+      if (resumeFromStep < 2) {
+        emit({ type: 'agent:bridge_start', step: 2 } as AgentEvent)
+        const step2Id = await persistence.startStep({ runId: dbRunId, step: 2, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
 
-      const specResult = await bridge.generateSpec(
-        { outputId, projectPath, profileId, provider, model },
-        { onEvent: emit },
-      )
+        const specResult = await bridge.generateSpec(
+          { outputId, projectPath, profileId, provider, model },
+          { onEvent: emit },
+        )
 
-      await persistence.completeStep({ stepId: step2Id, tokensUsed: specResult.tokensUsed, iterations: specResult.agentResult.iterations, model: specResult.agentResult.model })
+        await persistence.completeStep({ stepId: step2Id, tokensUsed: specResult.tokensUsed, iterations: specResult.agentResult.iterations, model: specResult.agentResult.model })
+        await persistence.updateCheckpoint(dbRunId, 2)
 
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:bridge_spec_done',
-        outputId,
-        artifacts: specResult.artifacts.map((a) => a.filename),
-      })
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:bridge_spec_done',
+          outputId,
+          artifacts: specResult.artifacts.map((a) => a.filename),
+        })
+      } else {
+        console.log(`[Bridge] Resuming: skipping step 2 (spec) — already completed`)
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:step_skipped',
+          step: 2,
+          reason: 'checkpoint_resume',
+        })
+      }
 
       // ── Step 4 + Gatekeeper Validation Fix Loop ───────────────────────
       //
@@ -503,6 +478,7 @@ export class BridgeController {
         await persistence.completeStep({ stepId: step4Id, tokensUsed: executeResult.tokensUsed, iterations: executeResult.agentResult.iterations, model: executeResult.agentResult.model })
 
         lastExecuteResult = executeResult
+        await persistence.updateCheckpoint(dbRunId, 4)
 
         // ── Gatekeeper Validation (real gates 2-3) ──────────────────────
         OrchestratorEventService.emitOrchestratorEvent(runId, {

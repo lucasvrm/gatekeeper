@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -213,6 +214,15 @@ export function AgentRunDetailsPage() {
 
   const { run, steps } = stats
 
+  const handleResume = async () => {
+    try {
+      const result = await api.agentRuns.resume(run.id)
+      toast.success(`Pipeline retomado do step ${result.resumeFromStep + 1}`)
+    } catch (err) {
+      toast.error((err as Error).message)
+    }
+  }
+
   return (
     <>
     {headerPortals}
@@ -229,6 +239,11 @@ export function AgentRunDetailsPage() {
               {run.id}
             </h1>
             {statusBadge(run.status)}
+            {run.status === "failed" && (
+              <Button variant="outline" size="sm" onClick={handleResume}>
+                ▶ Retomar
+              </Button>
+            )}
           </div>
         </div>
         <div style={{ textAlign: "right", fontSize: 13, color: "var(--orqui-colors-text-muted)" }}>

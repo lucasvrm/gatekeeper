@@ -205,6 +205,14 @@ router.post('/bridge/pipeline', async (req, res, next) => {
   }
 })
 
+router.post('/bridge/pipeline/resume', async (req, res, next) => {
+  try {
+    await bridgeCtrl.resumePipeline(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
 router.get('/bridge/artifacts/:outputId', async (req, res, next) => {
   try {
     await bridgeCtrl.listArtifacts(req, res)

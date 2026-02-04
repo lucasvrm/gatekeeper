@@ -1,5 +1,7 @@
 // ============================================================================
 // Form Component Definitions — Input, Textarea, Checkbox, Switch, Radio
+//
+// Phase 3: borderRadius tokens on Input/Textarea, space for gaps.
 // ============================================================================
 
 import type { NoCodeComponentDefinition } from "../types";
@@ -30,8 +32,14 @@ export const inputDefinition: NoCodeComponentDefinition = {
     },
     { prop: "required", type: "boolean", label: "Obrigatório", defaultValue: false },
     { prop: "disabled", type: "boolean", label: "Desabilitado", defaultValue: false },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
@@ -69,8 +77,14 @@ export const textareaDefinition: NoCodeComponentDefinition = {
     },
     { prop: "required", type: "boolean", label: "Obrigatório", defaultValue: false },
     { prop: "disabled", type: "boolean", label: "Desabilitado", defaultValue: false },
+    {
+      prop: "borderRadius",
+      type: "orqui-border-radius",
+      label: "Border radius",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
@@ -91,6 +105,12 @@ export const checkboxDefinition: NoCodeComponentDefinition = {
     { prop: "label", type: "string", label: "Label", defaultValue: "Aceito os termos" },
     { prop: "checked", type: "boolean", label: "Marcado", defaultValue: false },
     { prop: "disabled", type: "boolean", label: "Desabilitado", defaultValue: false },
+    {
+      prop: "accentColor",
+      type: "color",
+      label: "Cor de destaque",
+      group: "Estilo",
+    },
   ],
   styles: () => ({
     styled: {
@@ -113,6 +133,12 @@ export const switchDefinition: NoCodeComponentDefinition = {
     { prop: "label", type: "string", label: "Label", defaultValue: "Ativo" },
     { prop: "checked", type: "boolean", label: "Ligado", defaultValue: false },
     { prop: "disabled", type: "boolean", label: "Desabilitado", defaultValue: false },
+    {
+      prop: "accentColor",
+      type: "color",
+      label: "Cor de destaque",
+      group: "Estilo",
+    },
   ],
   styles: () => ({
     styled: {
@@ -144,13 +170,25 @@ export const radioDefinition: NoCodeComponentDefinition = {
       ]),
     },
     { prop: "disabled", type: "boolean", label: "Desabilitado", defaultValue: false },
+    {
+      prop: "accentColor",
+      type: "color",
+      label: "Cor de destaque",
+      group: "Estilo",
+    },
+    {
+      prop: "gap",
+      type: "space",
+      label: "Gap entre opções",
+      group: "Estilo",
+    },
   ],
-  styles: () => ({
+  styles: ({ values }) => ({
     styled: {
       Root: {
         display: "flex",
         flexDirection: "column",
-        gap: "8px",
+        gap: values.gap || "8px",
       },
     },
   }),

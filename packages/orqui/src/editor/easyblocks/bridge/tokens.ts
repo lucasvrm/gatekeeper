@@ -89,8 +89,7 @@ export function orquiTokensToEasyblocks(orquiTokens: Record<string, any>): Easyb
     colors: convertTokenGroup(orquiTokens.colors, "accent"),
     space: allSpace,
     fonts: convertFontTokens(orquiTokens.fontFamilies),
-    // borderRadius is NOT a built-in Easyblocks token type.
-    // It requires a registered custom type. Disabled until Phase 5.
+    borderRadius: convertTokenGroup(orquiTokens.borderRadius, "md"),
   };
 }
 
@@ -207,6 +206,14 @@ export function generateTokenCSSVariables(orquiTokens: Record<string, any>): str
       const t = token as { family: string; fallbacks?: string[] };
       const fallbacks = t.fallbacks?.join(", ") || "sans-serif";
       lines.push(`  --orqui-font-${id}: '${t.family}', ${fallbacks};`);
+    }
+  }
+
+  // Border radius
+  if (orquiTokens.borderRadius) {
+    for (const [id, token] of Object.entries(orquiTokens.borderRadius)) {
+      const t = token as { value: number; unit?: string };
+      lines.push(`  --orqui-radius-${id}: ${t.value}${t.unit || "px"};`);
     }
   }
 

@@ -24,6 +24,54 @@ import { resolve, dirname, relative, sep, extname } from 'node:path'
 import { execSync } from 'node:child_process'
 import type { ToolDefinition, ToolExecutionResult } from '../types/agent.types.js'
 
+// ─── Bash Safety Config (DB-configurable) ────────────────────────────────
+
+export interface BashSafetyConfig {
+  /** Extra allowed prefixes (added to hardcoded defaults) */
+  extraAllowedPrefixes: string[]
+  /** Extra blocked patterns (regex strings, added to defaults) */
+  extraBlockedPatterns: string[]
+  /** Commands blocked by exact match */
+  exactBlockedCommands: string[]
+}
+
+const DEFAULT_BASH_SAFETY: BashSafetyConfig = {
+  extraAllowedPrefixes: [],
+  extraBlockedPatterns: [],
+  exactBlockedCommands: [],
+}
+
+/**
+ * Load bash safety config from DB (ValidationConfig table).
+ * Reads keys: BASH_EXTRA_ALLOWED, BASH_EXTRA_BLOCKED, BASH_EXACT_BLOCKED
+ * Values are comma-separated strings.
+ */
+export async function loadBashSafetyConfig(): Promise<BashSafetyConfig> {
+  try {
+    const { prisma } = await import('../db/client.js')
+    const configs = await prisma.validationConfig.findMany({
+      where: {
+        key: {
+          in: ['BASH_EXTRA_ALLOWED', 'BASH_EXTRA_BLOCKED', 'BASH_EXACT_BLOCKED'],
+        },
+      },
+    })
+
+    const map = new Map(configs.map(c => [c.key, c.value]))
+
+    return {
+      extraAllowedPrefixes: (map.get('BASH_EXTRA_ALLOWED') || '')
+        .split(',').map(s => s.trim()).filter(Boolean),
+      extraBlockedPatterns: (map.get('BASH_EXTRA_BLOCKED') || '')
+        .split(',').map(s => s.trim()).filter(Boolean),
+      exactBlockedCommands: (map.get('BASH_EXACT_BLOCKED') || '')
+        .split(',').map(s => s.trim()).filter(Boolean),
+    }
+  } catch {
+    return DEFAULT_BASH_SAFETY
+  }
+}
+
 // ─── Bash Allowlist ────────────────────────────────────────────────────────
 
 const BASH_ALLOWED_PREFIXES = [
@@ -250,6 +298,23 @@ export const SAVE_ARTIFACT_TOOL: ToolDefinition = {
 
 export class AgentToolExecutor {
   private artifacts = new Map<string, string>()
+  private bashAuditLog: Array<{ command: string; allowed: boolean; reason?: string; timestamp: Date }> = []
+  private bashSafetyConfig: BashSafetyConfig = DEFAULT_BASH_SAFETY
+
+  /**
+   * Load DB-configurable bash safety settings.
+   * Call once before running the agent loop.
+   */
+  async loadSafetyConfig(): Promise<void> {
+    this.bashSafetyConfig = await loadBashSafetyConfig()
+  }
+
+  /**
+   * Get the bash audit log (for observability/debugging).
+   */
+  getBashAuditLog(): Array<{ command: string; allowed: boolean; reason?: string; timestamp: Date }> {
+    return [...this.bashAuditLog]
+  }
 
   /**
    * Get all saved artifacts from save_artifact tool calls.
@@ -532,17 +597,29 @@ export class AgentToolExecutor {
     projectRoot: string,
   ): ToolExecutionResult {
     const trimmed = command.trim()
+    const cfg = this.bashSafetyConfig
 
-    // Step 1: Allowlist check
-    const isAllowed = BASH_ALLOWED_PREFIXES.some((prefix) =>
+    // Step 0: Exact block check (DB-configurable)
+    if (cfg.exactBlockedCommands.includes(trimmed)) {
+      this.auditBash(trimmed, false, 'exact-blocked (DB)')
+      return {
+        content: `Command blocked by policy: "${trimmed}"`,
+        isError: true,
+      }
+    }
+
+    // Step 1: Allowlist check (hardcoded + DB extras)
+    const allAllowed = [...BASH_ALLOWED_PREFIXES, ...cfg.extraAllowedPrefixes]
+    const isAllowed = allAllowed.some((prefix) =>
       trimmed.startsWith(prefix),
     )
 
     if (!isAllowed) {
+      this.auditBash(trimmed, false, 'not-in-allowlist')
       return {
         content:
           `Command not allowed: "${trimmed}". ` +
-          `Allowed prefixes: ${BASH_ALLOWED_PREFIXES.join(', ')}`,
+          `Allowed prefixes: ${allAllowed.join(', ')}`,
         isError: true,
       }
     }
@@ -550,6 +627,7 @@ export class AgentToolExecutor {
     // Step 2: Blocklist check — prevent command composition
     for (const pattern of BASH_BLOCKED_PATTERNS) {
       if (pattern.test(trimmed)) {
+        this.auditBash(trimmed, false, `blocked-pattern: ${pattern}`)
         return {
           content:
             `Command blocked: "${trimmed}" contains a disallowed pattern (${pattern}). ` +
@@ -559,9 +637,26 @@ export class AgentToolExecutor {
       }
     }
 
-    // Step 3: Injection pattern check
+    // Step 3: DB extra blocked patterns
+    for (const patStr of cfg.extraBlockedPatterns) {
+      try {
+        const pat = new RegExp(patStr)
+        if (pat.test(trimmed)) {
+          this.auditBash(trimmed, false, `db-blocked-pattern: ${patStr}`)
+          return {
+            content: `Command blocked by policy pattern: "${trimmed}"`,
+            isError: true,
+          }
+        }
+      } catch {
+        // Invalid regex in DB — skip
+      }
+    }
+
+    // Step 4: Injection pattern check
     for (const pattern of BASH_INJECTION_PATTERNS) {
       if (pattern.test(trimmed)) {
+        this.auditBash(trimmed, false, `injection-pattern: ${pattern}`)
         return {
           content:
             `Command blocked: "${trimmed}" matches a dangerous pattern (${pattern}). ` +
@@ -570,6 +665,9 @@ export class AgentToolExecutor {
         }
       }
     }
+
+    // All checks passed — execute
+    this.auditBash(trimmed, true)
 
     try {
       const result = execSync(command, {
@@ -589,6 +687,13 @@ export class AgentToolExecutor {
         content: output || `Command failed: ${execError.message}`,
         isError: true,
       }
+    }
+  }
+
+  private auditBash(command: string, allowed: boolean, reason?: string): void {
+    this.bashAuditLog.push({ command, allowed, reason, timestamp: new Date() })
+    if (!allowed) {
+      console.warn(`[BashSafety] BLOCKED: "${command}" — ${reason}`)
     }
   }
 

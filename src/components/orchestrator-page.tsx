@@ -164,6 +164,42 @@ export function OrchestratorPage() {
   const [taskType, setTaskType] = useState<string | undefined>(undefined)
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [provider, setProvider] = useState<string>("anthropic")
+  const [model, setModel] = useState<string>("claude-sonnet-4-5-20250929")
+
+  const PROVIDER_MODELS: Record<string, { label: string; models: { value: string; label: string }[] }> = {
+    "anthropic": {
+      label: "Anthropic (API Key)",
+      models: [
+        { value: "claude-sonnet-4-5-20250929", label: "Sonnet 4.5" },
+        { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5" },
+        { value: "claude-opus-4-5-20251101", label: "Opus 4.5" },
+      ],
+    },
+    "openai": {
+      label: "OpenAI (API Key)",
+      models: [
+        { value: "gpt-4.1", label: "GPT-4.1" },
+        { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+        { value: "o3-mini", label: "o3-mini" },
+      ],
+    },
+    "mistral": {
+      label: "Mistral (API Key)",
+      models: [
+        { value: "mistral-large-latest", label: "Mistral Large" },
+        { value: "codestral-latest", label: "Codestral" },
+      ],
+    },
+    "claude-code": {
+      label: "Claude Code (Max/Pro u2014 sem API Key)",
+      models: [
+        { value: "sonnet", label: "Sonnet" },
+        { value: "opus", label: "Opus" },
+        { value: "haiku", label: "Haiku" },
+      ],
+    },
+  }
 
   // Step 1 result
   const [outputId, setOutputId] = useState<string | undefined>()
@@ -210,7 +246,7 @@ export function OrchestratorPage() {
   const markComplete = (s: number) => setCompletedSteps((prev) => new Set([...prev, s]))
 
   const apiPost = async (endpoint: string, body: Record<string, unknown>) => {
-    const res = await fetch(`${API_BASE}/orchestrator/${endpoint}`, {
+    const res = await fetch(`${API_BASE}/agent/bridge/${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -222,6 +258,11 @@ export function OrchestratorPage() {
     return res.json()
   }
 
+  const getProjectPath = () => {
+    const project = projects.find((p) => p.id === selectedProjectId)
+    return project?.workspace?.rootPath || ""
+  }
+
   // ── Step 1: Generate Plan ──────────────────────────────────────────────
   const handleGeneratePlan = async () => {
     setError(null)
@@ -229,7 +270,7 @@ export function OrchestratorPage() {
     addLog("info", "Gerando plano...")
 
     try {
-      const result: StepResult = await apiPost("plan", { taskDescription, taskType })
+      const result: StepResult = await apiPost("plan", { taskDescription, taskType, provider, model, projectPath: getProjectPath() })
 
       setOutputId(result.outputId)
       setPlanArtifacts(result.artifacts || [])
@@ -256,7 +297,7 @@ export function OrchestratorPage() {
     addLog("info", "Gerando testes...")
 
     try {
-      const result: StepResult = await apiPost("spec", { outputId })
+      const result: StepResult = await apiPost("spec", { outputId, provider, model, projectPath: getProjectPath() })
 
       setSpecArtifacts(result.artifacts || [])
       markComplete(2)
@@ -338,6 +379,9 @@ export function OrchestratorPage() {
         target,
         runId,
         failedValidators: ["manual-fix"],
+        provider,
+        model,
+        projectPath: getProjectPath(),
       })
 
       if (target === "plan") {
@@ -368,7 +412,7 @@ export function OrchestratorPage() {
     const projectPath = project?.workspace?.rootPath || ""
 
     try {
-      const result = await apiPost("execute", { outputId, projectPath })
+      const result = await apiPost("execute", { outputId, projectPath, provider, model })
       setExecuteResult(result)
       markComplete(3)
       markComplete(4)
@@ -478,6 +522,36 @@ export function OrchestratorPage() {
                       <SelectItem value="refactor">Refactor</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Provider</Label>
+                    <Select value={provider} onValueChange={(v) => { setProvider(v); setModel(PROVIDER_MODELS[v]?.models[0]?.value || "") }}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(PROVIDER_MODELS).map(([key, cfg]) => (
+                          <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Modelo</Label>
+                    <Select value={model} onValueChange={setModel}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(PROVIDER_MODELS[provider]?.models || []).map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">

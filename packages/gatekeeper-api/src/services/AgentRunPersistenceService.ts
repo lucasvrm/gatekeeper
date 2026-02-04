@@ -52,6 +52,7 @@ export class AgentRunPersistenceService {
     projectPath: string
     provider: string
     model: string
+    outputId?: string
   }): Promise<string> {
     const run = await this.prisma.agentRun.create({
       data: {
@@ -59,10 +60,26 @@ export class AgentRunPersistenceService {
         projectPath: params.projectPath,
         provider: params.provider,
         model: params.model,
+        outputId: params.outputId || null,
         status: 'running',
       },
     })
     return run.id
+  }
+
+
+  /**
+   * Resume a previously failed run (reset status to running).
+   */
+  async resumeRun(runId: string): Promise<void> {
+    await this.prisma.agentRun.update({
+      where: { id: runId },
+      data: {
+        status: 'running',
+        error: null,
+        completedAt: null,
+      },
+    })
   }
 
   /**
@@ -270,6 +287,70 @@ export class AgentRunPersistenceService {
         estimatedCostUsd: true,
         startedAt: true,
         completedAt: true,
+      },
+    })
+  }
+
+
+  /**
+   * Update the last completed step (checkpoint for resume).
+   */
+  async updateCheckpoint(runId: string, step: number, outputId?: string): Promise<void> {
+    const data: Record<string, unknown> = { lastCompletedStep: step }
+    if (outputId) data.outputId = outputId
+    await this.prisma.agentRun.update({
+      where: { id: runId },
+      data,
+    })
+  }
+
+  /**
+   * Find a resumable run for the given task+project.
+   * Returns the most recent failed run that has completed at least step 1.
+   */
+  async findResumableRun(params: {
+    taskDescription?: string
+    projectPath: string
+    outputId?: string
+  }): Promise<{
+    id: string
+    outputId: string | null
+    lastCompletedStep: number
+    taskDescription: string
+  } | null> {
+    // If outputId provided, find run by outputId
+    if (params.outputId) {
+      const run = await this.prisma.agentRun.findFirst({
+        where: {
+          outputId: params.outputId,
+          status: 'failed',
+          lastCompletedStep: { gte: 1 },
+        },
+        orderBy: { startedAt: 'desc' },
+        select: {
+          id: true,
+          outputId: true,
+          lastCompletedStep: true,
+          taskDescription: true,
+        },
+      })
+      return run
+    }
+
+    // Otherwise find by projectPath + task
+    return this.prisma.agentRun.findFirst({
+      where: {
+        projectPath: params.projectPath,
+        status: 'failed',
+        lastCompletedStep: { gte: 1 },
+        ...(params.taskDescription ? { taskDescription: params.taskDescription } : {}),
+      },
+      orderBy: { startedAt: 'desc' },
+      select: {
+        id: true,
+        outputId: true,
+        lastCompletedStep: true,
+        taskDescription: true,
       },
     })
   }

@@ -1,38 +1,13 @@
 -- =============================================================================
--- Migration: Unify Prompt Model + Token Budget + Agent Run Persistence
+-- Migration: Agent Run Persistence Tables
 -- =============================================================================
+-- NOTE: PromptInstruction unification (step, kind, order columns) and
+-- OrchestratorContent drop were already applied in migration
+-- 20260203235043_agent_phase_config_and_prompt_fields.
+-- This migration only adds the AgentRun tracking tables.
 
--- 1. Add step, kind, order fields to PromptInstruction
-ALTER TABLE "PromptInstruction" ADD COLUMN "step" INTEGER;
-ALTER TABLE "PromptInstruction" ADD COLUMN "kind" TEXT;
-ALTER TABLE "PromptInstruction" ADD COLUMN "order" INTEGER NOT NULL DEFAULT 0;
-
--- 2. Migrate existing OrchestratorContent data into PromptInstruction
-INSERT INTO "PromptInstruction" ("id", "name", "content", "step", "kind", "order", "isActive", "createdAt", "updatedAt")
-SELECT
-  "id",
-  "name",
-  "content",
-  "step",
-  "kind",
-  "order",
-  "isActive",
-  "createdAt",
-  "updatedAt"
-FROM "OrchestratorContent"
-WHERE "name" NOT IN (SELECT "name" FROM "PromptInstruction");
-
--- 3. Drop OrchestratorContent table
-DROP TABLE IF EXISTS "OrchestratorContent";
-
--- 4. Create index for pipeline prompt queries
-CREATE INDEX "PromptInstruction_step_kind_isActive_idx" ON "PromptInstruction"("step", "kind", "isActive");
-
--- 5. Add maxInputTokensBudget to AgentPhaseConfig
-ALTER TABLE "AgentPhaseConfig" ADD COLUMN "maxInputTokensBudget" INTEGER NOT NULL DEFAULT 0;
-
--- 6. Create AgentRun table
-CREATE TABLE "AgentRun" (
+-- 1. Create AgentRun table
+CREATE TABLE IF NOT EXISTS "AgentRun" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "taskDescription" TEXT NOT NULL,
     "projectPath" TEXT NOT NULL,
@@ -49,11 +24,11 @@ CREATE TABLE "AgentRun" (
     "completedAt" DATETIME
 );
 
-CREATE INDEX "AgentRun_status_idx" ON "AgentRun"("status");
-CREATE INDEX "AgentRun_startedAt_idx" ON "AgentRun"("startedAt");
+CREATE INDEX IF NOT EXISTS "AgentRun_status_idx" ON "AgentRun"("status");
+CREATE INDEX IF NOT EXISTS "AgentRun_startedAt_idx" ON "AgentRun"("startedAt");
 
--- 7. Create AgentRunStep table
-CREATE TABLE "AgentRunStep" (
+-- 2. Create AgentRunStep table
+CREATE TABLE IF NOT EXISTS "AgentRunStep" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "runId" TEXT NOT NULL,
     "step" INTEGER NOT NULL,
@@ -72,5 +47,5 @@ CREATE TABLE "AgentRunStep" (
     CONSTRAINT "AgentRunStep_runId_fkey" FOREIGN KEY ("runId") REFERENCES "AgentRun" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE INDEX "AgentRunStep_runId_idx" ON "AgentRunStep"("runId");
-CREATE INDEX "AgentRunStep_runId_step_idx" ON "AgentRunStep"("runId", "step");
+CREATE INDEX IF NOT EXISTS "AgentRunStep_runId_idx" ON "AgentRunStep"("runId");
+CREATE INDEX IF NOT EXISTS "AgentRunStep_runId_step_idx" ON "AgentRunStep"("runId", "step");
