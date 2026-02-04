@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import type { RunWithResults, ValidatorContext, ValidatorResult } from "@/lib/types"
+import type { RunWithResults, ValidatorContext } from "@/lib/types"
 import { api } from "@/lib/api"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"

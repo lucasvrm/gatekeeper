@@ -28,7 +28,7 @@ export interface ExportOptions {
 export function exportContract(contract: LayoutContractV2, options: ExportOptions = {}): string {
   const { includeTokens = true, includeTextStyles = true, pages, minify = false } = options;
 
-  let exported: any = { ...contract };
+  const exported: any = { ...contract };
 
   // Update metadata
   exported.$orqui = {

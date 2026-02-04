@@ -26,7 +26,7 @@ async function getOrchestrator(): Promise<OrchestratorInstance> {
     const mod = await import('gatekeeper-orchestrator')
     _orchestrator = new mod.Orchestrator(mod.loadConfig()) as OrchestratorInstance
     return _orchestrator
-  } catch (error) {
+  } catch {
     throw new Error(
       'gatekeeper-orchestrator package not found. Run "npm install" at the monorepo root.',
     )

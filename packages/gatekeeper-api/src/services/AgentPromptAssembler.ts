@@ -15,12 +15,6 @@
 import type { PrismaClient } from '@prisma/client'
 import Handlebars from 'handlebars'
 
-interface AssembledPrompt {
-  systemPrompt: string
-  instructions: string[]
-  docs: string[]
-}
-
 /**
  * Render a Handlebars template with variables.
  * Uses noEscape to preserve any HTML/markdown in the template.
@@ -292,19 +286,8 @@ export class AgentPromptAssembler {
 
     if (templates.length === 0) return null
 
-    // Filter: for CLI, use retry-cli templates; for API, use retry templates
-    // but shared templates (like retry-previous-response-reference) should be included
-    const filtered = templates.filter((t) => {
-      if (isCliProvider) {
-        // For CLI: use retry-cli specific OR shared retry templates that aren't API-specific
-        return t.kind === 'retry-cli' || (t.kind === 'retry' && !t.name.includes('-api-'))
-      } else {
-        // For API: use retry specific OR shared retry templates that aren't CLI-specific
-        return t.kind === 'retry' || (t.kind === 'retry-cli' && !t.name.includes('-cli-'))
-      }
-    })
-
-    // Actually, let's simplify: CLI uses retry-cli, API uses retry
+    // Filter templates: CLI uses retry-cli, API uses retry
+    // Shared templates (retry-previous-response-reference, etc.) are included for both
     const finalTemplates = templates.filter((t) => {
       if (isCliProvider) {
         return t.kind === 'retry-cli' ||

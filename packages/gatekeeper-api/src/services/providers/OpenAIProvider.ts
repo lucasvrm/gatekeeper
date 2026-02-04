@@ -180,7 +180,7 @@ export class OpenAIProvider implements LLMProvider {
         let input: Record<string, unknown> = {}
         try {
           input = JSON.parse(fn.arguments)
-        } catch (err) {
+        } catch {
           input = { _raw: fn.arguments }
         }
 

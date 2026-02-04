@@ -1,4 +1,4 @@
-import type { ValidatorDefinition, ValidationContext, ValidatorOutput, ValidatorContextFinding, UIRegistryComponent } from '../../../types/index.js'
+import type { ValidatorDefinition, ValidationContext, ValidatorOutput, ValidatorContextFinding } from '../../../types/index.js'
 import { findJsxTags, findLocalComponentNames } from '../utils/jsx-parser.js'
 
 // HTML native elements that should be ignored
@@ -17,9 +17,6 @@ const HTML_NATIVE_ELEMENTS = new Set([
   'g', 'text', 'tspan', 'defs', 'clipPath', 'mask', 'pattern', 'image', 'use', 'symbol',
   'linearGradient', 'radialGradient', 'stop', 'foreignObject'
 ])
-
-// Default ignored prefixes
-const DEFAULT_IGNORED_PREFIXES = ['Lucide', 'Icon']
 
 // NOTE: JSX tag finding and local component detection are delegated to
 // ../utils/jsx-parser.ts which uses balanced delimiter scanning instead of
@@ -160,7 +157,7 @@ export const UIComponentRegistryValidator: ValidatorDefinition = {
       let content: string
       try {
         content = await ctx.services.git.readFile(file.path)
-      } catch (error) {
+      } catch {
         findings.push({
           type: 'warning',
           message: `Could not read file: ${file.path}`,

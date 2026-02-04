@@ -8,8 +8,7 @@ import { PromptFormDialog } from "./prompt-form-dialog"
 type MainTab = 'pipeline' | 'dynamic' | 'custom'
 type RoleFilter = 'system' | 'user'
 
-// Dynamic instruction kinds (used for filtering)
-const DYNAMIC_KINDS = Object.keys(DYNAMIC_INSTRUCTION_KINDS)
+// Dynamic instruction kinds are defined in DYNAMIC_INSTRUCTION_KINDS from types.ts
 
 export function PromptsTab() {
   const [activeTab, setActiveTab] = useState<MainTab>('pipeline')

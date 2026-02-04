@@ -499,9 +499,8 @@ export class AgentOrchestratorBridge {
 
     const existingArtifacts = await this.readArtifactsFromDisk(input.outputId, input.projectPath)
     console.log('[Bridge:Fix] existingArtifacts on disk:', Object.keys(existingArtifacts))
-    for (const [name, c] of Object.entries(existingArtifacts)) {
-      const hash = Buffer.from(c).length  // simple size-based check
-      console.log(`[Bridge:Fix]   PRE  ${name}: ${c.length} chars`)
+    for (const [name, content] of Object.entries(existingArtifacts)) {
+      console.log(`[Bridge:Fix]   PRE  ${name}: ${content.length} chars`)
     }
 
     // Fetch rejection report from API if we have a runId

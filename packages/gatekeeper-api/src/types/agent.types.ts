@@ -126,6 +126,7 @@ export interface PhaseConfig {
 export type AgentEvent =
   | { type: 'agent:start'; provider: string; model: string; step: number }
   | { type: 'agent:text'; text: string }
+  | { type: 'agent:thinking'; elapsedMs: number; iteration: number }
   | { type: 'agent:tool_call'; tool: string; input: Record<string, unknown> }
   | { type: 'agent:tool_result'; tool: string; isError: boolean; durationMs: number }
   | { type: 'agent:iteration'; iteration: number; tokensUsed: TokenUsage }

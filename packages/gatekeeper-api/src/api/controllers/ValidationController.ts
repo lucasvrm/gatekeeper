@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express'
 import { basename, join, isAbsolute, relative, resolve } from 'path'
-import { promises as fs } from 'node:fs'
 import { prisma } from '../../db/client.js'
 import { ValidationOrchestrator } from '../../services/ValidationOrchestrator.js'
 import { GATES_CONFIG } from '../../config/gates.config.js'

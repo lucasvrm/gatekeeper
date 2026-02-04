@@ -26,7 +26,6 @@ import { buildValidatorClipboardText, getClipboardWriteText, getDiffScopeViolati
 import {
   ArrowClockwise,
   ArrowLeft,
-  CaretDown,
   Copy,
   Play,
   Trash,

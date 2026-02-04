@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { api, type AgentRunCostStats, type AgentRunStepStats } from "@/lib/api"
+import { api, type AgentRunCostStats } from "@/lib/api"
 import { usePageShell } from "@/hooks/use-page-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

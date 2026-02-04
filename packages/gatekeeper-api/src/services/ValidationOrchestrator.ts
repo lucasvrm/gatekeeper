@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, copyFileSync, readFileSync, readdirSync } from 'node:fs'
 import { join, dirname, basename, isAbsolute, relative, resolve } from 'node:path'
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
@@ -114,7 +114,6 @@ export class ValidationOrchestrator {
       try {
         const outputDir = join(run.projectPath, artifactsDir, run.outputId)
         if (existsSync(outputDir)) {
-          const { readdirSync } = require('fs')
           const entries = readdirSync(outputDir) as string[]
           console.warn('[ensureSpecAtCorrectPath] ⚠️ Artifacts dir contents:', entries)
         } else {

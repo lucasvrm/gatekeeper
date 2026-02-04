@@ -13,7 +13,7 @@
  */
 
 import type { PrismaClient } from '@prisma/client'
-import type { TokenUsage, ProviderName } from '../types/agent.types.js'
+import type { TokenUsage } from '../types/agent.types.js'
 
 // ─── Cost Tables (per 1M tokens) ─────────────────────────────────────────────
 

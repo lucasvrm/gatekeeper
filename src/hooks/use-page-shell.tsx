@@ -75,7 +75,7 @@ export function usePageShell(config: PageShellConfig): ReactNode {
   useEffect(() => {
     setPageKey(config.page)
     return () => setPageKey(undefined)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [config.page, setPageKey])
 
   // Find portal targets (they exist after AppShell mounts)

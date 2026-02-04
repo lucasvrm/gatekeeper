@@ -20,7 +20,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { nanoid } from 'nanoid'
 import { prisma } from '../../db/client.js'
-import { AgentOrchestratorBridge, BridgeError } from '../../services/AgentOrchestratorBridge.js'
+import { AgentOrchestratorBridge } from '../../services/AgentOrchestratorBridge.js'
 import { OrchestratorEventService } from '../../services/OrchestratorEventService.js'
 import { AgentRunPersistenceService } from '../../services/AgentRunPersistenceService.js'
 import { GatekeeperValidationBridge } from '../../services/GatekeeperValidationBridge.js'
@@ -59,19 +59,6 @@ function asProvider(value: unknown): ProviderName | undefined {
     return value as ProviderName
   }
   return undefined
-}
-
-function handleBridgeError(error: unknown, res: Response): void {
-  if (error instanceof BridgeError) {
-    const status = error.code === 'MISSING_ARTIFACTS' ? 422 : 500
-    res.status(status).json({
-      error: error.message,
-      code: error.code,
-      details: error.details,
-    })
-    return
-  }
-  throw error
 }
 
 function makeEmitter(runId: string) {
@@ -363,9 +350,6 @@ export class BridgeController {
       return
     }
 
-    // Find the run and its checkpoint
-    const resumable = await persistence.findResumableRun({ projectPath: '', outputId: undefined })
-    
     // Direct DB lookup for the specific run
     const run = await prisma.agentRun.findUnique({
       where: { id: dbRunId },

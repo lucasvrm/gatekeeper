@@ -1,5 +1,5 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput } from '../../../types/index.js'
-import { resolve, isAbsolute } from 'path'
+import { resolve } from 'path'
 import { minimatch } from 'minimatch'
 
 function normalizePath(value: string): string {

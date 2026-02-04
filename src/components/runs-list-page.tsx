@@ -47,7 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { NewValidationCtaButton } from "@/components/new-validation-cta-button"
+// import { NewValidationCtaButton } from "@/components/new-validation-cta-button"
 
 export function RunsListPage() {
   const navigate = useNavigate()

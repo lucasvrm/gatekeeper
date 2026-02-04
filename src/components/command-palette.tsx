@@ -93,7 +93,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         const response = await api.runs.list(1, 10)
         if (!active) return
         setRuns(normalizeList<Run>(response))
-      } catch (error) {
+      } catch {
         if (active) setRuns(null)
       }
     }
@@ -103,7 +103,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         const response = await api.projects.list(1, 20)
         if (!active) return
         setProjects(normalizeList<Project>(response))
-      } catch (error) {
+      } catch {
         if (active) setProjects(null)
       }
     }
@@ -113,7 +113,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         const response = await api.workspaces.list()
         if (!active) return
         setWorkspaces(normalizeList<Workspace>(response))
-      } catch (error) {
+      } catch {
         if (active) setWorkspaces(null)
       }
     }
@@ -123,7 +123,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         const response = await api.validators.list()
         if (!active) return
         setValidators(normalizeList<ConfigItem>(response))
-      } catch (error) {
+      } catch {
         if (active) setValidators(null)
       }
     }

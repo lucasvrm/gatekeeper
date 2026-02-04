@@ -1,4 +1,4 @@
-import type { ValidatorDefinition, ValidationContext, ValidatorOutput, ValidatorContextFinding, UIComponentProp } from '../../../types/index.js'
+import type { ValidatorDefinition, ValidationContext, ValidatorOutput, ValidatorContextFinding } from '../../../types/index.js'
 import { findJsxTags, parsePropsFromString, type ParsedProp } from '../utils/jsx-parser.js'
 
 // HTML generic props that are always allowed (even in strict mode)
@@ -125,7 +125,7 @@ export const UIPropsComplianceValidator: ValidatorDefinition = {
       let content: string
       try {
         content = await ctx.services.git.readFile(file.path)
-      } catch (error) {
+      } catch {
         findings.push({
           type: 'warning',
           message: `Could not read file: ${file.path}`,

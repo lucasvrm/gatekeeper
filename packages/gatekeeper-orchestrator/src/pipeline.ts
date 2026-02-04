@@ -32,7 +32,6 @@ import type {
   ExecuteInput,
   ExecuteOutput,
   OrchestratorEvent,
-  FixTarget,
 } from './types.js'
 
 export interface OrchestratorCallbacks {

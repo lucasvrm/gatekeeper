@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { api, API_BASE } from "@/lib/api"
-import type { Project, RunWithResults, ValidatorResult, GateResult } from "@/lib/types"
+import type { Project, RunWithResults, ValidatorResult, GateResult, ArtifactFolder, LLMPlanOutput } from "@/lib/types"
 import { useEffect } from "react"
 import { useOrchestratorEvents, type OrchestratorEvent } from "@/hooks/useOrchestratorEvents"
 import { useRunEvents } from "@/hooks/useRunEvents"
@@ -105,28 +105,34 @@ const STEPS = [
   { num: 4, label: "Execução" },
 ] as const
 
-function StepIndicator({ current, completed }: { current: WizardStep; completed: Set<number> }) {
+function StepIndicator({ current, completed, onStepClick }: { current: WizardStep; completed: Set<number>; onStepClick?: (step: WizardStep) => void }) {
   return (
     <div className="flex items-center gap-1">
-      {STEPS.map(({ num, label }, i) => (
-        <div key={num} className="flex items-center">
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              num === current
-                ? "bg-primary text-primary-foreground"
-                : completed.has(num)
-                ? "bg-green-500/15 text-green-400 border border-green-500/30"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            <span>{completed.has(num) ? "✓" : num}</span>
-            <span className="hidden sm:inline">{label}</span>
+      {STEPS.map(({ num, label }, i) => {
+        const canClick = onStepClick && completed.has(num) && num !== current
+        return (
+          <div key={num} className="flex items-center">
+            <button
+              type="button"
+              disabled={!canClick}
+              onClick={() => canClick && onStepClick(num as WizardStep)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                num === current
+                  ? "bg-primary text-primary-foreground"
+                  : completed.has(num)
+                  ? "bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 cursor-pointer"
+                  : "bg-muted text-muted-foreground"
+              } ${!canClick ? "cursor-default" : ""}`}
+            >
+              <span>{completed.has(num) ? "✓" : num}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+            {i < STEPS.length - 1 && (
+              <div className={`w-6 h-px mx-1 ${completed.has(num) ? "bg-green-500/40" : "bg-border"}`} />
+            )}
           </div>
-          {i < STEPS.length - 1 && (
-            <div className={`w-6 h-px mx-1 ${completed.has(num) ? "bg-green-500/40" : "bg-border"}`} />
-          )}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -183,21 +189,27 @@ function ArtifactViewer({ artifacts }: { artifacts: ParsedArtifact[] }) {
 // Log panel
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LogPanel({ logs }: { logs: LogEntry[] }) {
+function LogPanel({ logs, debugMode, onToggleDebug }: { logs: LogEntry[]; debugMode: boolean; onToggleDebug: () => void }) {
   if (logs.length === 0) return null
 
   return (
     <Card className="mt-4">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between py-2">
         <CardTitle className="text-sm">Log</CardTitle>
+        <button
+          onClick={onToggleDebug}
+          className={`text-[10px] font-mono px-2 py-0.5 rounded border ${debugMode ? "bg-violet-500/20 border-violet-500/50 text-violet-700 dark:text-violet-300" : "border-muted text-muted-foreground hover:text-foreground"}`}
+        >
+          {debugMode ? "🐛 DEBUG ON" : "DEBUG"}
+        </button>
       </CardHeader>
       <CardContent>
-        <div className="max-h-48 overflow-auto space-y-1">
+        <div className={`${debugMode ? "max-h-96" : "max-h-48"} overflow-auto space-y-1`}>
           {logs.map((log, i) => (
-            <div key={i} className="flex gap-2 text-xs font-mono">
+            <div key={i} className={`flex gap-2 text-xs font-mono ${log.type === "debug" ? "opacity-75" : ""}`}>
               <span className="text-muted-foreground shrink-0">{log.time}</span>
-              <Badge variant="outline" className="text-[10px] shrink-0">{log.type}</Badge>
-              <span className="text-foreground">{log.text}</span>
+              <Badge variant="outline" className={`text-[10px] shrink-0 ${log.type === "debug" ? "border-violet-500/40 text-violet-700 dark:text-violet-300" : ""}`}>{log.type}</Badge>
+              <span className={`${log.type === "debug" ? "text-violet-700 dark:text-violet-300" : "text-foreground"} break-all`}>{log.text}</span>
             </div>
           ))}
         </div>
@@ -236,6 +248,14 @@ export function OrchestratorPage() {
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [resuming, setResuming] = useState(false)
+  const [debugMode, setDebugMode] = useState(false)
+  const debugModeRef = useRef(debugMode)
+  debugModeRef.current = debugMode
+
+  // Rerun — existing artifact folders on disk
+  const [diskArtifacts, setDiskArtifacts] = useState<ArtifactFolder[]>([])
+  const [showRerunPicker, setShowRerunPicker] = useState(false)
+  const [rerunLoading, setRerunLoading] = useState(false)
 
   // Step 0
   const [taskDescription, setTaskDescription] = useState(saved?.taskDescription ?? "")
@@ -356,6 +376,14 @@ export function OrchestratorPage() {
     })
   }, [outputId, step, completedSteps, taskDescription, taskType, selectedProjectId, provider, model, stepLLMs, planArtifacts, specArtifacts, runId])
 
+  // ── Load available artifact folders from disk ──────────────────────────
+  useEffect(() => {
+    if (!selectedProjectId) { setDiskArtifacts([]); return }
+    api.artifacts.list(selectedProjectId)
+      .then((folders) => setDiskArtifacts(folders.filter((f) => f.hasPlan && f.hasSpec).sort((a, b) => b.createdAt.localeCompare(a.createdAt))))
+      .catch(() => setDiskArtifacts([]))
+  }, [selectedProjectId])
+
   // ── Resume from URL ?outputId=xxx — reload artifacts from disk ─────────
   useEffect(() => {
     if (!resumeOutputId || planArtifacts.length > 0) return
@@ -414,6 +442,18 @@ export function OrchestratorPage() {
     toast.success("Sessão resetada")
   }, [])
 
+  // ── Navigate to a completed step ──────────────────────────────────────
+  const handleStepClick = useCallback((targetStep: WizardStep) => {
+    if (!completedSteps.has(targetStep)) return
+    // Reset transient state when navigating back
+    setValidationStatus(null)
+    setRunResults(null)
+    setError(null)
+    setLoading(false)
+    setStep(targetStep)
+    addLog("info", `Navegou para step ${targetStep}`)
+  }, [completedSteps]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Load projects ──────────────────────────────────────────────────────
   useEffect(() => {
     api.projects.list(1, 100).then((res) => {
@@ -434,29 +474,87 @@ export function OrchestratorPage() {
 
   const handleSSE = useCallback(
     (event: OrchestratorEvent) => {
-      // ── User-friendly log messages ─────────────────────────────────────
+      const debug = debugModeRef.current
+
       switch (event.type) {
         case "agent:bridge_start":
           addLog("info", `Iniciando etapa ${event.step}...`)
           break
         case "agent:start":
-          addLog("info", `LLM ${event.provider}/${event.model} conectado`)
+          addLog("info", `LLM ${event.provider}/${event.model} conectado (step ${event.step})`)
           break
+        case "agent:text":
+          if (debug) {
+            const preview = typeof event.text === "string" ? event.text.slice(0, 500) : ""
+            if (preview.trim()) addLog("debug", `💬 LLM: ${preview}${event.text && event.text.length > 500 ? "…" : ""}`)
+          }
+          break
+        case "agent:thinking": {
+          const elapsed = Math.round(((event as any).elapsedMs ?? 0) / 1000)
+          const iter = (event as any).iteration ?? "?"
+          if (debug) {
+            addLog("debug", `⏳ LLM pensando... ${elapsed}s (iteração ${iter})`)
+          } else {
+            // Em modo normal, atualizar o último log se já era um thinking
+            setLogs((prev) => {
+              const last = prev[prev.length - 1]
+              const time = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+              const entry = { time, type: "info", text: `⏳ LLM pensando... ${elapsed}s` }
+              if (last?.text.startsWith("⏳ LLM pensando")) {
+                return [...prev.slice(0, -1), entry]
+              }
+              return [...prev, entry]
+            })
+          }
+          break
+        }
         case "agent:iteration":
-          addLog("info", `Iteração ${event.iteration} — ${(event.tokensUsed as any)?.inputTokens?.toLocaleString() ?? "?"} tokens in`)
+          addLog("info", `Iteração ${event.iteration} — ${(event.tokensUsed as any)?.inputTokens?.toLocaleString() ?? "?"} in / ${(event.tokensUsed as any)?.outputTokens?.toLocaleString() ?? "?"} out tokens`)
           break
-        case "agent:tool_call":
-          addLog("info", `🔧 ${event.tool}`)
+        case "agent:tool_call": {
+          const input = (event as any).input as Record<string, unknown> | undefined
+          if (debug && input) {
+            const tool = event.tool
+            if (tool === "bash" || tool === "execute_bash") {
+              addLog("debug", `🔧 ${tool}  ➜  ${String(input.command ?? input.cmd ?? JSON.stringify(input)).slice(0, 500)}`)
+            } else if (tool === "save_artifact") {
+              const contentLen = typeof input.content === "string" ? input.content.length : 0
+              addLog("debug", `🔧 ${tool}("${input.filename}", ${contentLen} chars)`)
+            } else if (tool === "read_file" || tool === "write_file") {
+              addLog("debug", `🔧 ${tool}("${input.path ?? input.file_path ?? ""}")`)
+            } else {
+              addLog("debug", `🔧 ${tool}(${JSON.stringify(input).slice(0, 300)})`)
+            }
+          } else {
+            addLog("info", `🔧 ${event.tool}`)
+          }
           break
+        }
         case "agent:tool_result":
-          addLog(event.isError ? "error" : "info", `${event.tool} (${event.durationMs}ms)`)
+          if (debug) {
+            addLog(event.isError ? "error" : "debug", `↩ ${event.tool} → ${event.isError ? "ERROR" : "ok"} (${event.durationMs}ms)`)
+          } else {
+            addLog(event.isError ? "error" : "info", `${event.tool} (${event.durationMs}ms)`)
+          }
           break
         case "agent:budget_warning":
           addLog("warning", `⚠️ Budget ${event.percentUsed}% usado (${event.usedTokens}/${event.budgetTokens})`)
           break
-        case "agent:complete":
-          addLog("info", `LLM finalizado`)
+        case "agent:budget_exceeded":
+          addLog("error", `🚫 Budget excedido: ${(event as any).usedTokens}/${(event as any).budgetTokens}`)
           break
+        case "agent:fallback":
+          addLog("warning", `🔄 Fallback: ${(event as any).from} → ${(event as any).to} (${(event as any).reason})`)
+          break
+        case "agent:complete": {
+          const r = (event as any).result
+          if (debug && r) {
+            addLog("debug", `✅ LLM finalizado — ${r.iterations} iterações, ${r.tokensUsed?.inputTokens?.toLocaleString() ?? "?"}in/${r.tokensUsed?.outputTokens?.toLocaleString() ?? "?"}out`)
+          } else {
+            addLog("info", `LLM finalizado`)
+          }
+          break
+        }
         case "agent:bridge_plan_done": {
           const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
           const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
@@ -476,7 +574,11 @@ export function OrchestratorPage() {
           toast.error(String(event.error))
           break
         default:
-          addLog(event.type, typeof event.text === "string" ? event.text : JSON.stringify(event))
+          if (debug) {
+            addLog("debug", `[${event.type}] ${typeof event.text === "string" ? event.text : JSON.stringify(event)}`)
+          } else {
+            addLog(event.type, typeof event.text === "string" ? event.text : JSON.stringify(event))
+          }
       }
     },
     [addLog]
@@ -494,7 +596,7 @@ export function OrchestratorPage() {
       setRunResults(results)
 
       const status = results.status
-      if (status === "COMPLETED" || status === "FAILED") {
+      if (status === "PASSED" || status === "FAILED") {
         // Guard: only process terminal status once
         if (validationResolvedRef.current) return
         validationResolvedRef.current = true
@@ -504,13 +606,25 @@ export function OrchestratorPage() {
         setLoading(false)
 
         if (passed) {
-          markComplete(3)
-          addLog("success", "✅ Gates 0-1 aprovados — avançando para execução...")
-          toast.success("Validação aprovada! Avançando para execução...")
-          // Auto-advance to step 4 after a brief pause so user can see the result
-          setTimeout(() => {
-            setStep(4)
-          }, 1500)
+          // Determine if this is a CONTRACT (Gates 0-1) or EXECUTION (Gates 2-3) run
+          const isExecutionRun = results.runType === "EXECUTION" ||
+            results.gateResults?.some((g: GateResult) => g.gateNumber >= 2)
+          
+          if (isExecutionRun) {
+            markComplete(4)
+            addLog("success", "✅ Gates 2-3 aprovados — implementação validada!")
+            toast.success("Validação de execução aprovada!")
+          } else {
+            markComplete(3)
+            addLog("success", "✅ Gates 0-1 aprovados — avançando para execução...")
+            toast.success("Validação aprovada! Avançando para execução...")
+            // Auto-advance to step 4 after a brief pause so user can see the result
+            // Reset validationStatus so Step 4 doesn't think EXECUTION already passed
+            setTimeout(() => {
+              setValidationStatus(null)
+              setStep(4)
+            }, 1500)
+          }
         } else {
           const failedGates = results.gateResults?.filter((g: GateResult) => !g.passed).map((g: GateResult) => g.gateName)
           const failedValidatorNames = results.validatorResults
@@ -692,6 +806,84 @@ export function OrchestratorPage() {
       addLog("error", msg)
       toast.error(msg)
     } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Rerun from disk — zero tokens ──────────────────────────────────────
+  const handleRerunFromDisk = async (targetOutputId?: string) => {
+    const oid = targetOutputId || outputId
+    if (!oid || !selectedProjectId) return
+
+    setError(null)
+    setLoading(true)
+    addLog("info", `Carregando artefatos do disco: ${oid}`)
+
+    try {
+      // 1. Read artifacts from disk via API
+      const contents = await api.artifacts.getContents(selectedProjectId, oid)
+
+      if (!contents.planJson) throw new Error("plan.json não encontrado no disco")
+      if (!contents.specContent || !contents.specFileName) throw new Error("Spec file não encontrado no disco")
+
+      const plan = contents.planJson as LLMPlanOutput
+
+      // 2. Restore state
+      setOutputId(oid)
+      setPlanArtifacts([
+        { filename: "plan.json", content: JSON.stringify(plan, null, 2) },
+      ])
+      setSpecArtifacts([
+        { filename: contents.specFileName, content: contents.specContent },
+      ])
+      setTaskDescription(plan.taskPrompt || taskDescription)
+
+      const completed = new Set([0, 1, 2])
+      setCompletedSteps(completed)
+      setStep(3)
+
+      addLog("success", `Artefatos carregados: plan.json + ${contents.specFileName}`)
+
+      // 3. Extract manifest/contract and create run
+      const files = plan.manifest?.files || []
+      const testFile = plan.manifest?.testFile || contents.specFileName
+      const contract = plan.contract || undefined
+
+      if (files.length === 0) throw new Error("plan.json não contém manifest.files")
+
+      setValidationStatus("RUNNING")
+      setRunResults(null)
+      validationResolvedRef.current = false
+
+      const response = await api.runs.create({
+        projectId: selectedProjectId,
+        outputId: oid,
+        taskPrompt: plan.taskPrompt || taskDescription,
+        manifest: { files, testFile },
+        contract,
+        dangerMode: plan.dangerMode || false,
+        runType: "CONTRACT",
+      })
+
+      setRunId(response.runId)
+      addLog("info", `Run criada: ${response.runId}`)
+
+      // 4. Upload files (empty FormData triggers filesystem fallback on backend)
+      const formData = new FormData()
+      const planBlob = new Blob([JSON.stringify(plan, null, 2)], { type: "application/json" })
+      formData.append("planJson", planBlob, "plan.json")
+      const specBlob = new Blob([contents.specContent], { type: "text/plain" })
+      formData.append("specFile", specBlob, contents.specFileName)
+
+      await api.runs.uploadFiles(response.runId, formData)
+      addLog("success", `Upload concluído — validando gates 0-1...`)
+      toast.success("Rerun iniciado — validando artefatos do disco")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao rerun"
+      setError(msg)
+      setValidationStatus(null)
+      addLog("error", msg)
+      toast.error(msg)
       setLoading(false)
     }
   }
@@ -1024,7 +1216,7 @@ export function OrchestratorPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Descreva a Tarefa</CardTitle>
-                  <StepIndicator current={step} completed={completedSteps} />
+                  <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
                 </div>
                 <CardDescription>
                   Descreva o que precisa ser implementado. O LLM vai gerar o plano, contrato e especificação.
@@ -1194,6 +1386,53 @@ export function OrchestratorPage() {
                 >
                   {loading ? "Gerando..." : "Gerar Plano →"}
                 </Button>
+
+                {/* ── Rerun from existing artifacts ─────────────── */}
+                {diskArtifacts.length > 0 && (
+                  <div className="border-t pt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Revalidar artefatos existentes</p>
+                        <p className="text-xs text-muted-foreground">Pular geração — usar plan.json + spec do disco. Zero tokens.</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowRerunPicker(!showRerunPicker)}
+                      >
+                        {showRerunPicker ? "Fechar" : `${diskArtifacts.length} disponíveis →`}
+                      </Button>
+                    </div>
+                    {showRerunPicker && (
+                      <div className="space-y-1 max-h-48 overflow-auto rounded border p-2">
+                        {diskArtifacts.map((af) => {
+                          const date = new Date(af.createdAt)
+                          const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+                          const shortId = af.outputId.length > 50 ? af.outputId.slice(0, 50) + "…" : af.outputId
+                          return (
+                            <button
+                              key={af.outputId}
+                              disabled={rerunLoading || loading}
+                              className="w-full text-left px-3 py-2 rounded hover:bg-muted/50 transition-colors flex items-center justify-between gap-2 text-xs disabled:opacity-50"
+                              onClick={async () => {
+                                setRerunLoading(true)
+                                await handleRerunFromDisk(af.outputId)
+                                setRerunLoading(false)
+                                setShowRerunPicker(false)
+                              }}
+                            >
+                              <span className="font-mono truncate flex-1">{shortId}</span>
+                              <span className="text-muted-foreground shrink-0">{dateStr}</span>
+                              <Badge variant="outline" className="text-[10px] shrink-0">
+                                {af.hasSpec ? "plan+spec" : "plan"}
+                              </Badge>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -1205,7 +1444,7 @@ export function OrchestratorPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Artefatos do Plano</CardTitle>
-                    <StepIndicator current={step} completed={completedSteps} />
+                    <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
                   </div>
                   <CardDescription>
                     plan.json, contract.md e task.spec.md gerados pelo LLM. Revise antes de prosseguir.
@@ -1239,7 +1478,7 @@ export function OrchestratorPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Artefatos Gerados</CardTitle>
-                    <StepIndicator current={step} completed={completedSteps} />
+                    <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1256,7 +1495,7 @@ export function OrchestratorPage() {
                       Enviar artefatos para validação (Gates 0 e 1).
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-2">
                     <Button
                       onClick={handleValidate}
                       disabled={loading || !selectedProjectId || validationStatus === "RUNNING"}
@@ -1264,6 +1503,17 @@ export function OrchestratorPage() {
                     >
                       {validationStatus === "RUNNING" ? "Validando..." : validationStatus === "FAILED" ? "Re-validar →" : "Validar →"}
                     </Button>
+                    {outputId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-xs text-muted-foreground"
+                        disabled={loading || validationStatus === "RUNNING"}
+                        onClick={() => handleRerunFromDisk()}
+                      >
+                        ↻ Revalidar do disco (0 tokens)
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -1564,28 +1814,38 @@ export function OrchestratorPage() {
           {/* ─── Step 4: Execute result + Post-execution validation ───── */}
           {step === 4 && (
             <div className="space-y-4">
+              {/* Header card — context-aware title */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-green-400">Execução Concluída</CardTitle>
-                    <StepIndicator current={step} completed={completedSteps} />
+                    <CardTitle className={executeResult ? "text-green-400" : ""}>
+                      {executeResult ? "Execução Concluída" : "Execução"}
+                    </CardTitle>
+                    <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
                   </div>
+                  {!executeResult && !validationStatus && (
+                    <CardDescription>
+                      Gates 0-1 aprovados. Pronto para executar a implementação.
+                    </CardDescription>
+                  )}
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {executeResult?.mode === "cli" && executeResult.command && (
-                    <div className="space-y-2">
-                      <Label>Comando para executar manualmente:</Label>
-                      <pre className="p-4 rounded bg-muted text-xs font-mono overflow-auto">
-                        {executeResult.command}
-                      </pre>
-                    </div>
-                  )}
-                  {executeResult?.mode === "sdk" && (
-                    <p className="text-sm text-muted-foreground">
-                      Implementação executada via Claude Agent SDK.
-                    </p>
-                  )}
-                </CardContent>
+                {executeResult && (
+                  <CardContent className="space-y-4">
+                    {executeResult.mode === "cli" && executeResult.command && (
+                      <div className="space-y-2">
+                        <Label>Comando para executar manualmente:</Label>
+                        <pre className="p-4 rounded bg-muted text-xs font-mono overflow-auto">
+                          {executeResult.command}
+                        </pre>
+                      </div>
+                    )}
+                    {executeResult.mode === "sdk" && (
+                      <p className="text-sm text-muted-foreground">
+                        Implementação executada via Claude Agent SDK.
+                      </p>
+                    )}
+                  </CardContent>
+                )}
               </Card>
 
               {/* Post-execution validation (Gates 2-3) */}
@@ -1655,6 +1915,15 @@ export function OrchestratorPage() {
                 <Button onClick={handleReset}>
                   Nova Tarefa
                 </Button>
+                {outputId && (
+                  <Button
+                    variant="secondary"
+                    disabled={loading || validationStatus === "RUNNING"}
+                    onClick={() => handleRerunFromDisk()}
+                  >
+                    ↻ Revalidar do disco (0 tokens)
+                  </Button>
+                )}
                 {runId && (
                   <Button variant="outline" onClick={() => navigate(`/runs/${runId}/v2`)}>
                     Ver Run
@@ -1665,7 +1934,7 @@ export function OrchestratorPage() {
           )}
 
       {/* Log panel */}
-      <LogPanel logs={logs} />
+      <LogPanel logs={logs} debugMode={debugMode} onToggleDebug={() => setDebugMode(d => !d)} />
       </>
     </div>
   )

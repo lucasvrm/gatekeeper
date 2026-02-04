@@ -259,17 +259,31 @@ export class AgentRunnerService {
 
       // ── LLM Call ────────────────────────────────────────────────────────
 
-      const response = await llm.chat({
-        model: phase.model,
-        system: systemPrompt,
-        messages,
-        tools,
-        maxTokens: phase.maxTokens,
-        temperature: phase.temperature,
-        enableCache: true,
-        cwd: projectRoot,
-        onEvent: emit,
-      })
+      const llmStart = Date.now()
+      const heartbeat = setInterval(() => {
+        emit({
+          type: 'agent:thinking',
+          elapsedMs: Date.now() - llmStart,
+          iteration,
+        })
+      }, 5_000)
+
+      let response: LLMResponse
+      try {
+        response = await llm.chat({
+          model: phase.model,
+          system: systemPrompt,
+          messages,
+          tools,
+          maxTokens: phase.maxTokens,
+          temperature: phase.temperature,
+          enableCache: true,
+          cwd: projectRoot,
+          onEvent: emit,
+        })
+      } finally {
+        clearInterval(heartbeat)
+      }
 
       totalTokens.inputTokens += response.usage.inputTokens
       totalTokens.outputTokens += response.usage.outputTokens

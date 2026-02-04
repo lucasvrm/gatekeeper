@@ -68,8 +68,8 @@ export function compileContracts(input: CompilerInput): CompilerOutput {
 
   // ── Process pages ──────────────────────────────────────────
   const enrichedPages: Record<string, EnrichedPageDef> = {};
-  let allComponentStyles: Record<string, any> = {};
-  let allComponentProps: Record<string, any> = {};
+  const allComponentStyles: Record<string, any> = {};
+  const allComponentProps: Record<string, any> = {};
   const allTemplateBindings = new Map<string, Map<string, string[]>>();
 
   for (const [pageId, page] of Object.entries(layout.pages)) {

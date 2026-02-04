@@ -259,7 +259,7 @@ function EasyblocksParentEditor({
       );
       window.history.replaceState({}, "", cleanUrl.toString());
     };
-  }, [selectedPageId, editorKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedPageId, editorKey]);  
 
   // ---- Expose variable context for template picker widgets ----
   useEffect(() => {
@@ -401,7 +401,7 @@ function EasyblocksParentEditor({
         (c.backend as any).flush();
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // ---- Listen for external changes (import, undo, token sync) ----
   // P5: This event is dispatched by OrquiEditor when tokens/vars change in Shell
