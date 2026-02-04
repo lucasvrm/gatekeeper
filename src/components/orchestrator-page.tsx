@@ -465,14 +465,20 @@ export function OrchestratorPage() {
   useOrchestratorEvents(outputId, handleSSE)
 
   // ── Run validation SSE — polls run status inline ──────────────────────
+  const validationResolvedRef = useRef(false)
+
   const handleRunEvent = useCallback(async () => {
-    if (!runId) return
+    if (!runId || validationResolvedRef.current) return
     try {
       const results = await api.runs.getWithResults(runId)
       setRunResults(results)
 
       const status = results.status
       if (status === "COMPLETED" || status === "FAILED") {
+        // Guard: only process terminal status once
+        if (validationResolvedRef.current) return
+        validationResolvedRef.current = true
+
         const passed = results.gateResults?.every((g: GateResult) => g.passed) ?? false
         setValidationStatus(passed ? "PASSED" : "FAILED")
         setLoading(false)
@@ -483,7 +489,10 @@ export function OrchestratorPage() {
           toast.success("Validação aprovada!")
         } else {
           const failedGates = results.gateResults?.filter((g: GateResult) => !g.passed).map((g: GateResult) => g.gateName)
-          addLog("error", `Validação falhou: ${failedGates?.join(", ")}`)
+          const failedValidatorNames = results.validatorResults
+            ?.filter((v: ValidatorResult) => !v.passed && !v.bypassed)
+            .map((v: ValidatorResult) => v.validatorCode) ?? []
+          addLog("error", `Validação falhou: ${failedGates?.join(", ")} (${failedValidatorNames.length} validator${failedValidatorNames.length !== 1 ? "s" : ""})`)
           toast.error("Validação falhou")
         }
       }
@@ -497,6 +506,22 @@ export function OrchestratorPage() {
 
   // ── Helpers ────────────────────────────────────────────────────────────
   const markComplete = (s: number) => setCompletedSteps((prev) => new Set([...prev, s]))
+
+  /** Merge fix results into existing artifacts: update matching filenames, keep the rest intact.
+   *  If fixResult is empty/undefined, returns existing artifacts unchanged. */
+  const mergeArtifacts = (existing: ParsedArtifact[], fixResult?: ParsedArtifact[]): ParsedArtifact[] => {
+    if (!fixResult || fixResult.length === 0) return existing
+    const merged = [...existing]
+    for (const fixed of fixResult) {
+      const idx = merged.findIndex((a) => a.filename === fixed.filename)
+      if (idx >= 0) {
+        merged[idx] = fixed
+      } else {
+        merged.push(fixed)
+      }
+    }
+    return merged
+  }
 
   // Check LLM isolation: step 1 model must differ from step 2, and both from step 4
   const apiPost = async (endpoint: string, body: Record<string, unknown>) => {
@@ -628,6 +653,7 @@ export function OrchestratorPage() {
     setLoading(true)
     setValidationStatus("RUNNING")
     setRunResults(null)
+    validationResolvedRef.current = false
     addLog("info", "Iniciando validação Gatekeeper...")
 
     try {
@@ -712,9 +738,9 @@ export function OrchestratorPage() {
       })
 
       if (target === "plan") {
-        setPlanArtifacts(result.artifacts || planArtifacts)
+        setPlanArtifacts((prev) => mergeArtifacts(prev, result.artifacts))
       } else {
-        setSpecArtifacts(result.artifacts || specArtifacts)
+        setSpecArtifacts((prev) => mergeArtifacts(prev, result.artifacts))
       }
 
       // Reset validation state so user can re-validate
