@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -13,6 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "sonner"
+import { PhaseConfigTab } from "./phase-config-tab"
+import { ChevronDown } from "lucide-react"
 
 interface ValidationConfigItem {
   id: string
@@ -77,6 +80,19 @@ export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabPr
   const [timeoutValues, setTimeoutValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<string | null>(null)
 
+  // Collapsible states
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    llmConfig: true,
+    globalFlags: true,
+    timeouts: false,
+    allConfigs: false,
+    coverageAudit: false,
+  })
+
+  const toggleSection = (key: string) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
   const allowSoftGatesConfig = useMemo(() =>
     validationConfigs.find(c => c.key === "ALLOW_SOFT_GATES"),
     [validationConfigs]
@@ -131,151 +147,215 @@ export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabPr
 
   return (
     <div className="space-y-6">
-      {/* Global Flags Section */}
-      <Card data-testid="global-flags-section">
-        <CardHeader>
-          <CardTitle>Global Flags</CardTitle>
-          <CardDescription>
-            Flags globais que afetam o comportamento geral do Gatekeeper.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="space-y-0.5">
-              <Label className="text-base font-medium">ALLOW_SOFT_GATES</Label>
-              <p className="text-sm text-muted-foreground">
-                Permite que gates com falhas em validators de warning não bloqueiem a execução.
-              </p>
-            </div>
-            <Switch
-              data-testid="allow-soft-gates-switch"
-              role="switch"
-              checked={allowSoftGatesConfig?.value === "true"}
-              onCheckedChange={handleToggleAllowSoftGates}
-              disabled={saving === "ALLOW_SOFT_GATES"}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Timeouts Section */}
-      <Card data-testid="timeouts-section">
-        <CardHeader>
-          <CardTitle>Timeouts</CardTitle>
-          <CardDescription>
-            Configure os timeouts para diferentes operações de validação (em milissegundos).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {TIMEOUT_KEYS.map(key => {
-              const config = timeoutConfigs.find(c => c.key === key)
-              const value = timeoutValues[key] ?? config?.value ?? ""
-
-              return (
-                <div
-                  key={key}
-                  data-testid={`timeout-field-${key}`}
-                  className="space-y-2 p-4 border rounded-lg"
-                >
-                  <Label className="text-sm font-medium">{key}</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      value={value}
-                      onChange={(e) => config && handleTimeoutChange(config.id, key, e.target.value)}
-                      placeholder="Timeout em ms"
-                      className="flex-1"
-                    />
-                    <span className="flex items-center text-sm text-muted-foreground">ms</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Atual: {config?.value ?? "N/A"} ms
-                  </p>
-                  {config && timeoutValues[key] && timeoutValues[key] !== config.value && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleSaveTimeout(config)}
-                      disabled={saving === key}
-                    >
-                      {saving === key ? "Salvando..." : "Salvar"}
-                    </Button>
-                  )}
+      {/* Pipeline LLM Config Section - Full width */}
+      <Collapsible open={openSections.llmConfig} onOpenChange={() => toggleSection('llmConfig')}>
+        <Card data-testid="pipeline-llm-config-section">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Pipeline LLM Config</CardTitle>
+                  <CardDescription>
+                    Configure provider, modelo e tokens para cada fase do pipeline.
+                  </CardDescription>
                 </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.llmConfig ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <PhaseConfigTab />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
-      {/* All Configs Debug View Section */}
-      <Card data-testid="all-configs-debug-view">
-        <CardHeader>
-          <CardTitle>All Configs (Debug View)</CardTitle>
-          <CardDescription>
-            Visualização somente leitura de todas as configurações de validação.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border max-h-96 overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs uppercase tracking-wide">Key</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wide">Value</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wide">Type</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wide">Category</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {validationConfigs.map(config => (
-                  <TableRow key={config.id}>
-                    <TableCell className="font-mono text-xs">{config.key}</TableCell>
-                    <TableCell className="text-xs max-w-xs truncate" title={config.value}>
-                      {config.value}
-                    </TableCell>
-                    <TableCell className="text-xs">{config.type}</TableCell>
-                    <TableCell className="text-xs">{config.category}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Two columns grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Global Flags Section */}
+        <Collapsible open={openSections.globalFlags} onOpenChange={() => toggleSection('globalFlags')}>
+          <Card data-testid="global-flags-section">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Global Flags</CardTitle>
+                    <CardDescription>
+                      Flags globais que afetam o comportamento.
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.globalFlags ? 'rotate-180' : ''}`} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label className="text-base font-medium">ALLOW_SOFT_GATES</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Permite gates com warnings não bloquearem.
+                    </p>
+                  </div>
+                  <Switch
+                    data-testid="allow-soft-gates-switch"
+                    role="switch"
+                    checked={allowSoftGatesConfig?.value === "true"}
+                    onCheckedChange={handleToggleAllowSoftGates}
+                    disabled={saving === "ALLOW_SOFT_GATES"}
+                  />
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
-      {/* Coverage Audit Section */}
-      <Card data-testid="coverage-audit-section">
-        <CardHeader>
-          <CardTitle>Coverage Audit</CardTitle>
-          <CardDescription>
-            Mapeamento de todas as config keys para suas localizações na nova UI.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border max-h-96 overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs uppercase tracking-wide">Config Key</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wide">Localização na UI</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {coverageAuditEntries.map(entry => (
-                  <TableRow key={entry.key}>
-                    <TableCell className="font-mono text-xs">{entry.key}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{entry.location}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Total: {coverageAuditEntries.length} config keys mapeadas
-          </p>
-        </CardContent>
-      </Card>
+        {/* Timeouts Section */}
+        <Collapsible open={openSections.timeouts} onOpenChange={() => toggleSection('timeouts')}>
+          <Card data-testid="timeouts-section">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Timeouts</CardTitle>
+                    <CardDescription>
+                      Timeouts para operações de validação (ms).
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.timeouts ? 'rotate-180' : ''}`} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {TIMEOUT_KEYS.map(key => {
+                    const config = timeoutConfigs.find(c => c.key === key)
+                    const value = timeoutValues[key] ?? config?.value ?? ""
+
+                    return (
+                      <div
+                        key={key}
+                        data-testid={`timeout-field-${key}`}
+                        className="space-y-2 p-3 border rounded-lg"
+                      >
+                        <Label className="text-xs font-medium">{key.replace(/_/g, ' ')}</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            value={value}
+                            onChange={(e) => config && handleTimeoutChange(config.id, key, e.target.value)}
+                            placeholder="ms"
+                            className="flex-1 h-8 text-sm"
+                          />
+                        </div>
+                        {config && timeoutValues[key] && timeoutValues[key] !== config.value && (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => handleSaveTimeout(config)}
+                            disabled={saving === key}
+                          >
+                            {saving === key ? "..." : "Salvar"}
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        {/* All Configs Debug View Section */}
+        <Collapsible open={openSections.allConfigs} onOpenChange={() => toggleSection('allConfigs')}>
+          <Card data-testid="all-configs-debug-view">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>All Configs (Debug)</CardTitle>
+                    <CardDescription>
+                      Visualização de todas as configs.
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.allConfigs ? 'rotate-180' : ''}`} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="rounded-md border max-h-64 overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs uppercase tracking-wide">Key</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Value</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {validationConfigs.map(config => (
+                        <TableRow key={config.id}>
+                          <TableCell className="font-mono text-xs">{config.key}</TableCell>
+                          <TableCell className="text-xs max-w-xs truncate" title={config.value}>
+                            {config.value}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        {/* Coverage Audit Section */}
+        <Collapsible open={openSections.coverageAudit} onOpenChange={() => toggleSection('coverageAudit')}>
+          <Card data-testid="coverage-audit-section">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Coverage Audit</CardTitle>
+                    <CardDescription>
+                      Mapeamento de config keys na UI.
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.coverageAudit ? 'rotate-180' : ''}`} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="rounded-md border max-h-64 overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs uppercase tracking-wide">Key</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Local</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {coverageAuditEntries.map(entry => (
+                        <TableRow key={entry.key}>
+                          <TableCell className="font-mono text-xs">{entry.key}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{entry.location}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Total: {coverageAuditEntries.length} keys
+                </p>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      </div>
     </div>
   )
 }

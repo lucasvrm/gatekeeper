@@ -7,7 +7,7 @@
  *
  * Tools:
  *   READ  — read_file, list_directory, search_code (phases 1, 2, 4)
- *   WRITE — write_file, bash (phase 4 only)
+ *   WRITE — edit_file, write_file, bash (phase 4 only)
  *
  * Security:
  *   - safePath() prevents path traversal (../ attacks)
@@ -253,6 +253,29 @@ export const WRITE_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'edit_file',
+    description:
+      'Edit a file by replacing a specific string with new content. Use this for surgical edits instead of rewriting the entire file. The old_string must match EXACTLY (including whitespace and indentation).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Relative file path from project root',
+        },
+        old_string: {
+          type: 'string',
+          description: 'The exact string to find and replace (must be unique in the file)',
+        },
+        new_string: {
+          type: 'string',
+          description: 'The string to replace it with',
+        },
+      },
+      required: ['path', 'old_string', 'new_string'],
+    },
+  },
+  {
     name: 'bash',
     description:
       'Execute a shell command in the project directory. Only allowed commands: npm test, npm run build, npx tsc, git status/diff/log, and basic read commands.',
@@ -368,6 +391,14 @@ export class AgentToolExecutor {
           return await this.writeFile(
             input.path as string,
             input.content as string,
+            projectRoot,
+          )
+
+        case 'edit_file':
+          return await this.editFile(
+            input.path as string,
+            input.old_string as string,
+            input.new_string as string,
             projectRoot,
           )
 
@@ -587,6 +618,55 @@ export class AgentToolExecutor {
     const stats = await stat(filePath)
     return {
       content: `Written ${path} (${stats.size} bytes)`,
+      isError: false,
+    }
+  }
+
+  private async editFile(
+    path: string,
+    oldString: string,
+    newString: string,
+    projectRoot: string,
+  ): Promise<ToolExecutionResult> {
+    const filePath = this.safePath(path, projectRoot)
+
+    // Read current content
+    let content: string
+    try {
+      content = await readFile(filePath, 'utf-8')
+    } catch {
+      return {
+        content: `File not found: ${path}`,
+        isError: true,
+      }
+    }
+
+    // Check if old_string exists
+    if (!content.includes(oldString)) {
+      // Provide helpful error with context
+      const preview = oldString.length > 100 ? oldString.slice(0, 100) + '...' : oldString
+      return {
+        content: `old_string not found in ${path}. Make sure it matches exactly (including whitespace).\nSearching for: "${preview}"`,
+        isError: true,
+      }
+    }
+
+    // Check if old_string is unique
+    const occurrences = content.split(oldString).length - 1
+    if (occurrences > 1) {
+      return {
+        content: `old_string appears ${occurrences} times in ${path}. It must be unique. Add more context to make it unique.`,
+        isError: true,
+      }
+    }
+
+    // Perform replacement
+    const newContent = content.replace(oldString, newString)
+    await writeFile(filePath, newContent, 'utf-8')
+
+    const stats = await stat(filePath)
+    return {
+      content: `Edited ${path} (${stats.size} bytes)`,
       isError: false,
     }
   }

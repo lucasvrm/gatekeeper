@@ -401,9 +401,9 @@ export function ConfigPage() {
       <Tabs defaultValue="validators" className="space-y-4">
         <TabsList>
           <TabsTrigger value="validators">Validators</TabsTrigger>
-          <TabsTrigger value="prompts">Orchestrator</TabsTrigger>
           <TabsTrigger value="security-rules">Security Rules</TabsTrigger>
           <TabsTrigger value="conventions">Conventions</TabsTrigger>
+          <TabsTrigger value="prompts">LLM Prompts</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
@@ -415,10 +415,6 @@ export function ConfigPage() {
             onFailModeChange={handleFailModeChange}
             onUpdateConfig={handleUpdateValidationConfigValue}
           />
-        </TabsContent>
-
-        <TabsContent value="prompts">
-          <PromptsTab />
         </TabsContent>
 
         <TabsContent value="security-rules">
@@ -436,6 +432,10 @@ export function ConfigPage() {
 
         <TabsContent value="conventions">
           <PathConfigsTab />
+        </TabsContent>
+
+        <TabsContent value="prompts">
+          <PromptsTab />
         </TabsContent>
 
         <TabsContent value="advanced">

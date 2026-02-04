@@ -15,6 +15,23 @@
 import type { PrismaClient } from '@prisma/client'
 import Handlebars from 'handlebars'
 
+// Register common Handlebars helpers
+Handlebars.registerHelper('eq', (a: unknown, b: unknown) => a === b)
+Handlebars.registerHelper('ne', (a: unknown, b: unknown) => a !== b)
+Handlebars.registerHelper('lt', (a: unknown, b: unknown) => (a as number) < (b as number))
+Handlebars.registerHelper('gt', (a: unknown, b: unknown) => (a as number) > (b as number))
+Handlebars.registerHelper('lte', (a: unknown, b: unknown) => (a as number) <= (b as number))
+Handlebars.registerHelper('gte', (a: unknown, b: unknown) => (a as number) >= (b as number))
+Handlebars.registerHelper('and', (...args: unknown[]) => args.slice(0, -1).every(Boolean))
+Handlebars.registerHelper('or', (...args: unknown[]) => args.slice(0, -1).some(Boolean))
+Handlebars.registerHelper('not', (a: unknown) => !a)
+
+interface AssembledPrompt {
+  systemPrompt: string
+  instructions: string[]
+  docs: string[]
+}
+
 /**
  * Render a Handlebars template with variables.
  * Uses noEscape to preserve any HTML/markdown in the template.
@@ -286,8 +303,19 @@ export class AgentPromptAssembler {
 
     if (templates.length === 0) return null
 
-    // Filter templates: CLI uses retry-cli, API uses retry
-    // Shared templates (retry-previous-response-reference, etc.) are included for both
+    // Filter: for CLI, use retry-cli templates; for API, use retry templates
+    // but shared templates (like retry-previous-response-reference) should be included
+    const filtered = templates.filter((t) => {
+      if (isCliProvider) {
+        // For CLI: use retry-cli specific OR shared retry templates that aren't API-specific
+        return t.kind === 'retry-cli' || (t.kind === 'retry' && !t.name.includes('-api-'))
+      } else {
+        // For API: use retry specific OR shared retry templates that aren't CLI-specific
+        return t.kind === 'retry' || (t.kind === 'retry-cli' && !t.name.includes('-cli-'))
+      }
+    })
+
+    // Actually, let's simplify: CLI uses retry-cli, API uses retry
     const finalTemplates = templates.filter((t) => {
       if (isCliProvider) {
         return t.kind === 'retry-cli' ||

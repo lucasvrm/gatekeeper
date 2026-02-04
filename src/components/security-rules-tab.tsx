@@ -1,7 +1,10 @@
+import { useState } from "react"
 import { ConfigSection } from "@/components/config-section"
 import { type ConfigModalField } from "@/components/config-modal"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ChevronDown } from "lucide-react"
 
 interface SensitiveFileRule {
   id: string
@@ -60,6 +63,15 @@ export function SecurityRulesTab({
   onUpdateAmbiguousTerm,
   onDeleteAmbiguousTerm,
 }: SecurityRulesTabProps) {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    sensitive: true,
+    ambiguous: true,
+  })
+
+  const toggleSection = (key: string) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
   const handleCreateSensitive = async (values: Record<string, string | boolean>) => {
     await onCreateSensitiveRule({
       pattern: String(values.pattern ?? ""),
@@ -123,118 +135,144 @@ export function SecurityRulesTab({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Sensitive File Patterns Section */}
-      <Card data-testid="sensitive-file-patterns-section">
-        <CardHeader>
-          <CardTitle>Sensitive File Patterns</CardTitle>
-          <CardDescription>
-            Padrões de arquivos sensíveis que não devem ser modificados ou expostos.
-            <br />
-            <span className="text-xs text-muted-foreground mt-1 inline-block">
-              Usado por: <code className="bg-muted px-1 rounded">SensitiveFilesLock</code>, <code className="bg-muted px-1 rounded">DangerModeExplicit</code>
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ConfigSection
-            title=""
-            description=""
-            items={sensitiveFileRules}
-            columns={[
-              { key: "pattern", label: "Pattern" },
-              { key: "category", label: "Categoria" },
-              { key: "severity", label: "Severidade" },
-              {
-                key: "isActive",
-                label: "Status",
-                render: (item) => (
-                  <Badge variant={item.isActive ? "default" : "secondary"}>
-                    {item.isActive ? "Ativo" : "Inativo"}
-                  </Badge>
-                ),
-              },
-            ]}
-            createFields={sensitiveCreateFields}
-            editFields={sensitiveEditFields}
-            createDefaults={{
-              pattern: "",
-              category: "",
-              severity: "",
-              description: "",
-              isActive: true,
-            }}
-            getEditValues={(item) => ({
-              pattern: item.pattern,
-              category: item.category,
-              severity: item.severity,
-              description: item.description ?? "",
-              isActive: item.isActive,
-            })}
-            onCreate={handleCreateSensitive}
-            onUpdate={handleUpdateSensitive}
-            onDelete={handleDeleteSensitive}
-            onToggle={handleToggleSensitive}
-          />
-        </CardContent>
-      </Card>
+      <Collapsible open={openSections.sensitive} onOpenChange={() => toggleSection('sensitive')}>
+        <Card data-testid="sensitive-file-patterns-section">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Sensitive File Patterns
+                    <Badge variant="outline" className="text-xs">{sensitiveFileRules.length}</Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Padrões de arquivos sensíveis que não devem ser modificados.
+                  </CardDescription>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.sensitive ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="text-xs text-muted-foreground mb-4">
+                Usado por: <code className="bg-muted px-1 rounded">SensitiveFilesLock</code>, <code className="bg-muted px-1 rounded">DangerModeExplicit</code>
+              </div>
+              <ConfigSection
+                title=""
+                description=""
+                items={sensitiveFileRules}
+                columns={[
+                  { key: "pattern", label: "Pattern" },
+                  { key: "category", label: "Categoria" },
+                  { key: "severity", label: "Severidade" },
+                  {
+                    key: "isActive",
+                    label: "Status",
+                    render: (item) => (
+                      <Badge variant={item.isActive ? "default" : "secondary"}>
+                        {item.isActive ? "Ativo" : "Inativo"}
+                      </Badge>
+                    ),
+                  },
+                ]}
+                createFields={sensitiveCreateFields}
+                editFields={sensitiveEditFields}
+                createDefaults={{
+                  pattern: "",
+                  category: "",
+                  severity: "",
+                  description: "",
+                  isActive: true,
+                }}
+                getEditValues={(item) => ({
+                  pattern: item.pattern,
+                  category: item.category,
+                  severity: item.severity,
+                  description: item.description ?? "",
+                  isActive: item.isActive,
+                })}
+                onCreate={handleCreateSensitive}
+                onUpdate={handleUpdateSensitive}
+                onDelete={handleDeleteSensitive}
+                onToggle={handleToggleSensitive}
+              />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Ambiguous Terms Detection Section */}
-      <Card data-testid="ambiguous-terms-section">
-        <CardHeader>
-          <CardTitle>Ambiguous Terms Detection</CardTitle>
-          <CardDescription>
-            Termos que indicam ambiguidade ou falta de clareza nas tarefas.
-            <br />
-            <span className="text-xs text-muted-foreground mt-1 inline-block">
-              Usado por: <code className="bg-muted px-1 rounded">TaskClarityCheck</code>
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ConfigSection
-            title=""
-            description=""
-            items={ambiguousTerms}
-            columns={[
-              { key: "term", label: "Termo" },
-              { key: "category", label: "Categoria" },
-              {
-                key: "suggestion",
-                label: "Sugestão",
-                render: (item) => item.suggestion ?? "-",
-              },
-              {
-                key: "isActive",
-                label: "Status",
-                render: (item) => (
-                  <Badge variant={item.isActive ? "default" : "secondary"}>
-                    {item.isActive ? "Ativo" : "Inativo"}
-                  </Badge>
-                ),
-              },
-            ]}
-            createFields={ambiguousCreateFields}
-            editFields={ambiguousEditFields}
-            createDefaults={{
-              term: "",
-              category: "",
-              suggestion: "",
-              isActive: true,
-            }}
-            getEditValues={(item) => ({
-              term: item.term,
-              category: item.category,
-              suggestion: item.suggestion ?? "",
-              isActive: item.isActive,
-            })}
-            onCreate={handleCreateAmbiguous}
-            onUpdate={handleUpdateAmbiguous}
-            onDelete={handleDeleteAmbiguous}
-            onToggle={handleToggleAmbiguous}
-          />
-        </CardContent>
-      </Card>
+      <Collapsible open={openSections.ambiguous} onOpenChange={() => toggleSection('ambiguous')}>
+        <Card data-testid="ambiguous-terms-section">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Ambiguous Terms Detection
+                    <Badge variant="outline" className="text-xs">{ambiguousTerms.length}</Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Termos que indicam ambiguidade ou falta de clareza.
+                  </CardDescription>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.ambiguous ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="text-xs text-muted-foreground mb-4">
+                Usado por: <code className="bg-muted px-1 rounded">TaskClarityCheck</code>
+              </div>
+              <ConfigSection
+                title=""
+                description=""
+                items={ambiguousTerms}
+                columns={[
+                  { key: "term", label: "Termo" },
+                  { key: "category", label: "Categoria" },
+                  {
+                    key: "suggestion",
+                    label: "Sugestão",
+                    render: (item) => item.suggestion ?? "-",
+                  },
+                  {
+                    key: "isActive",
+                    label: "Status",
+                    render: (item) => (
+                      <Badge variant={item.isActive ? "default" : "secondary"}>
+                        {item.isActive ? "Ativo" : "Inativo"}
+                      </Badge>
+                    ),
+                  },
+                ]}
+                createFields={ambiguousCreateFields}
+                editFields={ambiguousEditFields}
+                createDefaults={{
+                  term: "",
+                  category: "",
+                  suggestion: "",
+                  isActive: true,
+                }}
+                getEditValues={(item) => ({
+                  term: item.term,
+                  category: item.category,
+                  suggestion: item.suggestion ?? "",
+                  isActive: item.isActive,
+                })}
+                onCreate={handleCreateAmbiguous}
+                onUpdate={handleUpdateAmbiguous}
+                onDelete={handleDeleteAmbiguous}
+                onToggle={handleToggleAmbiguous}
+              />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   )
 }

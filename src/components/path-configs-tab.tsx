@@ -4,6 +4,8 @@ import { ConfigSection } from "@/components/config-section"
 import { type ConfigModalField } from "@/components/config-modal"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 
 type TestPathConvention = {
@@ -71,6 +73,15 @@ export function PathConfigsTab() {
   const [loading, setLoading] = useState(true)
   const [testPaths, setTestPaths] = useState<TestPathConvention[]>([])
   const [systemPaths, setSystemPaths] = useState<ValidationConfigItem[]>([])
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    testPaths: true,
+    systemPaths: true,
+  })
+
+  const toggleSection = (key: string) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -236,119 +247,145 @@ export function PathConfigsTab() {
   }
 
   if (loading) {
-    return <div>Carregando...</div>
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="h-40 bg-muted rounded animate-pulse" />
+        <div className="h-40 bg-muted rounded animate-pulse" />
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Test Path Conventions Section */}
-      <Card data-testid="test-path-conventions-section">
-        <CardHeader>
-          <CardTitle>Test Path Conventions</CardTitle>
-          <CardDescription>
-            Defina onde os arquivos de teste devem ser criados com base no tipo. Use {"{name}"} como placeholder para o nome do arquivo e {"{gate}"} para o número do gate.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ConfigSection
-            title=""
-            description=""
-            items={testPaths}
-            columns={[
-              { key: "testType", label: "Tipo de Teste" },
-              {
-                key: "pathPattern",
-                label: "Padrão de Path",
-                render: (item) => <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.pathPattern}</code>
-              },
-              {
-                key: "description",
-                label: "Descrição",
-                render: (item) => item.description ?? "-",
-              },
-              {
-                key: "isActive",
-                label: "Status",
-                render: (item) => (
-                  <Badge variant={item.isActive ? "default" : "secondary"}>
-                    {item.isActive ? "Ativo" : "Inativo"}
-                  </Badge>
-                ),
-              },
-            ]}
-            createFields={testPathCreateFields}
-            editFields={testPathEditFields}
-            createDefaults={{
-              testType: "",
-              pathPattern: "",
-              description: "",
-              isActive: true,
-            }}
-            getEditValues={(item) => ({
-              pathPattern: item.pathPattern,
-              description: item.description ?? "",
-              isActive: item.isActive,
-            })}
-            onCreate={handleCreateTestPath}
-            onUpdate={(id, values) => {
-              const item = testPaths.find((p) => p.id === id)
-              if (!item) return Promise.resolve(false)
-              return handleUpdateTestPath(item.testType, values)
-            }}
-            onDelete={(id) => {
-              const item = testPaths.find((p) => p.id === id)
-              if (!item) return Promise.resolve(false)
-              return handleDeleteTestPath(item.testType)
-            }}
-            onToggle={(id, isActive) => {
-              const item = testPaths.find((p) => p.id === id)
-              if (!item) return Promise.resolve(false)
-              return handleToggleTestPath(item.testType, isActive)
-            }}
-          />
-        </CardContent>
-      </Card>
+      <Collapsible open={openSections.testPaths} onOpenChange={() => toggleSection('testPaths')}>
+        <Card data-testid="test-path-conventions-section">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Test Path Conventions
+                    <Badge variant="outline" className="text-xs">{testPaths.length}</Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Onde os arquivos de teste são criados por tipo.
+                  </CardDescription>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.testPaths ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="text-xs text-muted-foreground mb-4">
+                Use <code className="bg-muted px-1 rounded">{"{name}"}</code> para nome do arquivo e <code className="bg-muted px-1 rounded">{"{gate}"}</code> para o gate.
+              </div>
+              <ConfigSection
+                title=""
+                description=""
+                items={testPaths}
+                columns={[
+                  { key: "testType", label: "Tipo" },
+                  {
+                    key: "pathPattern",
+                    label: "Padrão",
+                    render: (item) => <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.pathPattern}</code>
+                  },
+                  {
+                    key: "isActive",
+                    label: "Status",
+                    render: (item) => (
+                      <Badge variant={item.isActive ? "default" : "secondary"}>
+                        {item.isActive ? "Ativo" : "Inativo"}
+                      </Badge>
+                    ),
+                  },
+                ]}
+                createFields={testPathCreateFields}
+                editFields={testPathEditFields}
+                createDefaults={{
+                  testType: "",
+                  pathPattern: "",
+                  description: "",
+                  isActive: true,
+                }}
+                getEditValues={(item) => ({
+                  pathPattern: item.pathPattern,
+                  description: item.description ?? "",
+                  isActive: item.isActive,
+                })}
+                onCreate={handleCreateTestPath}
+                onUpdate={(id, values) => {
+                  const item = testPaths.find((p) => p.id === id)
+                  if (!item) return Promise.resolve(false)
+                  return handleUpdateTestPath(item.testType, values)
+                }}
+                onDelete={(id) => {
+                  const item = testPaths.find((p) => p.id === id)
+                  if (!item) return Promise.resolve(false)
+                  return handleDeleteTestPath(item.testType)
+                }}
+                onToggle={(id, isActive) => {
+                  const item = testPaths.find((p) => p.id === id)
+                  if (!item) return Promise.resolve(false)
+                  return handleToggleTestPath(item.testType, isActive)
+                }}
+              />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* System Paths Section */}
-      <Card data-testid="system-paths-section">
-        <CardHeader>
-          <CardTitle>System Paths</CardTitle>
-          <CardDescription>
-            Paths do sistema utilizados pelo Gatekeeper. Eles devem corresponder à estrutura do seu projeto.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ConfigSection
-            title=""
-            description=""
-            items={systemPaths}
-            columns={[
-              { key: "key", label: "Chave" },
-              {
-                key: "value",
-                label: "Valor do Path",
-                render: (item) => (
-                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                    {item.value || <span className="text-muted-foreground">(vazio)</span>}
-                  </code>
-                )
-              },
-              {
-                key: "description",
-                label: "Descrição",
-                render: (item) => item.description ?? "-",
-              },
-            ]}
-            editFields={systemPathEditFields}
-            getEditValues={(item) => ({
-              value: item.value,
-              description: item.description ?? "",
-            })}
-            onUpdate={handleUpdateSystemPath}
-            hideCreate
-          />
-        </CardContent>
-      </Card>
+      <Collapsible open={openSections.systemPaths} onOpenChange={() => toggleSection('systemPaths')}>
+        <Card data-testid="system-paths-section">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    System Paths
+                    <Badge variant="outline" className="text-xs">{systemPaths.length}</Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Paths do sistema utilizados pelo Gatekeeper.
+                  </CardDescription>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.systemPaths ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <ConfigSection
+                title=""
+                description=""
+                items={systemPaths}
+                columns={[
+                  { key: "key", label: "Chave" },
+                  {
+                    key: "value",
+                    label: "Valor",
+                    render: (item) => (
+                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                        {item.value || <span className="text-muted-foreground">(vazio)</span>}
+                      </code>
+                    )
+                  },
+                ]}
+                editFields={systemPathEditFields}
+                getEditValues={(item) => ({
+                  value: item.value,
+                  description: item.description ?? "",
+                })}
+                onUpdate={handleUpdateSystemPath}
+                hideCreate
+              />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   )
 }

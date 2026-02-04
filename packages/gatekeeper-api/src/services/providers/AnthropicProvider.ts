@@ -36,7 +36,7 @@ export class AnthropicProvider implements LLMProvider {
   private client: Anthropic
 
   constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey })
+    this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 }) // 10 min timeout
   }
 
   async chat(params: ChatParams): Promise<LLMResponse> {

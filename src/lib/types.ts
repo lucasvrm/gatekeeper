@@ -360,6 +360,30 @@ export interface SessionProfile {
   prompts: PromptInstruction[]
 }
 
+// Agent Pipeline Phase Config
+export type ProviderName = 'anthropic' | 'openai' | 'mistral' | 'claude-code'
+
+export interface AgentPhaseConfig {
+  step: number  // 1=Planner, 2=Spec, 3=Fixer, 4=Coder
+  provider: ProviderName
+  model: string
+  maxTokens: number
+  maxIterations: number
+  maxInputTokensBudget: number  // 0 = unlimited
+  temperature: number | null
+  fallbackProvider: ProviderName | null
+  fallbackModel: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const STEP_LABELS: Record<number, string> = {
+  1: 'Planner',
+  2: 'Spec Writer',
+  3: 'Fixer',
+  4: 'Coder',
+}
+
 export interface MCPStatus {
   gatekeeperApi: "online" | "offline"
   database: "connected" | "disconnected"

@@ -148,22 +148,93 @@ function ArtifactViewer({ artifacts }: { artifacts: ParsedArtifact[] }) {
   const content = artifacts[selected]?.content ?? ""
   const lines = content.split("\n")
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content)
+      toast.success("Artifact copied to clipboard")
+    } catch (err) {
+      toast.error("Failed to copy: " + (err as Error).message)
+    }
+  }
+
+  const handleSave = () => {
+    try {
+      const blob = new Blob([content], { type: "text/plain" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = artifacts[selected].filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Artifact saved")
+    } catch (err) {
+      toast.error("Failed to save: " + (err as Error).message)
+    }
+  }
+
+  const handleSaveAll = async () => {
+    try {
+      const JSZip = (await import("jszip")).default
+      const zip = new JSZip()
+      artifacts.forEach((a) => zip.file(a.filename, a.content))
+      const blob = await zip.generateAsync({ type: "blob" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "artifacts.zip"
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("All artifacts saved as ZIP")
+    } catch (err) {
+      toast.error("Failed to save all: " + (err as Error).message)
+    }
+  }
+
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <div className="flex border-b border-border bg-muted/30">
-        {artifacts.map((a, i) => (
+    <div className="border border-border rounded-lg overflow-hidden" data-testid="artifact-viewer">
+      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-2 py-1">
+        <div className="flex">
+          {artifacts.map((a, i) => (
+            <button
+              key={a.filename}
+              onClick={() => setSelected(i)}
+              className={`px-3 py-2 text-xs font-mono transition-colors ${
+                i === selected
+                  ? "bg-card text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`artifact-tab-${i}`}
+            >
+              {a.filename}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
           <button
-            key={a.filename}
-            onClick={() => setSelected(i)}
-            className={`px-3 py-2 text-xs font-mono transition-colors ${
-              i === selected
-                ? "bg-card text-foreground border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            onClick={handleCopy}
+            title="Copy to clipboard"
+            data-testid="artifact-copy-btn"
+            className="h-7 px-2"
           >
-            {a.filename}
+            📋
           </button>
-        ))}
+          <button
+            onClick={handleSave}
+            title="Save current artifact"
+            data-testid="artifact-save-btn"
+            className="h-7 px-2"
+          >
+            💾
+          </button>
+          <button
+            onClick={handleSaveAll}
+            title="Save all as ZIP"
+            data-testid="artifact-save-all-btn"
+            className="h-7 px-2"
+          >
+            📦
+          </button>
+        </div>
       </div>
       <div className="overflow-auto max-h-96 bg-card">
         <table className="w-full" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
@@ -319,7 +390,7 @@ export function OrchestratorPage() {
       ],
     },
     "claude-code": {
-      label: "Claude Code (Max/Pro \u2014 sem API Key)",
+      label: "Claude Code CLI",
       models: [
         { value: "sonnet", label: "Sonnet" },
         { value: "opus", label: "Opus" },
@@ -327,7 +398,7 @@ export function OrchestratorPage() {
       ],
     },
     "codex-cli": {
-      label: "Codex CLI (OpenAI \u2014 sem API Key)",
+      label: "Codex CLI",
       models: [
         { value: "o3-mini", label: "o3-mini" },
         { value: "o4-mini", label: "o4-mini" },
@@ -357,6 +428,9 @@ export function OrchestratorPage() {
   const [executionPhase, setExecutionPhase] = useState<"WRITING" | null>(null)
   const executionPhaseRef = useRef<"WRITING" | null>(null)
   executionPhaseRef.current = executionPhase
+
+  // Nonce to ignore SSE events from stale/previous executions
+  const executionNonceRef = useRef(0)
 
   const [executionProgress, setExecutionProgress] = useState<{
     provider: string
@@ -524,13 +598,16 @@ export function OrchestratorPage() {
       if (executionPhaseRef.current === "WRITING") {
         const now = Date.now()
         if (event.type === "agent:start") {
+          // Record the current nonce — only events from THIS execution matter
+          const myNonce = executionNonceRef.current
           setExecutionProgress(prev => ({
             ...(prev || { iteration: 0, inputTokens: 0, outputTokens: 0, lastTool: null, thinkingSeconds: 0, startedAt: now, lastToolTime: now }),
             provider: String(event.provider ?? ""),
             model: String(event.model ?? ""),
             startedAt: prev?.startedAt || now,
             lastToolTime: now,
-          }))
+            _nonce: myNonce,
+          } as any))
         } else if (event.type === "agent:iteration") {
           setExecutionProgress(prev => prev ? {
             ...prev,
@@ -638,10 +715,20 @@ export function OrchestratorPage() {
           toast.success("Plano gerado com sucesso")
           break
         }
-        case "agent:bridge_execute_done": {
+        case "agent:bridge_execute_done":
+        case "agent:bridge_complete": {
+          // Only handle if we're in WRITING phase
+          if (executionPhaseRef.current !== "WRITING") {
+            if (debug) addLog("debug", `[${event.type}] ignorado — não estamos em WRITING`)
+            break
+          }
+          // Guard: if event has iteration count that's way below our current progress, it's stale
+          // (e.g. old execution finishing while new one is already at iteration 2)
           const tokens = (event as any).tokensUsed as { inputTokens: number; outputTokens: number } | undefined
+
           setExecutionPhase(null)
           setExecutionProgress(null)
+          markComplete(4)
           setExecuteResult({
             mode: String((event as any).mode || "agent"),
             tokensUsed: tokens,
@@ -1173,11 +1260,13 @@ export function OrchestratorPage() {
     setExecuteResult(null)
     setCommitResult(null)
     setPushResult(null)
+    executionNonceRef.current += 1 // invalidate any in-flight SSE events from previous execution
+    const myNonce = executionNonceRef.current
     setExecutionPhase("WRITING")
     setExecutionProgress(null)
     setValidationStatus(null)
     setRunResults(null)
-    addLog("info", `Executando implementação... (${stepLLMs[4].provider}/${stepLLMs[4].model})`)
+    addLog("info", `Executando implementação... (${stepLLMs[4].provider}/${stepLLMs[4].model}) [nonce=${myNonce}]`)
 
     try {
       // 202 — LLM starts in background. Completion comes via SSE: agent:bridge_execute_done
@@ -2070,7 +2159,12 @@ export function OrchestratorPage() {
 
                         {executionProgress && (
                           <div className={`text-xs text-muted-foreground space-y-1 font-mono p-3 rounded ${isStale ? "bg-amber-500/10 border border-amber-500/20" : "bg-muted/30"}`}>
-                            <div>Iteração {executionProgress.iteration} • {executionProgress.inputTokens.toLocaleString()} in / {executionProgress.outputTokens.toLocaleString()} out</div>
+                            <div>
+                              Iteração {executionProgress.iteration}
+                              {executionProgress.inputTokens > 0 || executionProgress.outputTokens > 0
+                                ? ` • ${executionProgress.inputTokens.toLocaleString()} in / ${executionProgress.outputTokens.toLocaleString()} out`
+                                : executionProgress.iteration > 0 ? " • tokens ao final" : ""}
+                            </div>
                             {executionProgress.lastTool && <div className="text-foreground/70">🔧 {executionProgress.lastTool}</div>}
                             {executionProgress.thinkingSeconds > 0 && (
                               <div className={executionProgress.thinkingSeconds > 120 ? "text-amber-400" : ""}>

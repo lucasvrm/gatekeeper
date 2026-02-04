@@ -337,9 +337,18 @@ export function ValidatorsTab({
   }, [gateGroups, expandedGates, onToggle, onFailModeChange, openConfigDialog, toggleGate])
 
   return (
-    <Card className="p-6 bg-card border-border space-y-4">
+    <Card className="p-6 bg-card border-border space-y-4" data-testid="validators-tab">
       <div>
-        <h2 className="text-xl font-semibold">Validators</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Validators</h2>
+          <Badge
+            variant="outline"
+            data-testid="validator-count-badge"
+            className="ml-auto"
+          >
+            {validators.length} total
+          </Badge>
+        </div>
         <p className="text-sm text-muted-foreground mt-1">
           Gerencie os validators por gate. Clique em um gate para expandir/colapsar.
         </p>

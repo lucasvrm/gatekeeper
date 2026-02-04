@@ -4,11 +4,11 @@ import { api } from "@/lib/api"
 import type { PromptInstruction } from "@/lib/types"
 import { PIPELINE_STEPS, DYNAMIC_INSTRUCTION_KINDS } from "@/lib/types"
 import { PromptFormDialog } from "./prompt-form-dialog"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
 type MainTab = 'pipeline' | 'dynamic' | 'custom'
 type RoleFilter = 'system' | 'user'
-
-// Dynamic instruction kinds are defined in DYNAMIC_INSTRUCTION_KINDS from types.ts
 
 export function PromptsTab() {
   const [activeTab, setActiveTab] = useState<MainTab>('pipeline')
@@ -107,85 +107,27 @@ export function PromptsTab() {
 
   if (loading) {
     return (
-      <div data-testid="prompts-tab">
-        <div data-testid="loading-skeleton" className="space-y-4">
-          <div className="h-8 bg-muted rounded animate-pulse w-1/4" />
-          <div className="h-24 bg-muted rounded animate-pulse" />
-          <div className="h-24 bg-muted rounded animate-pulse" />
-        </div>
+      <div data-testid="prompts-tab" className="space-y-6">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-40 bg-muted rounded animate-pulse" />
+        ))}
       </div>
     )
   }
 
   return (
-    <div data-testid="prompts-tab" className="space-y-4">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold">Prompts</h2>
-        <p className="text-sm text-muted-foreground">
-          Prompts de sistema usados pelo agente em cada fase do pipeline.
-          Selecione uma etapa para ver e editar seus prompts.
-        </p>
-      </div>
-
-      {/* Pipeline Tab Content */}
-      {activeTab === 'pipeline' && (
-        <div className="space-y-4">
-          {/* Step Toggles + System/User Toggle + Pipeline/Custom Toggle */}
+    <div data-testid="prompts-tab" className="space-y-6">
+      {/* Pipeline Prompts Section */}
+      <Card data-testid="pipeline-prompts-section">
+        <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {/* Step selector */}
-              <div className="flex gap-1 p-1 bg-muted rounded-lg">
-                {[1, 2, 3, 4].map((step) => {
-                  const stepCount = getStepCount(step)
-                  return (
-                    <button
-                      key={step}
-                      onClick={() => setActiveStep(step)}
-                      data-testid={`step-toggle-${step}`}
-                      className={`px-3 py-2 rounded text-sm transition-colors ${
-                        activeStep === step
-                          ? 'bg-card text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <span className="font-medium">Step {step}</span>
-                      <span className="ml-1.5 text-xs opacity-70">({stepCount})</span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* System/User role toggle */}
-              <div className="flex gap-1 p-1 bg-muted rounded-lg">
-                <button
-                  onClick={() => setActiveRole('system')}
-                  data-testid="role-toggle-system"
-                  className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1.5 ${
-                    activeRole === 'system'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <span className="text-blue-500">⚙</span>
-                  System ({systemCount})
-                </button>
-                <button
-                  onClick={() => setActiveRole('user')}
-                  data-testid="role-toggle-user"
-                  className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1.5 ${
-                    activeRole === 'user'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <span className="text-green-500">💬</span>
-                  User ({userCount})
-                </button>
-              </div>
+            <div>
+              <CardTitle>Pipeline Prompts</CardTitle>
+              <CardDescription>
+                System prompts e user message templates para cada fase do pipeline.
+              </CardDescription>
             </div>
-
-            {/* Pipeline/Dynamic/Custom Toggle aligned right */}
+            {/* Tab toggle */}
             <div className="flex gap-1 p-1 bg-muted rounded-lg">
               <button
                 onClick={() => setActiveTab('pipeline')}
@@ -222,60 +164,152 @@ export function PromptsTab() {
               </button>
             </div>
           </div>
-
-          {/* Current Step Content */}
-          <div className="border rounded-lg overflow-hidden">
-            {/* Step Header */}
-            <div className="bg-muted/50 px-4 py-3 flex justify-between items-center">
-              <div>
-                <h3 className="font-semibold flex items-center gap-2">
-                  Step {activeStep}: {currentStepInfo?.name}
-                  <span className={`text-xs px-2 py-0.5 rounded ${
-                    activeRole === 'system'
-                      ? 'bg-blue-500/20 text-blue-600'
-                      : 'bg-green-500/20 text-green-600'
-                  }`}>
-                    {activeRole === 'system' ? '⚙ System Prompt' : '💬 User Message'}
-                  </span>
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {activeRole === 'system'
-                    ? currentStepInfo?.description
-                    : 'Template de user message com placeholders Handlebars'}
-                </p>
-              </div>
+        </CardHeader>
+        <CardContent>
+          {activeTab === 'pipeline' && (
+            <div className="space-y-4">
+              {/* Step + Role selectors */}
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">
-                  {currentStepPrompts.length} prompt(s) · {currentStepPrompts.reduce((sum, p) => sum + p.content.length, 0).toLocaleString()} chars
-                </span>
-                <button
-                  onClick={() => handleCreate(activeStep, activeRole)}
-                  data-testid={`add-prompt-step-${activeStep}-${activeRole}`}
-                  className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:bg-primary/90 transition-colors"
-                >
-                  + Adicionar {activeRole === 'user' ? 'Template' : 'Prompt'}
-                </button>
-              </div>
-            </div>
+                {/* Step selector */}
+                <div className="flex gap-1 p-1 bg-muted rounded-lg">
+                  {[1, 2, 3, 4].map((step) => {
+                    const stepCount = getStepCount(step)
+                    return (
+                      <button
+                        key={step}
+                        onClick={() => setActiveStep(step)}
+                        data-testid={`step-toggle-${step}`}
+                        className={`px-3 py-2 rounded text-sm transition-colors ${
+                          activeStep === step
+                            ? 'bg-card text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <span className="font-medium">Step {step}</span>
+                        <span className="ml-1.5 text-xs opacity-70">({stepCount})</span>
+                      </button>
+                    )
+                  })}
+                </div>
 
-            {/* Step Prompts */}
-            <div className="divide-y">
-              {currentStepPrompts.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground mb-3">
-                    Nenhum prompt para este step.
-                  </p>
+                {/* System/User role toggle */}
+                <div className="flex gap-1 p-1 bg-muted rounded-lg">
                   <button
-                    onClick={() => handleCreate(activeStep)}
-                    className="text-sm text-primary hover:underline"
+                    onClick={() => setActiveRole('system')}
+                    data-testid="role-toggle-system"
+                    className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1.5 ${
+                      activeRole === 'system'
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
-                    Criar primeiro prompt
+                    <span className="text-blue-500">⚙</span>
+                    System ({systemCount})
+                  </button>
+                  <button
+                    onClick={() => setActiveRole('user')}
+                    data-testid="role-toggle-user"
+                    className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1.5 ${
+                      activeRole === 'user'
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <span className="text-green-500">💬</span>
+                    User ({userCount})
                   </button>
                 </div>
-              ) : (
-                currentStepPrompts
-                  .sort((a, b) => a.order - b.order)
-                  .map((prompt) => (
+              </div>
+
+              {/* Current Step Content */}
+              <div className="border rounded-lg overflow-hidden">
+                {/* Step Header */}
+                <div className="bg-muted/50 px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <h4 className="font-semibold flex items-center gap-2">
+                      Step {activeStep}: {currentStepInfo?.name}
+                      <Badge variant={activeRole === 'system' ? 'default' : 'secondary'}>
+                        {activeRole === 'system' ? '⚙ System' : '💬 User'}
+                      </Badge>
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      {activeRole === 'system'
+                        ? currentStepInfo?.description
+                        : 'Template de user message com placeholders Handlebars'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleCreate(activeStep, activeRole)}
+                    data-testid={`add-prompt-step-${activeStep}-${activeRole}`}
+                    className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:bg-primary/90 transition-colors"
+                  >
+                    + Adicionar
+                  </button>
+                </div>
+
+                {/* Step Prompts */}
+                <div className="divide-y">
+                  {currentStepPrompts.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground text-sm">
+                        Nenhum prompt para este step.
+                      </p>
+                    </div>
+                  ) : (
+                    currentStepPrompts
+                      .sort((a, b) => a.order - b.order)
+                      .map((prompt) => (
+                        <PromptCard
+                          key={prompt.id}
+                          prompt={prompt}
+                          expanded={expandedId === prompt.id}
+                          onToggle={() => toggleExpand(prompt.id)}
+                          onEdit={() => handleEdit(prompt)}
+                          onDelete={() => handleDelete(prompt.id, prompt.name)}
+                        />
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'dynamic' && (
+            <DynamicInstructionsContent
+              prompts={dynamicPrompts}
+              activeKind={activeKind}
+              onKindChange={setActiveKind}
+              expandedId={expandedId}
+              onToggleExpand={toggleExpand}
+              onEdit={handleEdit}
+              onDelete={(id, name) => handleDelete(id, name)}
+            />
+          )}
+
+          {activeTab === 'custom' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Prompts customizados injetados como "Instruções Adicionais" no system prompt.
+                </p>
+                <button
+                  onClick={() => handleCreate(null)}
+                  data-testid="new-prompt-button"
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded text-sm hover:bg-primary/90 transition-colors"
+                >
+                  + Novo
+                </button>
+              </div>
+
+              <div data-testid="prompts-list" className="border rounded-lg divide-y">
+                {sessionPrompts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground text-sm">
+                      Nenhum prompt customizado.
+                    </p>
+                  </div>
+                ) : (
+                  sessionPrompts.map((prompt) => (
                     <PromptCard
                       key={prompt.id}
                       prompt={prompt}
@@ -285,114 +319,27 @@ export function PromptsTab() {
                       onDelete={() => handleDelete(prompt.id, prompt.name)}
                     />
                   ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dynamic Instructions Tab Content */}
-      {activeTab === 'dynamic' && (
-        <DynamicInstructionsTab
-          prompts={dynamicPrompts}
-          activeKind={activeKind}
-          onKindChange={setActiveKind}
-          expandedId={expandedId}
-          onToggleExpand={toggleExpand}
-          onEdit={handleEdit}
-          onDelete={(id, name) => handleDelete(id, name)}
-          onTabChange={setActiveTab}
-          pipelineCount={pipelinePrompts.length}
-          dynamicCount={dynamicPrompts.length}
-          sessionCount={sessionPrompts.length}
-        />
-      )}
-
-      {/* Custom Tab Content */}
-      {activeTab === 'custom' && (
-        <div className="space-y-4">
-          {/* Toggle + New button */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Prompts customizados injetados como "Instruções Adicionais" no system prompt.
-            </p>
-
-            <div className="flex items-center gap-3">
-              {/* Pipeline/Dynamic/Custom Toggle */}
-              <div className="flex gap-1 p-1 bg-muted rounded-lg">
-                <button
-                  onClick={() => setActiveTab('pipeline')}
-                  data-testid="tab-pipeline"
-                  className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                    activeTab === 'pipeline'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Pipeline ({pipelinePrompts.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('dynamic')}
-                  data-testid="tab-dynamic"
-                  className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                    activeTab === 'dynamic'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Dinâmicos ({dynamicPrompts.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('custom')}
-                  data-testid="tab-session"
-                  className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                    activeTab === 'custom'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Custom ({sessionPrompts.length})
-                </button>
+                )}
               </div>
-
-              <button
-                onClick={() => handleCreate(null)}
-                data-testid="new-prompt-button"
-                className="bg-primary text-primary-foreground px-4 py-2 rounded text-sm hover:bg-primary/90 transition-colors"
-              >
-                + Novo
-              </button>
             </div>
-          </div>
+          )}
+        </CardContent>
+      </Card>
 
-          <div data-testid="prompts-list" className="border rounded-lg divide-y">
-            {sessionPrompts.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground mb-3">
-                  Nenhum prompt customizado.
-                </p>
-                <button
-                  onClick={() => handleCreate(null)}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Criar primeiro prompt
-                </button>
-              </div>
-            ) : (
-              sessionPrompts.map((prompt) => (
-                <PromptCard
-                  key={prompt.id}
-                  prompt={prompt}
-                  expanded={expandedId === prompt.id}
-                  onToggle={() => toggleExpand(prompt.id)}
-                  onEdit={() => handleEdit(prompt)}
-                  onDelete={() => handleDelete(prompt.id, prompt.name)}
-                />
-              ))
-            )}
+      {/* Info box */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-sm space-y-2">
+            <p className="font-medium">Sobre os prompts:</p>
+            <ul className="text-muted-foreground space-y-1 list-disc list-inside text-xs">
+              <li><strong>Pipeline</strong>: System prompts base para cada step (1-4)</li>
+              <li><strong>Dinâmicos</strong>: Templates para retry, guidance, git strategy, etc.</li>
+              <li><strong>Custom</strong>: Prompts adicionais injetados no contexto</li>
+              <li>Use <code className="bg-muted px-1 rounded">{'{{variavel}}'}</code> para placeholders Handlebars</li>
+            </ul>
           </div>
-        </div>
-      )}
+        </CardContent>
+      </Card>
 
       {dialogOpen && (
         <PromptFormDialog
@@ -431,19 +378,19 @@ function PromptCard({ prompt, expanded, onToggle, onEdit, onDelete }: PromptCard
             <span className="text-muted-foreground text-xs font-mono">#{prompt.order}</span>
             <h3 className="font-medium">{prompt.name}</h3>
             {prompt.kind && (
-              <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+              <Badge variant="outline" className="text-xs">
                 {prompt.kind}
-              </span>
+              </Badge>
             )}
             {isUserMessage && (
-              <span className="text-xs bg-green-500/20 text-green-600 px-1.5 py-0.5 rounded">
+              <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
                 💬 template
-              </span>
+              </Badge>
             )}
             {!prompt.isActive && (
-              <span className="text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded">
+              <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-600">
                 desativado
-              </span>
+              </Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -483,9 +430,9 @@ function PromptCard({ prompt, expanded, onToggle, onEdit, onDelete }: PromptCard
   )
 }
 
-// ─── Dynamic Instructions Tab Component ─────────────────────────────────────
+// ─── Dynamic Instructions Content Component ─────────────────────────────────
 
-interface DynamicInstructionsTabProps {
+interface DynamicInstructionsContentProps {
   prompts: PromptInstruction[]
   activeKind: string
   onKindChange: (kind: string) => void
@@ -493,13 +440,9 @@ interface DynamicInstructionsTabProps {
   onToggleExpand: (id: string) => void
   onEdit: (prompt: PromptInstruction) => void
   onDelete: (id: string, name: string) => void
-  onTabChange: (tab: MainTab) => void
-  pipelineCount: number
-  dynamicCount: number
-  sessionCount: number
 }
 
-function DynamicInstructionsTab({
+function DynamicInstructionsContent({
   prompts,
   activeKind,
   onKindChange,
@@ -507,11 +450,7 @@ function DynamicInstructionsTab({
   onToggleExpand,
   onEdit,
   onDelete,
-  onTabChange,
-  pipelineCount,
-  dynamicCount,
-  sessionCount,
-}: DynamicInstructionsTabProps) {
+}: DynamicInstructionsContentProps) {
   // Group prompts by kind
   const promptsByKind = prompts.reduce((acc, p) => {
     const kind = p.kind || 'other'
@@ -536,54 +475,28 @@ function DynamicInstructionsTab({
 
   return (
     <div className="space-y-4">
-      {/* Header row with kind selector and tab toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Kind selector pills */}
-          <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
-            {allKinds.map((kind) => {
-              const kindInfo = DYNAMIC_INSTRUCTION_KINDS[kind]
-              const count = promptsByKind[kind]?.length || 0
-              return (
-                <button
-                  key={kind}
-                  onClick={() => onKindChange(kind)}
-                  data-testid={`kind-toggle-${kind}`}
-                  className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1.5 ${
-                    activeKind === kind
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {kindInfo?.icon && <span>{kindInfo.icon}</span>}
-                  <span>{kindInfo?.label || kind}</span>
-                  <span className="text-xs opacity-70">({count})</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Tab toggle */}
-        <div className="flex gap-1 p-1 bg-muted rounded-lg">
-          <button
-            onClick={() => onTabChange('pipeline')}
-            className="px-3 py-1.5 rounded text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Pipeline ({pipelineCount})
-          </button>
-          <button
-            className="px-3 py-1.5 rounded text-sm bg-card text-foreground shadow-sm"
-          >
-            Dinâmicos ({dynamicCount})
-          </button>
-          <button
-            onClick={() => onTabChange('custom')}
-            className="px-3 py-1.5 rounded text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Custom ({sessionCount})
-          </button>
-        </div>
+      {/* Kind selector pills */}
+      <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
+        {allKinds.map((kind) => {
+          const kindInfo = DYNAMIC_INSTRUCTION_KINDS[kind]
+          const count = promptsByKind[kind]?.length || 0
+          return (
+            <button
+              key={kind}
+              onClick={() => onKindChange(kind)}
+              data-testid={`kind-toggle-${kind}`}
+              className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1.5 ${
+                activeKind === kind
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {kindInfo?.icon && <span>{kindInfo.icon}</span>}
+              <span>{kindInfo?.label || kind}</span>
+              <span className="text-xs opacity-70">({count})</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Current kind content */}
@@ -592,16 +505,16 @@ function DynamicInstructionsTab({
         <div className="bg-muted/50 px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold flex items-center gap-2">
+              <h4 className="font-semibold flex items-center gap-2">
                 {currentKindInfo?.icon && <span className="text-lg">{currentKindInfo.icon}</span>}
                 {currentKindInfo?.label || activeKind}
-              </h3>
+              </h4>
               <p className="text-xs text-muted-foreground mt-1">
                 {currentKindInfo?.description || 'Templates de instruções dinâmicas'}
               </p>
             </div>
             <span className="text-xs text-muted-foreground">
-              {currentKindPrompts.length} template(s) · {currentKindPrompts.reduce((sum, p) => sum + p.content.length, 0).toLocaleString()} chars
+              {currentKindPrompts.length} template(s)
             </span>
           </div>
         </div>
@@ -609,8 +522,8 @@ function DynamicInstructionsTab({
         {/* Kind Prompts */}
         <div className="divide-y">
           {currentKindPrompts.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
+            <div className="text-center py-8">
+              <p className="text-muted-foreground text-sm">
                 Nenhum template para esta categoria.
               </p>
             </div>
@@ -629,26 +542,6 @@ function DynamicInstructionsTab({
               ))
           )}
         </div>
-      </div>
-
-      {/* Info box */}
-      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-700 mb-2">
-          ℹ️ Sobre Instruções Dinâmicas
-        </h4>
-        <p className="text-xs text-muted-foreground">
-          Estes templates são usados automaticamente pelo orquestrador durante o pipeline.
-          Cada categoria tem uma função específica:
-        </p>
-        <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-          <li>• <strong>Retry</strong>: Mensagens enviadas quando o LLM não salva artifacts</li>
-          <li>• <strong>Guidance</strong>: Orientações específicas para cada validador que falha</li>
-          <li>• <strong>CLI Appends</strong>: Texto adicionado ao system prompt no modo Claude Code</li>
-          <li>• <strong>Git Strategy</strong>: Instruções de branching por estratégia</li>
-        </ul>
-        <p className="text-xs text-muted-foreground mt-2">
-          Use Handlebars para placeholders: <code className="bg-muted px-1 rounded">{'{{variavel}}'}</code>
-        </p>
       </div>
     </div>
   )
@@ -675,19 +568,19 @@ function DynamicPromptCard({ prompt, expanded, onToggle, onEdit, onDelete }: Dyn
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-medium font-mono text-sm">{prompt.name}</h3>
             {prompt.step !== null && (
-              <span className="text-xs bg-purple-500/20 text-purple-600 px-1.5 py-0.5 rounded">
+              <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-600">
                 Step {prompt.step}
-              </span>
+              </Badge>
             )}
             {prompt.role === 'user' && (
-              <span className="text-xs bg-green-500/20 text-green-600 px-1.5 py-0.5 rounded">
+              <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
                 💬 template
-              </span>
+              </Badge>
             )}
             {!prompt.isActive && (
-              <span className="text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded">
+              <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-600">
                 desativado
-              </span>
+              </Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">

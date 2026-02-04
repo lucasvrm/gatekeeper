@@ -30,6 +30,7 @@ import type {
   GitStrategy,
   OrchestratorContent,
   OrchestratorContentKind,
+  AgentPhaseConfig,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -934,6 +935,39 @@ export const api = {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete prompt")
         }
+      },
+    },
+
+    phases: {
+      list: async (): Promise<AgentPhaseConfig[]> => {
+        const response = await fetch(`${AGENT_BASE}/phases`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch phase configs")
+        }
+        return response.json()
+      },
+
+      get: async (step: number): Promise<AgentPhaseConfig> => {
+        const response = await fetch(`${AGENT_BASE}/phases/${step}`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to fetch phase config")
+        }
+        return response.json()
+      },
+
+      update: async (step: number, data: Partial<Omit<AgentPhaseConfig, 'step' | 'createdAt' | 'updatedAt'>>): Promise<AgentPhaseConfig> => {
+        const response = await fetch(`${AGENT_BASE}/phases/${step}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.error || "Failed to update phase config")
+        }
+        return response.json()
       },
     },
 

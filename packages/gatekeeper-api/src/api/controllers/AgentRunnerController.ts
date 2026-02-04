@@ -106,8 +106,8 @@ export class AgentRunnerController {
 
     const phase: PhaseConfig = {
       step: data.step,
-      provider: (data.provider ?? dbConfig?.provider ?? 'anthropic') as ProviderName,
-      model: data.model ?? dbConfig?.model ?? 'claude-sonnet-4-5-20250929',
+      provider: (data.provider ?? dbConfig?.provider ?? 'claude-code') as ProviderName,
+      model: data.model ?? dbConfig?.model ?? 'opus',
       maxTokens: dbConfig?.maxTokens ?? 8192,
       maxIterations: dbConfig?.maxIterations ?? 30,
       maxInputTokensBudget: dbConfig?.maxInputTokensBudget ?? 0,

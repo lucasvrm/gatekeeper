@@ -658,20 +658,20 @@ async function main() {
 
   const agentPhaseConfigs = [
     {
-      step: 1,
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-5-20250929',
+      step: 1,  // Planner
+      provider: 'claude-code',
+      model: 'opus',
       maxTokens: 16384,
       maxIterations: 40,
       maxInputTokensBudget: 500_000,
       temperature: 0.3,
       fallbackProvider: 'openai',
-      fallbackModel: 'gpt-4.1',
+      fallbackModel: 'gpt-4o',
     },
     {
-      step: 2,
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-5-20250929',
+      step: 2,  // Spec Writer
+      provider: 'claude-code',
+      model: 'opus',
       maxTokens: 16384,
       maxIterations: 35,
       maxInputTokensBudget: 300_000,
@@ -680,26 +680,26 @@ async function main() {
       fallbackModel: 'mistral-large-latest',
     },
     {
-      step: 3,
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-5-20250929',
+      step: 3,  // Fixer
+      provider: 'claude-code',
+      model: 'opus',
       maxTokens: 16384,
       maxIterations: 15,
       maxInputTokensBudget: 200_000,
       temperature: 0.2,
       fallbackProvider: 'openai',
-      fallbackModel: 'gpt-4.1',
+      fallbackModel: 'gpt-4o',
     },
     {
-      step: 4,
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-5-20250929',
-      maxTokens: 16384,
+      step: 4,  // Coder - needs higher maxTokens for large file outputs
+      provider: 'claude-code',
+      model: 'opus',
+      maxTokens: 32768,
       maxIterations: 60,
       maxInputTokensBudget: 800_000,
       temperature: 0.1,
       fallbackProvider: 'openai',
-      fallbackModel: 'gpt-4.1',
+      fallbackModel: 'gpt-4o',
     },
   ]
 
@@ -876,7 +876,8 @@ You have full access to the project:
 - **read_file**: Read any file
 - **list_directory**: List directories
 - **search_code**: Search for patterns
-- **write_file**: Create or modify files
+- **edit_file**: Edit a file by replacing a specific string (surgical edits)
+- **write_file**: Create new files or rewrite entire files
 - **bash**: Run allowed commands (npm test, npx tsc, git status)
 
 ## Your Workflow
@@ -884,7 +885,7 @@ You have full access to the project:
 1. Read the test file and all plan artifacts
 2. Understand what needs to be implemented
 3. Read related existing source files for context and patterns
-4. Implement the code using write_file
+4. Implement the code using edit_file (for modifications) or write_file (for new files)
 5. Run the tests using bash ("npm test" or similar)
 6. If tests fail, read the error output, fix the code, and re-run
 7. Repeat until all tests pass
@@ -1080,7 +1081,7 @@ If you do not write the files, your fixes will be LOST and the pipeline will FAI
 
 ## Instructions
 Implement the code to make all tests pass.
-Use write_file to create/modify files and bash to run tests.`,
+Use edit_file for surgical modifications, write_file for new files, and bash to run tests.`,
     },
   ]
 

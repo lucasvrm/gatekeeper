@@ -272,15 +272,6 @@ export class AgentOrchestratorBridge {
     }
 
     const phase = await this.resolvePhaseConfig(2, input.provider, input.model)
-
-    // FIX-C: Step 2 needs higher maxTokens because the LLM must output the entire
-    // spec file content inside a save_artifact tool call. With 8192 default, the model
-    // often runs out of tokens mid-response and the tool call is never emitted.
-    // 16384 gives enough room for ~40K chars of spec content + JSON overhead.
-    if (phase.maxTokens <= 8192) {
-      console.log(`[Bridge] Step 2: bumping maxTokens from ${phase.maxTokens} to 16384 for spec generation`)
-      phase.maxTokens = 16384
-    }
     const sessionContext = await this.fetchSessionContext(input.profileId)
     const basePrompt = await this.assembler.assembleForStep(2)
     let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
@@ -442,8 +433,8 @@ export class AgentOrchestratorBridge {
       // Replace API tool references with CLI tool names
       const cliToolsReplace = await this.assembler.getCliReplacement(4, 'execute-tools', {})
       userMessage = userMessage
-        .replace('Use write_file to create/modify files and bash to run tests.',
-          cliToolsReplace || 'Use your Write/Edit tools to create/modify files and Bash to run tests.')
+        .replace('Use edit_file for surgical modifications, write_file for new files, and bash to run tests.',
+          cliToolsReplace || 'Use your Edit tool for modifications, Write for new files, and Bash to run tests.')
       // Try to get CLI append from templates, fallback to hardcoded
       const cliAppend = await this.assembler.getCliSystemAppend(4, {})
       systemPrompt += cliAppend
@@ -499,8 +490,9 @@ export class AgentOrchestratorBridge {
 
     const existingArtifacts = await this.readArtifactsFromDisk(input.outputId, input.projectPath)
     console.log('[Bridge:Fix] existingArtifacts on disk:', Object.keys(existingArtifacts))
-    for (const [name, content] of Object.entries(existingArtifacts)) {
-      console.log(`[Bridge:Fix]   PRE  ${name}: ${content.length} chars`)
+    for (const [name, c] of Object.entries(existingArtifacts)) {
+      const hash = Buffer.from(c).length  // simple size-based check
+      console.log(`[Bridge:Fix]   PRE  ${name}: ${c.length} chars`)
     }
 
     // Fetch rejection report from API if we have a runId
@@ -518,16 +510,6 @@ export class AgentOrchestratorBridge {
       input.provider,
       input.model,
     )
-
-    // FIX-1: Bump maxTokens for fix operations (same issue as generateSpec)
-    // The LLM needs to output the entire corrected artifact inside save_artifact.
-    // With 8192 default, the model often runs out of tokens explaining changes
-    // and never emits the tool call.
-    if (phase.maxTokens <= 8192) {
-      console.log(`[Bridge:Fix] Bumping maxTokens from ${phase.maxTokens} to 16384 for artifact fix`)
-      phase.maxTokens = 16384
-    }
-
     const sessionContext = await this.fetchSessionContext(input.profileId)
     const basePrompt = await this.assembler.assembleForStep(3)
     let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
@@ -1397,7 +1379,7 @@ export class AgentOrchestratorBridge {
       artifactBlocks,
       ``,
       `Implement the code to make all tests pass.`,
-      `Use write_file to create/modify files and bash to run tests.`,
+      `Use edit_file for surgical modifications, write_file for new files, and bash to run tests.`,
     ].join('\n\n')
   }
 
