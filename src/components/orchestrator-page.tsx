@@ -1829,6 +1829,32 @@ export function OrchestratorPage() {
                     </CardDescription>
                   )}
                 </CardHeader>
+                {!executeResult && !validationStatus && (
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="shrink-0">LLM:</span>
+                      <Select value={stepLLMs[4]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(4, "provider", v)}>
+                        <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
+                            <SelectItem key={key} value={key}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={stepLLMs[4]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(4, "model", v)}>
+                        <SelectTrigger className="h-7 text-xs w-[120px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleExecute} disabled={loading} className="w-full">
+                      {loading ? "Executando..." : "Executar Implementação →"}
+                    </Button>
+                  </CardContent>
+                )}
                 {executeResult && (
                   <CardContent className="space-y-4">
                     {executeResult.mode === "cli" && executeResult.command && (
