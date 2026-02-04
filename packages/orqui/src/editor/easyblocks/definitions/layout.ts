@@ -41,7 +41,7 @@ export const stackDefinition: NoCodeComponentDefinition = {
 export const rowDefinition: NoCodeComponentDefinition = {
   id: "OrquiRow",
   label: "Row",
-  type: "section",
+  type: "item",
   paletteLabel: "Layout",
   schema: [
     {
@@ -114,7 +114,7 @@ export const rowDefinition: NoCodeComponentDefinition = {
 export const gridDefinition: NoCodeComponentDefinition = {
   id: "OrquiGrid",
   label: "Grid",
-  type: "section",
+  type: "item",
   paletteLabel: "Layout",
   schema: [
     {
@@ -161,7 +161,7 @@ export const gridDefinition: NoCodeComponentDefinition = {
 export const containerDefinition: NoCodeComponentDefinition = {
   id: "OrquiContainer",
   label: "Container",
-  type: "section",
+  type: "item",
   paletteLabel: "Layout",
   schema: [
     {

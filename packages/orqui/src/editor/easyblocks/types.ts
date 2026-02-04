@@ -130,12 +130,17 @@ export interface EasyblocksBackend {
 
 /** Type groups — Easyblocks uses these for slot constraints */
 export const ORQUI_TYPE_GROUPS = {
-  layout: ["OrquiStack", "OrquiRow", "OrquiGrid", "OrquiContainer"],
+  // Original (21)
+  layout: ["OrquiStack", "OrquiRow", "OrquiGrid", "OrquiContainer", "OrquiAccordion", "OrquiSidebar"],
   content: ["OrquiHeading", "OrquiText", "OrquiButton", "OrquiBadge", "OrquiIcon", "OrquiImage", "OrquiDivider", "OrquiSpacer"],
   data: ["OrquiStatCard", "OrquiCard", "OrquiTable", "OrquiList", "OrquiKeyValue"],
-  navigation: ["OrquiTabs"],
-  input: ["OrquiSearch", "OrquiSelect"],
+  navigation: ["OrquiTabs", "OrquiBreadcrumb", "OrquiPagination", "OrquiMenu", "OrquiLink"],
+  input: ["OrquiSearch", "OrquiSelect", "OrquiInput", "OrquiTextarea", "OrquiCheckbox", "OrquiSwitch", "OrquiRadio"],
   special: ["OrquiSlot"],
+  // New groups
+  feedback: ["OrquiAlert", "OrquiProgress", "OrquiSpinner", "OrquiSkeleton"],
+  overlay: ["OrquiModal", "OrquiDrawer", "OrquiTooltip"],
+  media: ["OrquiAvatar", "OrquiVideo", "OrquiCarousel"],
 } as const;
 
 /** All component IDs — used as a flat accepts list for unconstrained containers */
@@ -146,6 +151,9 @@ export const ALL_COMPONENT_IDS = [
   ...ORQUI_TYPE_GROUPS.navigation,
   ...ORQUI_TYPE_GROUPS.input,
   ...ORQUI_TYPE_GROUPS.special,
+  ...ORQUI_TYPE_GROUPS.feedback,
+  ...ORQUI_TYPE_GROUPS.overlay,
+  ...ORQUI_TYPE_GROUPS.media,
 ];
 
 // ============================================================================
@@ -154,6 +162,7 @@ export const ALL_COMPONENT_IDS = [
 
 /** Orqui node type string → Easyblocks component ID */
 export const NODE_TYPE_TO_EB_ID: Record<string, string> = {
+  // Original
   stack: "OrquiStack",
   row: "OrquiRow",
   grid: "OrquiGrid",
@@ -175,6 +184,33 @@ export const NODE_TYPE_TO_EB_ID: Record<string, string> = {
   search: "OrquiSearch",
   select: "OrquiSelect",
   slot: "OrquiSlot",
+  // New — forms
+  input: "OrquiInput",
+  textarea: "OrquiTextarea",
+  checkbox: "OrquiCheckbox",
+  switch: "OrquiSwitch",
+  radio: "OrquiRadio",
+  // New — feedback
+  alert: "OrquiAlert",
+  progress: "OrquiProgress",
+  spinner: "OrquiSpinner",
+  skeleton: "OrquiSkeleton",
+  // New — navigation
+  breadcrumb: "OrquiBreadcrumb",
+  pagination: "OrquiPagination",
+  menu: "OrquiMenu",
+  link: "OrquiLink",
+  // New — overlay
+  modal: "OrquiModal",
+  drawer: "OrquiDrawer",
+  tooltip: "OrquiTooltip",
+  // New — media
+  avatar: "OrquiAvatar",
+  video: "OrquiVideo",
+  carousel: "OrquiCarousel",
+  // New — layout extras
+  accordion: "OrquiAccordion",
+  sidebar: "OrquiSidebar",
 };
 
 /** Reverse mapping: Easyblocks component ID → Orqui node type string */
