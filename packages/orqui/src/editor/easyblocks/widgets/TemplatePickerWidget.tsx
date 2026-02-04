@@ -14,6 +14,11 @@
 // Registration:
 //   Config.types["orqui-template"].widget.id = "orqui-template-picker"
 //   → Easyblocks renders this widget for props of type "orqui-template"
+//
+// Widget Props (Easyblocks InlineTypeWidgetComponentProps<string>):
+//   value: string       — current prop value
+//   onChange: (v) => void — callback to update
+//   (other props may vary by EB version — all access is guarded)
 // ============================================================================
 
 import React, { useState, useRef, useEffect, useCallback, type CSSProperties } from "react";
@@ -36,24 +41,25 @@ import { C, MONO } from "../../page-editor/styles";
 import type { WidgetVariableContext } from "../bridge/variables";
 
 // ============================================================================
-// Widget Props — provided by Easyblocks
+// Widget Props — provided by Easyblocks (InlineTypeWidgetComponentProps<T>)
+//
+// Easyblocks docs specify { value, onChange } for inline types.
+// We accept `any` and normalize defensively, since:
+//   - Different EB versions may add/change props
+//   - The widget must never crash the sidebar
 // ============================================================================
 
 interface WidgetProps {
   /** Current value of the prop */
-  value: string;
+  value?: unknown;
   /** Callback to update the value */
-  onChange: (value: string) => void;
-  /** Schema definition for this prop (may be undefined depending on Easyblocks version) */
-  schema?: {
-    prop?: string;
-    label?: string;
-    defaultValue?: unknown;
-  };
-  /** Some Easyblocks versions pass id instead of schema.prop */
+  onChange?: (value: string) => void;
+  /** Some EB versions pass these — all optional and guarded */
+  schema?: { prop?: string; label?: string; defaultValue?: unknown };
   id?: string;
-  /** Some Easyblocks versions pass params from the schema definition */
   params?: Record<string, any>;
+  /** Catch-all for unknown props EB might inject */
+  [key: string]: unknown;
 }
 
 // ============================================================================
@@ -69,52 +75,116 @@ const EMPTY_CONTEXT: WidgetVariableContext = {
 /**
  * Read the variable context injected by EasyblocksPageEditor.
  * Returns empty context if not yet populated (graceful fallback).
+ * Validates the shape defensively — bad data must never crash the widget.
  */
 function getVariableContext(): WidgetVariableContext {
-  return (window as any).__orquiVariableContext || EMPTY_CONTEXT;
+  const raw = (window as any).__orquiVariableContext;
+  if (!raw || typeof raw !== "object" || !Array.isArray(raw.groups)) {
+    return EMPTY_CONTEXT;
+  }
+  return raw as WidgetVariableContext;
+}
+
+/**
+ * Safely extract string value from widget props.
+ * Easyblocks should pass a plain string for inline types, but we guard
+ * against objects, numbers, undefined, etc.
+ */
+function extractStringValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  // Edge case: EB might wrap in locale-aware object { $res: true, "pt-BR": "..." }
+  if (typeof value === "object") {
+    const v = value as Record<string, any>;
+    // Try common Easyblocks value wrapper patterns
+    if (typeof v.value === "string") return v.value;
+    if (typeof v["pt-BR"] === "string") return v["pt-BR"];
+    // Last resort — log for debugging but return empty
+    console.warn("[TemplatePickerWidget] Unexpected value type:", value);
+    return "";
+  }
+  return String(value);
 }
 
 // ============================================================================
 // Main Widget Component
 // ============================================================================
 
-export function TemplatePickerWidget({ value, onChange, schema, id }: WidgetProps) {
+export function TemplatePickerWidget(props: WidgetProps) {
+  // ---- Defensive prop extraction ----
+  const rawValue = props?.value;
+  const rawOnChange = typeof props?.onChange === "function" ? props.onChange : undefined;
+
+  // Extract label from wherever EB might put it
+  const label = (props?.schema as any)?.label
+    || (props?.params as any)?.label
+    || (props as any)?.label
+    || undefined;
+
+  // One-time diagnostic log (dev only)
+  useEffect(() => {
+    if (typeof import.meta !== "undefined" && (import.meta as any).env?.DEV) {
+      console.debug("[TemplatePickerWidget] mounted with props:", {
+        value: rawValue,
+        valueType: typeof rawValue,
+        hasOnChange: !!rawOnChange,
+        allPropKeys: props ? Object.keys(props) : [],
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [focused, setFocused] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [formatterOpen, setFormatterOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const safeValue = value || "";
+  const safeValue = extractStringValue(rawValue);
   const hasExpr = hasTemplateExpr(safeValue);
   const ctx = getVariableContext();
 
-  // Flatten variable data from grouped context
-  const allItems = ctx.groups.flatMap(g => g.items);
-  const allCategories = ctx.groups.map(g => g.category);
+  // Safe onChange wrapper — noop if EB didn't pass onChange
+  const safeOnChange = useCallback((v: string) => {
+    rawOnChange?.(v);
+  }, [rawOnChange]);
 
-  // Live preview — resolve template against mock data
-  const preview = hasExpr ? resolveTemplate(safeValue, ctx.mockData) : null;
+  // Flatten variable data from grouped context (with guards)
+  const allItems = ctx.groups.flatMap(g =>
+    Array.isArray(g?.items) ? g.items : []
+  );
+  const allCategories = ctx.groups
+    .map(g => g?.category)
+    .filter((c): c is VariableCategory =>
+      c != null && typeof c === "object" && typeof c.id === "string"
+    );
+
+  // Live preview — resolve template against mock data (safe: catch any error)
+  let preview: string | null = null;
+  try {
+    preview = hasExpr ? resolveTemplate(safeValue, ctx.mockData || {}) : null;
+  } catch {
+    preview = null;
+  }
 
   // ---- Cursor-aware insertion ----
 
   const insertAtCursor = useCallback((text: string) => {
     const el = inputRef.current;
     if (!el) {
-      onChange(safeValue + text);
+      safeOnChange(safeValue + text);
       return;
     }
     const start = el.selectionStart || 0;
     const end = el.selectionEnd || 0;
     const before = safeValue.slice(0, start);
     const after = safeValue.slice(end);
-    onChange(before + text + after);
+    safeOnChange(before + text + after);
     requestAnimationFrame(() => {
       el.focus();
       const pos = start + text.length;
       el.setSelectionRange(pos, pos);
     });
-  }, [safeValue, onChange]);
+  }, [safeValue, safeOnChange]);
 
   const handleSelectVariable = useCallback((path: string) => {
     insertAtCursor(`{{${path}}}`);
@@ -125,10 +195,10 @@ export function TemplatePickerWidget({ value, onChange, schema, id }: WidgetProp
     // Insert pipe before the last closing }}
     const lastClose = safeValue.lastIndexOf("}}");
     if (lastClose > 0) {
-      onChange(safeValue.slice(0, lastClose) + ` | ${name}` + safeValue.slice(lastClose));
+      safeOnChange(safeValue.slice(0, lastClose) + ` | ${name}` + safeValue.slice(lastClose));
     }
     setFormatterOpen(false);
-  }, [safeValue, onChange]);
+  }, [safeValue, safeOnChange]);
 
   // ---- Render ----
 
@@ -141,10 +211,10 @@ export function TemplatePickerWidget({ value, onChange, schema, id }: WidgetProp
             ref={inputRef}
             type="text"
             value={safeValue}
-            onChange={e => onChange(e.target.value)}
+            onChange={e => safeOnChange(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder={schema?.label || "Texto ou {{variável}}"}
+            placeholder={label || "Texto ou {{variável}}"}
             style={{
               ...inputStyle,
               borderColor: focused ? C.accent : C.border,
@@ -274,13 +344,13 @@ function WidgetVariablePicker({ items, categories, onSelect, onClose }: Variable
 
       {/* Variable list — grouped by category */}
       <div style={{ maxHeight: 260, overflow: "auto", padding: "0 4px 4px" }}>
-        {categories.filter(cat => grouped[cat.id]?.length).map(cat => (
+        {categories.filter(cat => cat?.id && grouped[cat.id]?.length).map(cat => (
           <div key={cat.id}>
             <div style={catLabelStyle}>
-              <span>{cat.icon}</span>
-              <span>{cat.label}</span>
+              <span>{cat.icon || "📦"}</span>
+              <span>{cat.label || cat.id}</span>
             </div>
-            {grouped[cat.id]!.map(v => (
+            {(grouped[cat.id] || []).map(v => v?.path ? (
               <button
                 key={v.path}
                 onClick={() => onSelect(v.path)}
@@ -301,7 +371,7 @@ function WidgetVariablePicker({ items, categories, onSelect, onClose }: Variable
                   }}>
                     {v.path}
                   </div>
-                  <div style={{ fontSize: 10, color: C.textDim }}>{v.label}</div>
+                  <div style={{ fontSize: 10, color: C.textDim }}>{v.label || ""}</div>
                 </div>
                 <span style={{
                   fontSize: 9, color: C.textDim + "80", fontFamily: MONO, flexShrink: 0,
@@ -309,7 +379,7 @@ function WidgetVariablePicker({ items, categories, onSelect, onClose }: Variable
                   {formatMock(v.mockValue)}
                 </span>
               </button>
-            ))}
+            ) : null)}
           </div>
         ))}
 
@@ -361,14 +431,15 @@ function WidgetFormatterPicker({ onSelect, onClose }: FormatterPickerProps) {
   const filtered = search.trim()
     ? FORMATTERS.filter(f =>
         f.name.includes(search.toLowerCase()) ||
-        f.label.toLowerCase().includes(search.toLowerCase()) ||
-        f.description.toLowerCase().includes(search.toLowerCase())
+        (f.label || "").toLowerCase().includes(search.toLowerCase()) ||
+        (f.description || "").toLowerCase().includes(search.toLowerCase())
       )
     : FORMATTERS;
 
   // Group by category
   const grouped: Record<string, FormatterInfo[]> = {};
   for (const f of filtered) {
+    if (!f?.category) continue;
     if (!grouped[f.category]) grouped[f.category] = [];
     grouped[f.category].push(f);
   }
@@ -395,12 +466,12 @@ function WidgetFormatterPicker({ onSelect, onClose }: FormatterPickerProps) {
 
       {/* Formatter list — grouped by category */}
       <div style={{ maxHeight: 260, overflow: "auto", padding: "0 4px 4px" }}>
-        {FORMATTER_CATEGORIES.filter(cat => grouped[cat.id]?.length).map(cat => (
+        {FORMATTER_CATEGORIES.filter(cat => cat?.id && grouped[cat.id]?.length).map(cat => (
           <div key={cat.id}>
             <div style={catLabelStyle}>
-              <span>{cat.label}</span>
+              <span>{cat.label || cat.id}</span>
             </div>
-            {grouped[cat.id]!.map(f => (
+            {(grouped[cat.id] || []).map(f => f?.name ? (
               <button
                 key={f.name}
                 onClick={() => onSelect(f.args ? `${f.name}:` : f.name)}
@@ -414,15 +485,15 @@ function WidgetFormatterPicker({ onSelect, onClose }: FormatterPickerProps) {
                   }}>
                     | {f.name}{f.args ? `:${f.args}` : ""}
                   </div>
-                  <div style={{ fontSize: 10, color: C.textDim }}>{f.description}</div>
+                  <div style={{ fontSize: 10, color: C.textDim }}>{f.description || ""}</div>
                 </div>
                 <span style={{
                   fontSize: 9, color: C.textDim + "80", fontFamily: MONO, flexShrink: 0,
                 }}>
-                  {f.example}
+                  {f.example || ""}
                 </span>
               </button>
-            ))}
+            ) : null)}
           </div>
         ))}
 

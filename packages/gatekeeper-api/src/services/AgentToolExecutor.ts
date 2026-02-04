@@ -701,9 +701,16 @@ export class AgentToolExecutor {
     filename: string,
     content: string,
   ): ToolExecutionResult {
+    const existing = this.artifacts.get(filename)
+    const isUpdate = !!existing
+    const changed = existing !== content
+    console.log(`[ToolExecutor] save_artifact: "${filename}" (${content.length} chars, ${isUpdate ? (changed ? 'CHANGED' : 'IDENTICAL') : 'NEW'})`)
+    if (isUpdate && !changed) {
+      console.warn(`[ToolExecutor] \u26a0\ufe0f IDENTICAL SAVE: "${filename}" content unchanged (${content.length} chars)`)
+    }
     this.artifacts.set(filename, content)
     return {
-      content: `Artifact saved: ${filename} (${content.length} chars)`,
+      content: `Artifact saved: ${filename} (${content.length} chars${isUpdate ? (changed ? ', content updated' : ', WARNING: identical to previous') : ''})`,
       isError: false,
     }
   }

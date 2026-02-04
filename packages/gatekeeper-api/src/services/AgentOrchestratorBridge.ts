@@ -398,14 +398,31 @@ export class AgentOrchestratorBridge {
   ): Promise<BridgeFixOutput> {
     const emit = callbacks.onEvent ?? (() => {})
 
+    console.log('[Bridge:Fix] === START ===')
+    console.log('[Bridge:Fix] target:', input.target)
+    console.log('[Bridge:Fix] outputId:', input.outputId)
+    console.log('[Bridge:Fix] runId:', input.runId)
+    console.log('[Bridge:Fix] failedValidators:', input.failedValidators)
+    console.log('[Bridge:Fix] provider:', input.provider, '| model:', input.model)
+    console.log('[Bridge:Fix] taskPrompt length:', input.taskPrompt?.length ?? 0)
+
     emit({ type: 'agent:bridge_start', step: 3, outputId: input.outputId } as AgentEvent)
 
     const existingArtifacts = await this.readArtifactsFromDisk(input.outputId, input.projectPath)
+    console.log('[Bridge:Fix] existingArtifacts on disk:', Object.keys(existingArtifacts))
+    for (const [name, c] of Object.entries(existingArtifacts)) {
+      const hash = Buffer.from(c).length  // simple size-based check
+      console.log(`[Bridge:Fix]   PRE  ${name}: ${c.length} chars`)
+    }
 
     // Fetch rejection report from API if we have a runId
     let rejectionReport = input.rejectionReport || ''
     if (!rejectionReport && input.runId) {
       rejectionReport = await this.fetchRejectionReport(input.runId)
+    }
+    console.log('[Bridge:Fix] rejectionReport:', rejectionReport.length, 'chars')
+    if (rejectionReport.length > 0) {
+      console.log('[Bridge:Fix] rejectionReport preview:', rejectionReport.slice(0, 300))
     }
 
     const phase = await this.resolvePhaseConfig(
@@ -430,6 +447,11 @@ export class AgentOrchestratorBridge {
       input.taskPrompt,
     )
 
+    console.log('[Bridge:Fix] userMessage length:', userMessage.length, 'chars')
+    console.log('[Bridge:Fix] userMessage preview (first 500):', userMessage.slice(0, 500))
+    console.log('[Bridge:Fix] systemPrompt length:', systemPrompt.length, 'chars')
+    console.log('[Bridge:Fix] tools:', [...READ_TOOLS, SAVE_ARTIFACT_TOOL].map(t => t.name))
+
     const result = await runner.run({
       phase,
       systemPrompt,
@@ -439,11 +461,42 @@ export class AgentOrchestratorBridge {
       onEvent: emit,
     })
 
+    console.log('[Bridge:Fix] LLM finished — iterations:', result.iterations)
+    console.log('[Bridge:Fix] LLM tokens:', result.tokensUsed)
+    console.log('[Bridge:Fix] LLM response text length:', result.text.length)
+    console.log('[Bridge:Fix] LLM response text preview:', result.text.slice(0, 400))
+
+    const savedArtifacts = toolExecutor.getArtifacts()
+    console.log('[Bridge:Fix] toolExecutor.getArtifacts() count:', savedArtifacts.size)
+    if (savedArtifacts.size === 0) {
+      console.warn('[Bridge:Fix] ⚠️ NO ARTIFACTS SAVED BY LLM! The fixer did not call save_artifact.')
+      console.warn('[Bridge:Fix] This means the LLM talked about fixes but never actually saved them.')
+    }
+    for (const [name, c] of savedArtifacts) {
+      console.log(`[Bridge:Fix]   POST ${name}: ${c.length} chars`)
+    }
+
     const artifacts = await this.persistArtifacts(
-      toolExecutor.getArtifacts(),
+      savedArtifacts,
       input.outputId,
       input.projectPath,
     )
+
+    console.log('[Bridge:Fix] persistArtifacts result:', artifacts.length, 'files')
+    // Compare pre vs post
+    for (const art of artifacts) {
+      const pre = existingArtifacts[art.filename]
+      if (pre) {
+        const identical = pre === art.content
+        console.log(`[Bridge:Fix] COMPARE ${art.filename}: pre=${pre.length} post=${art.content.length} ${identical ? '⚠️ IDENTICAL' : '✅ CHANGED'}`)
+        if (identical) {
+          console.warn(`[Bridge:Fix] ⚠️ FIX LOOP: "${art.filename}" is IDENTICAL after fix — LLM did not modify it`)
+        }
+      } else {
+        console.log(`[Bridge:Fix] NEW artifact: ${art.filename} (${art.content.length} chars)`)
+      }
+    }
+    console.log('[Bridge:Fix] === END ===')
 
     // Check if the fixer produced a corrected task prompt
     const correctedPromptArtifact = artifacts.find((a) => a.filename === 'corrected-task-prompt.txt')
@@ -862,10 +915,16 @@ export class AgentOrchestratorBridge {
     const TASK_PROMPT_VALIDATORS = ['NO_IMPLICIT_FILES', 'TASK_CLARITY_CHECK', 'TOKEN_BUDGET_FIT']
     const MANIFEST_VALIDATORS = ['TASK_SCOPE_SIZE', 'DELETE_DEPENDENCY_CHECK', 'PATH_CONVENTION', 'SENSITIVE_FILES_LOCK', 'DANGER_MODE_EXPLICIT']
     const CONTRACT_VALIDATORS = ['TEST_CLAUSE_MAPPING_VALID']
+    const TEST_QUALITY_VALIDATORS = [
+      'TEST_RESILIENCE_CHECK', 'NO_DECORATIVE_TESTS', 'TEST_HAS_ASSERTIONS',
+      'TEST_COVERS_HAPPY_AND_SAD_PATH', 'TEST_INTENT_ALIGNMENT', 'TEST_SYNTAX_VALID',
+      'IMPORT_REALITY_CHECK', 'MANIFEST_FILE_LOCK',
+    ]
 
     const hasTaskPromptFailure = failedValidators.some((v) => TASK_PROMPT_VALIDATORS.includes(v))
     const hasManifestFailure = failedValidators.some((v) => MANIFEST_VALIDATORS.includes(v))
     const hasContractFailure = failedValidators.some((v) => CONTRACT_VALIDATORS.includes(v))
+    const hasTestQualityFailure = failedValidators.some((v) => TEST_QUALITY_VALIDATORS.includes(v))
     const hasDangerModeFailure = failedValidators.includes('DANGER_MODE_EXPLICIT')
 
     const sections: string[] = [
@@ -924,6 +983,58 @@ export class AgentOrchestratorBridge {
         `1. If clause IDs in tests don't match contract: update either the test file or the contract clauses in plan.json\n` +
         `2. If tests are missing \`// @clause\` tags: add them to the spec test file\n` +
         `3. Save both corrected plan.json (with updated contract.clauses) and the test file as needed`
+      )
+    }
+
+    // === Guidance for test quality validators (Gate 1) ===
+    if (hasTestQualityFailure) {
+      const tips: string[] = []
+      if (failedValidators.includes('TEST_RESILIENCE_CHECK')) {
+        tips.push(
+          '- **TEST_RESILIENCE_CHECK**: The test file contains **fragile patterns** that depend on implementation details. ' +
+          'You MUST replace ALL of these patterns in the spec file:\n' +
+          '  - `.innerHTML` → use `toHaveTextContent()` or `screen.getByText()`\n' +
+          '  - `.outerHTML` → use `toHaveTextContent()` or specific accessible assertions\n' +
+          '  - `container.firstChild` → use `screen.getByRole()` or `screen.getByTestId()`\n' +
+          '  - `container.children` → use `screen.getAllByRole()` or `within()` for scoped queries\n' +
+          '  - `.querySelector()` / `.querySelectorAll()` → use `screen.getByRole()` / `screen.getAllByRole()`\n' +
+          '  - `.getElementsByClassName()` / `.getElementsByTagName()` / `.getElementById()` → use `screen.getByRole()` / `screen.getByTestId()`\n' +
+          '  - `.className` → use `toHaveClass()` or accessible assertions\n' +
+          '  - `.style.` → use `toHaveStyle()` or CSS-in-JS utilities\n' +
+          '  - `wrapper.find()` / `.dive()` → migrate to React Testing Library queries\n' +
+          '  - `toMatchSnapshot()` / `toMatchInlineSnapshot()` → use explicit assertions like `toHaveTextContent()`, `toBeVisible()`\n' +
+          '  Use ONLY resilient patterns: `screen.getByRole()`, `screen.getByText()`, `screen.getByTestId()`, ' +
+          '`userEvent.*`, `toBeVisible()`, `toBeInTheDocument()`, `toHaveTextContent()`, `toHaveAttribute()`.'
+        )
+      }
+      if (failedValidators.includes('NO_DECORATIVE_TESTS')) {
+        tips.push('- **NO_DECORATIVE_TESTS**: Remove tests that only check rendering without meaningful assertions (e.g. `expect(component).toBeDefined()`). Every test must assert observable behavior.')
+      }
+      if (failedValidators.includes('TEST_HAS_ASSERTIONS')) {
+        tips.push('- **TEST_HAS_ASSERTIONS**: Some test blocks are missing `expect()` calls. Add meaningful assertions to every `it()` / `test()` block.')
+      }
+      if (failedValidators.includes('TEST_COVERS_HAPPY_AND_SAD_PATH')) {
+        tips.push('- **TEST_COVERS_HAPPY_AND_SAD_PATH**: The test file must cover both success (happy path) and failure/error (sad path) scenarios.')
+      }
+      if (failedValidators.includes('TEST_INTENT_ALIGNMENT')) {
+        tips.push('- **TEST_INTENT_ALIGNMENT**: Test descriptions (`it("should...")`) must match what the test actually asserts. Align names with assertions.')
+      }
+      if (failedValidators.includes('TEST_SYNTAX_VALID')) {
+        tips.push('- **TEST_SYNTAX_VALID**: The test file has syntax errors. Fix TypeScript/JavaScript syntax issues.')
+      }
+      if (failedValidators.includes('IMPORT_REALITY_CHECK')) {
+        tips.push('- **IMPORT_REALITY_CHECK**: The test file imports modules that don\'t exist. Fix import paths to reference real files.')
+      }
+      if (failedValidators.includes('MANIFEST_FILE_LOCK')) {
+        tips.push('- **MANIFEST_FILE_LOCK**: The test file modifies files not listed in the manifest. Only touch files declared in plan.json manifest.')
+      }
+      sections.push(
+        `## Test Quality Fix Guidance\n` +
+        `These validators check the **test spec file** content. You MUST:\n` +
+        `1. Read the current spec file from the artifacts\n` +
+        `2. Apply ALL the fixes below\n` +
+        `3. Save the corrected spec file using \`save_artifact\` with the EXACT same filename\n\n` +
+        tips.join('\n\n')
       )
     }
 

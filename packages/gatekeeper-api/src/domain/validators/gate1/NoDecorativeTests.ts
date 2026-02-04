@@ -35,32 +35,60 @@ export const NoDecorativeTestsValidator: ValidatorDefinition = {
         issues.push(`Found ${emptyTests.length} empty test(s) with no implementation`)
       }
       
-      const testBlocks = content.match(/it\s*\(\s*['"][^'"]*['"]\s*,\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{[^}]*\}/gs) || []
+      // Extract test blocks using brace balancing instead of regex [^}]*}
+      // The old regex stopped at the first } in the body, missing assertions
+      // that came after objects, JSX expressions, or destructuring.
+      const testBlocks: string[] = []
+      const testStartRegex = /it\s*\(\s*['"][^'"]*['"]\s*,\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{/g
+      let startMatch: RegExpExecArray | null
+      while ((startMatch = testStartRegex.exec(content)) !== null) {
+        const bodyStart = startMatch.index + startMatch[0].length - 1 // position of opening {
+        let depth = 1
+        let pos = bodyStart + 1
+        while (pos < content.length && depth > 0) {
+          const ch = content[pos]
+          if (ch === '{') depth++
+          else if (ch === '}') depth--
+          // Skip string literals to avoid counting braces inside strings
+          else if (ch === "'" || ch === '"' || ch === '`') {
+            const quote = ch
+            pos++
+            while (pos < content.length && content[pos] !== quote) {
+              if (content[pos] === '\\') pos++ // skip escaped chars
+              pos++
+            }
+          }
+          pos++
+        }
+        if (depth === 0) {
+          testBlocks.push(content.slice(startMatch.index, pos))
+        }
+      }
+
       for (const block of testBlocks) {
         if (!block.includes('expect(') && !block.includes('assert(') && !block.includes('should')) {
           const testNameMatch = block.match(/it\s*\(\s*['"]([^'"]*)['"]/);
           const testName = testNameMatch ? testNameMatch[1] : 'unknown';
-          if (block.trim().length < 100 && !block.includes('toMatchSnapshot')) {
+          // Extract only the body (between outer braces) for size check
+          const bodyMatch = block.match(/=>\s*\{([\s\S]*)\}$/)
+          const bodyLength = bodyMatch ? bodyMatch[1].trim().length : block.trim().length
+          if (bodyLength < 200 && !block.includes('toMatchSnapshot')) {
             issues.push(`Test "${testName}" has no assertions`)
           }
         }
       }
       
-      const snapshotOnlyRegex = /it\s*\([^)]*\)\s*=>\s*\{[^}]*toMatchSnapshot\(\)[^}]*\}/g
-      const snapshotTests = content.match(snapshotOnlyRegex) || []
-      for (const snapTest of snapshotTests) {
-        if (!snapTest.includes('render(') && !snapTest.includes('expect(')) {
+      // Snapshot-only tests: check within properly extracted blocks
+      for (const block of testBlocks) {
+        if (block.includes('toMatchSnapshot()') && !block.includes('render(') && !block.includes('expect(')) {
           issues.push('Snapshot test without setup or expectations')
         }
       }
 
-      const renderWithoutAssert = /render\([^)]*\)(?!.*(?:expect\(|assert\())/gs
-      if (renderWithoutAssert.test(content)) {
-        const matches = content.match(/it\s*\([^)]*\)\s*=>\s*\{[^}]*render\([^)]*\)[^}]*\}/gs) || []
-        for (const match of matches) {
-          if (!match.includes('expect(') && !match.includes('assert(')) {
-            issues.push('render() call without subsequent assertions')
-          }
+      // Render without assertions: check within properly extracted blocks
+      for (const block of testBlocks) {
+        if (block.includes('render(') && !block.includes('expect(') && !block.includes('assert(')) {
+          issues.push('render() call without subsequent assertions')
         }
       }
 

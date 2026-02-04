@@ -120,7 +120,7 @@ export class ValidationOrchestrator {
         } else {
           console.warn('[ensureSpecAtCorrectPath] ⚠️ Artifacts dir does not exist:', outputDir)
         }
-      } catch { /* ignore */ }
+      } catch (err) { console.debug('[ValidationOrchestrator] ensureSpecAtCorrectPath:', (err as Error).message) }
     } else {
       throw new Error(
         `Spec file not found in artifacts staging path: ${artifactsPath}. Ensure the artifacts folder is selected.`,

@@ -207,7 +207,11 @@ export class BridgeController {
     } = req.body
     const provider = asProvider(req.body.provider)
 
+    console.log('[Controller:Fix] POST /agent/bridge/fix')
+    console.log('[Controller:Fix] body:', JSON.stringify({ outputId, target, failedValidators, provider, model, projectPath, runId: gkRunId, taskPromptLen: taskPrompt?.length }, null, 2))
+
     if (!outputId || !projectPath || !target || !failedValidators) {
+      console.error('[Controller:Fix] Missing required fields!')
       res.status(400).json({
         error: 'outputId, projectPath, target, and failedValidators are required',
       })
@@ -224,6 +228,8 @@ export class BridgeController {
         },
       )
 
+      console.log('[Controller:Fix] Success — artifacts:', result.artifacts.map(a => `${a.filename}(${a.content.length})`))
+      console.log('[Controller:Fix] corrections:', result.corrections?.length ?? 0)
       res.json({
         outputId,
         artifacts: result.artifacts.map((a) => ({
@@ -235,7 +241,7 @@ export class BridgeController {
         correctedTaskPrompt: result.correctedTaskPrompt,
       })
     } catch (err) {
-      console.error('[Bridge] Fix failed:', err)
+      console.error('[Controller:Fix] FAILED:', err)
       const errObj = err as Error
       res.status(500).json({ error: errObj.message })
     }
@@ -245,37 +251,55 @@ export class BridgeController {
    * POST /agent/bridge/execute
    *
    * Body: { outputId, projectPath, provider?, model? }
+   * Returns: 202 + { outputId, eventsUrl }
+   * Background: runs agent → emits SSE events → completes with agent:bridge_execute_done
    */
   async execute(req: Request, res: Response): Promise<void> {
     const { outputId, projectPath, model } = req.body
     const provider = asProvider(req.body.provider)
 
+    console.log('[Controller:Execute] POST /agent/bridge/execute')
+    console.log('[Controller:Execute] body:', JSON.stringify({ outputId, projectPath, provider, model }))
+
     if (!outputId || !projectPath) {
+      console.error('[Controller:Execute] Missing required fields!')
       res.status(400).json({ error: 'outputId and projectPath are required' })
       return
     }
 
     const bridge = getBridge()
+    const emit = makeEmitter(outputId)
 
-    try {
-      const result = await bridge.execute(
-        { outputId, projectPath, provider, model },
-      )
+    // Return immediately so the client doesn't timeout
+    res.status(202).json({
+      outputId,
+      mode: 'agent',
+      eventsUrl: `/api/agent/events/${outputId}`,
+    })
 
-      res.json({
-        outputId,
-        mode: 'agent',
-        artifacts: result.artifacts.map((a) => ({
-          filename: a.filename,
-          content: a.content,
-        })),
-        tokensUsed: result.tokensUsed,
-      })
-    } catch (err) {
-      console.error('[Bridge] Execute failed:', err)
-      const errObj = err as Error
-      res.status(500).json({ error: errObj.message })
-    }
+    // Run in background
+    setImmediate(async () => {
+      try {
+        const result = await bridge.execute(
+          { outputId, projectPath, provider, model },
+          { onEvent: emit },
+        )
+
+        OrchestratorEventService.emitOrchestratorEvent(outputId, {
+          type: 'agent:bridge_execute_done',
+          outputId,
+          mode: 'agent',
+          artifacts: result.artifacts.map((a) => a.filename),
+          tokensUsed: result.tokensUsed,
+        })
+      } catch (err) {
+        console.error('[Bridge] Execute failed:', err)
+        OrchestratorEventService.emitOrchestratorEvent(outputId, {
+          type: 'agent:error',
+          error: (err as Error).message,
+        })
+      }
+    })
   }
 
   /**

@@ -344,6 +344,7 @@ export class AgentRunnerService {
           model: phase.model,
         }
 
+        console.log(`[AgentRunner] Step ${phase.step} complete — ${iteration} iterations, ${totalTokens.inputTokens}in/${totalTokens.outputTokens}out tokens`)
         emit({ type: 'agent:complete', result })
         return result
       }
@@ -354,6 +355,13 @@ export class AgentRunnerService {
 
       for (const block of response.content) {
         if (block.type !== 'tool_use') continue
+
+        if (block.name === 'save_artifact') {
+          const inp = block.input as Record<string, unknown>
+          console.log(`[AgentRunner] Step ${phase.step} i${iteration}: save_artifact("${inp.filename}", ${(inp.content as string)?.length ?? 0} chars)`)
+        } else {
+          console.log(`[AgentRunner] Step ${phase.step} i${iteration}: ${block.name}(${JSON.stringify(block.input).slice(0, 100)})`)
+        }
 
         const start = Date.now()
         const result = await this.toolExecutor.execute(

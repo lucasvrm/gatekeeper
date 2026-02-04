@@ -28,13 +28,25 @@ export { orquiTokensToEasyblocks, easyblocksToOrquiTokens, generateTokenCSSVaria
 export { getOrquiCustomTypes, buildWidgetVariableContext, type WidgetVariableContext } from "./bridge/variables";
 
 // Backend
-export { createOrquiBackend, clearAdapterSeededEntry, invalidateAllEntries, type OrquiBackendOptions } from "./backend";
+export {
+  createOrquiBackend,
+  clearAdapterSeededEntry,
+  invalidateAllEntries,
+  stripEbEntries,
+  hydrateEbEntries,
+  updatePageMeta,
+  reorderPage,
+  type OrquiBackendOptions,
+} from "./backend";
 
 // Definitions
 export { ALL_DEFINITIONS } from "./definitions";
 
 // Components
 export { ORQUI_COMPONENTS } from "./components";
+
+// Page Switcher (standalone — can be used outside EasyblocksPageEditor)
+export { PageSwitcher, type PageSwitcherProps } from "./PageSwitcher";
 
 // Types
 export type {

@@ -13,6 +13,11 @@
 //
 // This is CRITICAL because without it, the iframe loads the full
 // Gatekeeper app (sidebar, dashboard, nav) instead of the blank canvas.
+//
+// PHASE 5 CHANGES:
+//   - onPageMetaChange integration with PageSwitcher
+//   - flushSync for race-condition-free filesystem saves
+//   - hasUnsavedChanges prop correctly destructured
 // ============================================================================
 
 import React, { useState, useCallback, useMemo, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from "react";
@@ -25,7 +30,7 @@ import { ORQUI_COMPONENTS } from "./components";
 import { ORQUI_WIDGETS } from "./widgets/TemplatePickerWidget";
 import { buildWidgetVariableContext } from "./bridge/variables";
 import { PageSwitcher } from "./PageSwitcher";
-import { hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry, invalidateAllEntries } from "./backend";
+import { hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry, invalidateAllEntries, updatePageMeta } from "./backend";
 
 // ============================================================================
 // Iframe Detection
@@ -195,6 +200,8 @@ interface EasyblocksPageEditorProps {
   onSave?: () => void;
   /** Current save status */
   saveStatus?: string | null;
+  /** Whether there are unsaved changes (for visual indicator) */
+  hasUnsavedChanges?: boolean;
 }
 
 // ============================================================================
@@ -211,6 +218,7 @@ export function EasyblocksPageEditor({
   onSwitchToShell,
   onSave,
   saveStatus,
+  hasUnsavedChanges,
 }: EasyblocksPageEditorProps) {
   // =====================================================================
   // IFRAME DETECTION — must be FIRST, before any other logic.
@@ -237,6 +245,7 @@ export function EasyblocksPageEditor({
     onSwitchToShell={onSwitchToShell}
     onSave={onSave}
     saveStatus={saveStatus}
+    hasUnsavedChanges={hasUnsavedChanges}
   />;
 }
 
@@ -260,6 +269,7 @@ function EasyblocksParentEditor({
   onSwitchToShell,
   onSave,
   saveStatus,
+  hasUnsavedChanges,
 }: EasyblocksPageEditorProps) {
   // ---- Page selection state ----
   // null = new page (rootComponent mode), string = existing page (document mode)
@@ -350,6 +360,12 @@ function EasyblocksParentEditor({
     setReady(false);
     setSelectedPageId(nextId || null);
     setEditorKey(k => k + 1);
+  }, [pages, onPagesChange]);
+
+  // ---- Page metadata update handler ----
+  const handlePageMetaChange = useCallback((pageId: string, meta: Partial<Pick<PageDef, "label" | "route" | "browserTitle">>) => {
+    const updated = updatePageMeta(pages, pageId, meta);
+    onPagesChange(updated);
   }, [pages, onPagesChange]);
 
   // ---- Track newly created pages ----
@@ -462,10 +478,13 @@ function EasyblocksParentEditor({
   }, []);
 
   // ---- Flush backend on Ctrl+S (force-save event) ----
+  // PHASE 5: Use flushSync to await state propagation before filesystem save
   useEffect(() => {
-    const handler = () => {
-      if (config.backend && typeof config.backend.flush === "function") {
-        config.backend.flush();
+    const handler = async () => {
+      if (config.backend && typeof (config.backend as any).flushSync === "function") {
+        await (config.backend as any).flushSync();
+      } else if (config.backend && typeof (config.backend as any).flush === "function") {
+        (config.backend as any).flush();
       }
     };
     window.addEventListener("orqui:force-save", handler);
@@ -570,6 +589,7 @@ function EasyblocksParentEditor({
             title="⌘S — Salvar"
             style={{
               pointerEvents: "auto",
+              display: "flex", alignItems: "center", gap: 4,
               padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
               border: "none", cursor: "pointer",
               fontFamily: "'Inter', sans-serif",
@@ -577,9 +597,18 @@ function EasyblocksParentEditor({
               color: "#fff",
               opacity: saveStatus === "saving" ? 0.6 : 1,
               transition: "all 0.15s",
+              position: "relative",
             }}
           >
             {saveStatus === "saving" ? "…" : saveStatus === "saved" ? "✓" : saveStatus === "error" ? "✕" : "Save"}
+            {/* Unsaved changes indicator */}
+            {hasUnsavedChanges && !saveStatus && (
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: "#fbbf24",
+                position: "absolute", top: -2, right: -2,
+              }} />
+            )}
           </button>
         )}
       </div>
@@ -600,6 +629,7 @@ function EasyblocksParentEditor({
             onSelectPage={handleSelectPage}
             onNewPage={handleNewPage}
             onDeletePage={handleDeletePage}
+            onPageMetaChange={handlePageMetaChange}
           />
         </div>
       </div>

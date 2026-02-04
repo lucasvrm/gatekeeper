@@ -1,4 +1,5 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput, ValidatorContextFinding, UIRegistryComponent } from '../../../types/index.js'
+import { findJsxTags, findLocalComponentNames } from '../utils/jsx-parser.js'
 
 // HTML native elements that should be ignored
 const HTML_NATIVE_ELEMENTS = new Set([
@@ -20,39 +21,14 @@ const HTML_NATIVE_ELEMENTS = new Set([
 // Default ignored prefixes
 const DEFAULT_IGNORED_PREFIXES = ['Lucide', 'Icon']
 
-// Regex to find JSX components - matches <ComponentName or <Component.Sub
-const JSX_COMPONENT_REGEX = /<([A-Z][a-zA-Z0-9]*(?:\.[A-Z][a-zA-Z0-9]*)?)\s*(?:[^>]*?)(?:\/?>)/g
-
-// Regex to find locally defined components
-const LOCAL_FUNCTION_COMPONENT_REGEX = /(?:^|\n)\s*(?:export\s+)?function\s+([A-Z][a-zA-Z0-9]*)\s*\(/g
-const LOCAL_CONST_COMPONENT_REGEX = /(?:^|\n)\s*(?:export\s+)?const\s+([A-Z][a-zA-Z0-9]*)\s*=\s*(?:\([^)]*\)|[^=])*=>/g
-
-function findLocalComponents(content: string): Set<string> {
-  const localComponents = new Set<string>()
-
-  let match
-  const funcRegex = new RegExp(LOCAL_FUNCTION_COMPONENT_REGEX.source, 'g')
-  while ((match = funcRegex.exec(content)) !== null) {
-    localComponents.add(match[1])
-  }
-
-  const constRegex = new RegExp(LOCAL_CONST_COMPONENT_REGEX.source, 'g')
-  while ((match = constRegex.exec(content)) !== null) {
-    localComponents.add(match[1])
-  }
-
-  return localComponents
-}
+// NOTE: JSX tag finding and local component detection are delegated to
+// ../utils/jsx-parser.ts which uses balanced delimiter scanning instead of
+// [^>] and [^)] regex patterns that truncate at the first occurrence
+// (see AUDITORIA-REGEX-VALIDATORS.md).
 
 function findJSXComponents(content: string): string[] {
-  const components: string[] = []
-  const regex = new RegExp(JSX_COMPONENT_REGEX.source, 'g')
-  let match
-  while ((match = regex.exec(content)) !== null) {
-    const name = match[1].split('.')[0] // Handle Component.SubComponent
-    components.push(name)
-  }
-  return components
+  const tags = findJsxTags(content)
+  return tags.map((tag) => tag.name.split('.')[0]) // Handle Component.SubComponent
 }
 
 function getSuggestions(unknown: string, registryComponents: string[]): string[] {
@@ -195,10 +171,10 @@ export const UIComponentRegistryValidator: ValidatorDefinition = {
 
       analyzedFiles.push(file.path)
 
-      // CL-REG-011: Find locally defined components
-      const localComponents = findLocalComponents(content)
+      // CL-REG-011: Find locally defined components (uses balanced parsing)
+      const localComponents = findLocalComponentNames(content)
 
-      // Find all JSX components used
+      // Find all JSX components used (uses balanced parsing)
       const components = findJSXComponents(content)
 
       for (const component of components) {

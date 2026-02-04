@@ -310,7 +310,7 @@ export class ClaudeCodeProvider implements LLMProvider {
               break
             }
           }
-        } catch {
+        } catch (err) {
           // Non-JSON line, ignore (e.g. progress dots)
         }
       }

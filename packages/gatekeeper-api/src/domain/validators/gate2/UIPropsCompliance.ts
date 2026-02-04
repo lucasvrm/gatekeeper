@@ -1,4 +1,5 @@
 import type { ValidatorDefinition, ValidationContext, ValidatorOutput, ValidatorContextFinding, UIComponentProp } from '../../../types/index.js'
+import { findJsxTags, parsePropsFromString, type ParsedProp } from '../utils/jsx-parser.js'
 
 // HTML generic props that are always allowed (even in strict mode)
 const HTML_GENERIC_PROPS = new Set([
@@ -8,81 +9,29 @@ const HTML_GENERIC_PROPS = new Set([
   'onMouseEnter', 'onMouseLeave', 'onScroll', 'onLoad', 'onError',
 ])
 
-// Regex to match JSX opening tags with their props
-// Matches: <ComponentName prop="value" prop={expr} {...spread}>
-const JSX_TAG_REGEX = /<([A-Z][a-zA-Z0-9]*)\s*([^>]*?)(?:\/?>)/gs
-
-// Regex to extract individual props from the props string
-// Matches: propName="value" or propName={expr} or propName (boolean shorthand) or {...spread}
-const PROP_REGEX = /(?:(\{\.\.\.[\w.]+\})|([a-zA-Z_][\w-]*)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})|(?=\s|\/|>)))/g
-
-interface PropInfo {
-  name: string
-  value: string | null  // null for boolean shorthand or dynamic expressions
-  isDynamic: boolean    // true if value is {expr}
-  isSpread: boolean     // true if {...props}
-}
+// NOTE: JSX tag finding and prop parsing are delegated to ../utils/jsx-parser.ts
+// which uses balanced delimiter scanning instead of [^>] and [^}] regex patterns
+// that truncate at the first occurrence (see AUDITORIA-REGEX-VALIDATORS.md).
 
 interface ComponentInstance {
   componentName: string
   file: string
-  props: PropInfo[]
+  props: ParsedProp[]
   hasSpread: boolean
 }
 
-function extractProps(propsString: string): PropInfo[] {
-  const props: PropInfo[] = []
-  const regex = new RegExp(PROP_REGEX.source, 'g')
-  let match
-
-  while ((match = regex.exec(propsString)) !== null) {
-    const [, spreadMatch, propName, doubleQuoteValue, singleQuoteValue, braceValue] = match
-
-    if (spreadMatch) {
-      props.push({
-        name: '__spread__',
-        value: null,
-        isDynamic: true,
-        isSpread: true,
-      })
-    } else if (propName) {
-      const literalValue = doubleQuoteValue ?? singleQuoteValue ?? null
-      const isDynamic = braceValue !== undefined && literalValue === null
-
-      props.push({
-        name: propName,
-        value: literalValue,
-        isDynamic,
-        isSpread: false,
-      })
-    }
-  }
-
-  return props
-}
-
 function findComponentInstances(content: string, file: string): ComponentInstance[] {
-  const instances: ComponentInstance[] = []
-  const regex = new RegExp(JSX_TAG_REGEX.source, 'gs')
-  let match
-
-  while ((match = regex.exec(content)) !== null) {
-    const [, componentName, propsString] = match
-    // Skip HTML elements (lowercase first letter)
-    if (componentName[0] === componentName[0].toLowerCase()) continue
-
-    const props = extractProps(propsString || '')
-    const hasSpread = props.some(p => p.isSpread)
-
-    instances.push({
-      componentName,
+  const tags = findJsxTags(content)
+  return tags.map((tag) => {
+    const props = parsePropsFromString(tag.propsString)
+    const hasSpread = props.some((p) => p.isSpread)
+    return {
+      componentName: tag.name,
       file,
       props,
       hasSpread,
-    })
-  }
-
-  return instances
+    }
+  })
 }
 
 function isGenericHtmlProp(propName: string): boolean {

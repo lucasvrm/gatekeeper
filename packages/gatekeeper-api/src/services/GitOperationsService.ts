@@ -93,7 +93,7 @@ export class GitOperationsService {
       const status = this.execGit('status --porcelain')
       // Lines starting with "UU" indicate merge conflicts
       return status.split('\n').some(line => line.startsWith('UU') || line.startsWith('AA') || line.startsWith('DD'))
-    } catch {
+    } catch (err) {
       return false
     }
   }
@@ -104,7 +104,7 @@ export class GitOperationsService {
   getDiffStat(): string {
     try {
       return this.execGit('diff --stat')
-    } catch {
+    } catch (err) {
       return 'No changes'
     }
   }

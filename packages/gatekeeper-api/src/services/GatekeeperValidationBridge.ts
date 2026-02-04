@@ -118,7 +118,8 @@ export class GatekeeperValidationBridge {
     let manifest: { files?: unknown[]; testFile?: string }
     try {
       manifest = JSON.parse(manifestJson)
-    } catch {
+    } catch (err) {
+      console.warn('[GatekeeperValidationBridge] Manifest JSON parse error:', (err as Error).message)
       return this.buildSkippedResult('Cannot validate: manifest JSON is invalid.')
     }
 
@@ -302,8 +303,9 @@ export class GatekeeperValidationBridge {
               lines.push(detailsStr.slice(0, 3000) + '\n... (truncated)')
               lines.push('```')
             }
-          } catch {
-            // details is a plain string
+          } catch (err) {
+            // details is a plain string (not JSON)
+            console.debug('[GatekeeperValidationBridge] Details is plain text, not JSON:', (err as Error).message)
             if (v.details.length <= 3000) {
               lines.push(`**Details:** ${v.details}`)
             } else {
@@ -337,8 +339,8 @@ export class GatekeeperValidationBridge {
           return ws.artifactsDir || 'artifacts'
         }
       }
-    } catch {
-      // DB not available — fall through
+    } catch (err) {
+      console.debug('[GatekeeperValidationBridge] DB lookup for artifactsDir failed:', (err as Error).message)
     }
     return 'artifacts'
   }
@@ -359,8 +361,8 @@ export class GatekeeperValidationBridge {
           return normalizedRoot
         }
       }
-    } catch {
-      // DB not available
+    } catch (err) {
+      console.debug('[GatekeeperValidationBridge] DB lookup for workspace root failed:', (err as Error).message)
     }
 
     // Fallback: walk up to .git
@@ -426,8 +428,8 @@ export class GatekeeperValidationBridge {
     if (existsSync(contractPath)) {
       try {
         result.contractJson = readFileSync(contractPath, 'utf-8')
-      } catch {
-        // ignore
+      } catch (err) {
+        console.warn('[GatekeeperValidationBridge] Failed to read contract.json:', (err as Error).message)
       }
     }
 

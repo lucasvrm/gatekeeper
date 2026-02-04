@@ -488,17 +488,17 @@ describe("ArtifactViewer - Copy/Save Buttons", () => {
   describe("CL-INV-001: ArtifactViewer returns null when no artifacts", () => {
     // @clause CL-INV-001
     it("CL-INV-001: succeeds when artifacts array is empty", () => {
-      render(<ArtifactViewer artifacts={[]} />)
+      const { container } = render(<ArtifactViewer artifacts={[]} />)
 
+      expect(container.firstChild).toBeNull()
       expect(screen.queryByTestId("artifact-copy-btn")).not.toBeInTheDocument()
       expect(screen.queryByTestId("artifact-save-btn")).not.toBeInTheDocument()
-      expect(screen.queryByRole("button")).not.toBeInTheDocument()
     })
 
     // @clause CL-INV-001
     it("CL-INV-001: succeeds when component receives empty array after render", () => {
       const artifacts = createMockArtifacts()
-      const { rerender } = render(<ArtifactViewer artifacts={artifacts} />)
+      const { rerender, container } = render(<ArtifactViewer artifacts={artifacts} />)
 
       // Initially buttons exist
       expect(screen.getByTestId("artifact-copy-btn")).toBeInTheDocument()
@@ -507,19 +507,17 @@ describe("ArtifactViewer - Copy/Save Buttons", () => {
       // Rerender with empty array
       rerender(<ArtifactViewer artifacts={[]} />)
 
+      expect(container.firstChild).toBeNull()
       expect(screen.queryByTestId("artifact-copy-btn")).not.toBeInTheDocument()
       expect(screen.queryByTestId("artifact-save-btn")).not.toBeInTheDocument()
-      expect(screen.queryByRole("button")).not.toBeInTheDocument()
     })
 
     // @clause CL-INV-001
     it("CL-INV-001: succeeds when no DOM elements are rendered for empty artifacts", () => {
-      render(<ArtifactViewer artifacts={[]} />)
+      const { container } = render(<ArtifactViewer artifacts={[]} />)
 
-      expect(screen.queryByTestId("artifact-copy-btn")).not.toBeInTheDocument()
-      expect(screen.queryByTestId("artifact-save-btn")).not.toBeInTheDocument()
-      expect(screen.queryByRole("button")).not.toBeInTheDocument()
-      expect(screen.queryByText(/./)).not.toBeInTheDocument()
+      expect(container.innerHTML).toBe("")
+      expect(container.children.length).toBe(0)
     })
   })
 

@@ -59,7 +59,8 @@ export class ArtifactsService {
       if (!stat.isDirectory()) {
         return { exists: false, hasSpec: false, hasPlan: false, specFileName: null }
       }
-    } catch {
+    } catch (err) {
+      console.debug('[ArtifactsService] Folder not found:', folderPath, (err as Error).message)
       return { exists: false, hasSpec: false, hasPlan: false, specFileName: null }
     }
 
@@ -90,7 +91,8 @@ export class ArtifactsService {
         const planPath = path.join(folderPath, 'plan.json')
         const planRaw = await fs.readFile(planPath, 'utf-8')
         planJson = JSON.parse(planRaw) as Record<string, unknown>
-      } catch {
+      } catch (err) {
+        console.debug('[ArtifactsService] Failed to read plan.json:', (err as Error).message)
         planJson = null
       }
     }
@@ -99,7 +101,8 @@ export class ArtifactsService {
       try {
         const specPath = path.join(folderPath, contents.specFileName)
         specContent = await fs.readFile(specPath, 'utf-8')
-      } catch {
+      } catch (err) {
+        console.debug('[ArtifactsService] Failed to read spec file:', contents.specFileName, (err as Error).message)
         specContent = null
       }
     }

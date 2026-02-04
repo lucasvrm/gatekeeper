@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 // ─── Provider enum ─────────────────────────────────────────────────────────
 
-const ProviderEnum = z.enum(['anthropic', 'openai', 'mistral'])
+const ProviderEnum = z.enum(['anthropic', 'openai', 'mistral', 'claude-code'])
 
 // ─── AgentPhaseConfig CRUD ─────────────────────────────────────────────────
 

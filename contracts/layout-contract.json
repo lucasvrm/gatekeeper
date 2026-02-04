@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "1.0.0",
-    "hash": "sha256:07517b320e014b5a4c252537d54a01c5a3af203fbcc7e3f0c2004ea5859f7cb5",
-    "generatedAt": "2026-02-04T08:02:37.198Z"
+    "hash": "sha256:7513e7bcd4431660f8f9f3e0eabcf85efb2f52c8fb07e60c4359e7cb7076ddff",
+    "generatedAt": "2026-02-04T10:46:46.886Z"
   },
   "structure": {
     "regions": {
@@ -115,7 +115,7 @@
             },
             {
               "id": "projects",
-              "label": "Projects",
+              "label": "Projetos",
               "icon": "ph:file",
               "route": "/projects"
             },
@@ -412,7 +412,7 @@
         },
         {
           "id": "cta-new-validation",
-          "label": "Nova Run",
+          "label": "Run",
           "variant": "outline",
           "route": "/runs/new",
           "icon": "ph:arrows-clockwise-duotone"
@@ -1788,6 +1788,49 @@
             }
           }
         ]
+      }
+    },
+    "page-1770200408021": {
+      "id": "page-1770200408021",
+      "label": "Página 2",
+      "route": "/page-1770200408021",
+      "content": {
+        "id": "213aa019-676e-4edc-9984-b550a173da5f",
+        "type": "stack",
+        "props": {
+          "gap": "2px",
+          "padding": "2px",
+          "background": "#5c7fa8"
+        }
+      },
+      "_ebEntry": {
+        "_id": "213aa019-676e-4edc-9984-b550a173da5f",
+        "_component": "OrquiStack",
+        "gap": {
+          "$res": true,
+          "xl": {
+            "tokenId": "2xs",
+            "value": "2px",
+            "widgetId": "@easyblocks/space"
+          }
+        },
+        "padding": {
+          "$res": true,
+          "xl": {
+            "tokenId": "2xs",
+            "value": "2px",
+            "widgetId": "@easyblocks/space"
+          }
+        },
+        "background": {
+          "$res": true,
+          "xl": {
+            "value": "#5c7fa8",
+            "tokenId": "accent",
+            "widgetId": "@easyblocks/color"
+          }
+        },
+        "Children": []
       }
     }
   }

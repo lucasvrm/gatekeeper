@@ -525,17 +525,31 @@ export function OrchestratorPage() {
   }
 
   // Check LLM isolation: step 1 model must differ from step 2, and both from step 4
-  const apiPost = async (endpoint: string, body: Record<string, unknown>) => {
-    const res = await fetch(`${API_BASE}/agent/bridge/${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => null)
-      throw new Error(err?.error || err?.message || `HTTP ${res.status}`)
+  const apiPost = async (endpoint: string, body: Record<string, unknown>, retries = 0): Promise<any> => {
+    let lastError: Error | null = null
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        if (attempt > 0) {
+          addLog("warning", `Tentativa ${attempt + 1}/${retries + 1} para ${endpoint}...`)
+          await new Promise((r) => setTimeout(r, 1500 * attempt))
+        }
+        const res = await fetch(`${API_BASE}/agent/bridge/${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => null)
+          throw new Error(err?.error || err?.message || `HTTP ${res.status}`)
+        }
+        return res.json()
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err))
+        const isNetwork = lastError.message === "Failed to fetch" || lastError.message.includes("NetworkError")
+        if (!isNetwork || attempt >= retries) throw lastError
+      }
     }
-    return res.json()
+    throw lastError!
   }
 
   const getProjectPath = () => {
@@ -713,37 +727,46 @@ export function OrchestratorPage() {
   }
 
   // ── Step 3b: Fix artifacts ─────────────────────────────────────────────
+  const lastFixHashRef = useRef<string | null>(null)
+
   const handleFix = async (target: "plan" | "spec") => {
     if (!outputId || !runId) return
     setError(null)
     setLoading(true)
-    addLog("info", `Corrigindo ${target} com erros dos validators...`)
+
+    // Capture pre-fix hash to detect loops
+    const preFix = target === "spec" ? specArtifacts : planArtifacts
+    const preHash = preFix.map((a) => a.content).join("|||")
+
+    // Log detailed info about what we're fixing
+    const failedVs = (runResults?.validatorResults ?? [])
+      .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
+    const failedVCodes = failedVs.map((v: ValidatorResult) => v.validatorCode)
+    if (failedVCodes.length === 0) failedVCodes.push("unknown")
+
+    addLog("info", `Corrigindo ${target} — validators: ${failedVCodes.join(", ")}`)
+    for (const v of failedVs.slice(0, 3)) {
+      addLog("info", `  → ${v.validatorCode}: ${v.message || v.validatorName}`)
+    }
 
     try {
-      // Extract actual failed validator codes from run results
-      const failedValidators = (runResults?.validatorResults ?? [])
-        .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
-        .map((v: ValidatorResult) => v.validatorCode)
-
-      if (failedValidators.length === 0) {
-        failedValidators.push("unknown")
-      }
-
-      // Fix uses the same LLM as the step that produced the target artifact
       const fixStep = target === "plan" ? 1 : 2
       const fixLLM = stepLLMs[fixStep]
       const result: StepResult = await apiPost("fix", {
         outputId,
         target,
         runId,
-        failedValidators,
-        // rejectionReport is built server-side from runId via fetchRejectionReport
+        failedValidators: failedVCodes,
         provider: fixLLM.provider,
         model: fixLLM.model,
         projectPath: getProjectPath(),
-        // Send taskDescription so the fixer can address taskPrompt-level validators
         taskPrompt: taskDescription,
       })
+
+      // Check for fix loop
+      const postHash = (result.artifacts ?? []).map((a: ParsedArtifact) => a.content).join("|||")
+      const isLoop = postHash === preHash || (lastFixHashRef.current && postHash === lastFixHashRef.current)
+      lastFixHashRef.current = postHash
 
       if (target === "plan") {
         setPlanArtifacts((prev) => mergeArtifacts(prev, result.artifacts))
@@ -751,20 +774,24 @@ export function OrchestratorPage() {
         setSpecArtifacts((prev) => mergeArtifacts(prev, result.artifacts))
       }
 
-      // If the fixer rewrote the task prompt (e.g. to fix NO_IMPLICIT_FILES),
-      // update the local state so re-validation uses the corrected version
       if (result.correctedTaskPrompt) {
         setTaskDescription(result.correctedTaskPrompt)
         addLog("info", "Task prompt atualizado pelo fixer (termos implícitos removidos)")
       }
 
-      // Reset validation state so user can re-validate
       setValidationStatus(null)
       setRunResults(null)
       setRunId(null)
 
-      addLog("success", `${target} corrigido — pronto para re-validar`)
-      toast.success(`${target === "plan" ? "Plano" : "Testes"} corrigido`)
+      if (isLoop) {
+        const warn = `⚠️ Fix loop: resultado idêntico ao anterior! ` +
+          `Tente: (1) editar o spec manualmente, (2) trocar o provider do step ${fixStep}, ou (3) reescrever a task.`
+        addLog("warning", warn)
+        toast.error("Fix loop — resultado idêntico", { duration: 8000 })
+      } else {
+        addLog("success", `${target} corrigido (${result.artifacts?.length ?? 0} arquivo(s)) — pronto para re-validar`)
+        toast.success(`${target === "plan" ? "Plano" : "Testes"} corrigido`)
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : `Erro ao corrigir ${target}`
       setError(msg)
@@ -778,15 +805,20 @@ export function OrchestratorPage() {
   // ── Step 4: Execute ────────────────────────────────────────────────────
   const handleExecute = async () => {
     if (!outputId) return
+    const projectPath = getProjectPath()
+    if (!projectPath) {
+      const msg = "Projeto sem workspace.rootPath configurado — execute requer um diretório de trabalho."
+      setError(msg)
+      addLog("error", msg)
+      toast.error(msg)
+      return
+    }
     setError(null)
     setLoading(true)
-    addLog("info", "Executando implementação...")
-
-    const project = projects.find((p) => p.id === selectedProjectId)
-    const projectPath = project?.workspace?.rootPath || ""
-
+    addLog("info", `Executando implementação... (provider: ${stepLLMs[4].provider}, model: ${stepLLMs[4].model})`)
     try {
-      const result = await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4].provider, model: stepLLMs[4].model })
+      // Execute returns 202 — result comes via SSE (agent:bridge_execute_done)
+      const result = await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4].provider, model: stepLLMs[4].model }, 1)
       setExecuteResult(result)
       markComplete(3)
       markComplete(4)
@@ -794,10 +826,14 @@ export function OrchestratorPage() {
       addLog("success", `Execução concluída (modo: ${result.mode})`)
       toast.success("Execução concluída")
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro na execução"
+      const raw = err instanceof Error ? err.message : "Erro na execução"
+      const isNetwork = raw === "Failed to fetch" || raw.includes("NetworkError")
+      const msg = isNetwork
+        ? `Erro de rede ao chamar /agent/bridge/execute — verifique se o servidor está rodando em ${API_BASE}`
+        : raw
       setError(msg)
       addLog("error", msg)
-      toast.error(msg)
+      toast.error(isNetwork ? "Servidor inacessível" : msg)
     } finally {
       setLoading(false)
     }
@@ -1136,6 +1172,26 @@ export function OrchestratorPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
+                    {/* Inline LLM selector for execute */}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="shrink-0">LLM:</span>
+                      <Select value={stepLLMs[4]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(4, "provider", v)}>
+                        <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
+                            <SelectItem key={key} value={key}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={stepLLMs[4]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(4, "model", v)}>
+                        <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button onClick={handleExecute} disabled={loading} variant="outline" className="w-full">
                       {loading && validationStatus !== "RUNNING" ? "Executando..." : "Executar sem validar →"}
                     </Button>
@@ -1183,7 +1239,26 @@ export function OrchestratorPage() {
                       Gates 0 e 1 passaram. Pronto para executar.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="shrink-0">LLM p/ execução:</span>
+                      <Select value={stepLLMs[4]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(4, "provider", v)}>
+                        <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
+                            <SelectItem key={key} value={key}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={stepLLMs[4]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(4, "model", v)}>
+                        <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button onClick={handleExecute} disabled={loading} className="w-full">
                       {loading ? "Executando..." : "Executar Implementação →"}
                     </Button>
@@ -1240,16 +1315,38 @@ export function OrchestratorPage() {
                     </div>
 
                     {/* Fix actions */}
-                    <div className="flex gap-2 pt-2">
-                      <Button onClick={() => handleFix("plan")} disabled={loading} variant="outline">
-                        {loading ? "Corrigindo..." : "Corrigir Plano"}
-                      </Button>
-                      <Button onClick={() => handleFix("spec")} disabled={loading} variant="outline">
-                        {loading ? "Corrigindo..." : "Corrigir Testes"}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)} className="ml-auto text-xs text-muted-foreground">
-                        Ver run completa →
-                      </Button>
+                    <div className="space-y-3 pt-2">
+                      {/* Inline LLM selector for fix */}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="shrink-0">LLM p/ correção:</span>
+                        <Select value={stepLLMs[2]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(2, "provider", v)}>
+                          <SelectTrigger className="h-7 text-xs w-[160px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
+                              <SelectItem key={key} value={key}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={stepLLMs[2]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(2, "model", v)}>
+                          <SelectTrigger className="h-7 text-xs w-[120px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {(PROVIDER_MODELS[stepLLMs[2]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button onClick={() => handleFix("plan")} disabled={loading} variant="outline">
+                          {loading ? "Corrigindo..." : "Corrigir Plano"}
+                        </Button>
+                        <Button onClick={() => handleFix("spec")} disabled={loading} variant="outline">
+                          {loading ? "Corrigindo..." : "Corrigir Testes"}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)} className="ml-auto text-xs text-muted-foreground">
+                          Ver run completa →
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

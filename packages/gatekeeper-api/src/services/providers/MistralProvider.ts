@@ -194,7 +194,7 @@ export class MistralProvider implements LLMProvider {
             typeof tc.function.arguments === 'string'
               ? JSON.parse(tc.function.arguments)
               : tc.function.arguments
-        } catch {
+        } catch (err) {
           input = { _raw: tc.function.arguments }
         }
 

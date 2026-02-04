@@ -15,6 +15,13 @@
 // The editor must use ?rootComponent mode for those (not ?document mode).
 // Use hasEbCachedEntry() to check before choosing mode.
 //
+// PHASE 5 CHANGES:
+// - flushSync() returns a Promise that resolves when the parent has been
+//   notified — prevents race condition on filesystem save.
+// - stripEbEntries() removes _ebEntry from pages before contract export.
+// - updatePageMeta() allows renaming pages, editing routes & browserTitle
+//   without touching the content tree (used by PageSwitcher inline editing).
+//
 // Ref: https://docs.easyblocks.io/essentials/backend
 // ============================================================================
 
@@ -80,6 +87,49 @@ export function invalidateAllEntries(): void {
 }
 
 // ============================================================================
+// Contract Export Utilities
+// ============================================================================
+
+/**
+ * Strip _ebEntry from pages before exporting the contract to filesystem.
+ *
+ * The _ebEntry field contains Easyblocks' internal normalized format —
+ * it's needed for editor hydration (so pages survive browser refresh)
+ * but should NOT be in the final contract consumed by the runtime.
+ *
+ * Usage:
+ *   const cleanPages = stripEbEntries(layout.pages);
+ *   const contract = { ...layout, pages: cleanPages };
+ */
+export function stripEbEntries(pages: Record<string, PageDef>): Record<string, PageDef> {
+  const result: Record<string, PageDef> = {};
+  for (const [id, page] of Object.entries(pages)) {
+    const { _ebEntry, ...cleanPage } = page;
+    result[id] = cleanPage;
+  }
+  return result;
+}
+
+/**
+ * Restore _ebEntry from cache onto pages for IndexedDB persistence.
+ *
+ * After a save, we want IndexedDB to retain the _ebEntry so that
+ * the next page load can hydrate without re-running the adapter.
+ */
+export function hydrateEbEntries(pages: Record<string, PageDef>): Record<string, PageDef> {
+  const result: Record<string, PageDef> = {};
+  for (const [id, page] of Object.entries(pages)) {
+    const cached = _ebEntryCache.get(id);
+    if (cached && !_adapterSeededEntries.has(id)) {
+      result[id] = { ...page, _ebEntry: structuredClone(cached) };
+    } else {
+      result[id] = page;
+    }
+  }
+  return result;
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -97,10 +147,15 @@ interface Document {
 }
 
 // ============================================================================
-// Debounce helper
+// Debounce helper (enhanced with sync flush)
 // ============================================================================
 
-function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T & { flush: () => void; cancel: () => void } {
+function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T & {
+  flush: () => void;
+  flushSync: () => Promise<void>;
+  cancel: () => void;
+  pending: () => boolean;
+} {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let lastArgs: Parameters<T> | null = null;
 
@@ -113,8 +168,9 @@ function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T & { 
       lastArgs = null;
       if (a) fn(...a);
     }, ms);
-  }) as T & { flush: () => void; cancel: () => void };
+  }) as T & { flush: () => void; flushSync: () => Promise<void>; cancel: () => void; pending: () => boolean };
 
+  /** Fire-and-forget flush */
   debounced.flush = () => {
     if (timer) {
       clearTimeout(timer);
@@ -125,11 +181,29 @@ function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T & { 
     }
   };
 
+  /**
+   * Flush and return a Promise that resolves after a microtask,
+   * giving React time to process the state update from onPageChange.
+   *
+   * Usage: await backend.flushSync()
+   *        // layout state is now up-to-date
+   *        saveToFilesystem();
+   */
+  debounced.flushSync = async () => {
+    debounced.flush();
+    // Wait two microtask ticks so React batches the setState
+    await new Promise<void>(r => setTimeout(r, 0));
+    await new Promise<void>(r => setTimeout(r, 0));
+  };
+
   debounced.cancel = () => {
     if (timer) clearTimeout(timer);
     timer = null;
     lastArgs = null;
   };
+
+  /** Whether there's a pending debounced call */
+  debounced.pending = () => timer !== null;
 
   return debounced;
 }
@@ -324,7 +398,72 @@ export function createOrquiBackend(options: OrquiBackendOptions) {
       async delete(_payload: { id: string }) {},
     },
 
+    /** Fire-and-forget flush */
     flush() { debouncedPageChange.flush(); },
+
+    /**
+     * Flush and wait for React to process the state update.
+     * Use before filesystem save to avoid stale data.
+     *
+     * @example
+     * await backend.flushSync();
+     * // layout.pages is now up-to-date
+     * await saveToFilesystem();
+     */
+    flushSync() { return debouncedPageChange.flushSync(); },
+
+    /** Cancel pending debounced calls */
     cancel() { debouncedPageChange.cancel(); },
+
+    /** Whether there are unsaved changes in the debounce buffer */
+    hasPending() { return debouncedPageChange.pending(); },
   };
+}
+
+// ============================================================================
+// Page Metadata Helpers
+// ============================================================================
+
+/**
+ * Update metadata (label, route, browserTitle) for a page without
+ * touching the content tree. Used by the PageSwitcher inline editing.
+ *
+ * Returns the updated pages object (immutable — new reference).
+ */
+export function updatePageMeta(
+  pages: Record<string, PageDef>,
+  pageId: string,
+  meta: Partial<Pick<PageDef, "label" | "route" | "browserTitle">>,
+): Record<string, PageDef> {
+  const existing = pages[pageId];
+  if (!existing) return pages;
+
+  return {
+    ...pages,
+    [pageId]: {
+      ...existing,
+      ...meta,
+    },
+  };
+}
+
+/**
+ * Reorder pages by moving `pageId` to `targetIndex`.
+ * Returns a new pages object with the entries in the new order.
+ *
+ * (Object key order is insertion order in modern JS engines.)
+ */
+export function reorderPage(
+  pages: Record<string, PageDef>,
+  pageId: string,
+  targetIndex: number,
+): Record<string, PageDef> {
+  const entries = Object.entries(pages);
+  const currentIndex = entries.findIndex(([id]) => id === pageId);
+  if (currentIndex === -1 || currentIndex === targetIndex) return pages;
+
+  const [removed] = entries.splice(currentIndex, 1);
+  entries.splice(targetIndex, 0, removed);
+
+  return Object.fromEntries(entries);
 }
