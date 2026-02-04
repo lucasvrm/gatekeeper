@@ -34,6 +34,50 @@ import type {
 
 export const API_BASE = "http://localhost:3001/api"
 const CONFIG_BASE = `${API_BASE}/config`
+const AGENT_BASE = `${API_BASE}/agent`
+
+
+// ─── Agent Run Types ────────────────────────────────────────────────────────
+
+export interface AgentRunSummary {
+  id: string
+  taskDescription: string
+  status: string
+  provider: string
+  model: string
+  totalInputTokens: number
+  totalOutputTokens: number
+  estimatedCostUsd: number
+  startedAt: string
+  completedAt: string | null
+  durationMs: number | null
+}
+
+export interface AgentRunStepStats {
+  step: number
+  status: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  estimatedCostUsd: number
+  iterations: number
+  durationMs: number | null
+}
+
+export interface AgentRunCostStats {
+  run: {
+    id: string
+    status: string
+    totalInputTokens: number
+    totalOutputTokens: number
+    cacheReadTokens: number
+    cacheWriteTokens: number
+    estimatedCostUsd: number
+    durationMs: number | null
+  }
+  steps: AgentRunStepStats[]
+}
 
 export const api = {
   runs: {
@@ -1009,6 +1053,30 @@ export const api = {
         method: "DELETE",
       })
       if (!response.ok) throw new Error(`Failed to delete orchestrator ${kind}`)
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Agent Runs (Pipeline observability)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  agentRuns: {
+    list: async (limit = 20, status?: string): Promise<{
+      count: number
+      runs: AgentRunSummary[]
+    }> => {
+      const params = new URLSearchParams()
+      params.append("limit", String(limit))
+      if (status) params.append("status", status)
+      const response = await fetch(`${AGENT_BASE}/runs?${params}`)
+      if (!response.ok) throw new Error("Failed to fetch agent runs")
+      return response.json()
+    },
+
+    getById: async (id: string): Promise<AgentRunCostStats> => {
+      const response = await fetch(`${AGENT_BASE}/runs/${id}`)
+      if (!response.ok) throw new Error(`Failed to fetch agent run: ${id}`)
+      return response.json()
     },
   },
 

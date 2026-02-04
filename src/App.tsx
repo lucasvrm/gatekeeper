@@ -15,6 +15,8 @@ import { ProjectDetailsPage } from "@/components/project-details-page"
 import { ProjectFormPage } from "@/components/project-form-page"
 import { MCPSessionPage } from "@/components/mcp-session-page"
 import { OrchestratorPage } from "@/components/orchestrator-page"
+import { AgentRunsPage } from "@/components/agent-runs-page"
+import { AgentRunDetailsPage } from "@/components/agent-run-details-page"
 import { CommandPalette } from "@/components/command-palette"
 import { useCommandPalette } from "@/hooks/use-command-palette"
 import { PageShellProvider, usePageShellState } from "@/hooks/use-page-shell"
@@ -23,16 +25,11 @@ import layoutContract from "../contracts/layout-contract.json"
 import registryContract from "../contracts/ui-registry-contract.json"
 import { ContractProvider, AppShell } from "../packages/orqui/src/runtime"
 
-// Lazy-load OrquiEditor — only needed on /__orqui route
-import { lazy, Suspense } from "react"
-const OrquiEditorLazy = lazy(() =>
-  import("../packages/orqui/src/editor/OrquiEditor").then(m => ({ default: m.OrquiEditor }))
-)
-
 const navItems = [
   { to: "/", label: "Dashboard" },
   { to: "/runs", label: "Runs" },
   { to: "/orchestrator", label: "Orchestrator" },
+  { to: "/agent-runs", label: "Agent Runs" },
   { to: "/gates", label: "Gates" },
   { to: "/workspaces", label: "Workspaces" },
   { to: "/projects", label: "Projects" },
@@ -93,48 +90,31 @@ function App() {
     <ContractProvider layout={layoutContract} registry={registryContract}>
       <BrowserRouter>
         <PageShellProvider>
-          <Routes>
-            {/* ================================================================
-                Orqui Editor — OUTSIDE AppShellWrapper
-                No Gatekeeper sidebar/nav — OrquiEditor has its own topbar.
-                The Easyblocks iframe also loads this URL, but main.tsx
-                intercepts it and renders CanvasEntry instead.
-                ================================================================ */}
-            <Route path="/__orqui" element={
-              <Suspense fallback={<div style={{ background: "#0e0e11", height: "100vh" }} />}>
-                <OrquiEditorLazy />
-              </Suspense>
-            } />
-
-            {/* ================================================================
-                All other routes — inside AppShellWrapper with sidebar/nav
-                ================================================================ */}
-            <Route path="*" element={
-              <AppShellWrapper>
-                <Routes>
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/runs" element={<RunsListPage />} />
-                  <Route path="/runs/new" element={<NewValidationPage />} />
-                  <Route path="/runs/:id" element={<RunDetailsPageV2 />} />
-                  <Route path="/runs/:id/v2" element={<RunDetailsPageV2 />} />
-                  <Route path="/runs/:id/legacy" element={<RunDetailsPage />} />
-                  <Route path="/orchestrator" element={<OrchestratorPage />} />
-                  <Route path="/gates" element={<GatesPage />} />
-                  <Route path="/mcp" element={<MCPSessionPage />} />
-                  <Route path="/config" element={<ConfigPage />} />
-                  <Route path="/workspaces" element={<WorkspacesListPage />} />
-                  <Route path="/workspaces/new" element={<WorkspaceFormPage />} />
-                  <Route path="/workspaces/:id/edit" element={<WorkspaceFormPage />} />
-                  <Route path="/workspaces/:id" element={<WorkspaceDetailsPage />} />
-                  <Route path="/projects" element={<ProjectsListPage />} />
-                  <Route path="/projects/new" element={<ProjectFormPage />} />
-                  <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
-                  <Route path="/projects/:id" element={<ProjectDetailsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </AppShellWrapper>
-            } />
-          </Routes>
+          <AppShellWrapper>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/runs" element={<RunsListPage />} />
+              <Route path="/runs/new" element={<NewValidationPage />} />
+              <Route path="/runs/:id" element={<RunDetailsPageV2 />} />
+              <Route path="/runs/:id/v2" element={<RunDetailsPageV2 />} />
+              <Route path="/runs/:id/legacy" element={<RunDetailsPage />} />
+              <Route path="/orchestrator" element={<OrchestratorPage />} />
+              <Route path="/agent-runs" element={<AgentRunsPage />} />
+              <Route path="/agent-runs/:id" element={<AgentRunDetailsPage />} />
+              <Route path="/gates" element={<GatesPage />} />
+              <Route path="/mcp" element={<MCPSessionPage />} />
+              <Route path="/config" element={<ConfigPage />} />
+              <Route path="/workspaces" element={<WorkspacesListPage />} />
+              <Route path="/workspaces/new" element={<WorkspaceFormPage />} />
+              <Route path="/workspaces/:id/edit" element={<WorkspaceFormPage />} />
+              <Route path="/workspaces/:id" element={<WorkspaceDetailsPage />} />
+              <Route path="/projects" element={<ProjectsListPage />} />
+              <Route path="/projects/new" element={<ProjectFormPage />} />
+              <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+              <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AppShellWrapper>
         </PageShellProvider>
       </BrowserRouter>
     </ContractProvider>

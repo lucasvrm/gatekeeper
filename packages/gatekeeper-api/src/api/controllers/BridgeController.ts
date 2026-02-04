@@ -23,6 +23,7 @@ import { prisma } from '../../db/client.js'
 import { AgentOrchestratorBridge, BridgeError } from '../../services/AgentOrchestratorBridge.js'
 import { OrchestratorEventService } from '../../services/OrchestratorEventService.js'
 import { AgentRunPersistenceService } from '../../services/AgentRunPersistenceService.js'
+import { GatekeeperValidationBridge } from '../../services/GatekeeperValidationBridge.js'
 import type { AgentEvent } from '../../types/agent.types.js'
 
 const persistence = new AgentRunPersistenceService(prisma)
@@ -37,6 +38,15 @@ function getBridge(): AgentOrchestratorBridge {
     _bridge = new AgentOrchestratorBridge(prisma, apiUrl)
   }
   return _bridge
+}
+
+let _validationBridge: GatekeeperValidationBridge | null = null
+
+function getValidationBridge(): GatekeeperValidationBridge {
+  if (!_validationBridge) {
+    _validationBridge = new GatekeeperValidationBridge()
+  }
+  return _validationBridge
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -370,12 +380,12 @@ export class BridgeController {
    * POST /agent/bridge/pipeline
    *
    * Full automated pipeline: plan → spec → execute → [validate → fix → re-execute] loop.
-   * Body: { taskDescription, projectPath, taskType?, profileId?, provider?, model?, maxFixRetries? }
+   * Body: { taskDescription, projectPath, taskType?, profileId?, projectId?, provider?, model?, maxFixRetries? }
    */
   async runFullPipeline(req: Request, res: Response): Promise<void> {
     const {
       taskDescription, projectPath, taskType, profileId,
-      provider, model, maxFixRetries = 3,
+      projectId, provider, model, maxFixRetries = 3,
     } = req.body
     const runId = nanoid(12)
 
@@ -395,7 +405,7 @@ export class BridgeController {
     // Background execution of full pipeline
     this.executeFullPipeline(runId, {
       taskDescription, projectPath, taskType, profileId,
-      provider, model, maxFixRetries,
+      projectId, provider, model, maxFixRetries,
     }).catch((err) => {
       console.error(`[Bridge] Full pipeline ${runId} failed:`, err)
       OrchestratorEventService.emitOrchestratorEvent(runId, {
@@ -414,14 +424,16 @@ export class BridgeController {
       projectPath: string
       taskType?: string
       profileId?: string
+      projectId?: string
       provider?: string
       model?: string
       maxFixRetries: number
     },
   ): Promise<void> {
     const bridge = getBridge()
+    const validationBridge = getValidationBridge()
     const emit = makeEmitter(runId)
-    const { taskDescription, projectPath, taskType, profileId, provider, model, maxFixRetries } = params
+    const { taskDescription, projectPath, taskType, profileId, projectId, provider, model, maxFixRetries } = params
 
     const dbRunId = await persistence.createRun({
       taskDescription,
@@ -467,11 +479,19 @@ export class BridgeController {
         artifacts: specResult.artifacts.map((a) => a.filename),
       })
 
-      // ── Step 4 + Fix Loop ─────────────────────────────────────────────
+      // ── Step 4 + Gatekeeper Validation Fix Loop ───────────────────────
+      //
+      // NEW: Instead of heuristic text analysis ("tests passed"), we run
+      // the real Gatekeeper validation (gates 2-3) after each execution
+      // attempt. This gives the fixer structured feedback about exactly
+      // which validators failed, replacing guesswork with precision.
+      //
       let attempt = 0
       let lastExecuteResult
+      let lastValidation
 
       while (attempt <= maxFixRetries) {
+        // ── Execute ─────────────────────────────────────────────────────
         emit({ type: 'agent:bridge_start', step: 4 } as AgentEvent)
         const step4Id = await persistence.startStep({ runId: dbRunId, step: 4, provider: provider || 'anthropic', model: model || 'claude-sonnet-4-5-20250929' })
 
@@ -484,31 +504,100 @@ export class BridgeController {
 
         lastExecuteResult = executeResult
 
-        // Check if tests pass by looking at the agent's final text output
-        // The coder agent runs tests internally; if it ends successfully, we're done
-        const agentText = executeResult.agentResult.text.toLowerCase()
-        const testsPass = agentText.includes('all tests pass') ||
-          agentText.includes('tests passed') ||
-          agentText.includes('test suite passed') ||
-          !agentText.includes('fail')
+        // ── Gatekeeper Validation (real gates 2-3) ──────────────────────
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:validation_start',
+          outputId,
+          attempt: attempt + 1,
+          runType: 'EXECUTION',
+        })
 
-        if (testsPass || attempt >= maxFixRetries) {
+        const validation = await validationBridge.validate({
+          outputId,
+          projectPath,
+          taskDescription,
+          projectId,
+          runType: 'EXECUTION',
+        })
+
+        lastValidation = validation
+
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:validation_complete',
+          outputId,
+          attempt: attempt + 1,
+          validationRunId: validation.validationRunId,
+          passed: validation.passed,
+          status: validation.status,
+          failedGate: validation.failedGate,
+          failedGateName: validation.failedGateName,
+          failedValidatorCodes: validation.failedValidatorCodes,
+          gateResults: validation.gateResults,
+        })
+
+        // ── Check validation result ─────────────────────────────────────
+
+        if (validation.status === 'SKIPPED') {
+          // Validation couldn't run (missing manifest, etc.)
+          // Fall back to heuristic text analysis as before
+          console.warn(`[Bridge] Validation skipped for attempt ${attempt + 1}, falling back to heuristic`)
+          const agentText = executeResult.agentResult.text.toLowerCase()
+          const testsPass = agentText.includes('all tests pass') ||
+            agentText.includes('tests passed') ||
+            agentText.includes('test suite passed') ||
+            !agentText.includes('fail')
+
+          if (testsPass || attempt >= maxFixRetries) {
+            OrchestratorEventService.emitOrchestratorEvent(runId, {
+              type: 'agent:bridge_execute_done',
+              outputId,
+              attempt: attempt + 1,
+              testsPass,
+              validationMode: 'heuristic',
+              artifacts: executeResult.artifacts.map((a) => a.filename),
+            })
+            break
+          }
+        } else if (validation.passed) {
+          // All gates passed — pipeline complete!
           OrchestratorEventService.emitOrchestratorEvent(runId, {
             type: 'agent:bridge_execute_done',
             outputId,
             attempt: attempt + 1,
-            testsPass,
+            testsPass: true,
+            validationMode: 'gatekeeper',
+            validationRunId: validation.validationRunId,
             artifacts: executeResult.artifacts.map((a) => a.filename),
           })
           break
         }
 
-        // Tests failed → run fixer (step 3) and retry
+        // ── Validation failed — check if we can retry ───────────────────
+
+        if (attempt >= maxFixRetries) {
+          OrchestratorEventService.emitOrchestratorEvent(runId, {
+            type: 'agent:bridge_execute_done',
+            outputId,
+            attempt: attempt + 1,
+            testsPass: false,
+            validationMode: 'gatekeeper',
+            validationRunId: validation.validationRunId,
+            failedValidators: validation.failedValidatorCodes,
+            artifacts: executeResult.artifacts.map((a) => a.filename),
+          })
+          break
+        }
+
+        // ── Fix loop: run fixer with real Gatekeeper feedback ───────────
+
         OrchestratorEventService.emitOrchestratorEvent(runId, {
           type: 'agent:pipeline_retry',
           attempt: attempt + 1,
           maxRetries: maxFixRetries,
-          reason: 'Tests failed after execution',
+          reason: `Gatekeeper validation failed: ${validation.failedValidatorCodes.join(', ')}`,
+          failedGate: validation.failedGate,
+          failedGateName: validation.failedGateName,
+          failedValidators: validation.failedValidatorCodes,
         })
 
         emit({ type: 'agent:bridge_start', step: 3 } as AgentEvent)
@@ -519,8 +608,8 @@ export class BridgeController {
             outputId,
             projectPath,
             target: 'spec' as const,
-            failedValidators: ['TestExecution'],
-            rejectionReport: `Agent execution attempt ${attempt + 1} reported test failures.\n\nAgent output:\n${executeResult.agentResult.text.slice(-2000)}`,
+            failedValidators: validation.failedValidatorCodes,
+            rejectionReport: validation.rejectionReport,
             profileId,
             provider,
             model,
@@ -535,6 +624,7 @@ export class BridgeController {
           outputId,
           attempt: attempt + 1,
           corrections: fixResult.corrections,
+          failedValidators: validation.failedValidatorCodes,
         })
 
         attempt++
@@ -547,6 +637,8 @@ export class BridgeController {
         dbRunId,
         outputId,
         totalAttempts: attempt + 1,
+        validationPassed: lastValidation?.passed ?? false,
+        validationRunId: lastValidation?.validationRunId,
         artifacts: lastExecuteResult?.artifacts.map((a) => a.filename) ?? [],
       })
     } catch (err) {

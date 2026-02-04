@@ -461,7 +461,7 @@ export class AgentOrchestratorBridge {
    * Read artifacts from disk for a given outputId.
    * Reads recursively to support nested filenames (e.g. src/__tests__/file.spec.ts).
    */
-  private async readArtifactsFromDisk(
+  async readArtifactsFromDisk(
     outputId: string,
     projectPath: string,
   ): Promise<Record<string, string>> {
