@@ -1,24 +1,16 @@
 // ============================================================================
 // TemplatePickerWidget — Easyblocks sidebar widget for orqui-template type
 //
-// Full widget with:
-//   1. Input with {{}} syntax highlighting (mono font + accent color)
-//   2. Variable picker dropdown (searchable, grouped by category)
-//   3. Formatter picker dropdown (16 formatters from templateEngine)
-//   4. Live preview line (resolves against mockData)
-//
-// Variable data comes from window.__orquiVariableContext, populated by
-// EasyblocksPageEditor before mounting the editor. This avoids React Context
-// dependency (Easyblocks sidebar doesn't share the page-editor context tree).
-//
-// Registration:
-//   Config.types["orqui-template"].widget.id = "orqui-template-picker"
-//   → Easyblocks renders this widget for props of type "orqui-template"
+// PHASE 6 (P6) ENHANCEMENTS:
+//   - Auto-open variable picker when {{ is typed
+//   - Auto-open formatter picker when | is typed inside an expression
+//   - Smart insertion: detects if {{ already precedes cursor
+//   - Keyboard navigation: ↑↓ in dropdowns, Tab to select, Esc to close
+//   - Inline expression syntax highlighting
 //
 // Widget Props (Easyblocks InlineTypeWidgetComponentProps<string>):
 //   value: string       — current prop value
 //   onChange: (v) => void — callback to update
-//   (other props may vary by EB version — all access is guarded)
 // ============================================================================
 
 import React, { useState, useRef, useEffect, useCallback, type CSSProperties } from "react";
@@ -41,29 +33,20 @@ import { C, MONO } from "../../page-editor/styles";
 import type { WidgetVariableContext } from "../bridge/variables";
 
 // ============================================================================
-// Widget Props — provided by Easyblocks (InlineTypeWidgetComponentProps<T>)
-//
-// Easyblocks docs specify { value, onChange } for inline types.
-// We accept `any` and normalize defensively, since:
-//   - Different EB versions may add/change props
-//   - The widget must never crash the sidebar
+// Widget Props
 // ============================================================================
 
 interface WidgetProps {
-  /** Current value of the prop */
   value?: unknown;
-  /** Callback to update the value */
   onChange?: (value: string) => void;
-  /** Some EB versions pass these — all optional and guarded */
   schema?: { prop?: string; label?: string; defaultValue?: unknown };
   id?: string;
   params?: Record<string, any>;
-  /** Catch-all for unknown props EB might inject */
   [key: string]: unknown;
 }
 
 // ============================================================================
-// Variable Context — read from global channel
+// Variable Context
 // ============================================================================
 
 const EMPTY_CONTEXT: WidgetVariableContext = {
@@ -72,11 +55,6 @@ const EMPTY_CONTEXT: WidgetVariableContext = {
   mockData: {},
 };
 
-/**
- * Read the variable context injected by EasyblocksPageEditor.
- * Returns empty context if not yet populated (graceful fallback).
- * Validates the shape defensively — bad data must never crash the widget.
- */
 function getVariableContext(): WidgetVariableContext {
   const raw = (window as any).__orquiVariableContext;
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.groups)) {
@@ -85,21 +63,13 @@ function getVariableContext(): WidgetVariableContext {
   return raw as WidgetVariableContext;
 }
 
-/**
- * Safely extract string value from widget props.
- * Easyblocks should pass a plain string for inline types, but we guard
- * against objects, numbers, undefined, etc.
- */
 function extractStringValue(value: unknown): string {
   if (typeof value === "string") return value;
   if (value == null) return "";
-  // Edge case: EB might wrap in locale-aware object { $res: true, "pt-BR": "..." }
   if (typeof value === "object") {
     const v = value as Record<string, any>;
-    // Try common Easyblocks value wrapper patterns
     if (typeof v.value === "string") return v.value;
     if (typeof v["pt-BR"] === "string") return v["pt-BR"];
-    // Last resort — log for debugging but return empty
     console.warn("[TemplatePickerWidget] Unexpected value type:", value);
     return "";
   }
@@ -111,17 +81,15 @@ function extractStringValue(value: unknown): string {
 // ============================================================================
 
 export function TemplatePickerWidget(props: WidgetProps) {
-  // ---- Defensive prop extraction ----
   const rawValue = props?.value;
   const rawOnChange = typeof props?.onChange === "function" ? props.onChange : undefined;
 
-  // Extract label from wherever EB might put it
   const label = (props?.schema as any)?.label
     || (props?.params as any)?.label
     || (props as any)?.label
     || undefined;
 
-  // One-time diagnostic log (dev only)
+  // One-time diagnostic log
   useEffect(() => {
     if (typeof import.meta !== "undefined" && (import.meta as any).env?.DEV) {
       console.debug("[TemplatePickerWidget] mounted with props:", {
@@ -143,12 +111,11 @@ export function TemplatePickerWidget(props: WidgetProps) {
   const hasExpr = hasTemplateExpr(safeValue);
   const ctx = getVariableContext();
 
-  // Safe onChange wrapper — noop if EB didn't pass onChange
   const safeOnChange = useCallback((v: string) => {
     rawOnChange?.(v);
   }, [rawOnChange]);
 
-  // Flatten variable data from grouped context (with guards)
+  // Flatten variable data
   const allItems = ctx.groups.flatMap(g =>
     Array.isArray(g?.items) ? g.items : []
   );
@@ -158,7 +125,7 @@ export function TemplatePickerWidget(props: WidgetProps) {
       c != null && typeof c === "object" && typeof c.id === "string"
     );
 
-  // Live preview — resolve template against mock data (safe: catch any error)
+  // Live preview
   let preview: string | null = null;
   try {
     preview = hasExpr ? resolveTemplate(safeValue, ctx.mockData || {}) : null;
@@ -178,7 +145,8 @@ export function TemplatePickerWidget(props: WidgetProps) {
     const end = el.selectionEnd || 0;
     const before = safeValue.slice(0, start);
     const after = safeValue.slice(end);
-    safeOnChange(before + text + after);
+    const newValue = before + text + after;
+    safeOnChange(newValue);
     requestAnimationFrame(() => {
       el.focus();
       const pos = start + text.length;
@@ -186,19 +154,106 @@ export function TemplatePickerWidget(props: WidgetProps) {
     });
   }, [safeValue, safeOnChange]);
 
+  // ---- P6: Smart variable selection ----
+  // If cursor is right after "{{", insert only the path + "}}"
+  // Otherwise insert the full "{{path}}" expression
   const handleSelectVariable = useCallback((path: string) => {
-    insertAtCursor(`{{${path}}}`);
-    setPickerOpen(false);
-  }, [insertAtCursor]);
+    const el = inputRef.current;
+    const cursor = el?.selectionStart || safeValue.length;
+    const before = safeValue.slice(0, cursor);
 
+    if (before.endsWith("{{")) {
+      // Cursor is after {{ — just insert path + }}
+      insertAtCursor(`${path}}}`);
+    } else if (before.endsWith("{{ ")) {
+      // Cursor after {{ with space
+      insertAtCursor(`${path}}}`);
+    } else {
+      // Insert full expression
+      insertAtCursor(`{{${path}}}`);
+    }
+    setPickerOpen(false);
+  }, [safeValue, insertAtCursor]);
+
+  // ---- P6: Smart formatter selection ----
+  // If cursor is after "|" inside an expression, insert formatter name
+  // Otherwise insert " | name" before the last }}
   const handleSelectFormatter = useCallback((name: string) => {
-    // Insert pipe before the last closing }}
-    const lastClose = safeValue.lastIndexOf("}}");
-    if (lastClose > 0) {
-      safeOnChange(safeValue.slice(0, lastClose) + ` | ${name}` + safeValue.slice(lastClose));
+    const el = inputRef.current;
+    const cursor = el?.selectionStart || safeValue.length;
+    const before = safeValue.slice(0, cursor);
+
+    // Check if cursor is right after "| " or "|" inside an expression
+    if (before.match(/\|\s*$/)) {
+      // Cursor after pipe — insert formatter name directly
+      const trimmed = before.endsWith("| ") ? "" : " ";
+      insertAtCursor(trimmed + name);
+    } else {
+      // Insert pipe before the last closing }}
+      const lastClose = safeValue.lastIndexOf("}}");
+      if (lastClose > 0) {
+        safeOnChange(safeValue.slice(0, lastClose) + ` | ${name}` + safeValue.slice(lastClose));
+      }
     }
     setFormatterOpen(false);
-  }, [safeValue, safeOnChange]);
+  }, [safeValue, safeOnChange, insertAtCursor]);
+
+  // ---- P6: Auto-open picker on {{ and formatter on | ----
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    safeOnChange(newValue);
+
+    const cursor = e.target.selectionStart || newValue.length;
+    const before = newValue.slice(0, cursor);
+
+    // Auto-open variable picker when {{ is typed
+    if (before.endsWith("{{")) {
+      setPickerOpen(true);
+      setFormatterOpen(false);
+      return;
+    }
+
+    // Auto-open formatter picker when | is typed inside an expression
+    if (hasTemplateExpr(newValue) && (before.endsWith("| ") || before.endsWith("|"))) {
+      // Verify we're inside a {{ ... }} expression
+      const lastOpen = before.lastIndexOf("{{");
+      const lastClose = before.lastIndexOf("}}");
+      if (lastOpen > lastClose) {
+        // We're inside an expression — open formatter picker
+        setFormatterOpen(true);
+        setPickerOpen(false);
+      }
+    }
+  }, [safeOnChange]);
+
+  // ---- P6: Keyboard navigation in input ----
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Escape closes any open picker
+    if (e.key === "Escape") {
+      if (pickerOpen || formatterOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        setPickerOpen(false);
+        setFormatterOpen(false);
+      }
+    }
+
+    // Down arrow opens picker if not open
+    if (e.key === "ArrowDown" && !pickerOpen && !formatterOpen) {
+      const before = safeValue.slice(0, inputRef.current?.selectionStart || 0);
+      const lastOpen = before.lastIndexOf("{{");
+      const lastClose = before.lastIndexOf("}}");
+      if (lastOpen > lastClose) {
+        // Inside expression — open formatter
+        e.preventDefault();
+        setFormatterOpen(true);
+      } else {
+        // Not inside — open variable
+        e.preventDefault();
+        setPickerOpen(true);
+      }
+    }
+  }, [pickerOpen, formatterOpen, safeValue]);
 
   // ---- Render ----
 
@@ -211,7 +266,8 @@ export function TemplatePickerWidget(props: WidgetProps) {
             ref={inputRef}
             type="text"
             value={safeValue}
-            onChange={e => safeOnChange(e.target.value)}
+            onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             placeholder={label || "Texto ou {{variável}}"}
@@ -231,7 +287,7 @@ export function TemplatePickerWidget(props: WidgetProps) {
         {/* Variable picker button */}
         <button
           onClick={() => { setPickerOpen(p => !p); setFormatterOpen(false); }}
-          title="Inserir variável"
+          title="Inserir variável (ou digite {{)"
           style={{
             ...btnStyle,
             background: pickerOpen ? C.accent + "20" : C.surface2,
@@ -246,7 +302,7 @@ export function TemplatePickerWidget(props: WidgetProps) {
         {hasExpr && (
           <button
             onClick={() => { setFormatterOpen(f => !f); setPickerOpen(false); }}
-            title="Adicionar formatador"
+            title="Adicionar formatador (ou digite |)"
             style={{
               ...btnStyle,
               background: formatterOpen ? C.accent + "20" : C.surface2,
@@ -298,6 +354,7 @@ export function TemplatePickerWidget(props: WidgetProps) {
 
 // ============================================================================
 // WidgetVariablePicker — Searchable dropdown grouped by category
+// P6: Added keyboard navigation (↑↓ to navigate, Enter to select)
 // ============================================================================
 
 interface VariablePickerProps {
@@ -309,6 +366,7 @@ interface VariablePickerProps {
 
 function WidgetVariablePicker({ items, categories, onSelect, onClose }: VariablePickerProps) {
   const [search, setSearch] = useState("");
+  const [highlightIdx, setHighlightIdx] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on click outside
@@ -323,8 +381,36 @@ function WidgetVariablePicker({ items, categories, onSelect, onClose }: Variable
   const filtered = searchVariables(search, items);
   const grouped = groupByCategory(filtered);
 
+  // Reset highlight on search change
+  useEffect(() => { setHighlightIdx(0); }, [search]);
+
+  // P6: Keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightIdx(i => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (filtered.length > 0 && highlightIdx < filtered.length) {
+        onSelect(filtered[highlightIdx].path);
+      }
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      if (filtered.length === 1) {
+        onSelect(filtered[0].path);
+      }
+    }
+    e.stopPropagation();
+  }, [onClose, onSelect, filtered, highlightIdx]);
+
   return (
-    <div ref={ref} style={dropdownStyle}>
+    <div ref={ref} style={dropdownStyle} onKeyDown={handleKeyDown}>
       {/* Search */}
       <div style={{ padding: "8px 8px 4px" }}>
         <input
@@ -333,55 +419,78 @@ function WidgetVariablePicker({ items, categories, onSelect, onClose }: Variable
           onChange={e => setSearch(e.target.value)}
           placeholder="🔍 Buscar variável..."
           style={dropdownSearchStyle}
-          onKeyDown={e => {
-            if (e.key === "Escape") onClose();
-            if (e.key === "Enter" && filtered.length === 1) {
-              onSelect(filtered[0].path);
-            }
-          }}
         />
       </div>
 
-      {/* Variable list — grouped by category */}
+      {/* Hint */}
+      {items.length > 0 && (
+        <div style={{
+          padding: "0 8px 4px", fontSize: 9, color: C.textDim,
+          display: "flex", gap: 8,
+        }}>
+          <span>↑↓ navegar</span>
+          <span>↵ selecionar</span>
+          <span>Tab aceitar único</span>
+        </div>
+      )}
+
+      {/* Variable list */}
       <div style={{ maxHeight: 260, overflow: "auto", padding: "0 4px 4px" }}>
-        {categories.filter(cat => cat?.id && grouped[cat.id]?.length).map(cat => (
-          <div key={cat.id}>
-            <div style={catLabelStyle}>
-              <span>{cat.icon || "📦"}</span>
-              <span>{cat.label || cat.id}</span>
+        {(() => {
+          let flatIdx = 0;
+          return categories.filter(cat => cat?.id && grouped[cat.id]?.length).map(cat => (
+            <div key={cat.id}>
+              <div style={catLabelStyle}>
+                <span>{cat.icon || "📦"}</span>
+                <span>{cat.label || cat.id}</span>
+              </div>
+              {(grouped[cat.id] || []).map(v => {
+                if (!v?.path) return null;
+                const currentIdx = flatIdx++;
+                const isHighlighted = currentIdx === highlightIdx;
+                return (
+                  <button
+                    key={v.path}
+                    onClick={() => onSelect(v.path)}
+                    style={{
+                      ...varItemStyle,
+                      background: isHighlighted ? C.accent + "15" : "transparent",
+                      outline: isHighlighted ? `1px solid ${C.accent}30` : "none",
+                    }}
+                    onMouseEnter={(e) => {
+                      setHighlightIdx(currentIdx);
+                      e.currentTarget.style.background = C.surface3;
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isHighlighted) e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <span style={{
+                      fontSize: 9, fontFamily: MONO, color: C.textDim,
+                      width: 18, textAlign: "center", flexShrink: 0,
+                    }}>
+                      {typeIcon(v.type)}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: 11, fontFamily: MONO, color: C.text, fontWeight: 500,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {v.path}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.textDim }}>{v.label || ""}</div>
+                    </div>
+                    <span style={{
+                      fontSize: 9, color: C.textDim + "80", fontFamily: MONO, flexShrink: 0,
+                    }}>
+                      {formatMock(v.mockValue)}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-            {(grouped[cat.id] || []).map(v => v?.path ? (
-              <button
-                key={v.path}
-                onClick={() => onSelect(v.path)}
-                style={varItemStyle}
-                onMouseEnter={e => (e.currentTarget.style.background = C.surface3)}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >
-                <span style={{
-                  fontSize: 9, fontFamily: MONO, color: C.textDim,
-                  width: 18, textAlign: "center", flexShrink: 0,
-                }}>
-                  {typeIcon(v.type)}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 11, fontFamily: MONO, color: C.text, fontWeight: 500,
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
-                    {v.path}
-                  </div>
-                  <div style={{ fontSize: 10, color: C.textDim }}>{v.label || ""}</div>
-                </div>
-                <span style={{
-                  fontSize: 9, color: C.textDim + "80", fontFamily: MONO, flexShrink: 0,
-                }}>
-                  {formatMock(v.mockValue)}
-                </span>
-              </button>
-            ) : null)}
-          </div>
-        ))}
+          ));
+        })()}
 
         {/* Empty state */}
         {filtered.length === 0 && (
@@ -408,6 +517,7 @@ function WidgetVariablePicker({ items, categories, onSelect, onClose }: Variable
 
 // ============================================================================
 // WidgetFormatterPicker — Searchable dropdown for pipe formatters
+// P6: Added keyboard navigation
 // ============================================================================
 
 interface FormatterPickerProps {
@@ -417,6 +527,7 @@ interface FormatterPickerProps {
 
 function WidgetFormatterPicker({ onSelect, onClose }: FormatterPickerProps) {
   const [search, setSearch] = useState("");
+  const [highlightIdx, setHighlightIdx] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on click outside
@@ -444,8 +555,38 @@ function WidgetFormatterPicker({ onSelect, onClose }: FormatterPickerProps) {
     grouped[f.category].push(f);
   }
 
+  // Reset highlight on search change
+  useEffect(() => { setHighlightIdx(0); }, [search]);
+
+  // P6: Keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightIdx(i => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (filtered.length > 0 && highlightIdx < filtered.length) {
+        const f = filtered[highlightIdx];
+        onSelect(f.args ? `${f.name}:` : f.name);
+      }
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      if (filtered.length === 1) {
+        const f = filtered[0];
+        onSelect(f.args ? `${f.name}:` : f.name);
+      }
+    }
+    e.stopPropagation();
+  }, [onClose, onSelect, filtered, highlightIdx]);
+
   return (
-    <div ref={ref} style={dropdownStyle}>
+    <div ref={ref} style={dropdownStyle} onKeyDown={handleKeyDown}>
       {/* Search */}
       <div style={{ padding: "8px 8px 4px" }}>
         <input
@@ -454,48 +595,68 @@ function WidgetFormatterPicker({ onSelect, onClose }: FormatterPickerProps) {
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar formatador..."
           style={dropdownSearchStyle}
-          onKeyDown={e => {
-            if (e.key === "Escape") onClose();
-            if (e.key === "Enter" && filtered.length === 1) {
-              const f = filtered[0];
-              onSelect(f.args ? `${f.name}:` : f.name);
-            }
-          }}
         />
       </div>
 
-      {/* Formatter list — grouped by category */}
+      {/* Hint */}
+      <div style={{
+        padding: "0 8px 4px", fontSize: 9, color: C.textDim,
+        display: "flex", gap: 8,
+      }}>
+        <span>↑↓ navegar</span>
+        <span>↵ selecionar</span>
+        <span>Tab aceitar único</span>
+      </div>
+
+      {/* Formatter list */}
       <div style={{ maxHeight: 260, overflow: "auto", padding: "0 4px 4px" }}>
-        {FORMATTER_CATEGORIES.filter(cat => cat?.id && grouped[cat.id]?.length).map(cat => (
-          <div key={cat.id}>
-            <div style={catLabelStyle}>
-              <span>{cat.label || cat.id}</span>
+        {(() => {
+          let flatIdx = 0;
+          return FORMATTER_CATEGORIES.filter(cat => cat?.id && grouped[cat.id]?.length).map(cat => (
+            <div key={cat.id}>
+              <div style={catLabelStyle}>
+                <span>{cat.label || cat.id}</span>
+              </div>
+              {(grouped[cat.id] || []).map(f => {
+                if (!f?.name) return null;
+                const currentIdx = flatIdx++;
+                const isHighlighted = currentIdx === highlightIdx;
+                return (
+                  <button
+                    key={f.name}
+                    onClick={() => onSelect(f.args ? `${f.name}:` : f.name)}
+                    style={{
+                      ...varItemStyle,
+                      background: isHighlighted ? C.accent + "15" : "transparent",
+                      outline: isHighlighted ? `1px solid ${C.accent}30` : "none",
+                    }}
+                    onMouseEnter={(e) => {
+                      setHighlightIdx(currentIdx);
+                      e.currentTarget.style.background = C.surface3;
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isHighlighted) e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: 11, fontFamily: MONO, color: C.accent, fontWeight: 600,
+                      }}>
+                        | {f.name}{f.args ? `:${f.args}` : ""}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.textDim }}>{f.description || ""}</div>
+                    </div>
+                    <span style={{
+                      fontSize: 9, color: C.textDim + "80", fontFamily: MONO, flexShrink: 0,
+                    }}>
+                      {f.example || ""}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-            {(grouped[cat.id] || []).map(f => f?.name ? (
-              <button
-                key={f.name}
-                onClick={() => onSelect(f.args ? `${f.name}:` : f.name)}
-                style={varItemStyle}
-                onMouseEnter={e => (e.currentTarget.style.background = C.surface3)}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 11, fontFamily: MONO, color: C.accent, fontWeight: 600,
-                  }}>
-                    | {f.name}{f.args ? `:${f.args}` : ""}
-                  </div>
-                  <div style={{ fontSize: 10, color: C.textDim }}>{f.description || ""}</div>
-                </div>
-                <span style={{
-                  fontSize: 9, color: C.textDim + "80", fontFamily: MONO, flexShrink: 0,
-                }}>
-                  {f.example || ""}
-                </span>
-              </button>
-            ) : null)}
-          </div>
-        ))}
+          ));
+        })()}
 
         {filtered.length === 0 && (
           <div style={{ padding: "16px 8px", textAlign: "center", fontSize: 11, color: C.textDim }}>
@@ -508,8 +669,7 @@ function WidgetFormatterPicker({ onSelect, onClose }: FormatterPickerProps) {
 }
 
 // ============================================================================
-// Styles — Easyblocks sidebar dark theme (~#1c1c21 bg, #2a2a33 borders)
-// Constants from page-editor/styles.ts are reused (same dark theme).
+// Styles
 // ============================================================================
 
 const inputStyle: CSSProperties = {
@@ -619,14 +779,9 @@ const varItemStyle: CSSProperties = {
 };
 
 // ============================================================================
-// Widget registration map — for Easyblocks
+// Widget registration map
 // ============================================================================
 
-/**
- * Map of widget IDs to widget components.
- * Pass this to EasyblocksEditor's `widgets` prop.
- */
 export const ORQUI_WIDGETS: Record<string, React.ComponentType<any>> = {
   "orqui-template-picker": TemplatePickerWidget,
-  // Future: "orqui-entity-picker": EntityPickerWidget,
 };

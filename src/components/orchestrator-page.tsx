@@ -140,6 +140,9 @@ function ArtifactViewer({ artifacts }: { artifacts: ParsedArtifact[] }) {
   const [selected, setSelected] = useState(0)
   if (artifacts.length === 0) return null
 
+  const content = artifacts[selected]?.content ?? ""
+  const lines = content.split("\n")
+
   return (
     <div className="border border-border rounded-lg overflow-hidden">
       <div className="flex border-b border-border bg-muted/30">
@@ -157,9 +160,22 @@ function ArtifactViewer({ artifacts }: { artifacts: ParsedArtifact[] }) {
           </button>
         ))}
       </div>
-      <pre className="p-4 text-xs font-mono overflow-auto max-h-96 bg-card">
-        {artifacts[selected]?.content}
-      </pre>
+      <div className="overflow-auto max-h-96 bg-card">
+        <table className="w-full" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
+          <tbody>
+            {lines.map((line, i) => (
+              <tr key={i} style={{ border: 'none' }}>
+                <td className="select-none text-right pr-2 pl-2 py-0 text-[10px] font-mono text-muted-foreground/25 w-[1%] whitespace-nowrap align-top leading-[1.35rem]" style={{ border: 'none' }}>
+                  {i + 1}
+                </td>
+                <td className="pl-3 pr-4 py-0 text-xs font-mono whitespace-pre text-foreground align-top leading-[1.35rem]" style={{ border: 'none' }}>
+                  {line || "\u00A0"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -237,6 +253,7 @@ export function OrchestratorPage() {
     saved?.stepLLMs ?? {
       1: { provider: "claude-code", model: "sonnet" },
       2: { provider: "claude-code", model: "sonnet" },
+      3: { provider: "claude-code", model: "sonnet" },
       4: { provider: "claude-code", model: "sonnet" },
     }
   )
@@ -310,6 +327,7 @@ export function OrchestratorPage() {
   const [runId, setRunId] = useState<string | null>(saved?.runId ?? null)
   const [validationStatus, setValidationStatus] = useState<string | null>(null)
   const [runResults, setRunResults] = useState<RunWithResults | null>(null)
+  const [schemaError, setSchemaError] = useState<string | null>(null)
 
   // Step 4 result
   const [executeResult, setExecuteResult] = useState<{ mode: string; command?: string } | null>(null)
@@ -486,8 +504,12 @@ export function OrchestratorPage() {
 
         if (passed) {
           markComplete(3)
-          addLog("success", "Validação aprovada — gates 0 e 1 passaram")
-          toast.success("Validação aprovada!")
+          addLog("success", "✅ Gates 0-1 aprovados — avançando para execução...")
+          toast.success("Validação aprovada! Avançando para execução...")
+          // Auto-advance to step 4 after a brief pause so user can see the result
+          setTimeout(() => {
+            setStep(4)
+          }, 1500)
         } else {
           const failedGates = results.gateResults?.filter((g: GateResult) => !g.passed).map((g: GateResult) => g.gateName)
           const failedValidatorNames = results.validatorResults
@@ -525,7 +547,7 @@ export function OrchestratorPage() {
   }
 
   // Check LLM isolation: step 1 model must differ from step 2, and both from step 4
-  const apiPost = async (endpoint: string, body: Record<string, unknown>, retries = 0): Promise<any> => {
+  const apiPost = async (endpoint: string, body: Record<string, unknown>, retries = 0, timeoutMs = 300_000): Promise<any> => {
     let lastError: Error | null = null
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -533,16 +555,28 @@ export function OrchestratorPage() {
           addLog("warning", `Tentativa ${attempt + 1}/${retries + 1} para ${endpoint}...`)
           await new Promise((r) => setTimeout(r, 1500 * attempt))
         }
-        const res = await fetch(`${API_BASE}/agent/bridge/${endpoint}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        })
-        if (!res.ok) {
-          const err = await res.json().catch(() => null)
-          throw new Error(err?.error || err?.message || `HTTP ${res.status}`)
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), timeoutMs)
+        try {
+          const res = await fetch(`${API_BASE}/agent/bridge/${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          })
+          clearTimeout(timer)
+          if (!res.ok) {
+            const err = await res.json().catch(() => null)
+            throw new Error(err?.error || err?.message || `HTTP ${res.status}`)
+          }
+          return res.json()
+        } catch (err) {
+          clearTimeout(timer)
+          if (err instanceof DOMException && err.name === "AbortError") {
+            throw new Error(`Timeout: ${endpoint} demorou mais de ${Math.round(timeoutMs / 60000)}min — verifique o servidor`)
+          }
+          throw err
         }
-        return res.json()
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err))
         const isNetwork = lastError.message === "Failed to fetch" || lastError.message.includes("NetworkError")
@@ -718,10 +752,19 @@ export function OrchestratorPage() {
       // SSE via useRunEvents will pick up the run and update results inline
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao iniciar validação"
-      setError(msg)
-      setValidationStatus("FAILED")
-      addLog("error", msg)
-      toast.error(msg)
+      const isSchemaError = msg.includes("CONTRACT_SCHEMA_INVALID") || msg.includes("erros de schema")
+      if (isSchemaError) {
+        setError(null) // Don't show generic error banner — show specific schema error state
+        setValidationStatus("SCHEMA_ERROR")
+        setSchemaError(msg)
+        addLog("error", `Schema do contrato inválido: ${msg}`)
+        toast.error("Contrato com erros de schema — regenere o plano", { duration: 6000 })
+      } else {
+        setError(msg)
+        setValidationStatus("FAILED")
+        addLog("error", msg)
+        toast.error(msg)
+      }
       setLoading(false)
     }
   }
@@ -730,7 +773,10 @@ export function OrchestratorPage() {
   const lastFixHashRef = useRef<string | null>(null)
 
   const handleFix = async (target: "plan" | "spec") => {
-    if (!outputId || !runId) return
+    if (!outputId) return
+    // For schema errors, we don't need runId — we pass the error directly
+    const isSchemaFix = validationStatus === "SCHEMA_ERROR" && !!schemaError
+    if (!runId && !isSchemaFix) return
     setError(null)
     setLoading(true)
 
@@ -739,24 +785,30 @@ export function OrchestratorPage() {
     const preHash = preFix.map((a) => a.content).join("|||")
 
     // Log detailed info about what we're fixing
-    const failedVs = (runResults?.validatorResults ?? [])
-      .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
-    const failedVCodes = failedVs.map((v: ValidatorResult) => v.validatorCode)
-    if (failedVCodes.length === 0) failedVCodes.push("unknown")
-
-    addLog("info", `Corrigindo ${target} — validators: ${failedVCodes.join(", ")}`)
-    for (const v of failedVs.slice(0, 3)) {
-      addLog("info", `  → ${v.validatorCode}: ${v.message || v.validatorName}`)
+    let failedVCodes: string[]
+    if (isSchemaFix) {
+      failedVCodes = ["CONTRACT_SCHEMA_INVALID"]
+      addLog("info", `Corrigindo ${target} — schema inválido no contrato`)
+    } else {
+      const failedVs = (runResults?.validatorResults ?? [])
+        .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
+      failedVCodes = failedVs.map((v: ValidatorResult) => v.validatorCode)
+      if (failedVCodes.length === 0) failedVCodes.push("unknown")
+      addLog("info", `Corrigindo ${target} — validators: ${failedVCodes.join(", ")}`)
+      for (const v of failedVs.slice(0, 3)) {
+        addLog("info", `  → ${v.validatorCode}: ${v.message || v.validatorName}`)
+      }
     }
 
     try {
-      const fixStep = target === "plan" ? 1 : 2
-      const fixLLM = stepLLMs[fixStep]
+      const fixLLM = stepLLMs[3] ?? stepLLMs[2] // step 3 = fix, fallback to step 2
       const result: StepResult = await apiPost("fix", {
         outputId,
         target,
-        runId,
+        runId: runId || undefined,
         failedValidators: failedVCodes,
+        // For schema errors, pass the error as rejectionReport since there's no runId
+        rejectionReport: isSchemaFix ? schemaError : undefined,
         provider: fixLLM.provider,
         model: fixLLM.model,
         projectPath: getProjectPath(),
@@ -780,6 +832,7 @@ export function OrchestratorPage() {
       }
 
       setValidationStatus(null)
+      setSchemaError(null)
       setRunResults(null)
       setRunId(null)
 
@@ -824,7 +877,46 @@ export function OrchestratorPage() {
       markComplete(4)
       setStep(4)
       addLog("success", `Execução concluída (modo: ${result.mode})`)
-      toast.success("Execução concluída")
+      toast.success("Execução concluída — iniciando validação de integridade...")
+
+      // Auto-trigger post-execution validation (Gates 2-3)
+      try {
+        addLog("info", "Iniciando validação pós-execução (Gates 2-3)...")
+        setValidationStatus("RUNNING")
+        validationResolvedRef.current = false
+
+        const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+        if (planArtifact) {
+          const plan = JSON.parse(planArtifact.content)
+          const files = plan.manifest?.files || plan.files || []
+          const testFile = plan.manifest?.testFile || plan.testFile || specArtifacts[0]?.filename || "spec.test.ts"
+          const contract = plan.contract || undefined
+
+          const execRunResponse = await api.runs.create({
+            projectId: selectedProjectId!,
+            outputId,
+            taskPrompt: taskDescription,
+            manifest: { files, testFile },
+            contract,
+            dangerMode: plan.dangerMode || false,
+            runType: "EXECUTION",
+          })
+
+          setRunId(execRunResponse.runId)
+          addLog("success", `Run de execução criada: ${execRunResponse.runId}`)
+
+          if (specArtifacts.length > 0) {
+            const formData = new FormData()
+            const planBlob = new Blob([planArtifact.content], { type: "application/json" })
+            formData.append("planJson", planBlob, "plan.json")
+            const specBlob = new Blob([specArtifacts[0].content], { type: "text/plain" })
+            formData.append("specFile", specBlob, specArtifacts[0].filename)
+            await api.runs.uploadFiles(execRunResponse.runId, formData)
+          }
+        }
+      } catch (execValErr) {
+        addLog("warning", `Validação pós-execução não pôde ser iniciada: ${execValErr instanceof Error ? execValErr.message : String(execValErr)}`)
+      }
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Erro na execução"
       const isNetwork = raw === "Failed to fetch" || raw.includes("NetworkError")
@@ -1205,6 +1297,63 @@ export function OrchestratorPage() {
               </div>
 
               {/* ── Inline validation results ─────────────────────────── */}
+              {validationStatus === "SCHEMA_ERROR" && schemaError && (
+                <Card className="border-amber-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-amber-400">⚠ Contrato com Schema Inválido</CardTitle>
+                    <CardDescription>
+                      O LLM gerou um contrato com campos de tipo errado. A validação não pode prosseguir até que o contrato esteja correto.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <pre className="text-xs font-mono text-amber-200 bg-amber-950/30 rounded p-3 max-h-40 overflow-auto whitespace-pre-wrap">
+                      {schemaError}
+                    </pre>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          // Volta ao step 0 para regenerar o plano
+                          setStep(0)
+                          setCompletedSteps(new Set())
+                          setOutputId(null)
+                          setPlanArtifacts([])
+                          setSpecArtifacts([])
+                          setValidationStatus(null)
+                          setSchemaError(null)
+                          setRunId(null)
+                          addLog("info", "Pipeline reiniciado — regenere o plano")
+                        }}
+                        variant="outline"
+                      >
+                        Regenerar Plano do Zero
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          // Try to fix the contract in-place by re-running plan step
+                          setValidationStatus(null)
+                          setSchemaError(null)
+                          handleFix("plan")
+                        }}
+                        variant="outline"
+                      >
+                        Corrigir Plano (LLM)
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto text-xs text-muted-foreground"
+                        onClick={() => {
+                          setValidationStatus(null)
+                          setSchemaError(null)
+                        }}
+                      >
+                        Fechar
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {validationStatus === "RUNNING" && (
                 <Card className="border-blue-500/30">
                   <CardHeader>
@@ -1319,7 +1468,7 @@ export function OrchestratorPage() {
                       {/* Inline LLM selector for fix */}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="shrink-0">LLM p/ correção:</span>
-                        <Select value={stepLLMs[2]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(2, "provider", v)}>
+                        <Select value={stepLLMs[3]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(3, "provider", v)}>
                           <SelectTrigger className="h-7 text-xs w-[160px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
@@ -1327,22 +1476,61 @@ export function OrchestratorPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <Select value={stepLLMs[2]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(2, "model", v)}>
+                        <Select value={stepLLMs[3]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(3, "model", v)}>
                           <SelectTrigger className="h-7 text-xs w-[120px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {(PROVIDER_MODELS[stepLLMs[2]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                            {(PROVIDER_MODELS[stepLLMs[3]?.provider ?? "claude-code"]?.models || []).map((m) => (
                               <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={() => handleFix("plan")} disabled={loading} variant="outline">
-                          {loading ? "Corrigindo..." : "Corrigir Plano"}
-                        </Button>
-                        <Button onClick={() => handleFix("spec")} disabled={loading} variant="outline">
-                          {loading ? "Corrigindo..." : "Corrigir Testes"}
-                        </Button>
+                        {(() => {
+                          // Auto-detect fix target based on failed validators
+                          const PLAN_VALIDATORS = [
+                            'NO_IMPLICIT_FILES', 'TASK_CLARITY_CHECK', 'TOKEN_BUDGET_FIT',
+                            'TASK_SCOPE_SIZE', 'DELETE_DEPENDENCY_CHECK', 'PATH_CONVENTION',
+                            'SENSITIVE_FILES_LOCK', 'DANGER_MODE_EXPLICIT',
+                            'TEST_CLAUSE_MAPPING_VALID', 'CONTRACT_SCHEMA_INVALID',
+                          ]
+                          const SPEC_VALIDATORS = [
+                            'TEST_RESILIENCE_CHECK', 'NO_DECORATIVE_TESTS', 'TEST_HAS_ASSERTIONS',
+                            'TEST_COVERS_HAPPY_AND_SAD_PATH', 'TEST_INTENT_ALIGNMENT', 'TEST_SYNTAX_VALID',
+                            'IMPORT_REALITY_CHECK', 'MANIFEST_FILE_LOCK',
+                          ]
+                          const failed = (runResults?.validatorResults ?? [])
+                            .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
+                            .map((v: ValidatorResult) => v.validatorCode)
+                          const needsPlan = failed.some((v: string) => PLAN_VALIDATORS.includes(v))
+                          const needsSpec = failed.some((v: string) => SPEC_VALIDATORS.includes(v))
+
+                          if (needsPlan && needsSpec) {
+                            return (
+                              <>
+                                <Button onClick={() => handleFix("plan")} disabled={loading} variant="outline">
+                                  {loading ? "Corrigindo..." : "Corrigir Plano"}
+                                </Button>
+                                <Button onClick={() => handleFix("spec")} disabled={loading} variant="outline">
+                                  {loading ? "Corrigindo..." : "Corrigir Testes"}
+                                </Button>
+                              </>
+                            )
+                          }
+                          if (needsSpec) {
+                            return (
+                              <Button onClick={() => handleFix("spec")} disabled={loading} variant="outline" className="flex-1">
+                                {loading ? "Corrigindo..." : "Corrigir Testes (auto-detectado)"}
+                              </Button>
+                            )
+                          }
+                          // Default to plan (includes needsPlan only, or unknown validators)
+                          return (
+                            <Button onClick={() => handleFix("plan")} disabled={loading} variant="outline" className="flex-1">
+                              {loading ? "Corrigindo..." : "Corrigir Plano (auto-detectado)"}
+                            </Button>
+                          )
+                        })()}
                         <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)} className="ml-auto text-xs text-muted-foreground">
                           Ver run completa →
                         </Button>
@@ -1354,38 +1542,104 @@ export function OrchestratorPage() {
             </div>
           )}
 
-          {/* ─── Step 4: Execute result ───────────────────────────────── */}
+          {/* ─── Step 4: Execute result + Post-execution validation ───── */}
           {step === 4 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-green-400">Execução Concluída</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {executeResult?.mode === "cli" && executeResult.command && (
-                  <div className="space-y-2">
-                    <Label>Comando para executar manualmente:</Label>
-                    <pre className="p-4 rounded bg-muted text-xs font-mono overflow-auto">
-                      {executeResult.command}
-                    </pre>
-                  </div>
-                )}
-                {executeResult?.mode === "sdk" && (
-                  <p className="text-sm text-muted-foreground">
-                    Implementação executada via Claude Agent SDK.
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <Button onClick={handleReset}>
-                    Nova Tarefa
-                  </Button>
-                  {runId && (
-                    <Button variant="outline" onClick={() => navigate(`/runs/${runId}/v2`)}>
-                      Ver Run
-                    </Button>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-green-400">Execução Concluída</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {executeResult?.mode === "cli" && executeResult.command && (
+                    <div className="space-y-2">
+                      <Label>Comando para executar manualmente:</Label>
+                      <pre className="p-4 rounded bg-muted text-xs font-mono overflow-auto">
+                        {executeResult.command}
+                      </pre>
+                    </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                  {executeResult?.mode === "sdk" && (
+                    <p className="text-sm text-muted-foreground">
+                      Implementação executada via Claude Agent SDK.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Post-execution validation (Gates 2-3) */}
+              {validationStatus === "RUNNING" && (
+                <Card className="border-blue-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-blue-400">⏳ Validação Pós-Execução (Gates 2-3)</CardTitle>
+                    <CardDescription>Verificando compilação, testes, escopo de diff e integridade...</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(runResults?.validatorResults ?? []).map((v: ValidatorResult) => (
+                        <div key={v.validatorCode} className="flex items-center gap-2 text-xs">
+                          <span className={v.passed ? "text-green-400" : v.bypassed ? "text-yellow-400" : "text-muted-foreground"}>
+                            {v.passed ? "✓" : v.bypassed ? "⊘" : "…"}
+                          </span>
+                          <span className="font-mono">{v.validatorCode}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {validationStatus === "PASSED" && (
+                <Card className="border-green-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-green-400">✅ Pipeline Completo</CardTitle>
+                    <CardDescription>Todas as 4 gates passaram. Código validado e pronto.</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+
+              {validationStatus === "FAILED" && runResults && (
+                <Card className="border-destructive/30">
+                  <CardHeader>
+                    <CardTitle className="text-destructive">Gates 2-3 Falharam</CardTitle>
+                    <CardDescription>A implementação não passou na validação de integridade.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {(runResults.validatorResults ?? [])
+                      .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
+                      .map((v: ValidatorResult) => (
+                        <div key={v.validatorCode} className="p-3 rounded-lg border border-destructive/20 bg-destructive/5 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-medium text-destructive">{v.validatorCode}</span>
+                            <span className="text-xs text-muted-foreground">{v.validatorName}</span>
+                          </div>
+                          {v.message && <p className="text-xs text-foreground">{v.message}</p>}
+                          {v.details && (
+                            <pre className="text-[11px] font-mono text-muted-foreground bg-muted/50 rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">
+                              {typeof v.details === "string" ? v.details : JSON.stringify(v.details, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      ))}
+                    {runId && (
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)} className="text-xs text-muted-foreground">
+                        Ver detalhes da run →
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex gap-2">
+                <Button onClick={handleReset}>
+                  Nova Tarefa
+                </Button>
+                {runId && (
+                  <Button variant="outline" onClick={() => navigate(`/runs/${runId}/v2`)}>
+                    Ver Run
+                  </Button>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Log panel */}

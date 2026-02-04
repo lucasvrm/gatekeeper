@@ -1,12 +1,10 @@
 // ============================================================================
-// PageSwitcher — Tab bar for navigating between pages in the Easyblocks editor
+// PageSwitcher — Tab bar for navigating between pages
 //
-// PHASE 5 ENHANCEMENTS:
-//   - Double-click tab label to rename inline
-//   - Right-click (or ⋯ button) opens page settings popover
-//     (route, browserTitle, id display)
-//   - Visual improvements: active indicator line, smoother transitions
-//   - onPageMetaChange callback for metadata updates
+// PHASE 6 (P7) ENHANCEMENTS:
+//   - Drag-and-drop tab reorder (HTML5 native DnD)
+//   - Visual drop indicator
+//   - onPagesReorder callback
 // ============================================================================
 
 import React, { useState, useRef, useEffect, useCallback, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -23,8 +21,9 @@ export interface PageSwitcherProps {
   onSelectPage: (pageId: string) => void;
   onNewPage: () => void;
   onDeletePage?: (pageId: string) => void;
-  /** Callback when page metadata (label, route, browserTitle) changes */
   onPageMetaChange?: (pageId: string, meta: Partial<Pick<PageDef, "label" | "route" | "browserTitle">>) => void;
+  /** P7: Callback when pages are reordered via drag-and-drop */
+  onPagesReorder?: (reorderedPages: Record<string, PageDef>) => void;
 }
 
 // ============================================================================
@@ -72,7 +71,6 @@ function useInlineEdit(
       e.preventDefault();
       cancel();
     }
-    // Stop propagation to prevent Easyblocks shortcuts
     e.stopPropagation();
   }, [commit, cancel]);
 
@@ -97,22 +95,14 @@ function PageSettings({ page, pageId, onClose, onMetaChange, anchorRect }: PageS
   const [browserTitle, setBrowserTitle] = useState(page.browserTitle || "");
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Close on click outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        onClose();
-      }
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) onClose();
     };
-    // Delay to avoid immediate close from the click that opened it
     const timer = setTimeout(() => document.addEventListener("mousedown", handler), 50);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handler);
-    };
+    return () => { clearTimeout(timer); document.removeEventListener("mousedown", handler); };
   }, [onClose]);
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -141,7 +131,6 @@ function PageSettings({ page, pageId, onClose, onMetaChange, anchorRect }: PageS
     e.stopPropagation();
   };
 
-  // Position below the anchor
   const top = anchorRect ? anchorRect.bottom + 4 : 0;
   const left = anchorRect ? anchorRect.left : 0;
 
@@ -165,7 +154,6 @@ function PageSettings({ page, pageId, onClose, onMetaChange, anchorRect }: PageS
       }}
       onKeyDown={handleKeyDown}
     >
-      {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         marginBottom: 2,
@@ -178,54 +166,21 @@ function PageSettings({ page, pageId, onClose, onMetaChange, anchorRect }: PageS
         </span>
       </div>
 
-      {/* Label */}
-      <SettingsField
-        label="Nome"
-        value={label}
-        onChange={setLabel}
-        placeholder="Nome da página"
-        autoFocus
-      />
+      <SettingsField label="Nome" value={label} onChange={setLabel} placeholder="Nome da página" autoFocus />
+      <SettingsField label="Rota" value={route} onChange={setRoute} placeholder="/caminho-da-pagina" mono />
+      <SettingsField label="Título do navegador" value={browserTitle} onChange={setBrowserTitle} placeholder="(usa o nome da página)" />
 
-      {/* Route */}
-      <SettingsField
-        label="Rota"
-        value={route}
-        onChange={setRoute}
-        placeholder="/caminho-da-pagina"
-        mono
-      />
-
-      {/* Browser Title */}
-      <SettingsField
-        label="Título do navegador"
-        value={browserTitle}
-        onChange={setBrowserTitle}
-        placeholder="(usa o nome da página)"
-      />
-
-      {/* Actions */}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 4 }}>
-        <button
-          onClick={onClose}
-          style={{
-            padding: "5px 12px", borderRadius: 5, fontSize: 11, fontWeight: 500,
-            border: `1px solid ${C.border}`, background: "transparent",
-            color: C.textMuted, cursor: "pointer", fontFamily: "'Inter', sans-serif",
-          }}
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleSave}
-          style={{
-            padding: "5px 12px", borderRadius: 5, fontSize: 11, fontWeight: 600,
-            border: "none", background: C.accent, color: "#fff",
-            cursor: "pointer", fontFamily: "'Inter', sans-serif",
-          }}
-        >
-          Salvar ⌘↵
-        </button>
+        <button onClick={onClose} style={{
+          padding: "5px 12px", borderRadius: 5, fontSize: 11, fontWeight: 500,
+          border: `1px solid ${C.border}`, background: "transparent",
+          color: C.textMuted, cursor: "pointer", fontFamily: "'Inter', sans-serif",
+        }}>Cancelar</button>
+        <button onClick={handleSave} style={{
+          padding: "5px 12px", borderRadius: 5, fontSize: 11, fontWeight: 600,
+          border: "none", background: C.accent, color: "#fff",
+          cursor: "pointer", fontFamily: "'Inter', sans-serif",
+        }}>Salvar ⌘↵</button>
       </div>
     </div>
   );
@@ -234,12 +189,8 @@ function PageSettings({ page, pageId, onClose, onMetaChange, anchorRect }: PageS
 function SettingsField({
   label, value, onChange, placeholder, mono, autoFocus,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  mono?: boolean;
-  autoFocus?: boolean;
+  label: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; mono?: boolean; autoFocus?: boolean;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -277,11 +228,16 @@ export function PageSwitcher({
   onNewPage,
   onDeletePage,
   onPageMetaChange,
+  onPagesReorder,
 }: PageSwitcherProps) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [settingsPage, setSettingsPage] = useState<string | null>(null);
   const [settingsAnchor, setSettingsAnchor] = useState<DOMRect | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // P7: Drag-and-drop state
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const pageIds = Object.keys(pages);
 
@@ -297,13 +253,10 @@ export function PageSwitcher({
   const handleDelete = (pageId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirmDelete === pageId) {
-      // Second click — confirm delete
       onDeletePage?.(pageId);
       setConfirmDelete(null);
     } else {
-      // First click — request confirmation
       setConfirmDelete(pageId);
-      // Auto-dismiss after 3s
       setTimeout(() => setConfirmDelete(prev => prev === pageId ? null : prev), 3000);
     }
   };
@@ -320,6 +273,57 @@ export function PageSwitcher({
     onPageMetaChange?.(pageId, meta);
   }, [onPageMetaChange]);
 
+  // ---- P7: Drag-and-drop handlers ----
+  const handleDragStart = useCallback((pageId: string, e: React.DragEvent) => {
+    setDragId(pageId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", pageId);
+    // Make the drag ghost slightly transparent
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "0.5";
+    }
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    setDragId(null);
+    setDropTarget(null);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "1";
+    }
+  }, []);
+
+  const handleDragOver = useCallback((targetId: string, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (targetId !== dragId) {
+      setDropTarget(targetId);
+    }
+  }, [dragId]);
+
+  const handleDragLeave = useCallback(() => {
+    setDropTarget(null);
+  }, []);
+
+  const handleDrop = useCallback((targetId: string, e: React.DragEvent) => {
+    e.preventDefault();
+    setDropTarget(null);
+    setDragId(null);
+
+    const sourceId = e.dataTransfer.getData("text/plain");
+    if (!sourceId || sourceId === targetId || !onPagesReorder) return;
+
+    // Reorder: move sourceId to the position of targetId
+    const entries = Object.entries(pages);
+    const sourceIdx = entries.findIndex(([id]) => id === sourceId);
+    const targetIdx = entries.findIndex(([id]) => id === targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+
+    const [removed] = entries.splice(sourceIdx, 1);
+    entries.splice(targetIdx, 0, removed);
+
+    onPagesReorder(Object.fromEntries(entries));
+  }, [pages, onPagesReorder]);
+
   return (
     <>
       <div style={containerStyle}>
@@ -328,6 +332,7 @@ export function PageSwitcher({
             const page = pages[id];
             const isActive = id === currentPageId;
             const isConfirming = confirmDelete === id;
+            const isDropTarget = dropTarget === id;
 
             return (
               <PageTab
@@ -336,11 +341,18 @@ export function PageSwitcher({
                 page={page}
                 isActive={isActive}
                 isConfirming={isConfirming}
+                isDropTarget={isDropTarget}
                 canDelete={pageIds.length > 1 && !!onDeletePage}
+                canDrag={!!onPagesReorder && pageIds.length > 1}
                 onSelect={() => onSelectPage(id)}
                 onDelete={e => handleDelete(id, e)}
                 onOpenSettings={e => handleOpenSettings(id, e)}
                 onRename={onPageMetaChange ? (label) => handleMetaChange(id, { label }) : undefined}
+                onDragStart={e => handleDragStart(id, e)}
+                onDragEnd={handleDragEnd}
+                onDragOver={e => handleDragOver(id, e)}
+                onDragLeave={handleDragLeave}
+                onDrop={e => handleDrop(id, e)}
               />
             );
           })}
@@ -383,7 +395,7 @@ export function PageSwitcher({
 }
 
 // ============================================================================
-// PageTab — individual tab with inline rename
+// PageTab — individual tab with inline rename + drag-and-drop
 // ============================================================================
 
 interface PageTabProps {
@@ -391,16 +403,24 @@ interface PageTabProps {
   page: PageDef;
   isActive: boolean;
   isConfirming: boolean;
+  isDropTarget: boolean;
   canDelete: boolean;
+  canDrag: boolean;
   onSelect: () => void;
   onDelete: (e: React.MouseEvent) => void;
   onOpenSettings: (e: React.MouseEvent) => void;
   onRename?: (label: string) => void;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent) => void;
 }
 
 function PageTab({
-  pageId, page, isActive, isConfirming, canDelete,
+  pageId, page, isActive, isConfirming, isDropTarget, canDelete, canDrag,
   onSelect, onDelete, onOpenSettings, onRename,
+  onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
 }: PageTabProps) {
   const { editing, draft, setDraft, inputRef, startEditing, commit, cancel, handleKeyDown } =
     useInlineEdit(page.label || pageId, (value) => onRename?.(value));
@@ -419,18 +439,29 @@ function PageTab({
   return (
     <button
       data-page-id={pageId}
+      draggable={canDrag && !editing}
       onClick={editing ? undefined : onSelect}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       style={{
         ...tabStyle,
         ...(isActive ? activeTabStyle : {}),
+        // P7: Drop target indicator
+        ...(isDropTarget ? {
+          borderLeft: `2px solid ${C.accent}`,
+          paddingLeft: 8,
+        } : {}),
       }}
       onMouseEnter={e => {
-        if (!isActive) e.currentTarget.style.background = C.surface3;
+        if (!isActive && !isDropTarget) e.currentTarget.style.background = C.surface3;
       }}
       onMouseLeave={e => {
-        if (!isActive) e.currentTarget.style.background = "transparent";
+        if (!isActive) e.currentTarget.style.background = isDropTarget ? C.accent + "10" : "transparent";
       }}
     >
       {/* Active indicator line */}
@@ -441,6 +472,15 @@ function PageTab({
           height: 2, borderRadius: 1,
           background: C.accent,
         }} />
+      )}
+
+      {/* Drag handle — subtle grip dots */}
+      {canDrag && !editing && (
+        <span style={{
+          fontSize: 8, color: C.textDim, opacity: 0.4,
+          cursor: "grab", userSelect: "none",
+          letterSpacing: 1,
+        }}>⋮⋮</span>
       )}
 
       <span style={{ fontSize: 12, opacity: 0.6 }}>📄</span>
@@ -471,7 +511,7 @@ function PageTab({
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           maxWidth: 120,
         }}
-          title={`${page.label || pageId} — ${page.route || "/"}\nDuplo-clique para renomear • Botão direito para configurações`}
+          title={`${page.label || pageId} — ${page.route || "/"}\nDuplo-clique para renomear • Botão direito para configurações${canDrag ? "\nArraste para reordenar" : ""}`}
         >
           {page.label || pageId}
         </span>
@@ -534,7 +574,7 @@ const scrollAreaStyle: CSSProperties = {
   gap: 2,
   flex: 1,
   overflow: "auto",
-  scrollbarWidth: "none",   // Firefox
+  scrollbarWidth: "none",
 };
 
 const tabStyle: CSSProperties = {

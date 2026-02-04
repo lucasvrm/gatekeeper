@@ -356,19 +356,32 @@ export class AgentOrchestratorBridge {
     const phase = await this.resolvePhaseConfig(4, input.provider, input.model)
     const basePrompt = await this.assembler.assembleForStep(4)
     const sessionContext = await this.fetchSessionContext()
-    const systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
+    let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     const toolExecutor = new AgentToolExecutor()
     await toolExecutor.loadSafetyConfig()
     const runner = new AgentRunnerService(this.registry, toolExecutor)
 
-    const userMessage = this.buildExecuteUserMessage(input.outputId, existingArtifacts)
+    let userMessage = this.buildExecuteUserMessage(input.outputId, existingArtifacts)
+    let tools = [...READ_TOOLS, ...WRITE_TOOLS, SAVE_ARTIFACT_TOOL]
+
+    if (this.isCliProvider(phase)) {
+      // CLI providers have their own Write, Edit, Bash built-in — no need for our tools
+      tools = [] // CLI ignores tools param entirely, uses its own
+      // Replace API tool references with CLI tool names
+      userMessage = userMessage
+        .replace('Use write_file to create/modify files and bash to run tests.',
+          'Use your Write/Edit tools to create/modify files and Bash to run tests.')
+      systemPrompt += `\n\nIMPORTANT: Implement the code changes using your Write and Edit tools. Run tests using Bash.`
+    }
+
+    console.log('[Bridge:Execute] provider type:', this.isCliProvider(phase) ? 'CLI' : 'API')
 
     const result = await runner.run({
       phase,
       systemPrompt,
       userMessage,
-      tools: [...READ_TOOLS, ...WRITE_TOOLS, SAVE_ARTIFACT_TOOL],
+      tools,
       projectRoot: input.projectPath,
       onEvent: emit,
     })
@@ -432,31 +445,66 @@ export class AgentOrchestratorBridge {
     )
     const sessionContext = await this.fetchSessionContext(input.profileId)
     const basePrompt = await this.assembler.assembleForStep(3)
-    const systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
+    let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     const toolExecutor = new AgentToolExecutor()
     await toolExecutor.loadSafetyConfig()
     const runner = new AgentRunnerService(this.registry, toolExecutor)
 
-    const userMessage = this.buildFixUserMessage(
-      input.target,
-      input.outputId,
-      existingArtifacts,
-      rejectionReport,
-      input.failedValidators,
-      input.taskPrompt,
-    )
+    // For CLI providers, use Write tool instead of save_artifact
+    let tools = [...READ_TOOLS, SAVE_ARTIFACT_TOOL]
+    let outputDir: string | undefined
 
+    // Snapshot for change detection (used by CLI providers)
+    const preFixSnapshot = new Map<string, string>()
+    for (const [name, content] of Object.entries(existingArtifacts)) {
+      preFixSnapshot.set(name, content)
+    }
+
+    if (this.isCliProvider(phase)) {
+      outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
+      tools = [...READ_TOOLS] // no save_artifact for claude-code — it uses its own Write tool
+      systemPrompt += `\n\nIMPORTANT: You must write each corrected artifact as a file using your Write tool.\nWrite corrected files to this directory: ${outputDir}/\nUse the EXACT same filename as the original artifact.`
+    }
+
+    let userMessage: string
+
+    if (this.isCliProvider(phase) && outputDir) {
+      // CLI mode: reference files by PATH instead of embedding content
+      // This reduces the prompt from 80KB+ to ~3KB
+      userMessage = this.buildFixUserMessageForCli(
+        input.target,
+        input.outputId,
+        outputDir,
+        existingArtifacts,
+        rejectionReport,
+        input.failedValidators,
+        input.taskPrompt,
+      )
+    } else {
+      // API mode: embed artifact content inline (save_artifact tool handles output)
+      userMessage = this.buildFixUserMessage(
+        input.target,
+        input.outputId,
+        existingArtifacts,
+        rejectionReport,
+        input.failedValidators,
+        input.taskPrompt,
+      )
+    }
+
+    console.log('[Bridge:Fix] provider type:', this.isCliProvider(phase) ? 'CLI' : 'API')
+    if (outputDir) console.log('[Bridge:Fix] outputDir:', outputDir)
     console.log('[Bridge:Fix] userMessage length:', userMessage.length, 'chars')
     console.log('[Bridge:Fix] userMessage preview (first 500):', userMessage.slice(0, 500))
     console.log('[Bridge:Fix] systemPrompt length:', systemPrompt.length, 'chars')
-    console.log('[Bridge:Fix] tools:', [...READ_TOOLS, SAVE_ARTIFACT_TOOL].map(t => t.name))
+    console.log('[Bridge:Fix] tools:', tools.map(t => t.name))
 
     const result = await runner.run({
       phase,
       systemPrompt,
       userMessage,
-      tools: [...READ_TOOLS, SAVE_ARTIFACT_TOOL],
+      tools,
       projectRoot: input.projectPath,
       onEvent: emit,
     })
@@ -466,11 +514,46 @@ export class AgentOrchestratorBridge {
     console.log('[Bridge:Fix] LLM response text length:', result.text.length)
     console.log('[Bridge:Fix] LLM response text preview:', result.text.slice(0, 400))
 
-    const savedArtifacts = toolExecutor.getArtifacts()
+    // Collect artifacts — same strategy as plan/spec steps
+    let savedArtifacts = toolExecutor.getArtifacts()
     console.log('[Bridge:Fix] toolExecutor.getArtifacts() count:', savedArtifacts.size)
+
+    if (savedArtifacts.size === 0 && this.isCliProvider(phase) && outputDir) {
+      // Claude Code wrote files directly via Write tool — read them from disk
+      console.log(`[Bridge:Fix] CLI provider: scanning ${outputDir} for updated artifacts...`)
+      const diskArtifacts = this.readArtifactsFromDir(outputDir)
+      console.log(`[Bridge:Fix] Found ${diskArtifacts.size} total file(s) on disk`)
+
+      // Change detection: only keep files that actually changed
+      const changedArtifacts = new Map<string, string>()
+      for (const [name, content] of diskArtifacts) {
+        const preContent = preFixSnapshot.get(name)
+        if (!preContent) {
+          // New file created by the fixer
+          console.log(`[Bridge:Fix]   NEW: ${name} (${content.length} chars)`)
+          changedArtifacts.set(name, content)
+        } else if (preContent !== content) {
+          // File was modified
+          console.log(`[Bridge:Fix]   CHANGED: ${name} (${preContent.length} → ${content.length} chars)`)
+          changedArtifacts.set(name, content)
+        } else {
+          console.log(`[Bridge:Fix]   UNCHANGED: ${name}`)
+        }
+      }
+      savedArtifacts = changedArtifacts
+      console.log(`[Bridge:Fix] Changed artifacts: ${savedArtifacts.size}`)
+    }
+
+    if (savedArtifacts.size === 0 && result.text) {
+      // Fallback: try parsing artifacts from text response
+      console.log('[Bridge:Fix] No artifacts found, trying text parse fallback...')
+      savedArtifacts = this.parseArtifactsFromText(result.text)
+      console.log(`[Bridge:Fix] Parsed ${savedArtifacts.size} artifact(s) from text`)
+    }
+
     if (savedArtifacts.size === 0) {
-      console.warn('[Bridge:Fix] ⚠️ NO ARTIFACTS SAVED BY LLM! The fixer did not call save_artifact.')
-      console.warn('[Bridge:Fix] This means the LLM talked about fixes but never actually saved them.')
+      console.warn('[Bridge:Fix] ⚠️ NO ARTIFACTS SAVED BY LLM! The fixer did not save any files.')
+      console.warn('[Bridge:Fix] LLM response preview:', result.text.slice(0, 500))
     }
     for (const [name, c] of savedArtifacts) {
       console.log(`[Bridge:Fix]   POST ${name}: ${c.length} chars`)
@@ -907,14 +990,11 @@ export class AgentOrchestratorBridge {
     failedValidators: string[],
     taskPrompt?: string,
   ): string {
-    const artifactBlocks = Object.entries(artifacts)
-      .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
-      .join('\n\n')
-
     // Categorize failed validators by what data source they check
     const TASK_PROMPT_VALIDATORS = ['NO_IMPLICIT_FILES', 'TASK_CLARITY_CHECK', 'TOKEN_BUDGET_FIT']
     const MANIFEST_VALIDATORS = ['TASK_SCOPE_SIZE', 'DELETE_DEPENDENCY_CHECK', 'PATH_CONVENTION', 'SENSITIVE_FILES_LOCK', 'DANGER_MODE_EXPLICIT']
     const CONTRACT_VALIDATORS = ['TEST_CLAUSE_MAPPING_VALID']
+    const SCHEMA_VALIDATORS = ['CONTRACT_SCHEMA_INVALID']
     const TEST_QUALITY_VALIDATORS = [
       'TEST_RESILIENCE_CHECK', 'NO_DECORATIVE_TESTS', 'TEST_HAS_ASSERTIONS',
       'TEST_COVERS_HAPPY_AND_SAD_PATH', 'TEST_INTENT_ALIGNMENT', 'TEST_SYNTAX_VALID',
@@ -924,8 +1004,54 @@ export class AgentOrchestratorBridge {
     const hasTaskPromptFailure = failedValidators.some((v) => TASK_PROMPT_VALIDATORS.includes(v))
     const hasManifestFailure = failedValidators.some((v) => MANIFEST_VALIDATORS.includes(v))
     const hasContractFailure = failedValidators.some((v) => CONTRACT_VALIDATORS.includes(v))
+    const hasSchemaFailure = failedValidators.some((v) => SCHEMA_VALIDATORS.includes(v))
     const hasTestQualityFailure = failedValidators.some((v) => TEST_QUALITY_VALIDATORS.includes(v))
     const hasDangerModeFailure = failedValidators.includes('DANGER_MODE_EXPLICIT')
+
+    // ── Smart artifact selection: only include what the LLM needs ──
+    // Instead of dumping ALL artifacts (can be 80KB+), only include the ones
+    // relevant to the failed validators. The LLM can use read_file/Read for others.
+    const relevantFiles = new Set<string>()
+
+    if (target === 'plan') {
+      // Plan fixes always need plan.json
+      relevantFiles.add('plan.json')
+      // Contract fixes need plan.json (where contract lives) + contract.md
+      if (hasContractFailure || hasSchemaFailure) {
+        relevantFiles.add('contract.md')
+      }
+      // Manifest fixes need plan.json
+      if (hasManifestFailure || hasDangerModeFailure) {
+        // plan.json already added
+      }
+    } else {
+      // Spec fixes need the test file(s)
+      for (const name of Object.keys(artifacts)) {
+        if (name.endsWith('.spec.ts') || name.endsWith('.spec.tsx') || name.endsWith('.test.ts') || name.endsWith('.test.tsx')) {
+          relevantFiles.add(name)
+        }
+      }
+      // Also include contract.md for clause mapping issues
+      if (hasContractFailure) {
+        relevantFiles.add('contract.md')
+        relevantFiles.add('plan.json')
+      }
+    }
+
+    // Build artifact blocks — full content for relevant files, summary for others
+    const artifactSections: string[] = []
+    const skippedFiles: string[] = []
+    for (const [name, content] of Object.entries(artifacts)) {
+      if (relevantFiles.has(name)) {
+        artifactSections.push(`### ${name}\n\`\`\`\n${content}\n\`\`\``)
+      } else {
+        skippedFiles.push(`- ${name} (${content.length} chars — use read_file if needed)`)
+      }
+    }
+    const artifactBlocks = artifactSections.join('\n\n')
+    const skippedBlock = skippedFiles.length > 0
+      ? `\n\n### Other artifacts (not included — use read_file to access if needed)\n${skippedFiles.join('\n')}`
+      : ''
 
     const sections: string[] = [
       `## Target: ${target === 'plan' ? 'Planning artifacts' : 'Test file'}`,
@@ -1038,6 +1164,25 @@ export class AgentOrchestratorBridge {
       )
     }
 
+    // === Guidance for contract schema validation errors ===
+    if (hasSchemaFailure) {
+      sections.push(
+        `## Contract Schema Fix Guidance\n` +
+        `**CONTRACT_SCHEMA_INVALID**: The \`contract\` object inside plan.json has fields with wrong types. ` +
+        `The Zod schema enforces strict types. Common mistakes:\n` +
+        `- \`assertionSurface.effects\` must be an **array of strings**, e.g. \`["effect1", "effect2"]\` — NOT an object like \`{ "key": "value" }\`\n` +
+        `- \`assertionSurface.http.methods\` must be an **array**, e.g. \`["GET", "POST"]\`\n` +
+        `- \`assertionSurface.http.successStatuses\` must be an **array of integers**, e.g. \`[200, 201]\`\n` +
+        `- \`assertionSurface.ui.routes\` must be an **array of strings**\n` +
+        `- All array fields must be actual JSON arrays \`[]\`, never objects \`{}\` or strings\n\n` +
+        `**You MUST:**\n` +
+        `1. Read the current plan.json from the artifacts above\n` +
+        `2. Find and fix every field that has the wrong type\n` +
+        `3. Save the corrected plan.json using \`save_artifact\` with filename \`plan.json\`\n\n` +
+        `The rejection report above tells you exactly which fields failed.`
+      )
+    }
+
     // === Guidance for dangerMode (user-controlled) ===
     if (hasDangerModeFailure) {
       sections.push(
@@ -1050,10 +1195,79 @@ export class AgentOrchestratorBridge {
     }
 
     sections.push(
-      `## Current Artifacts\n\n${artifactBlocks}`,
+      `## Current Artifacts\n\n${artifactBlocks}${skippedBlock}`,
       '',
-      `Fix the artifacts to address the failed validators. Use save_artifact for each corrected file.`,
+      `## CRITICAL: You MUST use save_artifact\n` +
+      `Do NOT just explain what needs to change. You MUST call the \`save_artifact\` tool for each file you fix.\n` +
+      `If you do not call \`save_artifact\`, your fixes will be LOST and the pipeline will not progress.\n` +
+      `For each corrected file, call: save_artifact(filename, corrected_content)`,
     )
+
+    return sections.filter(Boolean).join('\n\n')
+  }
+
+  /**
+   * Build a lightweight fix user message for CLI providers.
+   *
+   * Instead of embedding artifact content inline (which can be 80KB+),
+   * this version references artifacts by FILE PATH so the CLI agent can
+   * use its Read tool to access them. This reduces the prompt to ~3KB.
+   */
+  private buildFixUserMessageForCli(
+    target: 'plan' | 'spec',
+    outputId: string,
+    outputDir: string,
+    artifacts: Record<string, string>,
+    rejectionReport: string,
+    failedValidators: string[],
+    taskPrompt?: string,
+  ): string {
+    const sections: string[] = []
+
+    sections.push(
+      `## Target: ${target === 'plan' ? 'Planning artifacts' : 'Test spec artifacts'}`,
+      `## Output ID: ${outputId}`,
+    )
+
+    sections.push(`## Failed Validators\n${failedValidators.map((v) => `- \`${v}\``).join('\n')}`)
+
+    if (rejectionReport) {
+      sections.push(`## Rejection Report\n${rejectionReport}`)
+    }
+
+    if (taskPrompt) {
+      sections.push(`## Original Task\n${taskPrompt}`)
+    }
+
+    // File references — tell CLI where to find artifacts (not inline content)
+    const fileList = Object.entries(artifacts)
+      .map(([name, content]) => `- ${outputDir}/${name} (${content.length} chars)`)
+      .join('\n')
+
+    sections.push(
+      `## Artifact Files\nThe artifacts are on disk. Use your Read tool to read them:\n${fileList}`,
+    )
+
+    // Identify which file(s) to fix
+    if (target === 'spec') {
+      const specFiles = Object.keys(artifacts).filter(
+        (n) => n.endsWith('.spec.ts') || n.endsWith('.spec.tsx') || n.endsWith('.test.ts') || n.endsWith('.test.tsx'),
+      )
+      sections.push(
+        `## Instructions\n` +
+        `1. Read the test file(s): ${specFiles.join(', ')}\n` +
+        `2. Fix the issues described in the rejection report above\n` +
+        `3. Write the corrected file(s) back to: ${outputDir}/\n` +
+        `   Use the EXACT same filename(s).`,
+      )
+    } else {
+      sections.push(
+        `## Instructions\n` +
+        `1. Read plan.json from: ${outputDir}/plan.json\n` +
+        `2. Fix the issues described in the rejection report above\n` +
+        `3. Write the corrected plan.json back to: ${outputDir}/plan.json`,
+      )
+    }
 
     return sections.filter(Boolean).join('\n\n')
   }

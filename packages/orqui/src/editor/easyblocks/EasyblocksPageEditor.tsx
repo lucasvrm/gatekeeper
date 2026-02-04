@@ -1,23 +1,12 @@
 // ============================================================================
 // EasyblocksPageEditor — Drop-in replacement for PageEditor
 //
-// ARCHITECTURE:
-// Easyblocks renders using TWO instances of <EasyblocksEditor>:
-//   1. PARENT — the toolbar, sidebar, property panel (this window)
-//   2. CHILD  — the canvas iframe (loaded via same URL)
-//
-// When this component detects it's inside the Easyblocks canvas iframe,
-// it short-circuits and renders ONLY <EasyblocksEditor> with a minimal
-// config — the child instance gets everything from the parent via
-// window.parent.editorWindowAPI.
-//
-// This is CRITICAL because without it, the iframe loads the full
-// Gatekeeper app (sidebar, dashboard, nav) instead of the blank canvas.
-//
-// PHASE 5 CHANGES:
-//   - onPageMetaChange integration with PageSwitcher
-//   - flushSync for race-condition-free filesystem saves
-//   - hasUnsavedChanges prop correctly destructured
+// PHASE 6 CHANGES:
+//   P5: `visible` prop gates keyboard shortcuts (display:none coexistence)
+//       Token CSS always updates (even when hidden) for instant show
+//   P7: Change count indicator in floating overlay
+//       ⌘? shortcut help button
+//       Page duplicate support
 // ============================================================================
 
 import React, { useState, useCallback, useMemo, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from "react";
@@ -36,35 +25,14 @@ import { hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry, invalid
 // Iframe Detection
 // ============================================================================
 
-/**
- * Detect if we're inside the Easyblocks canvas iframe.
- *
- * Easyblocks parent sets `window.isShopstoryEditor = true` before
- * creating the iframe. The iframe loads the same URL, so we check:
- *   1. Are we in an iframe? (window.self !== window.parent)
- *   2. Does the parent have the Easyblocks flag?
- *   3. Fallback: any iframe on /__orqui is the Easyblocks canvas
- */
 function isEasyblocksCanvasIframe(): boolean {
-  // Check 1: Are we in an iframe at all?
   if (window.self === window.parent) return false;
-
-  // Check 2: Does parent have the Easyblocks/Shopstory flag?
   try {
     if ((window.parent as any).isShopstoryEditor) return true;
-  } catch {
-    // Cross-origin — can't access parent
-  }
-
-  // Check 3: Does parent have editorWindowAPI?
+  } catch {}
   try {
     if ((window.parent as any).editorWindowAPI) return true;
-  } catch {
-    // Cross-origin
-  }
-
-  // Check 4: Fallback — if we're in ANY iframe on /__orqui,
-  // it's the Easyblocks canvas. Gatekeeper never iframes itself.
+  } catch {}
   return true;
 }
 
@@ -72,16 +40,11 @@ function isEasyblocksCanvasIframe(): boolean {
 // Canvas-Only Mode (iframe child)
 // ============================================================================
 
-/**
- * Minimal renderer for the Easyblocks canvas iframe.
- * EasyblocksEditor auto-detects child mode and reads config from parent.
- */
 function EasyblocksCanvasOnly() {
   return (
     <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#fff" }}>
       <EasyblocksEditor
         config={{
-          // Minimal config — child mode ignores this and reads from parent
           backend: {
             documents: {
               get: async () => ({ id: "", version: 0, entry: {} }),
@@ -184,7 +147,7 @@ class EasyblocksErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundar
 }
 
 // ============================================================================
-// Public Interface (matches PageEditor exactly)
+// Public Interface
 // ============================================================================
 
 interface EasyblocksPageEditorProps {
@@ -194,14 +157,12 @@ interface EasyblocksPageEditorProps {
   variables?: VariablesSection;
   onVariablesChange?: (v: VariablesSection) => void;
   externalVariables?: VariablesSection;
-  /** Callback to switch to Shell & Tokens mode */
   onSwitchToShell?: () => void;
-  /** Callback to save to filesystem (undefined = no API) */
   onSave?: () => void;
-  /** Current save status */
   saveStatus?: string | null;
-  /** Whether there are unsaved changes (for visual indicator) */
   hasUnsavedChanges?: boolean;
+  /** P5: Whether the editor is currently visible (gates keyboard shortcuts) */
+  visible?: boolean;
 }
 
 // ============================================================================
@@ -219,12 +180,8 @@ export function EasyblocksPageEditor({
   onSave,
   saveStatus,
   hasUnsavedChanges,
+  visible = true,
 }: EasyblocksPageEditorProps) {
-  // =====================================================================
-  // IFRAME DETECTION — must be FIRST, before any other logic.
-  // If we're in the Easyblocks canvas iframe, skip everything and render
-  // only the canvas. This prevents the full Gatekeeper app from loading.
-  // =====================================================================
   const [isCanvas] = useState(() => isEasyblocksCanvasIframe());
 
   if (isCanvas) {
@@ -232,9 +189,6 @@ export function EasyblocksPageEditor({
     return <EasyblocksCanvasOnly />;
   }
 
-  // =====================================================================
-  // PARENT MODE — Full editor with toolbar, sidebar, property panel
-  // =====================================================================
   return <EasyblocksParentEditor
     pages={pages}
     onPagesChange={onPagesChange}
@@ -246,18 +200,12 @@ export function EasyblocksPageEditor({
     onSave={onSave}
     saveStatus={saveStatus}
     hasUnsavedChanges={hasUnsavedChanges}
+    visible={visible}
   />;
 }
 
 // ============================================================================
-// Parent Editor (extracted to separate component to avoid conditional hooks)
-//
-// Phase 5: Page selection with PageSwitcher. The editor loads either:
-//   - An existing page via ?document={id}  (backend.documents.get)
-//   - A new blank page via ?rootComponent=OrquiStack (backend.documents.create)
-//
-// Switching pages requires re-mounting <EasyblocksEditor> because it only
-// reads ?document= on initialization. We use the `key` prop to force this.
+// Parent Editor
 // ============================================================================
 
 function EasyblocksParentEditor({
@@ -270,9 +218,9 @@ function EasyblocksParentEditor({
   onSave,
   saveStatus,
   hasUnsavedChanges,
+  visible = true,
 }: EasyblocksPageEditorProps) {
   // ---- Page selection state ----
-  // null = new page (rootComponent mode), string = existing page (document mode)
   const [selectedPageId, setSelectedPageId] = useState<string | null>(() => {
     const pageIds = Object.keys(pages);
     return pageIds.length > 0 ? pageIds[0] : null;
@@ -281,11 +229,10 @@ function EasyblocksParentEditor({
   const [ready, setReady] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
 
+  // ---- P7: Track EB change count since last save ----
+  const [ebChangeCount, setEbChangeCount] = useState(0);
+
   // ---- Inject URL params that EasyblocksEditor reads ----
-  // CRITICAL: We can only use ?document=xxx mode for pages that have a
-  // cached Easyblocks-native entry (from previous create/update calls).
-  // For pages never opened in Easyblocks, we MUST use ?rootComponent mode
-  // because we can't convert NodeDef → Easyblocks internal format.
   useEffect(() => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
@@ -293,12 +240,10 @@ function EasyblocksParentEditor({
     params.set("readOnly", "false");
 
     if (selectedPageId && hasEbCachedEntry(selectedPageId)) {
-      // Page has cached Easyblocks entry → document mode (loads via get())
       params.delete("rootComponent");
       params.delete("rootTemplate");
       params.set("document", selectedPageId);
     } else {
-      // No cache → rootComponent mode (creates fresh OrquiStack)
       params.delete("document");
       params.delete("rootTemplate");
       params.set("rootComponent", ROOT_COMPONENT_ID);
@@ -325,7 +270,7 @@ function EasyblocksParentEditor({
     };
   }, [variables, externalVariables]);
 
-  // ---- Page switch handler (forces EasyblocksEditor re-mount) ----
+  // ---- Page switch handler ----
   const handleSelectPage = useCallback((pageId: string) => {
     if (pageId === selectedPageId) return;
     setReady(false);
@@ -336,27 +281,22 @@ function EasyblocksParentEditor({
   // ---- New page handler ----
   const handleNewPage = useCallback(() => {
     setReady(false);
-    setSelectedPageId(null);  // null → rootComponent mode → backend.create()
+    setSelectedPageId(null);
     setEditorKey(k => k + 1);
   }, []);
 
   // ---- Delete page handler ----
   const handleDeletePage = useCallback((pageId: string) => {
     const pageIds = Object.keys(pages);
-    if (pageIds.length <= 1) return; // Don't allow deleting the last page
+    if (pageIds.length <= 1) return;
 
-    // Compute next page to navigate to
     const idx = pageIds.indexOf(pageId);
     const nextId = pageIds[idx === pageIds.length - 1 ? idx - 1 : idx + 1];
 
-    // Clean up cached Easyblocks entry
     removeEbCachedEntry(pageId);
-
-    // Remove from pages
     const { [pageId]: _removed, ...rest } = pages;
     onPagesChange(rest);
 
-    // Navigate to adjacent page
     setReady(false);
     setSelectedPageId(nextId || null);
     setEditorKey(k => k + 1);
@@ -369,22 +309,21 @@ function EasyblocksParentEditor({
   }, [pages, onPagesChange]);
 
   // ---- Track newly created pages ----
-  // When selectedPageId is null (new page mode), the backend.create() will
-  // generate a new ID and call onPageChange. We detect when a new page appears
-  // in the pages prop and auto-select it.
   useEffect(() => {
     if (selectedPageId !== null) return;
     const pageIds = Object.keys(pages);
     if (pageIds.length === 0) return;
-    // Find the newest page (highest timestamp in page-XXXXX format)
     const newest = pageIds.reduce((a, b) => (a > b ? a : b));
     if (newest.startsWith("page-")) {
       setSelectedPageId(newest);
     }
   }, [pages, selectedPageId]);
 
-  // ---- Keyboard shortcuts ----
+  // ---- P5: Keyboard shortcuts — GATED on `visible` ----
+  // Only active when the editor is shown (prevents conflicts with Shell shortcuts)
   useEffect(() => {
+    if (!visible) return; // ← P5: don't register shortcuts when hidden
+
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
 
@@ -394,7 +333,7 @@ function EasyblocksParentEditor({
         window.dispatchEvent(new CustomEvent("orqui:force-save"));
       }
 
-      // Ctrl+Shift+P — Focus page switcher (open new page prompt)
+      // Ctrl+Shift+P — New page
       if (ctrl && e.shiftKey && e.key === "P") {
         e.preventDefault();
         handleNewPage();
@@ -420,7 +359,7 @@ function EasyblocksParentEditor({
         handleSelectPage(next);
       }
 
-      // Ctrl+W — Delete current page (with safety: must have >1 page)
+      // Ctrl+W — Delete current page
       if (ctrl && e.key === "w") {
         const ids = Object.keys(pages);
         if (ids.length > 1 && selectedPageId) {
@@ -432,10 +371,11 @@ function EasyblocksParentEditor({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleNewPage, handleSelectPage, handleDeletePage, pages, selectedPageId]);
+  }, [visible, handleNewPage, handleSelectPage, handleDeletePage, pages, selectedPageId]);
 
   // ---- Build Easyblocks config ----
   const handlePageChange = useCallback((pageId: string, page: PageDef) => {
+    setEbChangeCount(c => c + 1); // P7: track change count
     onPagesChange({ ...pages, [pageId]: page });
   }, [pages, onPagesChange]);
 
@@ -454,7 +394,6 @@ function EasyblocksParentEditor({
   configRef.current = config;
 
   // ---- Flush debounced backend changes on unmount ----
-  // Prevents data loss when switching from Pages to Shell mode.
   useEffect(() => {
     return () => {
       const c = configRef.current;
@@ -464,21 +403,21 @@ function EasyblocksParentEditor({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- Listen for external changes (import, undo, collaborative edits) ----
-  // When emitted, invalidate all cache entries and remount the editor
-  // so it re-hydrates from the current layout state.
+  // ---- Listen for external changes (import, undo, token sync) ----
+  // P5: This event is dispatched by OrquiEditor when tokens/vars change in Shell
   useEffect(() => {
     const handler = () => {
       invalidateAllEntries();
       setReady(false);
       setEditorKey(k => k + 1);
+      setEbChangeCount(0); // Reset change count on rebuild
     };
     window.addEventListener("orqui:external-change", handler);
     return () => window.removeEventListener("orqui:external-change", handler);
   }, []);
 
   // ---- Flush backend on Ctrl+S (force-save event) ----
-  // PHASE 5: Use flushSync to await state propagation before filesystem save
+  // ALWAYS active (even when hidden) — OrquiEditor dispatches this during save
   useEffect(() => {
     const handler = async () => {
       if (config.backend && typeof (config.backend as any).flushSync === "function") {
@@ -486,17 +425,17 @@ function EasyblocksParentEditor({
       } else if (config.backend && typeof (config.backend as any).flush === "function") {
         (config.backend as any).flush();
       }
+      setEbChangeCount(0); // Reset after flush
     };
     window.addEventListener("orqui:force-save", handler);
     return () => window.removeEventListener("orqui:force-save", handler);
   }, [config]);
 
   // ---- CSS variables for Orqui tokens ----
+  // P5: Always update (even when hidden) so canvas is ready when shown
   const tokenCSS = useMemo(() => generateTokenCSSVariables(tokens), [tokens]);
 
   // ---- Error boundary reset ----
-  // If the crash was caused by an adapter-seeded entry (best-effort hydration),
-  // clear it so the editor falls back to rootComponent mode (empty stack).
   const handleErrorReset = useCallback(() => {
     if (selectedPageId) {
       clearAdapterSeededEntry(selectedPageId);
@@ -526,14 +465,7 @@ function EasyblocksParentEditor({
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // MAIN RENDER — EasyblocksEditor as SOLE viewport occupant
-  //
-  // Per Easyblocks docs: "the editor page shouldn't render any extra headers,
-  // footers, popups etc. It must be blank canvas with EasyblocksEditor being
-  // a single component rendered."
-  //
-  // All Orqui controls are rendered as fixed-position overlays ON TOP of the
-  // editor, never as siblings that would take space in the DOM flow.
+  // MAIN RENDER
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <>
@@ -541,9 +473,6 @@ function EasyblocksParentEditor({
       <style>{tokenCSS}</style>
 
       {/* ── Floating overlay: Orqui controls ─────────────────────────── */}
-      {/* Positioned in the top-left area, above the Easyblocks close (X)
-          button which is at the very top-left of the editor top bar.
-          We place our controls just below that bar (top: 40px = EB topbar). */}
       <div style={{
         position: "fixed",
         top: 0, left: 64,
@@ -611,14 +540,25 @@ function EasyblocksParentEditor({
             )}
           </button>
         )}
+
+        {/* P7: Change count indicator */}
+        {ebChangeCount > 0 && !saveStatus && (
+          <span style={{
+            pointerEvents: "none",
+            fontSize: 10, fontWeight: 500,
+            color: "#fbbf24", opacity: 0.8,
+            fontFamily: "'JetBrains Mono', monospace",
+          }}>
+            {ebChangeCount} {ebChangeCount === 1 ? "alteração" : "alterações"}
+          </span>
+        )}
       </div>
 
       {/* ── Floating overlay: Page switcher ───────────────────────────── */}
-      {/* Positioned just below the Easyblocks top bar (40px high) */}
       <div style={{
         position: "fixed",
         top: 40, left: 0,
-        right: 240, /* Don't overlap the sidebar (240px wide) */
+        right: 240,
         zIndex: 100001,
         pointerEvents: "none",
       }}>
@@ -630,6 +570,7 @@ function EasyblocksParentEditor({
             onNewPage={handleNewPage}
             onDeletePage={handleDeletePage}
             onPageMetaChange={handlePageMetaChange}
+            onPagesReorder={onPagesChange}
           />
         </div>
       </div>

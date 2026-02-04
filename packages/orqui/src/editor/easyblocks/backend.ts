@@ -61,6 +61,17 @@ export function removeEbCachedEntry(pageId: string): void {
   _adapterSeededEntries.delete(pageId);
 }
 
+/**
+ * Get a read-only snapshot of the entry cache.
+ * Used by the Contract Compiler to access EB-native entries
+ * for enrichment (responsive values, token refs, styles).
+ *
+ * Returns the live map reference — do NOT mutate entries.
+ */
+export function getEbEntryCache(): ReadonlyMap<string, any> {
+  return _ebEntryCache;
+}
+
 /** Clear an adapter-seeded entry that caused a crash, allowing
  *  the editor to fall back to rootComponent mode (empty stack).
  *  Returns true if the entry was adapter-seeded and was removed. */

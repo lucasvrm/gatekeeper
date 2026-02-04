@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { ZodError } from 'zod'
 import { ValidationController } from '../controllers/ValidationController.js'
 import { CreateRunSchema } from '../schemas/validation.schema.js'
 
@@ -11,6 +12,21 @@ router.post('/runs', async (req, res, next) => {
     req.body = validatedData
     await controller.createRun(req, res)
   } catch (error) {
+    if (error instanceof ZodError) {
+      const fields = error.errors.map(e => ({
+        path: e.path.join('.'),
+        expected: 'expected' in e ? e.expected : undefined,
+        received: 'received' in e ? e.received : undefined,
+        message: e.message,
+      }))
+      console.warn('[Validation] Contract schema error:', JSON.stringify(fields, null, 2))
+      res.status(400).json({
+        error: 'CONTRACT_SCHEMA_INVALID',
+        message: 'O contrato gerado pelo LLM tem erros de schema: ' + fields.map(f => f.path + ' (' + f.message + ')').join(', '),
+        fields,
+      })
+      return
+    }
     next(error)
   }
 })

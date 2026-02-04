@@ -86,7 +86,7 @@ export function buildOrquiEasyblocksConfig(options: BuildConfigOptions) {
 // Re-exports
 export { orquiTokensToEasyblocks, generateTokenCSSVariables } from "./bridge/tokens";
 export { buildWidgetVariableContext, getOrquiCustomTypes } from "./bridge/variables";
-export { createOrquiBackend, hasEbCachedEntry, removeEbCachedEntry, clearAdapterSeededEntry, invalidateAllEntries } from "./backend";
+export { createOrquiBackend, hasEbCachedEntry, getEbEntryCache, removeEbCachedEntry, clearAdapterSeededEntry, invalidateAllEntries } from "./backend";
 export {
   noCodeEntryToNodeDef,
   nodeDefToNoCodeEntry,
@@ -95,3 +95,7 @@ export {
   testRoundtrip,
 } from "./adapter";
 export { ALL_DEFINITIONS } from "./definitions";
+
+// Contract Compiler (Gap 1 + 2 + 3)
+export { compileContracts, compilePage, validateLayoutContract } from "./compiler";
+export type { CompilerInput, CompilerOutput, LayoutContractV3, StyleContractV1, RegistryContractV2 } from "./compiler";
