@@ -4,6 +4,7 @@ import { ValidatorsTab } from "@/components/validators-tab"
 import { PathConfigsTab } from "@/components/path-configs-tab"
 import { SecurityRulesTab } from "@/components/security-rules-tab"
 import { AdvancedTab } from "@/components/advanced-tab"
+import { PromptsTab } from "@/components/prompts-tab"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
@@ -400,6 +401,7 @@ export function ConfigPage() {
       <Tabs defaultValue="validators" className="space-y-4">
         <TabsList>
           <TabsTrigger value="validators">Validators</TabsTrigger>
+          <TabsTrigger value="prompts">Orchestrator</TabsTrigger>
           <TabsTrigger value="security-rules">Security Rules</TabsTrigger>
           <TabsTrigger value="conventions">Conventions</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
@@ -413,6 +415,10 @@ export function ConfigPage() {
             onFailModeChange={handleFailModeChange}
             onUpdateConfig={handleUpdateValidationConfigValue}
           />
+        </TabsContent>
+
+        <TabsContent value="prompts">
+          <PromptsTab />
         </TabsContent>
 
         <TabsContent value="security-rules">

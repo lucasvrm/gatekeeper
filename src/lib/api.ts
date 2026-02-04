@@ -857,7 +857,14 @@ export const api = {
         return result.data
       },
 
-      create: async (data: { name: string; content: string; isActive?: boolean }): Promise<PromptInstruction> => {
+      create: async (data: {
+        name: string
+        content: string
+        step?: number | null
+        kind?: string
+        order?: number
+        isActive?: boolean
+      }): Promise<PromptInstruction> => {
         const response = await fetch(`${API_BASE}/mcp/prompts`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -870,7 +877,14 @@ export const api = {
         return response.json()
       },
 
-      update: async (id: string, data: { name?: string; content?: string; isActive?: boolean }): Promise<PromptInstruction> => {
+      update: async (id: string, data: {
+        name?: string
+        content?: string
+        step?: number | null
+        kind?: string
+        order?: number
+        isActive?: boolean
+      }): Promise<PromptInstruction> => {
         const response = await fetch(`${API_BASE}/mcp/prompts/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -999,6 +1013,15 @@ export const api = {
       const kindPlural = kind + "s"
       const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}?${params}`)
       if (!response.ok) throw new Error(`Failed to fetch orchestrator ${kindPlural}`)
+      const json = await response.json()
+      return json.data ?? []
+    },
+
+    listAll: async (step?: number): Promise<OrchestratorContent[]> => {
+      const params = new URLSearchParams()
+      if (step !== undefined) params.append("step", String(step))
+      const response = await fetch(`${API_BASE}/orchestrator/content?${params}`)
+      if (!response.ok) throw new Error("Failed to fetch orchestrator content")
       const json = await response.json()
       return json.data ?? []
     },

@@ -6,7 +6,6 @@ import { useEffect } from "react"
 import { useOrchestratorEvents, type OrchestratorEvent } from "@/hooks/useOrchestratorEvents"
 import { useRunEvents } from "@/hooks/useRunEvents"
 import { usePageShell } from "@/hooks/use-page-shell"
-import { OrchestratorConfigPanel } from "@/components/orchestrator-config-panel"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -92,7 +91,7 @@ interface LogEntry {
 }
 
 type WizardStep = 0 | 1 | 2 | 3 | 4
-type PageTab = "pipeline" | "config"
+type PageTab = "pipeline"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Step indicator
@@ -214,15 +213,14 @@ function LogPanel({ logs }: { logs: LogEntry[] }) {
 export function OrchestratorPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const headerPortals = usePageShell({ page: "orchestrator" })
 
   // ── Restore session from sessionStorage or URL params ────────────────
   const saved = useRef(loadSession()).current
   const resumeOutputId = searchParams.get("outputId")
   const resumeStep = searchParams.get("step") ? Number(searchParams.get("step")) : undefined
 
-  // ── Tab state ──────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<PageTab>("pipeline")
+  // ── Tab state (kept for type safety, but we only have pipeline now) ────
+  const [tab] = useState<PageTab>("pipeline")
 
   // ── Pipeline state (initialized from saved session) ────────────────────
   const [step, setStep] = useState<WizardStep>(() =>
@@ -231,6 +229,9 @@ export function OrchestratorPage() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(() =>
     new Set(saved?.completedSteps ?? [])
   )
+
+  // Header portal (page key only)
+  const headerPortals = usePageShell({ page: "orchestrator" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
@@ -962,68 +963,43 @@ export function OrchestratorPage() {
     <div className="space-y-6">
       {headerPortals}
 
-      {/* Page tabs: Pipeline | Config */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1 p-1 bg-muted rounded-lg">
-          <button
-            onClick={() => setTab("pipeline")}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              tab === "pipeline" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Pipeline
-          </button>
-          <button
-            onClick={() => setTab("config")}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              tab === "config" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Config
-          </button>
-        </div>
-
-        {tab === "pipeline" && outputId && (
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-mono text-xs">
-              {outputId}
-            </Badge>
-            <Button variant="ghost" size="sm" onClick={handleReset} className="h-7 text-xs text-muted-foreground hover:text-destructive">
-              ✕ Resetar
+      {/* Session controls (outputId, reset, resume) - only render if has content */}
+      {(outputId || (!outputId && saved?.outputId)) && (
+        <div className="flex items-center gap-3">
+          {outputId && (
+            <>
+              <Badge variant="outline" className="font-mono text-xs">
+                {outputId}
+              </Badge>
+              <Button variant="ghost" size="sm" onClick={handleReset} className="h-7 text-xs text-muted-foreground hover:text-destructive">
+                ✕ Resetar
+              </Button>
+            </>
+          )}
+          {!outputId && saved?.outputId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => {
+                if (saved.outputId) setOutputId(saved.outputId)
+                if (saved.planArtifacts?.length) setPlanArtifacts(saved.planArtifacts)
+                if (saved.specArtifacts?.length) setSpecArtifacts(saved.specArtifacts)
+                setStep((saved.step ?? 0) as WizardStep)
+                setCompletedSteps(new Set(saved.completedSteps ?? []))
+                if (saved.taskDescription) setTaskDescription(saved.taskDescription)
+                if (saved.runId) setRunId(saved.runId)
+                addLog("info", `Sessão anterior restaurada: ${saved.outputId}`)
+              }}
+            >
+              Retomar sessão ({saved.outputId?.slice(-20)})
             </Button>
-          </div>
-        )}
-        {tab === "pipeline" && !outputId && saved?.outputId && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={() => {
-              // Restore from last session
-              if (saved.outputId) setOutputId(saved.outputId)
-              if (saved.planArtifacts?.length) setPlanArtifacts(saved.planArtifacts)
-              if (saved.specArtifacts?.length) setSpecArtifacts(saved.specArtifacts)
-              setStep((saved.step ?? 0) as WizardStep)
-              setCompletedSteps(new Set(saved.completedSteps ?? []))
-              if (saved.taskDescription) setTaskDescription(saved.taskDescription)
-              if (saved.runId) setRunId(saved.runId)
-              addLog("info", `Sessão anterior restaurada: ${saved.outputId}`)
-            }}
-          >
-            Retomar sessão ({saved.outputId?.slice(-20)})
-          </Button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* ─── Config tab ──────────────────────────────────────────────── */}
-      {tab === "config" && <OrchestratorConfigPanel />}
-
-      {/* ─── Pipeline tab ────────────────────────────────────────────── */}
-      {tab === "pipeline" && (
-        <>
-          {/* Step indicator */}
-          <StepIndicator current={step} completed={completedSteps} />
-
+      {/* ─── Pipeline content ────────────────────────────────────────── */}
+      <>
           {/* Resuming indicator */}
           {resuming && (
             <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-sm text-blue-400 flex items-center gap-2">
@@ -1046,7 +1022,10 @@ export function OrchestratorPage() {
           {step === 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Descreva a Tarefa</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Descreva a Tarefa</CardTitle>
+                  <StepIndicator current={step} completed={completedSteps} />
+                </div>
                 <CardDescription>
                   Descreva o que precisa ser implementado. O LLM vai gerar o plano, contrato e especificação.
                 </CardDescription>
@@ -1224,7 +1203,10 @@ export function OrchestratorPage() {
             <div className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Artefatos do Plano</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Artefatos do Plano</CardTitle>
+                    <StepIndicator current={step} completed={completedSteps} />
+                  </div>
                   <CardDescription>
                     plan.json, contract.md e task.spec.md gerados pelo LLM. Revise antes de prosseguir.
                   </CardDescription>
@@ -1255,7 +1237,10 @@ export function OrchestratorPage() {
             <div className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Artefatos Gerados</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Artefatos Gerados</CardTitle>
+                    <StepIndicator current={step} completed={completedSteps} />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <ArtifactViewer artifacts={[...planArtifacts, ...specArtifacts]} />
@@ -1581,7 +1566,10 @@ export function OrchestratorPage() {
             <div className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-green-400">Execução Concluída</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-green-400">Execução Concluída</CardTitle>
+                    <StepIndicator current={step} completed={completedSteps} />
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {executeResult?.mode === "cli" && executeResult.command && (
@@ -1676,10 +1664,9 @@ export function OrchestratorPage() {
             </div>
           )}
 
-          {/* Log panel */}
-          <LogPanel logs={logs} />
-        </>
-      )}
+      {/* Log panel */}
+      <LogPanel logs={logs} />
+      </>
     </div>
   )
 }

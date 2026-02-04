@@ -198,6 +198,144 @@ export function ValidatorsTab({
   // Render gate sections for gates 0-3
   const gates = [0, 1, 2, 3]
 
+  // Helper to render a gate section
+  const renderGateSection = useCallback((gateNumber: number) => {
+    const meta = GATE_META[gateNumber] ?? { name: `GATE ${gateNumber}`, emoji: "📋" }
+    const gateValidators = gateGroups.get(gateNumber) ?? []
+    const activeCount = gateValidators.filter(v => v.value === "true").length
+    const totalCount = gateValidators.length
+    const isExpanded = expandedGates.has(gateNumber)
+
+    return (
+      <Collapsible
+        key={gateNumber}
+        open={isExpanded}
+        onOpenChange={() => toggleGate(gateNumber)}
+        data-testid={`gate-section-${gateNumber}`}
+      >
+        <CollapsibleTrigger
+          className="w-full"
+          data-testid={`gate-header-${gateNumber}`}
+        >
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors cursor-pointer">
+            <div className="flex items-center gap-2">
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="text-base">{meta.emoji}</span>
+              <span className="font-semibold text-sm">
+                Gate {gateNumber}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {meta.name}
+              </span>
+            </div>
+            <Badge
+              variant="secondary"
+              data-testid={`gate-active-count-${gateNumber}`}
+              className="text-xs"
+            >
+              {activeCount}/{totalCount}
+            </Badge>
+          </div>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent
+          forceMount
+          className="mt-2"
+          style={{ display: isExpanded ? undefined : "none" }}
+        >
+          <div className="space-y-2 pl-6 pr-2">
+            {gateValidators.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-4">
+                Nenhum validator neste gate.
+              </div>
+            ) : (
+              gateValidators.map(validator => {
+                const isActive = validator.value === "true"
+                const displayName = validator.displayName ?? validator.key
+                const description = validator.description ?? "Sem descrição disponível"
+                const validatorIsPetrea = isPetrea(validator.key)
+                const validatorHasConfigs = hasConfigs(validator.key)
+                const validatorHasTableDep = hasTableDependency(validator.key)
+
+                return (
+                  <div
+                    key={validator.key}
+                    data-testid={`validator-row-${validator.key}`}
+                    className="flex items-center justify-between p-2.5 border rounded-lg bg-background"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Switch
+                        data-testid={`validator-switch-${validator.key}`}
+                        role="switch"
+                        checked={isActive}
+                        onCheckedChange={(checked) => onToggle(validator.key, checked)}
+                        disabled={validatorIsPetrea}
+                        aria-checked={isActive}
+                        className="scale-90"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-xs">{displayName}</span>
+                          {validator.category && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                              {validator.category}
+                            </Badge>
+                          )}
+                          {validatorIsPetrea && (
+                            <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                              🔒
+                            </Badge>
+                          )}
+                          {validatorHasTableDep && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1 py-0"
+                              data-testid={`validator-ref-badge-${validator.key}`}
+                            >
+                              ref
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                          {description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <FailModePopover
+                        currentMode={validator.failMode ?? null}
+                        onModeChange={(mode) => onFailModeChange(validator.key, mode)}
+                        disabled={validatorIsPetrea}
+                      />
+
+                      {validatorHasConfigs && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          data-testid={`validator-config-btn-${validator.key}`}
+                          onClick={() => openConfigDialog(validator)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Settings className="h-3.5 w-3.5" />
+                          <span className="sr-only">Configurações</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    )
+  }, [gateGroups, expandedGates, onToggle, onFailModeChange, openConfigDialog, toggleGate])
+
   return (
     <Card className="p-6 bg-card border-border space-y-4">
       <div>
@@ -207,138 +345,14 @@ export function ValidatorsTab({
         </p>
       </div>
 
-      <div className="space-y-3">
-        {gates.map(gateNumber => {
-          const meta = GATE_META[gateNumber] ?? { name: `GATE ${gateNumber}`, emoji: "📋" }
-          const gateValidators = gateGroups.get(gateNumber) ?? []
-          const activeCount = gateValidators.filter(v => v.value === "true").length
-          const totalCount = gateValidators.length
-          const isExpanded = expandedGates.has(gateNumber)
-
-          return (
-            <Collapsible
-              key={gateNumber}
-              open={isExpanded}
-              onOpenChange={() => toggleGate(gateNumber)}
-              data-testid={`gate-section-${gateNumber}`}
-            >
-              <CollapsibleTrigger
-                className="w-full"
-                data-testid={`gate-header-${gateNumber}`}
-              >
-                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    {isExpanded ? (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    )}
-                    <span className="text-lg">{meta.emoji}</span>
-                    <span className="font-semibold">
-                      Gate {gateNumber} — {meta.name}
-                    </span>
-                  </div>
-                  <Badge
-                    variant="secondary"
-                    data-testid={`gate-active-count-${gateNumber}`}
-                  >
-                    {activeCount} / {totalCount}
-                  </Badge>
-                </div>
-              </CollapsibleTrigger>
-
-              <CollapsibleContent
-                forceMount
-                className="mt-2"
-                style={{ display: isExpanded ? undefined : "none" }}
-              >
-                <div className="space-y-2 pl-8 pr-4">
-                  {gateValidators.length === 0 ? (
-                    <div className="text-sm text-muted-foreground py-4">
-                      Nenhum validator neste gate.
-                    </div>
-                  ) : (
-                    gateValidators.map(validator => {
-                      const isActive = validator.value === "true"
-                      const displayName = validator.displayName ?? validator.key
-                      const description = validator.description ?? "Sem descrição disponível"
-                      const validatorIsPetrea = isPetrea(validator.key)
-                      const validatorHasConfigs = hasConfigs(validator.key)
-                      const validatorHasTableDep = hasTableDependency(validator.key)
-
-                      return (
-                        <div
-                          key={validator.key}
-                          data-testid={`validator-row-${validator.key}`}
-                          className="flex items-center justify-between p-3 border rounded-lg bg-background"
-                        >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <Switch
-                              data-testid={`validator-switch-${validator.key}`}
-                              role="switch"
-                              checked={isActive}
-                              onCheckedChange={(checked) => onToggle(validator.key, checked)}
-                              disabled={validatorIsPetrea}
-                              aria-checked={isActive}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-sm">{displayName}</span>
-                                {validator.category && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {validator.category}
-                                  </Badge>
-                                )}
-                                {validatorIsPetrea && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    🔒 PÉTREA
-                                  </Badge>
-                                )}
-                                {validatorHasTableDep && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                    data-testid={`validator-ref-badge-${validator.key}`}
-                                  >
-                                    ref
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                {description}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <FailModePopover
-                              currentMode={validator.failMode ?? null}
-                              onModeChange={(mode) => onFailModeChange(validator.key, mode)}
-                              disabled={validatorIsPetrea}
-                            />
-
-                            {validatorHasConfigs && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                data-testid={`validator-config-btn-${validator.key}`}
-                                onClick={() => openConfigDialog(validator)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Settings className="h-4 w-4" />
-                                <span className="sr-only">Configurações</span>
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          )
-        })}
+      {/* 2x2 Grid Layout */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Row 1: Gate 0 (left), Gate 1 (right) */}
+        <div>{renderGateSection(0)}</div>
+        <div>{renderGateSection(1)}</div>
+        {/* Row 2: Gate 2 (left), Gate 3 (right) */}
+        <div>{renderGateSection(2)}</div>
+        <div>{renderGateSection(3)}</div>
       </div>
 
       {/* Validator Config Dialog */}

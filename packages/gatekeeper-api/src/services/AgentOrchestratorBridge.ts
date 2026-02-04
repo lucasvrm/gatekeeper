@@ -266,6 +266,15 @@ export class AgentOrchestratorBridge {
     }
 
     const phase = await this.resolvePhaseConfig(2, input.provider, input.model)
+
+    // FIX-C: Step 2 needs higher maxTokens because the LLM must output the entire
+    // spec file content inside a save_artifact tool call. With 8192 default, the model
+    // often runs out of tokens mid-response and the tool call is never emitted.
+    // 16384 gives enough room for ~40K chars of spec content + JSON overhead.
+    if (phase.maxTokens <= 8192) {
+      console.log(`[Bridge] Step 2: bumping maxTokens from ${phase.maxTokens} to 16384 for spec generation`)
+      phase.maxTokens = 16384
+    }
     const sessionContext = await this.fetchSessionContext(input.profileId)
     const basePrompt = await this.assembler.assembleForStep(2)
     let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
@@ -281,10 +290,20 @@ export class AgentOrchestratorBridge {
     if (this.isCliProvider(phase)) {
       outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
       systemPrompt += `\n\nIMPORTANT: Write test file(s) using your Write tool to: ${outputDir}/`
-      userMessage = userMessage.replace(
-        'Use the save_artifact tool to save the test file.',
-        `Write the test file to: ${outputDir}/`,
-      )
+      // Replace save_artifact instructions with Write tool instructions for CLI
+      userMessage = userMessage
+        .replace(
+          /## ⚠️ CRITICAL: You MUST call save_artifact[\s\S]*?Expected call:.*\n/,
+          `## ⚠️ CRITICAL: You MUST write the test file\nUse your Write tool to save the test file to: ${outputDir}/\n`,
+        )
+        .replace(
+          'Use the save_artifact tool to save the test file.',
+          `Write the test file to: ${outputDir}/`,
+        )
+        .replace(
+          /## REMINDER:.*$/,
+          `## REMINDER: Write the test file to ${outputDir}/ — do NOT just output text.`,
+        )
       tools = [...READ_TOOLS]
     }
 
@@ -337,6 +356,22 @@ export class AgentOrchestratorBridge {
     if (memoryArtifacts.size === 0 && result.text) {
       console.log('[Bridge] No spec artifacts found, trying text parse fallback...')
       memoryArtifacts = this.parseArtifactsFromText(result.text)
+    }
+
+    // FIX-B: Smart recovery — extract largest code block from text response
+    // When the LLM outputs the spec as text (not via save_artifact), the regex-based
+    // parseArtifactsFromText fails because LLMs write ```typescript not ```typescript filename.tsx
+    // This extracts the largest code block and maps it to the expected testFile name from plan.json.
+    if (memoryArtifacts.size === 0 && result.text && result.text.length > 500) {
+      console.log('[Bridge] Text parse failed, trying smart code block extraction...')
+      const testFileName = this.extractTestFileNameFromPlan(existingArtifacts)
+      const codeBlock = this.extractLargestCodeBlock(result.text)
+      if (codeBlock && testFileName) {
+        memoryArtifacts.set(testFileName, codeBlock)
+        console.log(`[Bridge] ✅ Smart recovery: extracted "${testFileName}" (${codeBlock.length} chars) from text response`)
+      } else {
+        console.warn(`[Bridge] ⚠️ Smart recovery failed: testFileName=${testFileName}, codeBlock=${codeBlock?.length ?? 0} chars`)
+      }
     }
 
     const artifacts = await this.persistArtifacts(
@@ -573,8 +608,60 @@ export class AgentOrchestratorBridge {
       console.log(`[Bridge:Fix] Parsed ${savedArtifacts.size} artifact(s) from text`)
     }
 
+    // ── RETRY: If LLM explained but didn't save, force a second attempt ──
+    if (savedArtifacts.size === 0 && result.text.length > 100) {
+      console.warn('[Bridge:Fix] ⚠️ LLM explained fixes but did NOT call save_artifact. Forcing retry...')
+
+      const retryMessage = this.isCliProvider(phase)
+        ? `You explained the fixes but did NOT write any files. Your work is LOST.\n\n` +
+          `YOU MUST USE YOUR WRITE TOOL NOW.\n\n` +
+          `Write the corrected file to: ${outputDir}/\n` +
+          `Do NOT explain again. Just write the file.`
+        : `You explained the fixes but did NOT call save_artifact. Your work is LOST.\n\n` +
+          `YOU MUST CALL save_artifact NOW.\n\n` +
+          `Call: save_artifact(filename, corrected_content)\n` +
+          `Do NOT explain again. Just call the tool.`
+
+      const retryResult = await runner.run({
+        phase,
+        systemPrompt,
+        userMessage: retryMessage,
+        tools,
+        projectRoot: input.projectPath,
+        onEvent: emit,
+      })
+
+      console.log('[Bridge:Fix] Retry finished — checking for artifacts...')
+      savedArtifacts = toolExecutor.getArtifacts()
+      console.log(`[Bridge:Fix] Retry artifacts count: ${savedArtifacts.size}`)
+
+      if (savedArtifacts.size === 0 && this.isCliProvider(phase) && outputDir) {
+        const diskArtifacts = this.readArtifactsFromDir(outputDir)
+        const changedArtifacts = new Map<string, string>()
+        for (const [name, content] of diskArtifacts) {
+          const preContent = preFixSnapshot.get(name)
+          if (!preContent || preContent !== content) {
+            changedArtifacts.set(name, content)
+          }
+        }
+        savedArtifacts = changedArtifacts
+        console.log(`[Bridge:Fix] Retry disk scan: ${savedArtifacts.size} changed files`)
+      }
+
+      if (savedArtifacts.size === 0 && retryResult.text) {
+        savedArtifacts = this.parseArtifactsFromText(retryResult.text)
+        console.log(`[Bridge:Fix] Retry text parse: ${savedArtifacts.size} artifact(s)`)
+      }
+
+      // Update result with retry data
+      result.tokensUsed.inputTokens += retryResult.tokensUsed.inputTokens
+      result.tokensUsed.outputTokens += retryResult.tokensUsed.outputTokens
+      result.iterations += retryResult.iterations
+      result.text += '\n\n--- RETRY ---\n\n' + retryResult.text
+    }
+
     if (savedArtifacts.size === 0) {
-      console.warn('[Bridge:Fix] ⚠️ NO ARTIFACTS SAVED BY LLM! The fixer did not save any files.')
+      console.warn('[Bridge:Fix] ⚠️ NO ARTIFACTS SAVED BY LLM (even after retry)! The fixer did not save any files.')
       console.warn('[Bridge:Fix] LLM response preview:', result.text.slice(0, 500))
     }
     for (const [name, c] of savedArtifacts) {
@@ -843,6 +930,50 @@ export class AgentOrchestratorBridge {
     }
     return result
   }
+
+  /**
+   * Extract the expected test file name from plan.json manifest.
+   * Returns just the filename (no path), e.g. "orchestrator-enhancements.spec.tsx"
+   */
+  private extractTestFileNameFromPlan(artifacts: Record<string, string>): string | null {
+    try {
+      const planJson = JSON.parse(artifacts['plan.json'] || '{}')
+      const testFile = planJson.manifest?.testFile || planJson.testFile
+      if (testFile) {
+        return testFile.split('/').pop() || null
+      }
+    } catch { /* ignore parse errors */ }
+    return null
+  }
+
+  /**
+   * Extract the largest fenced code block from a text response.
+   * Used as a last-resort recovery when the LLM outputs spec as text
+   * instead of using save_artifact. Only returns blocks that look like
+   * test files (contain 'describe', 'test', 'it', or 'expect').
+   */
+  private extractLargestCodeBlock(text: string): string | null {
+    const blocks: string[] = []
+    const regex = /```(?:\w*)\s*\n([\s\S]*?)```/g
+    let match
+    while ((match = regex.exec(text)) !== null) {
+      const content = match[1]?.trim()
+      if (content && content.length > 200) {
+        blocks.push(content)
+      }
+    }
+    if (blocks.length === 0) return null
+
+    // Sort by length descending, prefer blocks that look like test files
+    blocks.sort((a, b) => {
+      const aIsTest = /\b(describe|test|it|expect)\s*\(/.test(a) ? 1 : 0
+      const bIsTest = /\b(describe|test|it|expect)\s*\(/.test(b) ? 1 : 0
+      if (aIsTest !== bIsTest) return bIsTest - aIsTest
+      return b.length - a.length
+    })
+
+    return blocks[0] || null
+  }
   // ─── Phase Config ────────────────────────────────────────────────────
 
   /**
@@ -976,13 +1107,31 @@ export class AgentOrchestratorBridge {
       .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
       .join('\n\n')
 
+    // Extract expected test filename from plan.json manifest
+    let testFileName = 'generated.spec.tsx'
+    try {
+      const planJson = JSON.parse(artifacts['plan.json'] || '{}')
+      if (planJson.manifest?.testFile) {
+        testFileName = planJson.manifest.testFile.split('/').pop() || testFileName
+      }
+    } catch { /* ignore parse errors */ }
+
     return [
+      `## ⚠️ CRITICAL: You MUST call save_artifact`,
+      `After generating the test file, you MUST call the \`save_artifact\` tool to save it.`,
+      `Do NOT output the test code as text in your response — that will be LOST.`,
+      `Expected call: \`save_artifact("${testFileName}", <complete test file content>)\``,
+      ``,
       `## Output ID: ${outputId}`,
       `## Artifacts from Step 1`,
       artifactBlocks,
       ``,
-      `Explore the project to understand testing conventions, then generate the complete test file.`,
-      `Use the save_artifact tool to save the test file.`,
+      `## Instructions`,
+      `1. Explore the project to understand testing conventions, imports, and patterns.`,
+      `2. Generate the complete test file: **${testFileName}**`,
+      `3. Use the save_artifact tool to save the test file.`,
+      ``,
+      `## REMINDER: call save_artifact("${testFileName}", content) — do NOT just output text.`,
     ].join('\n\n')
   }
 
@@ -1076,6 +1225,13 @@ export class AgentOrchestratorBridge {
       : ''
 
     const sections: string[] = [
+      // CRITICAL instruction at the TOP so the LLM sees it first
+      `## ⚠️ CRITICAL: You MUST call save_artifact\n` +
+      `Your ONLY job is to fix the artifacts and save them. You are NOT done until you call \`save_artifact\`.\n` +
+      `- Do NOT just explain what needs to change — that accomplishes NOTHING.\n` +
+      `- Do NOT end your turn without calling \`save_artifact\`.\n` +
+      `- You MUST read the artifact, apply fixes, then call: \`save_artifact(filename, corrected_content)\`\n` +
+      `- If you do not call \`save_artifact\`, your work is LOST and you have FAILED the task.`,
       `## Target: ${target === 'plan' ? 'Planning artifacts' : 'Test file'}`,
       `## Output ID: ${outputId}`,
       `## Failed Validators\n${failedValidators.map((v) => `- \`${v}\``).join('\n')}`,
@@ -1246,6 +1402,16 @@ export class AgentOrchestratorBridge {
   ): string {
     const sections: string[] = []
 
+    // CRITICAL instruction at the TOP so the LLM sees it first
+    sections.push(
+      `## ⚠️ CRITICAL: You MUST write the corrected files\n` +
+      `Your ONLY job is to fix the artifacts and write them to disk. You are NOT done until you use your Write tool.\n` +
+      `- Do NOT just explain what needs to change — that accomplishes NOTHING.\n` +
+      `- Do NOT end your turn without writing the corrected files.\n` +
+      `- You MUST: 1) Read the artifact, 2) Apply fixes, 3) Write the corrected file to: ${outputDir}/\n` +
+      `- If you do not write the file, your work is LOST and you have FAILED the task.`,
+    )
+
     sections.push(
       `## Target: ${target === 'plan' ? 'Planning artifacts' : 'Test spec artifacts'}`,
       `## Output ID: ${outputId}`,
@@ -1290,6 +1456,13 @@ export class AgentOrchestratorBridge {
         `3. Write the corrected plan.json back to: ${outputDir}/plan.json`,
       )
     }
+
+    // Final reminder at the end
+    sections.push(
+      `## ⚠️ REMINDER: You MUST write the files\n` +
+      `Do NOT just explain what needs to change. Use your Write tool to save the corrected file(s) to ${outputDir}/.\n` +
+      `If you do not write the files, your fixes will be LOST and the pipeline will FAIL.`,
+    )
 
     return sections.filter(Boolean).join('\n\n')
   }

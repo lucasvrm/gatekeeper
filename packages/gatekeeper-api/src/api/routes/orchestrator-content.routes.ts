@@ -4,6 +4,13 @@ import { OrchestratorContentController } from '../controllers/OrchestratorConten
 const router = Router()
 const contentCtrl = new OrchestratorContentController()
 
+// ── All Content (unified list without kind filter) ──────────────────────────
+// GET /api/orchestrator/content?step=1 - Returns all pipeline content
+router.get('/orchestrator/content', (req, res, next) => {
+  // Don't set kind - returns all kinds
+  contentCtrl.list(req, res).catch(next)
+})
+
 // ── Instructions CRUD ───────────────────────────────────────────────────────
 // GET /api/orchestrator/instructions?step=1
 router.get('/orchestrator/instructions', (req, res, next) => {
