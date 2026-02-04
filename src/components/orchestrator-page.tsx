@@ -740,15 +740,30 @@ export function OrchestratorPage() {
       setRunId(response.runId)
 
       if (specArtifacts.length > 0) {
-        const formData = new FormData()
-        const planBlob = new Blob([planArtifact.content], { type: "application/json" })
-        formData.append("planJson", planBlob, "plan.json")
-        const specBlob = new Blob([specArtifacts[0].content], { type: "text/plain" })
-        formData.append("specFile", specBlob, specArtifacts[0].filename)
-        await api.runs.uploadFiles(response.runId, formData)
+        try {
+          addLog("info", `Fazendo upload de ${specArtifacts.length} arquivo(s) para run...`)
+          toast.info("Fazendo upload de arquivos...")
+          const formData = new FormData()
+          const planBlob = new Blob([planArtifact.content], { type: "application/json" })
+          formData.append("planJson", planBlob, "plan.json")
+          const specBlob = new Blob([specArtifacts[0].content], { type: "text/plain" })
+          formData.append("specFile", specBlob, specArtifacts[0].filename)
+          
+          await api.runs.uploadFiles(response.runId, formData)
+          addLog("success", `Upload concluído — aguardando validação...`)
+          toast.success("Upload concluído")
+        } catch (uploadErr) {
+          const uploadMsg = uploadErr instanceof Error ? uploadErr.message : "Erro no upload de arquivos"
+          addLog("error", `Falha no upload: ${uploadMsg}`)
+          toast.error(`Upload falhou: ${uploadMsg}`)
+          throw new Error(`Upload falhou: ${uploadMsg}`)
+        }
+      } else {
+        addLog("warning", "Nenhum spec artifact para upload — validação pode falhar")
+        toast.warning("Sem arquivos para upload")
       }
 
-      addLog("success", `Run criada: ${response.runId} — aguardando resultado...`)
+      addLog("success", `Run ${response.runId} processando — aguardando resultado...`)
       // SSE via useRunEvents will pick up the run and update results inline
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao iniciar validação"
@@ -906,12 +921,23 @@ export function OrchestratorPage() {
           addLog("success", `Run de execução criada: ${execRunResponse.runId}`)
 
           if (specArtifacts.length > 0) {
-            const formData = new FormData()
-            const planBlob = new Blob([planArtifact.content], { type: "application/json" })
-            formData.append("planJson", planBlob, "plan.json")
-            const specBlob = new Blob([specArtifacts[0].content], { type: "text/plain" })
-            formData.append("specFile", specBlob, specArtifacts[0].filename)
-            await api.runs.uploadFiles(execRunResponse.runId, formData)
+            try {
+              addLog("info", `Upload de arquivos para run EXECUTION...`)
+              const formData = new FormData()
+              const planBlob = new Blob([planArtifact.content], { type: "application/json" })
+              formData.append("planJson", planBlob, "plan.json")
+              const specBlob = new Blob([specArtifacts[0].content], { type: "text/plain" })
+              formData.append("specFile", specBlob, specArtifacts[0].filename)
+              
+              await api.runs.uploadFiles(execRunResponse.runId, formData)
+              addLog("success", `Upload EXECUTION concluído — validando gates 2-3...`)
+            } catch (uploadErr) {
+              const uploadMsg = uploadErr instanceof Error ? uploadErr.message : "Erro no upload"
+              addLog("error", `Falha no upload EXECUTION: ${uploadMsg}`)
+              throw uploadErr // Re-throw to be caught by outer catch
+            }
+          } else {
+            addLog("warning", "Nenhum artifact para upload EXECUTION")
           }
         }
       } catch (execValErr) {
@@ -1488,16 +1514,24 @@ export function OrchestratorPage() {
                       <div className="flex gap-2">
                         {(() => {
                           // Auto-detect fix target based on failed validators
+                          // PLAN_VALIDATORS: Validate plan.json, contract.md, manifest, or taskPrompt
                           const PLAN_VALIDATORS = [
-                            'NO_IMPLICIT_FILES', 'TASK_CLARITY_CHECK', 'TOKEN_BUDGET_FIT',
-                            'TASK_SCOPE_SIZE', 'DELETE_DEPENDENCY_CHECK', 'PATH_CONVENTION',
+                            // Gate 0 validators (all validate plan/manifest/prompt)
+                            'TOKEN_BUDGET_FIT', 'TASK_SCOPE_SIZE', 'TASK_CLARITY_CHECK',
                             'SENSITIVE_FILES_LOCK', 'DANGER_MODE_EXPLICIT',
-                            'TEST_CLAUSE_MAPPING_VALID', 'CONTRACT_SCHEMA_INVALID',
+                            'PATH_CONVENTION', 'DELETE_DEPENDENCY_CHECK',
+                            // Gate 1 validators (plan-related)
+                            'NO_IMPLICIT_FILES', 'MANIFEST_FILE_LOCK',
+                            // Pseudo-validators
+                            'CONTRACT_SCHEMA_INVALID',
                           ]
+                          // SPEC_VALIDATORS: Validate the spec file (test file)
                           const SPEC_VALIDATORS = [
-                            'TEST_RESILIENCE_CHECK', 'NO_DECORATIVE_TESTS', 'TEST_HAS_ASSERTIONS',
-                            'TEST_COVERS_HAPPY_AND_SAD_PATH', 'TEST_INTENT_ALIGNMENT', 'TEST_SYNTAX_VALID',
-                            'IMPORT_REALITY_CHECK', 'MANIFEST_FILE_LOCK',
+                            'TEST_CLAUSE_MAPPING_VALID', 'TEST_RESILIENCE_CHECK',
+                            'NO_DECORATIVE_TESTS', 'TEST_HAS_ASSERTIONS',
+                            'TEST_COVERS_HAPPY_AND_SAD_PATH', 'TEST_INTENT_ALIGNMENT',
+                            'TEST_SYNTAX_VALID', 'IMPORT_REALITY_CHECK',
+                            'TEST_FAILS_BEFORE_IMPLEMENTATION',
                           ]
                           const failed = (runResults?.validatorResults ?? [])
                             .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
@@ -1505,30 +1539,30 @@ export function OrchestratorPage() {
                           const needsPlan = failed.some((v: string) => PLAN_VALIDATORS.includes(v))
                           const needsSpec = failed.some((v: string) => SPEC_VALIDATORS.includes(v))
 
-                          if (needsPlan && needsSpec) {
-                            return (
-                              <>
-                                <Button onClick={() => handleFix("plan")} disabled={loading} variant="outline">
-                                  {loading ? "Corrigindo..." : "Corrigir Plano"}
-                                </Button>
-                                <Button onClick={() => handleFix("spec")} disabled={loading} variant="outline">
-                                  {loading ? "Corrigindo..." : "Corrigir Testes"}
-                                </Button>
-                              </>
-                            )
-                          }
-                          if (needsSpec) {
-                            return (
-                              <Button onClick={() => handleFix("spec")} disabled={loading} variant="outline" className="flex-1">
-                                {loading ? "Corrigindo..." : "Corrigir Testes (auto-detectado)"}
-                              </Button>
-                            )
-                          }
-                          // Default to plan (includes needsPlan only, or unknown validators)
+                          // ALWAYS show both buttons — one as auto-detected suggestion (⭐), other as manual override
+                          // This prevents user from being stuck when auto-detection is wrong
+                          const autoTarget = needsSpec ? "spec" : "plan"
+                          const altTarget = needsSpec ? "plan" : "spec"
+                          
                           return (
-                            <Button onClick={() => handleFix("plan")} disabled={loading} variant="outline" className="flex-1">
-                              {loading ? "Corrigindo..." : "Corrigir Plano (auto-detectado)"}
-                            </Button>
+                            <>
+                              <Button 
+                                onClick={() => handleFix(autoTarget)} 
+                                disabled={loading} 
+                                variant="default"
+                                className="flex-1"
+                              >
+                                {loading ? "Corrigindo..." : `Corrigir ${autoTarget === "plan" ? "Plano" : "Testes"} ⭐`}
+                              </Button>
+                              <Button 
+                                onClick={() => handleFix(altTarget)} 
+                                disabled={loading} 
+                                variant="outline"
+                                className="flex-1"
+                              >
+                                {loading ? "Corrigindo..." : `Corrigir ${altTarget === "plan" ? "Plano" : "Testes"}`}
+                              </Button>
+                            </>
                           )
                         })()}
                         <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)} className="ml-auto text-xs text-muted-foreground">

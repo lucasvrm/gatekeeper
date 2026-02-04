@@ -1,0 +1,4474 @@
+{
+  "$orqui": {
+    "schema": "ui-registry-contract",
+    "version": "1.0.0",
+    "hash": "sha256:1ac35728df20ead3038a2c1403aa785fddfe316b8dd7d42f9b8f0a3879dd9101",
+    "generatedAt": "2026-02-04T10:46:46.889Z"
+  },
+  "components": {
+    "Accordion": {
+      "name": "Accordion",
+      "category": "layout",
+      "description": "Painéis verticais expansíveis para organizar conteúdo em seções colapsáveis.",
+      "source": "shadcn-ui",
+      "props": {
+        "type": {
+          "type": "enum",
+          "required": true,
+          "description": "Tipo de seleção",
+          "enumValues": [
+            "single",
+            "multiple"
+          ]
+        },
+        "collapsible": {
+          "type": "boolean",
+          "required": false,
+          "description": "Permite colapsar todos (apenas type=single)",
+          "default": false
+        },
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "AccordionItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "single",
+          "props": {
+            "type": "single",
+            "collapsible": true
+          }
+        },
+        {
+          "name": "multiple",
+          "props": {
+            "type": "multiple"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "FAQ",
+          "props": {
+            "type": "single",
+            "collapsible": true
+          },
+          "slots": {
+            "children": "AccordionItem x3"
+          }
+        }
+      ],
+      "tags": [
+        "disclosure",
+        "faq",
+        "sections"
+      ],
+      "styles": {
+        "triggerColor": "$tokens.colors.text",
+        "triggerHoverColor": "$tokens.colors.accent",
+        "contentBackground": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "borderRadius": "$tokens.borderRadius.md"
+      }
+    },
+    "Alert": {
+      "name": "Alert",
+      "category": "feedback",
+      "description": "Componente de feedback para exibir mensagens importantes ao usuário.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "destructive",
+            "success",
+            "warning"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "icon": {
+          "description": "Ícone do alerta",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título do alerta",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição do alerta",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "variant": "default"
+          }
+        },
+        {
+          "name": "destructive",
+          "props": {
+            "variant": "destructive"
+          }
+        },
+        {
+          "name": "success",
+          "props": {
+            "variant": "success"
+          }
+        },
+        {
+          "name": "warning",
+          "props": {
+            "variant": "warning"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Success",
+          "props": {
+            "variant": "default"
+          },
+          "slots": {
+            "title": "Sucesso",
+            "description": "Operação concluída."
+          }
+        }
+      ],
+      "tags": [
+        "feedback",
+        "notification",
+        "message"
+      ],
+      "styles": {
+        "default": {
+          "background": "$tokens.colors.surface-2",
+          "borderColor": "$tokens.colors.border",
+          "textColor": "$tokens.colors.text"
+        },
+        "destructive": {
+          "background": "rgba(232,85,85,0.08)",
+          "borderColor": "$tokens.colors.danger-dim",
+          "textColor": "$tokens.colors.danger"
+        },
+        "success": {
+          "background": "rgba(60,194,106,0.08)",
+          "borderColor": "$tokens.colors.success-dim",
+          "textColor": "$tokens.colors.success"
+        },
+        "warning": {
+          "background": "rgba(232,156,40,0.08)",
+          "borderColor": "$tokens.colors.accent-dim",
+          "textColor": "$tokens.colors.accent"
+        },
+        "borderRadius": "$tokens.borderRadius.md",
+        "borderWidth": "$tokens.borderWidth.thin"
+      }
+    },
+    "AlertDialog": {
+      "name": "AlertDialog",
+      "category": "feedback",
+      "description": "Modal interruptivo para confirmações críticas que requerem ação do usuário.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o diálogo",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título do diálogo",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição da ação",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "cancel": {
+          "description": "Botão de cancelar",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "action": {
+          "description": "Botão de confirmar",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Delete confirmation",
+          "props": {},
+          "slots": {
+            "title": "Tem certeza?",
+            "description": "Essa ação não pode ser desfeita.",
+            "cancel": "Cancelar",
+            "action": "Deletar"
+          }
+        }
+      ],
+      "tags": [
+        "modal",
+        "confirmation",
+        "destructive"
+      ],
+      "styles": {
+        "overlayColor": "rgba(0,0,0,0.7)",
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "borderRadius": "$tokens.borderRadius.lg",
+        "titleColor": "$tokens.colors.text",
+        "descriptionColor": "$tokens.colors.text-muted"
+      }
+    },
+    "AspectRatio": {
+      "name": "AspectRatio",
+      "category": "layout",
+      "description": "Exibe conteúdo em uma proporção específica (aspect ratio).",
+      "source": "shadcn-ui",
+      "props": {
+        "ratio": {
+          "type": "number",
+          "required": false,
+          "description": "Proporção largura/altura",
+          "default": 1
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Conteúdo (geralmente imagem ou vídeo)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "16:9",
+          "props": {
+            "ratio": 1.7777777777777777
+          }
+        },
+        {
+          "name": "4:3",
+          "props": {
+            "ratio": 1.3333333333333333
+          }
+        },
+        {
+          "name": "1:1",
+          "props": {
+            "ratio": 1
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Video",
+          "props": {
+            "ratio": 1.7777777777777777
+          },
+          "slots": {
+            "children": "<img />"
+          }
+        }
+      ],
+      "tags": [
+        "media",
+        "image",
+        "video",
+        "proportion"
+      ]
+    },
+    "Avatar": {
+      "name": "Avatar",
+      "category": "data-display",
+      "description": "Exibição de imagem de perfil com fallback para iniciais.",
+      "source": "shadcn-ui",
+      "props": {
+        "src": {
+          "type": "string",
+          "required": false,
+          "description": "URL da imagem"
+        },
+        "alt": {
+          "type": "string",
+          "required": false,
+          "description": "Texto alternativo"
+        },
+        "fallback": {
+          "type": "string",
+          "required": true,
+          "description": "Texto de fallback (iniciais)"
+        },
+        "size": {
+          "type": "enum",
+          "required": false,
+          "description": "Tamanho",
+          "default": "md",
+          "enumValues": [
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "sm",
+          "props": {
+            "size": "sm",
+            "fallback": "GK"
+          }
+        },
+        {
+          "name": "md",
+          "props": {
+            "size": "md",
+            "fallback": "GK"
+          }
+        },
+        {
+          "name": "lg",
+          "props": {
+            "size": "lg",
+            "fallback": "GK"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "With image",
+          "props": {
+            "src": "/avatar.jpg",
+            "alt": "User",
+            "fallback": "GK"
+          }
+        }
+      ],
+      "tags": [
+        "profile",
+        "user",
+        "image"
+      ],
+      "styles": {
+        "fallbackBackground": "$tokens.colors.surface-3",
+        "fallbackColor": "$tokens.colors.accent",
+        "borderRadius": "$tokens.borderRadius.full",
+        "sizes": {
+          "sm": "$tokens.sizing.avatar-sm",
+          "md": "$tokens.sizing.avatar-md",
+          "lg": "$tokens.sizing.avatar-lg"
+        }
+      }
+    },
+    "Badge": {
+      "name": "Badge",
+      "category": "data-display",
+      "description": "Label pequeno para indicar status, contagem ou categoria.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "secondary",
+            "destructive",
+            "outline",
+            "success",
+            "warning"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Texto do badge",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "variant": "default"
+          }
+        },
+        {
+          "name": "secondary",
+          "props": {
+            "variant": "secondary"
+          }
+        },
+        {
+          "name": "destructive",
+          "props": {
+            "variant": "destructive"
+          }
+        },
+        {
+          "name": "outline",
+          "props": {
+            "variant": "outline"
+          }
+        },
+        {
+          "name": "success",
+          "props": {
+            "variant": "success"
+          }
+        },
+        {
+          "name": "warning",
+          "props": {
+            "variant": "warning"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Status",
+          "props": {
+            "variant": "default"
+          },
+          "slots": {
+            "children": "Ativo"
+          }
+        }
+      ],
+      "tags": [
+        "status",
+        "label",
+        "tag",
+        "count"
+      ],
+      "styles": {
+        "default": {
+          "background": "$tokens.colors.accent",
+          "color": "$tokens.colors.accent-fg"
+        },
+        "secondary": {
+          "background": "$tokens.colors.surface-3",
+          "color": "$tokens.colors.text"
+        },
+        "destructive": {
+          "background": "$tokens.colors.danger",
+          "color": "$tokens.colors.danger-fg"
+        },
+        "outline": {
+          "background": "transparent",
+          "borderColor": "$tokens.colors.border-2",
+          "color": "$tokens.colors.text"
+        },
+        "success": {
+          "background": "$tokens.colors.success",
+          "color": "$tokens.colors.success-fg"
+        },
+        "warning": {
+          "background": "$tokens.colors.warning",
+          "color": "$tokens.colors.warning-fg"
+        },
+        "borderRadius": "$tokens.borderRadius.sm",
+        "fontSize": "$tokens.fontSizes.2xs",
+        "fontWeight": "$tokens.fontWeights.semibold",
+        "letterSpacing": "$tokens.letterSpacings.wide"
+      }
+    },
+    "Breadcrumb": {
+      "name": "Breadcrumb",
+      "category": "navigation",
+      "description": "Caminho de navegação hierárquico mostrando a localização atual.",
+      "source": "shadcn-ui",
+      "props": {
+        "separator": {
+          "type": "ReactNode",
+          "required": false,
+          "description": "Separador entre itens"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "BreadcrumbItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {},
+          "slots": {
+            "children": "Home › Gates › Validator"
+          }
+        }
+      ],
+      "tags": [
+        "navigation",
+        "hierarchy",
+        "path"
+      ],
+      "styles": {
+        "separatorColor": "$tokens.colors.text-dim",
+        "linkColor": "$tokens.colors.text-muted",
+        "activeColor": "$tokens.colors.accent",
+        "hoverColor": "$tokens.colors.text",
+        "fontSize": "$tokens.fontSizes.xs",
+        "fontFamily": "$tokens.fontFamilies.mono"
+      }
+    },
+    "Button": {
+      "name": "Button",
+      "category": "primitive",
+      "description": "Botão de ação padrão com múltiplas variantes visuais e tamanhos.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "destructive",
+            "outline",
+            "secondary",
+            "ghost",
+            "link"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "required": false,
+          "description": "Tamanho",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "sm",
+            "lg",
+            "icon"
+          ]
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "asChild": {
+          "type": "boolean",
+          "required": false,
+          "description": "Renderiza como filho (slot pattern)",
+          "default": false
+        },
+        "type": {
+          "type": "enum",
+          "required": false,
+          "description": "Tipo HTML do botão",
+          "default": "button",
+          "enumValues": [
+            "button",
+            "submit",
+            "reset"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Conteúdo do botão",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "icon": {
+          "description": "Ícone",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "variant": "default"
+          }
+        },
+        {
+          "name": "destructive",
+          "props": {
+            "variant": "destructive"
+          }
+        },
+        {
+          "name": "outline",
+          "props": {
+            "variant": "outline"
+          }
+        },
+        {
+          "name": "secondary",
+          "props": {
+            "variant": "secondary"
+          }
+        },
+        {
+          "name": "ghost",
+          "props": {
+            "variant": "ghost"
+          }
+        },
+        {
+          "name": "link",
+          "props": {
+            "variant": "link"
+          }
+        },
+        {
+          "name": "icon-only",
+          "props": {
+            "variant": "outline",
+            "size": "icon"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Primary",
+          "props": {
+            "variant": "default"
+          },
+          "slots": {
+            "children": "Salvar"
+          }
+        }
+      ],
+      "tags": [
+        "action",
+        "form",
+        "cta",
+        "interactive"
+      ],
+      "styles": {
+        "default": {
+          "background": "$tokens.colors.accent",
+          "color": "$tokens.colors.accent-fg",
+          "hoverBackground": "$tokens.colors.accent-dim"
+        },
+        "destructive": {
+          "background": "$tokens.colors.danger",
+          "color": "$tokens.colors.danger-fg",
+          "hoverBackground": "$tokens.colors.danger-dim"
+        },
+        "outline": {
+          "background": "transparent",
+          "borderColor": "$tokens.colors.border-2",
+          "color": "$tokens.colors.text",
+          "hoverBackground": "$tokens.colors.surface-2"
+        },
+        "secondary": {
+          "background": "$tokens.colors.surface-3",
+          "color": "$tokens.colors.text",
+          "hoverBackground": "$tokens.colors.surface-2"
+        },
+        "ghost": {
+          "background": "transparent",
+          "color": "$tokens.colors.text",
+          "hoverBackground": "$tokens.colors.surface-2"
+        },
+        "link": {
+          "background": "transparent",
+          "color": "$tokens.colors.accent",
+          "hoverColor": "$tokens.colors.accent-dim"
+        },
+        "borderRadius": "$tokens.borderRadius.md",
+        "fontWeight": "$tokens.fontWeights.medium",
+        "fontSize": "$tokens.fontSizes.sm",
+        "heights": {
+          "default": "$tokens.sizing.input-height",
+          "sm": "$tokens.sizing.input-height-sm",
+          "lg": "$tokens.sizing.input-height-lg",
+          "icon": "$tokens.sizing.input-height"
+        },
+        "disabledOpacity": 0.4
+      }
+    },
+    "Calendar": {
+      "name": "Calendar",
+      "category": "form",
+      "description": "Calendário para seleção de datas.",
+      "source": "shadcn-ui",
+      "props": {
+        "mode": {
+          "type": "enum",
+          "required": false,
+          "description": "Modo de seleção",
+          "default": "single",
+          "enumValues": [
+            "single",
+            "multiple",
+            "range"
+          ]
+        },
+        "selected": {
+          "type": "object",
+          "required": false,
+          "description": "Data(s) selecionada(s)"
+        },
+        "onSelect": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao selecionar data"
+        },
+        "disabled": {
+          "type": "function",
+          "required": false,
+          "description": "Função que retorna se uma data está desabilitada"
+        },
+        "fromDate": {
+          "type": "object",
+          "required": false,
+          "description": "Data mínima permitida"
+        },
+        "toDate": {
+          "type": "object",
+          "required": false,
+          "description": "Data máxima permitida"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "single",
+          "props": {
+            "mode": "single"
+          }
+        },
+        {
+          "name": "range",
+          "props": {
+            "mode": "range"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Date picker",
+          "props": {
+            "mode": "single"
+          }
+        }
+      ],
+      "tags": [
+        "date",
+        "picker",
+        "selection",
+        "scheduling"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface",
+        "selectedBackground": "$tokens.colors.accent",
+        "selectedColor": "$tokens.colors.accent-fg",
+        "todayBackground": "$tokens.colors.surface-3",
+        "todayColor": "$tokens.colors.accent",
+        "hoverBackground": "$tokens.colors.surface-2",
+        "disabledColor": "$tokens.colors.text-dim",
+        "borderRadius": "$tokens.borderRadius.md"
+      }
+    },
+    "Card": {
+      "name": "Card",
+      "category": "layout",
+      "description": "Container para conteúdo estruturado com header, body e footer opcionais.",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "header": {
+          "description": "Cabeçalho do card (título, descrição)",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo principal",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Rodapé do card (ações)",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Dashboard card",
+          "props": {},
+          "slots": {
+            "header": "Métricas",
+            "children": "Gráfico",
+            "footer": "Ver detalhes"
+          }
+        }
+      ],
+      "tags": [
+        "container",
+        "content",
+        "group",
+        "dashboard"
+      ],
+      "styles": {
+        "background": "$tokens.colors.card-bg",
+        "borderColor": "$tokens.colors.card-border",
+        "borderWidth": "$tokens.borderWidth.thin",
+        "borderRadius": "$tokens.borderRadius.lg",
+        "padding": "$tokens.spacing.lg",
+        "headerGap": "$tokens.spacing.sm",
+        "footerBorderColor": "$tokens.colors.border",
+        "shadowColor": "rgba(0,0,0,0.2)"
+      }
+    },
+    "Carousel": {
+      "name": "Carousel",
+      "category": "layout",
+      "description": "Componente de conteúdo deslizante (slider).",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "loop": {
+          "type": "boolean",
+          "required": false,
+          "description": "Loop infinito",
+          "default": false
+        },
+        "autoplay": {
+          "type": "boolean",
+          "required": false,
+          "description": "Autoplay",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "CarouselItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "previous": {
+          "description": "Botão anterior",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "next": {
+          "description": "Botão próximo",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Image gallery",
+          "props": {
+            "loop": true
+          },
+          "slots": {
+            "children": "3 slides"
+          }
+        }
+      ],
+      "tags": [
+        "slider",
+        "gallery",
+        "content"
+      ],
+      "styles": {
+        "buttonBackground": "$tokens.colors.surface-2",
+        "buttonBorder": "$tokens.colors.border",
+        "buttonHoverBackground": "$tokens.colors.surface-3",
+        "buttonColor": "$tokens.colors.text",
+        "dotColor": "$tokens.colors.text-dim",
+        "dotActiveColor": "$tokens.colors.accent"
+      }
+    },
+    "Checkbox": {
+      "name": "Checkbox",
+      "category": "form",
+      "description": "Input para seleção de opções (marcar/desmarcar).",
+      "source": "shadcn-ui",
+      "props": {
+        "checked": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado marcado (controlado)"
+        },
+        "defaultChecked": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado inicial",
+          "default": false
+        },
+        "onCheckedChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "label": {
+          "description": "Label associado",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "unchecked",
+          "props": {
+            "defaultChecked": false
+          }
+        },
+        {
+          "name": "checked",
+          "props": {
+            "defaultChecked": true
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Terms",
+          "props": {
+            "required": true
+          },
+          "slots": {
+            "label": "Aceito os termos"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "selection",
+        "toggle"
+      ],
+      "styles": {
+        "checkedBackground": "$tokens.colors.accent",
+        "checkedColor": "$tokens.colors.accent-fg",
+        "uncheckedBorder": "$tokens.colors.border-2",
+        "uncheckedBackground": "transparent",
+        "hoverBorder": "$tokens.colors.accent-dim",
+        "disabledOpacity": 0.4,
+        "borderRadius": "$tokens.borderRadius.sm",
+        "size": 16,
+        "ringColor": "$tokens.colors.ring"
+      }
+    },
+    "Collapsible": {
+      "name": "Collapsible",
+      "category": "layout",
+      "description": "Painel de conteúdo expansível/colapsável.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento toggle",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo colapsável",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "closed",
+          "props": {
+            "defaultOpen": false
+          }
+        },
+        {
+          "name": "open",
+          "props": {
+            "defaultOpen": true
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Settings section",
+          "props": {
+            "defaultOpen": false
+          },
+          "slots": {
+            "trigger": "Avançado",
+            "children": "Opções avançadas"
+          }
+        }
+      ],
+      "tags": [
+        "disclosure",
+        "expand",
+        "collapse",
+        "toggle"
+      ]
+    },
+    "Combobox": {
+      "name": "Combobox",
+      "category": "form",
+      "description": "Campo de input com autocomplete e lista dropdown de opções.",
+      "source": "shadcn-ui",
+      "props": {
+        "options": {
+          "type": "array",
+          "required": true,
+          "description": "Lista de opções",
+          "items": {
+            "type": "object",
+            "shape": {
+              "value": "string",
+              "label": "string"
+            }
+          }
+        },
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "emptyMessage": {
+          "type": "string",
+          "required": false,
+          "description": "Mensagem quando sem resultados",
+          "default": "Nenhum resultado."
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Validator picker",
+          "props": {
+            "options": [
+              {
+                "value": "scope",
+                "label": "DiffScopeEnforcement"
+              },
+              {
+                "value": "readonly",
+                "label": "TestReadOnlyEnforcement"
+              }
+            ],
+            "placeholder": "Selecione..."
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "autocomplete",
+        "search",
+        "select"
+      ],
+      "styles": {
+        "background": "$tokens.colors.input-bg",
+        "borderColor": "$tokens.colors.input-border",
+        "focusBorderColor": "$tokens.colors.accent",
+        "popoverBackground": "$tokens.colors.surface",
+        "popoverBorder": "$tokens.colors.border",
+        "selectedBackground": "$tokens.colors.accent",
+        "selectedColor": "$tokens.colors.accent-fg",
+        "hoverBackground": "$tokens.colors.surface-2",
+        "emptyColor": "$tokens.colors.text-muted"
+      }
+    },
+    "Command": {
+      "name": "Command",
+      "category": "navigation",
+      "description": "Paleta de comandos / campo de busca com atalhos de teclado.",
+      "source": "shadcn-ui",
+      "props": {
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "onSelect": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao selecionar comando"
+        },
+        "filter": {
+          "type": "function",
+          "required": false,
+          "description": "Função customizada de filtro"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "CommandGroup(s) com CommandItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "placeholder": "Buscar comando..."
+          },
+          "slots": {
+            "children": "Groups + Items"
+          }
+        }
+      ],
+      "tags": [
+        "search",
+        "palette",
+        "keyboard",
+        "navigation"
+      ],
+      "styles": {
+        "width": "$tokens.sizing.command-width",
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "inputBackground": "$tokens.colors.input-bg",
+        "selectedBackground": "$tokens.colors.surface-2",
+        "selectedBorderLeft": "$tokens.colors.accent",
+        "groupHeadingColor": "$tokens.colors.text-dim",
+        "shortcutColor": "$tokens.colors.text-dim",
+        "borderRadius": "$tokens.borderRadius.lg"
+      }
+    },
+    "ContextMenu": {
+      "name": "ContextMenu",
+      "category": "navigation",
+      "description": "Menu contextual exibido ao clicar com botão direito.",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Área que ativa o menu (botão direito)",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "ContextMenuItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "File actions",
+          "props": {},
+          "slots": {
+            "trigger": "Right-click area",
+            "children": "Edit, Copy, Delete"
+          }
+        }
+      ],
+      "tags": [
+        "menu",
+        "context",
+        "right-click",
+        "actions"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "hoverBackground": "$tokens.colors.surface-2",
+        "hoverColor": "$tokens.colors.accent",
+        "separatorColor": "$tokens.colors.border",
+        "borderRadius": "$tokens.borderRadius.md"
+      }
+    },
+    "DataTable": {
+      "name": "DataTable",
+      "category": "data-display",
+      "description": "Tabela complexa com sorting, filtering, pagination e seleção.",
+      "source": "shadcn-ui",
+      "props": {
+        "columns": {
+          "type": "array",
+          "required": true,
+          "description": "Definição das colunas",
+          "items": {
+            "type": "object",
+            "shape": {
+              "id": "string",
+              "header": "string",
+              "accessorKey": "string"
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "required": true,
+          "description": "Dados da tabela"
+        },
+        "sorting": {
+          "type": "boolean",
+          "required": false,
+          "description": "Habilita sorting",
+          "default": true
+        },
+        "filtering": {
+          "type": "boolean",
+          "required": false,
+          "description": "Habilita filtering",
+          "default": true
+        },
+        "pagination": {
+          "type": "boolean",
+          "required": false,
+          "description": "Habilita paginação",
+          "default": true
+        },
+        "selection": {
+          "type": "boolean",
+          "required": false,
+          "description": "Habilita seleção de linhas",
+          "default": false
+        },
+        "pageSize": {
+          "type": "number",
+          "required": false,
+          "description": "Itens por página",
+          "default": 10
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "toolbar": {
+          "description": "Toolbar acima da tabela",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "empty": {
+          "description": "Estado vazio",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Validators table",
+          "props": {
+            "columns": [
+              {
+                "id": "name",
+                "header": "Validator",
+                "accessorKey": "name"
+              },
+              {
+                "id": "status",
+                "header": "Status",
+                "accessorKey": "status"
+              }
+            ],
+            "data": [],
+            "sorting": true,
+            "pagination": true
+          }
+        }
+      ],
+      "tags": [
+        "table",
+        "data",
+        "sorting",
+        "filtering",
+        "pagination"
+      ],
+      "styles": {
+        "headerBackground": "$tokens.colors.surface",
+        "headerColor": "$tokens.colors.text-muted",
+        "headerFontSize": "$tokens.fontSizes.xs",
+        "headerFontWeight": "$tokens.fontWeights.semibold",
+        "headerLetterSpacing": "$tokens.letterSpacings.wide",
+        "headerBorderColor": "$tokens.colors.accent-dim",
+        "headerBorderWidth": "2px",
+        "cellFontSize": "$tokens.fontSizes.sm",
+        "cellColor": "$tokens.colors.text",
+        "rowBorderColor": "$tokens.colors.border",
+        "rowHoverBackground": "$tokens.colors.surface-2",
+        "selectedRowBackground": "rgba(232,156,40,0.06)",
+        "selectedRowBorder": "$tokens.colors.accent-dim",
+        "paginationColor": "$tokens.colors.text-muted",
+        "paginationActiveColor": "$tokens.colors.accent"
+      }
+    },
+    "DatePicker": {
+      "name": "DatePicker",
+      "category": "form",
+      "description": "Campo input para seleção de datas com calendário popup.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "object",
+          "required": false,
+          "description": "Data selecionada"
+        },
+        "onChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao selecionar"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "fromDate": {
+          "type": "object",
+          "required": false,
+          "description": "Data mínima"
+        },
+        "toDate": {
+          "type": "object",
+          "required": false,
+          "description": "Data máxima"
+        },
+        "format": {
+          "type": "string",
+          "required": false,
+          "description": "Formato de exibição",
+          "default": "PPP"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "placeholder": "Selecione uma data"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "date",
+        "input",
+        "calendar"
+      ],
+      "styles": {
+        "inputBackground": "$tokens.colors.input-bg",
+        "inputBorder": "$tokens.colors.input-border",
+        "inputFocusBorder": "$tokens.colors.accent",
+        "inputHeight": "$tokens.sizing.input-height",
+        "iconColor": "$tokens.colors.text-muted",
+        "borderRadius": "$tokens.borderRadius.md"
+      }
+    },
+    "Dialog": {
+      "name": "Dialog",
+      "category": "feedback",
+      "description": "Modal overlay para formulários e interações que requerem foco.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "modal": {
+          "type": "boolean",
+          "required": false,
+          "description": "Bloqueia interação com conteúdo abaixo",
+          "default": true
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o dialog",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo do dialog",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Ações do dialog",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Edit config",
+          "props": {},
+          "slots": {
+            "trigger": "Editar config",
+            "title": "Editar configuração",
+            "children": "Form fields",
+            "footer": "Salvar"
+          }
+        }
+      ],
+      "tags": [
+        "modal",
+        "overlay",
+        "form",
+        "interactive"
+      ],
+      "styles": {
+        "overlayColor": "rgba(0,0,0,0.7)",
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "borderRadius": "$tokens.borderRadius.lg",
+        "titleColor": "$tokens.colors.text",
+        "titleFontSize": "$tokens.fontSizes.xl",
+        "descriptionColor": "$tokens.colors.text-muted",
+        "padding": "$tokens.spacing.xl",
+        "maxWidth": "$tokens.sizing.dialog-md"
+      }
+    },
+    "Drawer": {
+      "name": "Drawer",
+      "category": "feedback",
+      "description": "Painel deslizante a partir de uma borda da tela.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "direction": {
+          "type": "enum",
+          "required": false,
+          "description": "Direção de abertura",
+          "default": "bottom",
+          "enumValues": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "shouldScaleBackground": {
+          "type": "boolean",
+          "required": false,
+          "description": "Escala o fundo",
+          "default": true
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o drawer",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Ações",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "bottom",
+          "props": {
+            "direction": "bottom"
+          }
+        },
+        {
+          "name": "right",
+          "props": {
+            "direction": "right"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Mobile menu",
+          "props": {
+            "direction": "bottom"
+          },
+          "slots": {
+            "trigger": "Menu",
+            "children": "Nav items"
+          }
+        }
+      ],
+      "tags": [
+        "panel",
+        "mobile",
+        "slide",
+        "overlay"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "handleColor": "$tokens.colors.surface-3",
+        "height": "$tokens.sizing.drawer-height",
+        "borderRadius": "$tokens.borderRadius.xl"
+      }
+    },
+    "DropdownMenu": {
+      "name": "DropdownMenu",
+      "category": "navigation",
+      "description": "Lista de ações acionada por um botão (menu dropdown).",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Botão que abre o menu",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "DropdownMenuItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "User menu",
+          "props": {},
+          "slots": {
+            "trigger": "Opções",
+            "children": "Perfil, Config, Sair"
+          }
+        }
+      ],
+      "tags": [
+        "menu",
+        "actions",
+        "dropdown",
+        "navigation"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "hoverBackground": "$tokens.colors.surface-2",
+        "hoverColor": "$tokens.colors.text",
+        "separatorColor": "$tokens.colors.border",
+        "shortcutColor": "$tokens.colors.text-dim",
+        "borderRadius": "$tokens.borderRadius.md",
+        "itemBorderRadius": "$tokens.borderRadius.sm"
+      }
+    },
+    "Form": {
+      "name": "Form",
+      "category": "form",
+      "description": "Wrapper para gerenciamento de estado e validação de formulários (react-hook-form).",
+      "source": "shadcn-ui",
+      "props": {
+        "onSubmit": {
+          "type": "function",
+          "required": true,
+          "description": "Callback ao submeter"
+        },
+        "defaultValues": {
+          "type": "object",
+          "required": false,
+          "description": "Valores iniciais"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "FormField(s) e botão submit",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Login form",
+          "props": {
+            "onSubmit": "handleSubmit"
+          },
+          "slots": {
+            "children": "Email + Password + Submit"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "validation",
+        "input",
+        "submit"
+      ],
+      "styles": {
+        "labelColor": "$tokens.colors.text",
+        "labelFontSize": "$tokens.fontSizes.sm",
+        "labelFontWeight": "$tokens.fontWeights.medium",
+        "errorColor": "$tokens.colors.danger",
+        "descriptionColor": "$tokens.colors.text-muted",
+        "gap": "$tokens.spacing.lg"
+      }
+    },
+    "HoverCard": {
+      "name": "HoverCard",
+      "category": "data-display",
+      "description": "Overlay de informações exibido ao passar o mouse.",
+      "source": "shadcn-ui",
+      "props": {
+        "openDelay": {
+          "type": "number",
+          "required": false,
+          "description": "Delay para abrir (ms)",
+          "default": 200
+        },
+        "closeDelay": {
+          "type": "number",
+          "required": false,
+          "description": "Delay para fechar (ms)",
+          "default": 300
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que ativa o hover",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo do card",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Validator preview",
+          "props": {},
+          "slots": {
+            "trigger": "@validator-name",
+            "children": "Status + description + last run"
+          }
+        }
+      ],
+      "tags": [
+        "tooltip",
+        "preview",
+        "hover",
+        "information"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "borderRadius": "$tokens.borderRadius.lg",
+        "padding": "$tokens.spacing.md",
+        "shadow": "0 8px 24px rgba(0,0,0,0.4)"
+      }
+    },
+    "Input": {
+      "name": "Input",
+      "category": "form",
+      "description": "Campo de input de texto padrão.",
+      "source": "shadcn-ui",
+      "props": {
+        "type": {
+          "type": "enum",
+          "required": false,
+          "description": "Tipo do input HTML",
+          "default": "text",
+          "enumValues": [
+            "text",
+            "email",
+            "password",
+            "number",
+            "search",
+            "tel",
+            "url",
+            "file",
+            "hidden"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao digitar"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "text",
+          "props": {
+            "type": "text",
+            "placeholder": "Digite..."
+          }
+        },
+        {
+          "name": "email",
+          "props": {
+            "type": "email",
+            "placeholder": "email@exemplo.com"
+          }
+        },
+        {
+          "name": "password",
+          "props": {
+            "type": "password"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Search",
+          "props": {
+            "type": "search",
+            "placeholder": "Buscar..."
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "text",
+        "field"
+      ],
+      "styles": {
+        "background": "$tokens.colors.input-bg",
+        "borderColor": "$tokens.colors.input-border",
+        "focusBorderColor": "$tokens.colors.accent",
+        "focusRingColor": "$tokens.colors.ring",
+        "placeholderColor": "$tokens.colors.text-dim",
+        "color": "$tokens.colors.text",
+        "disabledOpacity": 0.4,
+        "height": "$tokens.sizing.input-height",
+        "borderRadius": "$tokens.borderRadius.md",
+        "fontSize": "$tokens.fontSizes.sm",
+        "padding": "$tokens.spacing.sm"
+      }
+    },
+    "InputOTP": {
+      "name": "InputOTP",
+      "category": "form",
+      "description": "Input para códigos de verificação (OTP) com campos separados.",
+      "source": "shadcn-ui",
+      "props": {
+        "maxLength": {
+          "type": "number",
+          "required": true,
+          "description": "Quantidade de dígitos"
+        },
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "onChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao digitar"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "pattern": {
+          "type": "string",
+          "required": false,
+          "description": "Regex de validação por dígito"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "6-digit",
+          "props": {
+            "maxLength": 6
+          }
+        },
+        {
+          "name": "4-digit",
+          "props": {
+            "maxLength": 4
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Verification",
+          "props": {
+            "maxLength": 6
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "otp",
+        "verification",
+        "code",
+        "2fa"
+      ],
+      "styles": {
+        "background": "$tokens.colors.input-bg",
+        "borderColor": "$tokens.colors.input-border",
+        "focusBorderColor": "$tokens.colors.accent",
+        "caretColor": "$tokens.colors.accent",
+        "borderRadius": "$tokens.borderRadius.md",
+        "gap": "$tokens.spacing.sm"
+      }
+    },
+    "Label": {
+      "name": "Label",
+      "category": "form",
+      "description": "Label acessível para elementos de formulário.",
+      "source": "shadcn-ui",
+      "props": {
+        "htmlFor": {
+          "type": "string",
+          "required": false,
+          "description": "ID do elemento associado"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Texto do label",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "htmlFor": "email"
+          },
+          "slots": {
+            "children": "Email"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "label",
+        "accessibility"
+      ],
+      "styles": {
+        "color": "$tokens.colors.text",
+        "fontSize": "$tokens.fontSizes.sm",
+        "fontWeight": "$tokens.fontWeights.medium",
+        "disabledColor": "$tokens.colors.text-dim"
+      }
+    },
+    "Menubar": {
+      "name": "Menubar",
+      "category": "navigation",
+      "description": "Barra de menu horizontal persistente (estilo desktop).",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "MenubarMenu(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "App menubar",
+          "props": {},
+          "slots": {
+            "children": "File, Edit, View, Help"
+          }
+        }
+      ],
+      "tags": [
+        "menu",
+        "bar",
+        "navigation",
+        "desktop"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "triggerHoverBackground": "$tokens.colors.surface-2",
+        "triggerActiveColor": "$tokens.colors.accent",
+        "contentBackground": "$tokens.colors.surface",
+        "itemHoverBackground": "$tokens.colors.surface-2",
+        "borderRadius": "$tokens.borderRadius.md"
+      }
+    },
+    "NavigationMenu": {
+      "name": "NavigationMenu",
+      "category": "navigation",
+      "description": "Menu de navegação complexo com submenus e mega-menus.",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "NavigationMenuItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Main nav",
+          "props": {},
+          "slots": {
+            "children": "Dashboard, Gates, Runs, Config"
+          }
+        }
+      ],
+      "tags": [
+        "navigation",
+        "menu",
+        "mega-menu",
+        "header"
+      ],
+      "styles": {
+        "triggerColor": "$tokens.colors.text-muted",
+        "triggerHoverColor": "$tokens.colors.text",
+        "triggerActiveColor": "$tokens.colors.accent",
+        "indicatorColor": "$tokens.colors.accent",
+        "contentBackground": "$tokens.colors.surface",
+        "contentBorderColor": "$tokens.colors.border",
+        "contentBorderRadius": "$tokens.borderRadius.lg"
+      }
+    },
+    "Pagination": {
+      "name": "Pagination",
+      "category": "navigation",
+      "description": "Navegação entre páginas de conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "currentPage": {
+          "type": "number",
+          "required": true,
+          "description": "Página atual"
+        },
+        "totalPages": {
+          "type": "number",
+          "required": true,
+          "description": "Total de páginas"
+        },
+        "onPageChange": {
+          "type": "function",
+          "required": true,
+          "description": "Callback ao mudar página"
+        },
+        "siblingCount": {
+          "type": "number",
+          "required": false,
+          "description": "Páginas vizinhas visíveis",
+          "default": 1
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "currentPage": 1,
+            "totalPages": 10,
+            "onPageChange": "setPage"
+          }
+        }
+      ],
+      "tags": [
+        "navigation",
+        "pagination",
+        "pages"
+      ],
+      "styles": {
+        "buttonBackground": "transparent",
+        "buttonBorder": "$tokens.colors.border",
+        "buttonColor": "$tokens.colors.text-muted",
+        "activeBackground": "$tokens.colors.accent",
+        "activeColor": "$tokens.colors.accent-fg",
+        "hoverBackground": "$tokens.colors.surface-2",
+        "disabledOpacity": 0.3,
+        "borderRadius": "$tokens.borderRadius.md",
+        "gap": "$tokens.spacing.xs"
+      }
+    },
+    "Popover": {
+      "name": "Popover",
+      "category": "feedback",
+      "description": "Overlay flutuante de conteúdo acionado por clique.",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "side": {
+          "type": "enum",
+          "required": false,
+          "description": "Lado de posicionamento",
+          "default": "bottom",
+          "enumValues": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "required": false,
+          "description": "Alinhamento",
+          "default": "center",
+          "enumValues": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o popover",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo do popover",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "bottom",
+          "props": {
+            "side": "bottom"
+          }
+        },
+        {
+          "name": "right",
+          "props": {
+            "side": "right"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Color picker",
+          "props": {},
+          "slots": {
+            "trigger": "Escolher cor",
+            "children": "Color grid"
+          }
+        }
+      ],
+      "tags": [
+        "overlay",
+        "floating",
+        "popup",
+        "content"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "borderRadius": "$tokens.borderRadius.lg",
+        "padding": "$tokens.spacing.md",
+        "shadow": "0 8px 24px rgba(0,0,0,0.4)",
+        "width": "$tokens.sizing.popover-width"
+      }
+    },
+    "Progress": {
+      "name": "Progress",
+      "category": "feedback",
+      "description": "Indicador de progresso ou carregamento.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "number",
+          "required": false,
+          "description": "Valor atual (0-100)"
+        },
+        "max": {
+          "type": "number",
+          "required": false,
+          "description": "Valor máximo",
+          "default": 100
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "25%",
+          "props": {
+            "value": 25
+          }
+        },
+        {
+          "name": "75%",
+          "props": {
+            "value": 75
+          }
+        },
+        {
+          "name": "indeterminate",
+          "props": {}
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validation progress",
+          "props": {
+            "value": 60,
+            "max": 100
+          }
+        }
+      ],
+      "tags": [
+        "loading",
+        "progress",
+        "indicator",
+        "bar"
+      ],
+      "styles": {
+        "trackBackground": "$tokens.colors.surface-3",
+        "trackHeight": 6,
+        "indicatorColor": "$tokens.colors.accent",
+        "indicatorBorderRadius": "$tokens.borderRadius.full",
+        "trackBorderRadius": "$tokens.borderRadius.full"
+      }
+    },
+    "RadioGroup": {
+      "name": "RadioGroup",
+      "category": "form",
+      "description": "Grupo de opções mutuamente exclusivas (selecionar uma).",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "vertical",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "RadioGroupItem(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        },
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Gate selection",
+          "props": {
+            "defaultValue": "pre-commit"
+          },
+          "slots": {
+            "children": "Pre-commit, Pre-push, CI"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "radio",
+        "selection",
+        "group"
+      ],
+      "styles": {
+        "selectedColor": "$tokens.colors.accent",
+        "unselectedBorder": "$tokens.colors.border-2",
+        "hoverBorder": "$tokens.colors.accent-dim",
+        "disabledOpacity": 0.4,
+        "size": 16,
+        "gap": "$tokens.spacing.sm"
+      }
+    },
+    "Resizable": {
+      "name": "Resizable",
+      "category": "layout",
+      "description": "Painéis redimensionáveis pelo usuário.",
+      "source": "shadcn-ui",
+      "props": {
+        "direction": {
+          "type": "enum",
+          "required": false,
+          "description": "Direção de resize",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "ResizablePanel(s) com ResizableHandle entre eles",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "direction": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "direction": "vertical"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Code editor",
+          "props": {
+            "direction": "horizontal"
+          },
+          "slots": {
+            "children": "Sidebar + Editor + Preview"
+          }
+        }
+      ],
+      "tags": [
+        "layout",
+        "resize",
+        "panels",
+        "split"
+      ],
+      "styles": {
+        "handleColor": "$tokens.colors.border",
+        "handleHoverColor": "$tokens.colors.accent",
+        "handleWidth": 4,
+        "handleBorderRadius": "$tokens.borderRadius.full"
+      }
+    },
+    "ScrollArea": {
+      "name": "ScrollArea",
+      "category": "layout",
+      "description": "Área de conteúdo com scrollbars customizados.",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação do scroll",
+          "default": "vertical",
+          "enumValues": [
+            "vertical",
+            "horizontal",
+            "both"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Conteúdo scrollável",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        },
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Long list",
+          "props": {},
+          "slots": {
+            "children": "50 items"
+          }
+        }
+      ],
+      "tags": [
+        "scroll",
+        "overflow",
+        "scrollbar",
+        "container"
+      ],
+      "styles": {
+        "preset": "custom",
+        "thumbWidth": 7,
+        "thumbColor": "rgba(92,127,168,0.12)",
+        "trackColor": "transparent",
+        "thumbRadius": 4,
+        "hoverThumbColor": "rgba(92,127,168,0.25)",
+        "hoverThumbWidth": 8,
+        "showArrows": false,
+        "autoHide": false
+      }
+    },
+    "Select": {
+      "name": "Select",
+      "category": "form",
+      "description": "Dropdown selector customizado.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "SelectItem(s), opcionalmente em SelectGroup(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Gate picker",
+          "props": {
+            "placeholder": "Gate..."
+          },
+          "slots": {
+            "children": "Pre-commit, Pre-push, CI, CD"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "select",
+        "dropdown",
+        "picker"
+      ],
+      "styles": {
+        "triggerBackground": "$tokens.colors.input-bg",
+        "triggerBorder": "$tokens.colors.input-border",
+        "triggerFocusBorder": "$tokens.colors.accent",
+        "triggerHeight": "$tokens.sizing.input-height",
+        "contentBackground": "$tokens.colors.surface",
+        "contentBorder": "$tokens.colors.border",
+        "itemHoverBackground": "$tokens.colors.surface-2",
+        "itemSelectedColor": "$tokens.colors.accent",
+        "checkmarkColor": "$tokens.colors.accent",
+        "borderRadius": "$tokens.borderRadius.md"
+      }
+    },
+    "Separator": {
+      "name": "Separator",
+      "category": "layout",
+      "description": "Linha separadora visual entre seções de conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "decorative": {
+          "type": "boolean",
+          "required": false,
+          "description": "Se é puramente decorativo (acessibilidade)",
+          "default": true
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        }
+      ],
+      "examples": [],
+      "tags": [
+        "layout",
+        "divider",
+        "separator",
+        "line"
+      ],
+      "styles": {
+        "color": "$tokens.colors.border",
+        "width": "$tokens.borderWidth.thin"
+      }
+    },
+    "Sheet": {
+      "name": "Sheet",
+      "category": "feedback",
+      "description": "Painel lateral overlay (side panel).",
+      "source": "shadcn-ui",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto (controlado)"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado aberto inicial",
+          "default": false
+        },
+        "onOpenChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar estado aberto"
+        },
+        "side": {
+          "type": "enum",
+          "required": false,
+          "description": "Lado de posicionamento",
+          "default": "right",
+          "enumValues": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que abre o sheet",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "title": {
+          "description": "Título",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "description": {
+          "description": "Descrição",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Conteúdo",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Ações",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "right",
+          "props": {
+            "side": "right"
+          }
+        },
+        {
+          "name": "left",
+          "props": {
+            "side": "left"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validator details",
+          "props": {
+            "side": "right"
+          },
+          "slots": {
+            "trigger": "⚙",
+            "title": "Detalhes do Validator",
+            "children": "Config + status"
+          }
+        }
+      ],
+      "tags": [
+        "panel",
+        "side",
+        "overlay",
+        "drawer"
+      ],
+      "styles": {
+        "overlayColor": "rgba(0,0,0,0.6)",
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "width": "$tokens.sizing.sheet-width",
+        "padding": "$tokens.spacing.lg",
+        "headerBorderColor": "$tokens.colors.border"
+      }
+    },
+    "Sidebar": {
+      "name": "Sidebar",
+      "category": "navigation",
+      "description": "Barra lateral colapsável de navegação.",
+      "source": "shadcn-ui",
+      "props": {
+        "collapsible": {
+          "type": "enum",
+          "required": false,
+          "description": "Comportamento de colapso",
+          "default": "icon",
+          "enumValues": [
+            "offcanvas",
+            "icon",
+            "none"
+          ]
+        },
+        "side": {
+          "type": "enum",
+          "required": false,
+          "description": "Lado",
+          "default": "left",
+          "enumValues": [
+            "left",
+            "right"
+          ]
+        },
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "sidebar",
+          "enumValues": [
+            "sidebar",
+            "floating",
+            "inset"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "header": {
+          "description": "Cabeçalho da sidebar (workspace name)",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "children": {
+          "description": "Grupos e itens de navegação",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Rodapé da sidebar",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "rail": {
+          "description": "Rail para toggle da sidebar",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "collapsible": "icon",
+            "side": "left"
+          }
+        },
+        {
+          "name": "offcanvas",
+          "props": {
+            "collapsible": "offcanvas"
+          }
+        },
+        {
+          "name": "floating",
+          "props": {
+            "variant": "floating"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "App sidebar",
+          "props": {
+            "collapsible": "icon"
+          },
+          "slots": {
+            "header": "Workspace Name",
+            "children": "Nav groups",
+            "footer": "User menu"
+          }
+        }
+      ],
+      "tags": [
+        "navigation",
+        "sidebar",
+        "layout",
+        "collapsible"
+      ],
+      "styles": {
+        "background": "$tokens.colors.sidebar-bg",
+        "borderColor": "$tokens.colors.border",
+        "width": "$tokens.sizing.sidebar-width",
+        "collapsedWidth": "$tokens.sizing.sidebar-collapsed",
+        "headerPadding": "$tokens.spacing.md",
+        "itemPadding": "$tokens.spacing.sm",
+        "itemBorderRadius": "$tokens.borderRadius.md",
+        "itemHoverBackground": "$tokens.colors.surface",
+        "itemActiveBackground": "$tokens.colors.surface-2",
+        "itemActiveColor": "$tokens.colors.accent",
+        "itemActiveBorderLeft": "$tokens.colors.accent",
+        "groupLabelColor": "$tokens.colors.text-dim",
+        "groupLabelFontSize": "$tokens.fontSizes.2xs",
+        "groupLabelLetterSpacing": "$tokens.letterSpacings.wider"
+      }
+    },
+    "Skeleton": {
+      "name": "Skeleton",
+      "category": "feedback",
+      "description": "Placeholder de carregamento que simula a forma do conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Card skeleton",
+          "props": {
+            "className": "h-[125px] w-full rounded-xl"
+          }
+        }
+      ],
+      "tags": [
+        "loading",
+        "placeholder",
+        "skeleton",
+        "shimmer"
+      ],
+      "styles": {
+        "baseColor": "rgba(232,156,40,0.04)",
+        "highlightColor": "rgba(232,156,40,0.08)",
+        "borderRadius": "$tokens.borderRadius.sm",
+        "animation": "pulse",
+        "duration": "1.8s"
+      }
+    },
+    "Slider": {
+      "name": "Slider",
+      "category": "form",
+      "description": "Input para seleção de valor numérico em um range.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "array",
+          "required": false,
+          "description": "Valor(es) atual(is)"
+        },
+        "defaultValue": {
+          "type": "array",
+          "required": false,
+          "description": "Valor(es) padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "min": {
+          "type": "number",
+          "required": false,
+          "description": "Valor mínimo",
+          "default": 0
+        },
+        "max": {
+          "type": "number",
+          "required": false,
+          "description": "Valor máximo",
+          "default": 100
+        },
+        "step": {
+          "type": "number",
+          "required": false,
+          "description": "Incremento",
+          "default": 1
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "single",
+          "props": {
+            "defaultValue": [
+              50
+            ]
+          }
+        },
+        {
+          "name": "range",
+          "props": {
+            "defaultValue": [
+              25,
+              75
+            ]
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Threshold",
+          "props": {
+            "defaultValue": [
+              80
+            ],
+            "min": 0,
+            "max": 100,
+            "step": 1
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "range",
+        "slider",
+        "numeric"
+      ],
+      "styles": {
+        "trackColor": "$tokens.colors.surface-3",
+        "trackHeight": 4,
+        "rangeColor": "$tokens.colors.accent",
+        "thumbColor": "$tokens.colors.accent",
+        "thumbBorder": "$tokens.colors.accent-dim",
+        "thumbSize": 16,
+        "thumbBorderRadius": "$tokens.borderRadius.full",
+        "disabledOpacity": 0.4
+      }
+    },
+    "Sonner": {
+      "name": "Sonner",
+      "category": "feedback",
+      "description": "Sistema de notificações toast (via Sonner library).",
+      "source": "shadcn-ui",
+      "props": {
+        "position": {
+          "type": "enum",
+          "required": false,
+          "description": "Posição na tela",
+          "default": "bottom-right",
+          "enumValues": [
+            "top-left",
+            "top-center",
+            "top-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right"
+          ]
+        },
+        "expand": {
+          "type": "boolean",
+          "required": false,
+          "description": "Expandir toasts empilhados",
+          "default": false
+        },
+        "richColors": {
+          "type": "boolean",
+          "required": false,
+          "description": "Cores ricas por tipo",
+          "default": true
+        },
+        "duration": {
+          "type": "number",
+          "required": false,
+          "description": "Duração padrão (ms)",
+          "default": 4000
+        },
+        "closeButton": {
+          "type": "boolean",
+          "required": false,
+          "description": "Mostrar botão fechar",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [
+        {
+          "name": "bottom-right",
+          "props": {
+            "position": "bottom-right"
+          }
+        },
+        {
+          "name": "top-center",
+          "props": {
+            "position": "top-center"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Standard",
+          "props": {
+            "position": "bottom-right",
+            "richColors": true
+          }
+        }
+      ],
+      "tags": [
+        "toast",
+        "notification",
+        "feedback",
+        "alert"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "textColor": "$tokens.colors.text",
+        "descriptionColor": "$tokens.colors.text-muted",
+        "successColor": "$tokens.colors.success",
+        "errorColor": "$tokens.colors.danger",
+        "warningColor": "$tokens.colors.accent",
+        "borderRadius": "$tokens.borderRadius.md",
+        "shadow": "0 4px 16px rgba(0,0,0,0.3)"
+      }
+    },
+    "Switch": {
+      "name": "Switch",
+      "category": "form",
+      "description": "Toggle entre dois estados (on/off).",
+      "source": "shadcn-ui",
+      "props": {
+        "checked": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado (controlado)"
+        },
+        "defaultChecked": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado inicial",
+          "default": false
+        },
+        "onCheckedChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "label": {
+          "description": "Label associado",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "off",
+          "props": {
+            "defaultChecked": false
+          }
+        },
+        {
+          "name": "on",
+          "props": {
+            "defaultChecked": true
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Auto-validate",
+          "props": {
+            "defaultChecked": true
+          },
+          "slots": {
+            "label": "Auto-validate on push"
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "toggle",
+        "switch",
+        "boolean"
+      ],
+      "styles": {
+        "checkedBackground": "$tokens.colors.accent",
+        "uncheckedBackground": "$tokens.colors.surface-3",
+        "thumbColor": "#ffffff",
+        "disabledOpacity": 0.4,
+        "borderRadius": "$tokens.borderRadius.full",
+        "height": 20,
+        "width": 36
+      }
+    },
+    "Table": {
+      "name": "Table",
+      "category": "data-display",
+      "description": "Tabela simples para exibição de dados.",
+      "source": "shadcn-ui",
+      "props": {
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "caption": {
+          "description": "Legenda da tabela",
+          "required": false,
+          "acceptedComponents": []
+        },
+        "header": {
+          "description": "TableRow com TableHead(s)",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "body": {
+          "description": "TableRow(s) com TableCell(s)",
+          "required": true,
+          "acceptedComponents": []
+        },
+        "footer": {
+          "description": "Rodapé da tabela",
+          "required": false,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [],
+      "examples": [
+        {
+          "name": "Validators table",
+          "props": {},
+          "slots": {
+            "header": "Validator, Gate, Status, Duration",
+            "body": "3 rows"
+          }
+        }
+      ],
+      "tags": [
+        "table",
+        "data",
+        "display",
+        "rows"
+      ],
+      "styles": {
+        "headerBackground": "$tokens.colors.surface",
+        "headerColor": "$tokens.colors.text-muted",
+        "headerFontWeight": "$tokens.fontWeights.semibold",
+        "headerBorderColor": "$tokens.colors.accent-dim",
+        "headerBorderWidth": "2px",
+        "cellBorderColor": "$tokens.colors.border",
+        "rowHoverBackground": "$tokens.colors.surface-2",
+        "captionColor": "$tokens.colors.text-dim"
+      }
+    },
+    "Tabs": {
+      "name": "Tabs",
+      "category": "navigation",
+      "description": "Interface com abas para organização de conteúdo.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onValueChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar valor"
+        },
+        "orientation": {
+          "type": "enum",
+          "required": false,
+          "description": "Orientação",
+          "default": "horizontal",
+          "enumValues": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "TabsTrigger(s) em TabsList + TabsContent(s)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "horizontal",
+          "props": {
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "name": "vertical",
+          "props": {
+            "orientation": "vertical"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Run tabs",
+          "props": {
+            "defaultValue": "overview"
+          },
+          "slots": {
+            "children": "Overview, Validators, Logs, Config"
+          }
+        }
+      ],
+      "tags": [
+        "tabs",
+        "navigation",
+        "sections",
+        "organize"
+      ],
+      "styles": {
+        "listBackground": "$tokens.colors.surface",
+        "listBorderColor": "$tokens.colors.border",
+        "listBorderRadius": "$tokens.borderRadius.md",
+        "triggerColor": "$tokens.colors.text-muted",
+        "triggerActiveColor": "$tokens.colors.text",
+        "triggerActiveBackground": "$tokens.colors.surface-2",
+        "triggerActiveBorderBottom": "$tokens.colors.accent",
+        "triggerHoverColor": "$tokens.colors.text",
+        "triggerFontSize": "$tokens.fontSizes.sm",
+        "triggerFontWeight": "$tokens.fontWeights.medium"
+      }
+    },
+    "Textarea": {
+      "name": "Textarea",
+      "category": "form",
+      "description": "Campo de texto multi-linha.",
+      "source": "shadcn-ui",
+      "props": {
+        "value": {
+          "type": "string",
+          "required": false,
+          "description": "Valor controlado"
+        },
+        "defaultValue": {
+          "type": "string",
+          "required": false,
+          "description": "Valor padrão"
+        },
+        "onChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao digitar"
+        },
+        "placeholder": {
+          "type": "string",
+          "required": false,
+          "description": "Texto placeholder"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "required": false,
+          "description": "Campo obrigatório",
+          "default": false
+        },
+        "rows": {
+          "type": "number",
+          "required": false,
+          "description": "Linhas visíveis",
+          "default": 3
+        },
+        "maxLength": {
+          "type": "number",
+          "required": false,
+          "description": "Máximo de caracteres"
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Nome do campo"
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {},
+      "variants": [],
+      "examples": [
+        {
+          "name": "Description",
+          "props": {
+            "placeholder": "Descreva a validação...",
+            "rows": 4
+          }
+        }
+      ],
+      "tags": [
+        "form",
+        "input",
+        "text",
+        "multiline"
+      ],
+      "styles": {
+        "background": "$tokens.colors.input-bg",
+        "borderColor": "$tokens.colors.input-border",
+        "focusBorderColor": "$tokens.colors.accent",
+        "focusRingColor": "$tokens.colors.ring",
+        "placeholderColor": "$tokens.colors.text-dim",
+        "color": "$tokens.colors.text",
+        "borderRadius": "$tokens.borderRadius.md",
+        "fontSize": "$tokens.fontSizes.sm",
+        "padding": "$tokens.spacing.sm"
+      }
+    },
+    "Toggle": {
+      "name": "Toggle",
+      "category": "primitive",
+      "description": "Botão toggle que alterna entre estados pressed/unpressed.",
+      "source": "shadcn-ui",
+      "props": {
+        "variant": {
+          "type": "enum",
+          "required": false,
+          "description": "Variante visual",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "outline"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "required": false,
+          "description": "Tamanho",
+          "default": "default",
+          "enumValues": [
+            "default",
+            "sm",
+            "lg"
+          ]
+        },
+        "pressed": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado pressionado (controlado)"
+        },
+        "defaultPressed": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado inicial",
+          "default": false
+        },
+        "onPressedChange": {
+          "type": "function",
+          "required": false,
+          "description": "Callback ao mudar"
+        },
+        "disabled": {
+          "type": "boolean",
+          "required": false,
+          "description": "Estado desabilitado",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "children": {
+          "description": "Conteúdo (ícone ou texto)",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "default",
+          "props": {
+            "variant": "default"
+          }
+        },
+        {
+          "name": "outline",
+          "props": {
+            "variant": "outline"
+          }
+        },
+        {
+          "name": "pressed",
+          "props": {
+            "defaultPressed": true
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Filter toggle",
+          "props": {
+            "variant": "outline"
+          },
+          "slots": {
+            "children": "Errors Only"
+          }
+        }
+      ],
+      "tags": [
+        "toggle",
+        "button",
+        "state",
+        "pressed"
+      ],
+      "styles": {
+        "defaultBackground": "transparent",
+        "defaultHoverBackground": "$tokens.colors.surface-2",
+        "pressedBackground": "$tokens.colors.surface-3",
+        "pressedColor": "$tokens.colors.accent",
+        "outlineBorder": "$tokens.colors.border-2",
+        "borderRadius": "$tokens.borderRadius.md",
+        "disabledOpacity": 0.4
+      }
+    },
+    "Tooltip": {
+      "name": "Tooltip",
+      "category": "data-display",
+      "description": "Label popup exibido ao passar o mouse sobre um elemento.",
+      "source": "shadcn-ui",
+      "props": {
+        "content": {
+          "type": "string",
+          "required": true,
+          "description": "Texto do tooltip"
+        },
+        "side": {
+          "type": "enum",
+          "required": false,
+          "description": "Lado de posicionamento",
+          "default": "bottom",
+          "enumValues": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "required": false,
+          "description": "Alinhamento",
+          "default": "center",
+          "enumValues": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "delayDuration": {
+          "type": "number",
+          "required": false,
+          "description": "Delay para exibir (ms)",
+          "default": 200
+        },
+        "className": {
+          "type": "string",
+          "required": false,
+          "description": "Classes CSS adicionais"
+        }
+      },
+      "slots": {
+        "trigger": {
+          "description": "Elemento que ativa o tooltip",
+          "required": true,
+          "acceptedComponents": []
+        }
+      },
+      "variants": [
+        {
+          "name": "top",
+          "props": {
+            "content": "Tooltip",
+            "side": "top"
+          }
+        },
+        {
+          "name": "bottom",
+          "props": {
+            "content": "Tooltip",
+            "side": "bottom"
+          }
+        },
+        {
+          "name": "left",
+          "props": {
+            "content": "Tooltip",
+            "side": "left"
+          }
+        },
+        {
+          "name": "right",
+          "props": {
+            "content": "Tooltip",
+            "side": "right"
+          }
+        }
+      ],
+      "examples": [
+        {
+          "name": "Icon tooltip",
+          "props": {
+            "content": "Executar validação"
+          },
+          "slots": {
+            "trigger": "▶"
+          }
+        }
+      ],
+      "tags": [
+        "tooltip",
+        "hint",
+        "hover",
+        "label",
+        "help"
+      ],
+      "styles": {
+        "background": "$tokens.colors.surface-3",
+        "color": "$tokens.colors.text",
+        "borderColor": "$tokens.colors.border",
+        "fontSize": "$tokens.fontSizes.xs",
+        "fontWeight": "$tokens.fontWeights.medium",
+        "padding": "$tokens.spacing.xs",
+        "borderRadius": "$tokens.borderRadius.sm",
+        "shadow": "0 2px 8px rgba(0,0,0,0.3)"
+      }
+    }
+  },
+  "uiBehaviors": {
+    "scrollbar": {
+      "width": "5px",
+      "thumbColor": "rgba(232,156,40,0.12)",
+      "thumbHoverColor": "rgba(232,156,40,0.25)",
+      "trackColor": "transparent",
+      "borderRadius": "3px",
+      "_cssTarget": "::-webkit-scrollbar, scrollbar-width, scrollbar-color"
+    },
+    "skeleton": {
+      "animation": "pulse",
+      "baseColor": "rgba(232,156,40,0.04)",
+      "highlightColor": "rgba(232,156,40,0.08)",
+      "borderRadius": "$tokens.borderRadius.sm",
+      "duration": "1.8s",
+      "_cssTarget": "[data-orqui-skeleton]"
+    },
+    "toast": {
+      "position": "bottom-right",
+      "maxVisible": 3,
+      "duration": 4000,
+      "styling": {
+        "background": "$tokens.colors.surface",
+        "borderColor": "$tokens.colors.border",
+        "borderRadius": "$tokens.borderRadius.md",
+        "shadow": "0 4px 16px rgba(0,0,0,0.3)",
+        "textColor": "$tokens.colors.text",
+        "descriptionColor": "$tokens.colors.text-muted",
+        "successColor": "$tokens.colors.success",
+        "errorColor": "$tokens.colors.danger",
+        "warningColor": "$tokens.colors.accent"
+      },
+      "_cssTarget": "[data-sonner-toaster]"
+    },
+    "emptyState": {
+      "icon": "ph:magnifying-glass",
+      "title": "Nenhum item encontrado",
+      "description": "Tente ajustar seus filtros ou criar um novo item.",
+      "showAction": true,
+      "actionLabel": "Criar Novo",
+      "styling": {
+        "iconSize": 48,
+        "iconColor": "$tokens.colors.text-dim",
+        "titleFontSize": "$tokens.fontSizes.lg",
+        "titleFontWeight": "$tokens.fontWeights.semibold",
+        "titleColor": "$tokens.colors.text",
+        "descriptionFontSize": "$tokens.fontSizes.sm",
+        "descriptionColor": "$tokens.colors.text-muted",
+        "actionVariant": "outline",
+        "gap": "$tokens.spacing.md"
+      }
+    },
+    "tableSeparator": {
+      "color": "$tokens.colors.border",
+      "width": "1px",
+      "style": "solid",
+      "headerColor": "$tokens.colors.accent-dim",
+      "headerWidth": "2px",
+      "headerStyle": "solid"
+    },
+    "focusRing": {
+      "color": "$tokens.colors.ring",
+      "width": "2px",
+      "offset": "2px",
+      "style": "solid"
+    }
+  },
+  "navigation": {
+    "sidebar": {
+      "items": [
+        {
+          "id": "dashboard",
+          "label": "Dashboard",
+          "icon": "ph:chart-bar",
+          "route": "/dashboard",
+          "description": "Visão geral de workspaces, projetos e validações"
+        },
+        {
+          "id": "runs",
+          "label": "Runs",
+          "icon": "ph:flow-arrow",
+          "route": "/runs",
+          "description": "Ver e gerenciar todas as runs de validação"
+        },
+        {
+          "id": "gates",
+          "label": "Gates",
+          "icon": "ph:shield-check",
+          "route": "/gates",
+          "description": "Visão geral de todos os validation gates"
+        },
+        {
+          "id": "workspaces",
+          "label": "Workspaces",
+          "icon": "ph:folder",
+          "route": "/workspaces",
+          "description": "Gerenciar workspaces de validação"
+        },
+        {
+          "id": "projects",
+          "label": "Projects",
+          "icon": "ph:squares-four",
+          "route": "/projects",
+          "description": "Gerenciar projetos de validação"
+        },
+        {
+          "id": "mcp",
+          "label": "MCP",
+          "icon": "ph:lightning",
+          "route": "/mcp",
+          "description": "Model Context Protocol — sessões e ferramentas"
+        },
+        {
+          "id": "config",
+          "label": "Config",
+          "icon": "ph:gear",
+          "route": "/config",
+          "description": "Configurações gerais do Gatekeeper"
+        }
+      ],
+      "groups": [],
+      "icons": {
+        "enabled": true,
+        "library": "phosphor",
+        "size": "$tokens.sizing.icon-md",
+        "gap": "$tokens.spacing.sm",
+        "activeColor": "$tokens.colors.accent",
+        "inactiveColor": "currentColor"
+      },
+      "typography": {
+        "fontSize": "$tokens.fontSizes.sm",
+        "fontFamily": "$tokens.fontFamilies.mono",
+        "fontWeight": "$tokens.fontWeights.medium",
+        "activeFontWeight": "$tokens.fontWeights.bold",
+        "activeColor": "$tokens.colors.accent",
+        "hoverColor": "$tokens.colors.accent-dim",
+        "hoverBackground": "$tokens.colors.surface",
+        "activeBackground": "$tokens.colors.surface-2"
+      },
+      "activeCard": {
+        "enabled": true,
+        "borderColor": "$tokens.colors.accent",
+        "borderWidth": "1",
+        "borderRadius": "$tokens.borderRadius.md",
+        "padding": "$tokens.spacing.sm"
+      },
+      "collapsed": {
+        "display": "icon-only",
+        "tooltip": {
+          "enabled": true,
+          "mandatory": true,
+          "position": "right",
+          "offset": "12px",
+          "background": "$tokens.colors.surface-3",
+          "color": "$tokens.colors.text",
+          "borderColor": "$tokens.colors.border",
+          "borderRadius": "$tokens.borderRadius.sm",
+          "fontSize": "$tokens.fontSizes.xs",
+          "fontFamily": "$tokens.fontFamilies.mono",
+          "fontWeight": "$tokens.fontWeights.medium",
+          "padding": "5px 10px",
+          "shadow": "0 4px 12px rgba(0,0,0,0.4)",
+          "arrow": true,
+          "arrowSize": "3px",
+          "delay": 0,
+          "transition": "opacity 0.15s ease"
+        },
+        "letterFallback": {
+          "_note": "When icon-only mode but item has no icon, show first letter",
+          "fontSize": 13,
+          "fontWeight": "$tokens.fontWeights.medium",
+          "activeColor": "$tokens.colors.accent",
+          "activeBg": "rgba(232,156,40,0.08)",
+          "borderRadius": "$tokens.borderRadius.md",
+          "size": 26
+        }
+      }
+    },
+    "breadcrumbs": {
+      "enabled": true,
+      "position": "header",
+      "separator": "›",
+      "clickable": true,
+      "showHome": true,
+      "homeLabel": "Home",
+      "homeRoute": "/",
+      "typography": {
+        "fontSize": "$tokens.fontSizes.xs",
+        "fontFamily": "$tokens.fontFamilies.mono",
+        "fontWeight": "$tokens.fontWeights.medium",
+        "activeColor": "$tokens.colors.accent",
+        "linkColor": "$tokens.colors.text-muted",
+        "separatorColor": "$tokens.colors.text-dim",
+        "hoverColor": "$tokens.colors.text"
+      }
+    }
+  },
+  "sidebar": {
+    "enabled": true,
+    "position": "left",
+    "dimensions": {
+      "width": "$tokens.sizing.sidebar-width",
+      "collapsedWidth": "$tokens.sizing.sidebar-collapsed",
+      "minWidth": "$tokens.sizing.sidebar-min"
+    },
+    "behavior": {
+      "collapsible": true,
+      "collapsedDisplay": "icon-only",
+      "scrollable": false,
+      "fixed": true
+    },
+    "collapseButton": {
+      "icon": "chevron",
+      "position": "edge-center",
+      "size": "$tokens.sizing.icon-md"
+    },
+    "padding": {
+      "master": "$tokens.sizing.sidebar-pad",
+      "containers": {
+        "brand": {
+          "top": "$tokens.spacing.md",
+          "right": "$tokens.sizing.sidebar-pad",
+          "bottom": "$tokens.spacing.md",
+          "left": "$tokens.sizing.sidebar-pad"
+        },
+        "navigation": {
+          "top": "$tokens.spacing.sm",
+          "right": "$tokens.sizing.sidebar-nav-pad",
+          "bottom": "$tokens.spacing.sm",
+          "left": "$tokens.sizing.sidebar-nav-pad"
+        },
+        "footer": {
+          "top": "$tokens.spacing.xs",
+          "right": "$tokens.sizing.sidebar-nav-pad",
+          "bottom": "$tokens.spacing.xs",
+          "left": "$tokens.sizing.sidebar-nav-pad"
+        }
+      }
+    },
+    "separators": {
+      "header": {
+        "enabled": true,
+        "color": "$tokens.colors.border",
+        "width": "$tokens.borderWidth.thin",
+        "style": "solid"
+      },
+      "footer": {
+        "enabled": true,
+        "color": "$tokens.colors.border",
+        "width": "$tokens.borderWidth.thin",
+        "style": "solid"
+      },
+      "navGroups": {
+        "enabled": false,
+        "color": "$tokens.colors.border"
+      }
+    },
+    "background": "$tokens.colors.sidebar-bg"
+  },
+  "pages": {
+    "dashboard": {
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "description": "Visão geral de workspaces, projetos e validações",
+      "browserTitle": "Dashboard — Gatekeeper",
+      "icon": "ph:chart-bar"
+    },
+    "runs": {
+      "label": "Runs de Validação",
+      "route": "/runs",
+      "description": "Ver e gerenciar todas as runs de validação",
+      "browserTitle": "Runs de Validação — Gatekeeper",
+      "icon": "ph:flow-arrow"
+    },
+    "new-validation": {
+      "label": "Nova Validação",
+      "route": "/runs/new",
+      "description": "Carregue o plano e o teste",
+      "browserTitle": "Nova Validação | Gatekeeper",
+      "parentPage": "runs"
+    },
+    "gates": {
+      "label": "Validation Gates",
+      "route": "/gates",
+      "description": "Visão geral de todos os validation gates e seus validators",
+      "browserTitle": "Validation Gates — Gatekeeper",
+      "icon": "ph:shield-check"
+    },
+    "workspaces": {
+      "label": "Workspaces",
+      "route": "/workspaces",
+      "description": "Gerenciar workspaces de validação",
+      "browserTitle": "Workspaces — Gatekeeper",
+      "icon": "ph:folder"
+    },
+    "projects": {
+      "label": "Projects",
+      "route": "/projects",
+      "description": "Gerenciar projetos de validação",
+      "browserTitle": "Projects — Gatekeeper",
+      "icon": "ph:squares-four"
+    },
+    "mcp": {
+      "label": "MCP",
+      "route": "/mcp",
+      "description": "Model Context Protocol — sessões e ferramentas",
+      "browserTitle": "MCP — Gatekeeper",
+      "icon": "ph:lightning"
+    },
+    "config": {
+      "label": "Config",
+      "route": "/config",
+      "description": "Configurações gerais do Gatekeeper",
+      "browserTitle": "Config — Gatekeeper",
+      "icon": "ph:gear"
+    }
+  },
+  "header": {
+    "enabled": true,
+    "layoutMode": "header-first",
+    "dimensions": {
+      "height": "$tokens.sizing.header-height"
+    },
+    "background": "$tokens.colors.header-bg",
+    "zones": {
+      "sidebar": {
+        "width": "$tokens.sizing.sidebar-width",
+        "collapsedWidth": "$tokens.sizing.sidebar-collapsed",
+        "paddingLeft": "$tokens.sizing.sidebar-pad",
+        "borderRight": {
+          "enabled": true,
+          "color": "$tokens.colors.border",
+          "width": "$tokens.borderWidth.thin"
+        },
+        "contains": [
+          "brand"
+        ]
+      },
+      "content": {
+        "paddingLeft": "$tokens.sizing.main-pad",
+        "paddingRight": "$tokens.sizing.main-pad",
+        "contains": [
+          "breadcrumb",
+          "spacer",
+          "actions",
+          "userMenu"
+        ]
+      }
+    },
+    "separators": {
+      "bottom": {
+        "enabled": true,
+        "color": "$tokens.colors.border",
+        "width": "$tokens.borderWidth.thin",
+        "style": "solid"
+      }
+    },
+    "elements": {
+      "search": {
+        "enabled": true,
+        "placeholder": "Buscar...",
+        "icon": "ph:magnifying-glass",
+        "styling": {
+          "background": "$tokens.colors.input-bg",
+          "borderColor": "$tokens.colors.input-border",
+          "focusBorderColor": "$tokens.colors.accent",
+          "borderRadius": "$tokens.borderRadius.md",
+          "height": "$tokens.sizing.input-height-sm",
+          "fontSize": "$tokens.fontSizes.sm",
+          "iconColor": "$tokens.colors.text-muted"
+        }
+      },
+      "ctas": [
+        {
+          "id": "cta-mcp",
+          "label": "MCP",
+          "variant": "outline",
+          "route": "/mcp",
+          "icon": "ph:hard-drives"
+        },
+        {
+          "id": "cta-new-validation",
+          "label": "Nova Validação",
+          "variant": "default",
+          "route": "/runs/new"
+        }
+      ],
+      "icons": {
+        "enabled": true,
+        "items": [
+          {
+            "id": "bell",
+            "icon": "ph:bell",
+            "route": "/notifications",
+            "badge": {
+              "dot": true
+            }
+          },
+          {
+            "id": "settings",
+            "icon": "ph:gear",
+            "route": "/settings"
+          }
+        ],
+        "styling": {
+          "size": "$tokens.sizing.icon-md",
+          "color": "$tokens.colors.text-muted",
+          "hoverColor": "$tokens.colors.text",
+          "gap": "$tokens.spacing.xs"
+        }
+      },
+      "order": [
+        "cta:cta-mcp",
+        "search",
+        "cta:cta-new-validation",
+        "icons"
+      ]
+    }
+  },
+  "logo": {
+    "type": "icon-text",
+    "text": "Gatekeeper",
+    "icon": "ph:barricade",
+    "position": "header",
+    "headerSlot": "left",
+    "iconSize": 26,
+    "iconGap": 8,
+    "typography": {
+      "fontFamily": "JetBrains Mono",
+      "fontSize": 19,
+      "fontWeight": 700,
+      "color": "#e89c28",
+      "letterSpacing": -0.02
+    }
+  },
+  "alignmentGrid": {
+    "_doc": "Two master tokens control ALL horizontal alignment",
+    "sidebarPad": {
+      "token": "$tokens.sizing.sidebar-pad",
+      "value": "16px",
+      "controls": [
+        "sidebar brand container paddingLeft/Right",
+        "sidebar nav container padding (via sidebar-nav-pad = sidebarPad - 6px)",
+        "sidebar footer container padding (via sidebar-nav-pad)",
+        "header sidebar-zone paddingLeft",
+        "logo positioning in header"
+      ]
+    },
+    "mainPad": {
+      "token": "$tokens.sizing.main-pad",
+      "value": "28px",
+      "controls": [
+        "main content area paddingLeft/Right",
+        "header content-zone paddingLeft/Right",
+        "footer paddingLeft/Right",
+        "breadcrumbs left alignment",
+        "page header left alignment",
+        "card grid left alignment",
+        "table left alignment"
+      ]
+    }
+  },
+  "icons": {
+    "library": "phosphor",
+    "style": "regular",
+    "svgViewBox": "0 0 256 256",
+    "available": [
+      "house",
+      "gear",
+      "magnifying-glass",
+      "bell",
+      "user",
+      "shield-check",
+      "shield",
+      "lock",
+      "key",
+      "eye",
+      "warning",
+      "folder",
+      "file",
+      "code",
+      "rocket",
+      "lightning",
+      "star",
+      "heart",
+      "globe",
+      "sparkle",
+      "robot",
+      "chart-bar",
+      "flow-arrow",
+      "chat-circle",
+      "list",
+      "squares-four",
+      "clipboard",
+      "database",
+      "plus",
+      "check",
+      "x",
+      "barricade",
+      "door",
+      "door-open",
+      "envelope",
+      "question",
+      "moon",
+      "sun",
+      "arrow-square-down",
+      "share-network",
+      "hard-drives"
+    ],
+    "navMapping": {
+      "dashboard": "ph:chart-bar",
+      "runs": "ph:flow-arrow",
+      "gates": "ph:shield-check",
+      "workspaces": "ph:folder",
+      "projects": "ph:squares-four",
+      "mcp": "ph:lightning",
+      "config": "ph:gear"
+    }
+  }
+}

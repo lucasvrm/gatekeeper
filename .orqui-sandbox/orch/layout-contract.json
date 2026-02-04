@@ -1,0 +1,2058 @@
+{
+  "$orqui": {
+    "schema": "layout-contract",
+    "version": "1.0.0",
+    "hash": "sha256:2e4f0c7a0bd7c50c7d8d52373bcb5ffeb9b47512ce79a08263b36d36be9c3037",
+    "generatedAt": "2026-02-04T16:17:03.075388+00:00"
+  },
+  "structure": {
+    "regions": {
+      "sidebar": {
+        "enabled": true,
+        "position": "left",
+        "dimensions": {
+          "width": "$tokens.sizing.sidebar-width",
+          "height": "$tokens.sizing.full-height",
+          "minWidth": "$tokens.sizing.sidebar-collapsed"
+        },
+        "padding": {
+          "top": "$tokens.spacing.xs",
+          "right": "0",
+          "bottom": "0",
+          "left": "0"
+        },
+        "containers": [
+          {
+            "name": "brand",
+            "description": "Workspace name",
+            "order": 0,
+            "padding": {
+              "top": "$tokens.spacing.md",
+              "right": "$tokens.sizing.sidebar-pad",
+              "bottom": "$tokens.spacing.md",
+              "left": "$tokens.sizing.sidebar-pad"
+            }
+          },
+          {
+            "name": "navigation",
+            "description": "Primary navigation",
+            "order": 1,
+            "padding": {
+              "top": "$tokens.spacing.md",
+              "right": "$tokens.sizing.sidebar-nav-pad",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.sizing.sidebar-nav-pad"
+            },
+            "navItemInternalPad": "6px"
+          },
+          {
+            "name": "sidebarFooter",
+            "description": "User profile and actions",
+            "order": 2,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.sizing.sidebar-nav-pad",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.sizing.sidebar-nav-pad"
+            }
+          }
+        ],
+        "behavior": {
+          "fixed": true,
+          "collapsible": true,
+          "scrollable": false,
+          "collapsedDisplay": "icon-only"
+        },
+        "navigation": {
+          "icons": {
+            "enabled": true,
+            "size": "$tokens.sizing.icon-md",
+            "gap": "$tokens.spacing.sm"
+          },
+          "typography": {
+            "fontSize": "$tokens.fontSizes.sm",
+            "activeFontWeight": "$tokens.fontWeights.bold",
+            "activeColor": "$tokens.colors.accent-fg",
+            "fontFamily": "$tokens.fontFamilies.primary",
+            "hoverColor": "$tokens.colors.accent",
+            "cardEnabled": true,
+            "activeBackground": "$tokens.colors.accent",
+            "cardBackground": "",
+            "cardBorderColor": "",
+            "cardBorderWidth": "1",
+            "cardBorderRadius": "$tokens.borderRadius.md",
+            "cardPadding": "$tokens.spacing.sm",
+            "activeCardBorder": "$tokens.colors.accent",
+            "hoverCardBorder": "",
+            "hoverBackground": "$tokens.colors.surface",
+            "hoverFontWeight": ""
+          },
+          "items": [
+            {
+              "id": "dashboard",
+              "label": "Dashboard",
+              "icon": "ph:chart-line-up-duotone",
+              "route": "/dashboard"
+            },
+            {
+              "id": "runs",
+              "label": "Runs",
+              "icon": "ph:arrows-clockwise-duotone",
+              "route": "/runs"
+            },
+            {
+              "id": "run-detail",
+              "label": "Run #937",
+              "icon": "ph:terminal-window-duotone",
+              "route": "/run-detail"
+            },
+            {
+              "id": "settings",
+              "label": "Settings",
+              "icon": "ph:gear-six-duotone",
+              "route": "/settings"
+            }
+          ]
+        }
+      },
+      "header": {
+        "enabled": true,
+        "position": "top",
+        "dimensions": {
+          "height": "$tokens.sizing.header-height"
+        },
+        "background": "$tokens.colors.surface",
+        "border": {
+          "bottom": {
+            "width": "$tokens.borderWidth.thin",
+            "color": "$tokens.colors.border"
+          }
+        },
+        "padding": {
+          "left": "$tokens.sizing.main-pad",
+          "right": "$tokens.sizing.main-pad"
+        },
+        "zones": {
+          "left": {
+            "content": "breadcrumbs"
+          },
+          "center": {
+            "content": "empty"
+          },
+          "right": {
+            "content": "headerActions"
+          }
+        }
+      },
+      "main": {
+        "enabled": true,
+        "background": "$tokens.colors.bg",
+        "padding": {
+          "top": "$tokens.spacing.lg",
+          "right": "$tokens.sizing.main-pad",
+          "bottom": "$tokens.spacing.lg",
+          "left": "$tokens.sizing.main-pad"
+        }
+      },
+      "footer": {
+        "enabled": false,
+        "dimensions": {
+          "height": "$tokens.sizing.footer-height"
+        },
+        "background": "$tokens.colors.surface",
+        "border": {
+          "top": {
+            "width": "$tokens.borderWidth.thin",
+            "color": "$tokens.colors.border"
+          }
+        }
+      }
+    },
+    "breadcrumbs": {
+      "enabled": true,
+      "separator": "chevron",
+      "homeIcon": "ph:house-duotone"
+    },
+    "logo": {
+      "type": "text",
+      "text": "Orchestrator",
+      "icon": "ph:robot-duotone",
+      "position": "sidebar",
+      "headerSlot": "left",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontWeight": "$tokens.fontWeights.bold",
+      "fontSize": "$tokens.fontSizes.lg",
+      "color": "$tokens.colors.text"
+    },
+    "favicon": {
+      "type": "icon",
+      "icon": "ph:robot-duotone"
+    },
+    "headerElements": [],
+    "pages": [
+      "dashboard",
+      "run-detail",
+      "settings"
+    ],
+    "contentLayout": "full-width",
+    "pageHeader": {
+      "enabled": true,
+      "titleSize": "$tokens.fontSizes.2xl",
+      "subtitleSize": "$tokens.fontSizes.sm"
+    },
+    "layoutMode": "sidebar-header-main",
+    "scrollbar": {
+      "style": "thin",
+      "color": "$tokens.colors.border"
+    },
+    "toast": {
+      "position": "bottom-right",
+      "duration": 4000
+    },
+    "emptyState": {
+      "icon": "ph:empty-duotone",
+      "title": "No data",
+      "subtitle": "Nothing to show here yet."
+    },
+    "skeleton": {
+      "borderRadius": "$tokens.borderRadius.sm",
+      "animated": true
+    },
+    "appTitle": "Orchestrator",
+    "tableSeparator": {
+      "style": "line",
+      "color": "$tokens.colors.border"
+    },
+    "alignmentGrid": {
+      "_doc": "Alignment reference",
+      "sidebarPad": "$tokens.sizing.sidebar-pad",
+      "mainPad": "$tokens.sizing.main-pad"
+    }
+  },
+  "tokens": {
+    "spacing": {
+      "2xs": {
+        "value": 2,
+        "unit": "px"
+      },
+      "xs": {
+        "value": 4,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 8,
+        "unit": "px"
+      },
+      "md": {
+        "value": 14,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 22,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 32,
+        "unit": "px"
+      },
+      "2xl": {
+        "value": 44,
+        "unit": "px"
+      },
+      "3xl": {
+        "value": 60,
+        "unit": "px"
+      }
+    },
+    "sizing": {
+      "sidebar-width": {
+        "value": 240,
+        "unit": "px"
+      },
+      "sidebar-min": {
+        "value": 200,
+        "unit": "px"
+      },
+      "sidebar-collapsed": {
+        "value": 56,
+        "unit": "px"
+      },
+      "header-height": {
+        "value": 64,
+        "unit": "px"
+      },
+      "footer-height": {
+        "value": 40,
+        "unit": "px"
+      },
+      "full-height": {
+        "value": 100,
+        "unit": "vh"
+      },
+      "content-max-width": {
+        "value": 1200,
+        "unit": "px"
+      },
+      "dialog-sm": {
+        "value": 400,
+        "unit": "px"
+      },
+      "dialog-md": {
+        "value": 560,
+        "unit": "px"
+      },
+      "dialog-lg": {
+        "value": 720,
+        "unit": "px"
+      },
+      "sheet-width": {
+        "value": 360,
+        "unit": "px"
+      },
+      "drawer-height": {
+        "value": 300,
+        "unit": "px"
+      },
+      "popover-width": {
+        "value": 260,
+        "unit": "px"
+      },
+      "command-width": {
+        "value": 460,
+        "unit": "px"
+      },
+      "avatar-sm": {
+        "value": 24,
+        "unit": "px"
+      },
+      "avatar-md": {
+        "value": 32,
+        "unit": "px"
+      },
+      "avatar-lg": {
+        "value": 44,
+        "unit": "px"
+      },
+      "icon-sm": {
+        "value": 14,
+        "unit": "px"
+      },
+      "icon-md": {
+        "value": 18,
+        "unit": "px"
+      },
+      "icon-lg": {
+        "value": 24,
+        "unit": "px"
+      },
+      "input-height": {
+        "value": 36,
+        "unit": "px"
+      },
+      "input-height-sm": {
+        "value": 28,
+        "unit": "px"
+      },
+      "input-height-lg": {
+        "value": 44,
+        "unit": "px"
+      },
+      "sidebar-pad": {
+        "value": 16,
+        "unit": "px"
+      },
+      "main-pad": {
+        "value": 28,
+        "unit": "px"
+      },
+      "sidebar-nav-pad": {
+        "value": 10,
+        "unit": "px"
+      },
+      "size-scale": {
+        "value": 1.12
+      },
+      "radius-factor": {
+        "value": 1.4
+      }
+    },
+    "fontFamilies": {
+      "primary": {
+        "family": "Inter",
+        "fallbacks": [
+          "Inter",
+          "-apple-system",
+          "sans-serif"
+        ]
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "fallbacks": [
+          "JetBrains Mono",
+          "Consolas",
+          "monospace"
+        ]
+      },
+      "display": {
+        "family": "Inter",
+        "fallbacks": [
+          "Inter",
+          "-apple-system",
+          "sans-serif"
+        ]
+      }
+    },
+    "fontSizes": {
+      "2xs": {
+        "value": 10,
+        "unit": "px"
+      },
+      "xs": {
+        "value": 11,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 12.5,
+        "unit": "px"
+      },
+      "md": {
+        "value": 14,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 15.5,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 18,
+        "unit": "px"
+      },
+      "2xl": {
+        "value": 21,
+        "unit": "px"
+      },
+      "3xl": {
+        "value": 26,
+        "unit": "px"
+      },
+      "4xl": {
+        "value": 34,
+        "unit": "px"
+      },
+      "5xl": {
+        "value": 44,
+        "unit": "px"
+      }
+    },
+    "fontWeights": {
+      "regular": {
+        "value": 400
+      },
+      "medium": {
+        "value": 500
+      },
+      "semibold": {
+        "value": 600
+      },
+      "bold": {
+        "value": 700
+      }
+    },
+    "lineHeights": {
+      "none": {
+        "value": 1
+      },
+      "tight": {
+        "value": 1.2
+      },
+      "snug": {
+        "value": 1.35
+      },
+      "normal": {
+        "value": 1.5
+      },
+      "relaxed": {
+        "value": 1.65
+      }
+    },
+    "letterSpacings": {
+      "tighter": {
+        "value": -0.035,
+        "unit": "em"
+      },
+      "tight": {
+        "value": -0.02,
+        "unit": "em"
+      },
+      "normal": {
+        "value": 0,
+        "unit": "em"
+      },
+      "wide": {
+        "value": 0.03,
+        "unit": "em"
+      },
+      "wider": {
+        "value": 0.06,
+        "unit": "em"
+      }
+    },
+    "colors": {
+      "bg": {
+        "value": "#f8f9fa"
+      },
+      "surface": {
+        "value": "#ffffff"
+      },
+      "surface-2": {
+        "value": "#f1f5f9"
+      },
+      "surface-3": {
+        "value": "#e2e8f0"
+      },
+      "border": {
+        "value": "#e8e8e8"
+      },
+      "border-2": {
+        "value": "#cbd5e1"
+      },
+      "text": {
+        "value": "#0f172a"
+      },
+      "text-muted": {
+        "value": "#64748b"
+      },
+      "text-dim": {
+        "value": "#949494"
+      },
+      "accent": {
+        "value": "#634aff"
+      },
+      "accent-fg": {
+        "value": "#ffffff"
+      },
+      "sidebar-bg": {
+        "value": "#ffffff"
+      },
+      "card-bg": {
+        "value": "#ffffff"
+      },
+      "card-border": {
+        "value": "#e8e8e8"
+      },
+      "ring": {
+        "value": "#634aff"
+      },
+      "input-border": {
+        "value": "#e8e8e8"
+      },
+      "success": {
+        "value": "#10b981"
+      },
+      "success-dim": {
+        "value": "#ecfdf5"
+      },
+      "warning": {
+        "value": "#f59e0b"
+      },
+      "warning-dim": {
+        "value": "#fffbeb"
+      },
+      "danger": {
+        "value": "#ef4444"
+      },
+      "danger-dim": {
+        "value": "#fef2f2"
+      },
+      "info": {
+        "value": "#3b82f6"
+      },
+      "info-dim": {
+        "value": "#eff6ff"
+      },
+      "highlight": {
+        "value": "#e0dbff"
+      }
+    },
+    "borderRadius": {
+      "none": {
+        "value": 0,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 6,
+        "unit": "px"
+      },
+      "md": {
+        "value": 10,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 14,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 20,
+        "unit": "px"
+      },
+      "full": {
+        "value": 9999,
+        "unit": "px"
+      }
+    },
+    "borderWidth": {
+      "none": {
+        "value": 0,
+        "unit": "px"
+      },
+      "thin": {
+        "value": 1,
+        "unit": "px"
+      },
+      "medium": {
+        "value": 2,
+        "unit": "px"
+      }
+    }
+  },
+  "textStyles": {
+    "display-1": {
+      "description": "Hero / display heading",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.5xl",
+      "fontWeight": "$tokens.fontWeights.bold",
+      "lineHeight": "$tokens.lineHeights.none",
+      "letterSpacing": "$tokens.letterSpacings.tighter"
+    },
+    "heading-1": {
+      "description": "Page title",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.3xl",
+      "fontWeight": "$tokens.fontWeights.bold",
+      "lineHeight": "$tokens.lineHeights.tight",
+      "letterSpacing": "$tokens.letterSpacings.tight"
+    },
+    "heading-2": {
+      "description": "Section title",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.2xl",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.tight",
+      "letterSpacing": "$tokens.letterSpacings.tight"
+    },
+    "heading-3": {
+      "description": "Card title",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.lg",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "heading-4": {
+      "description": "Group label",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.md",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "body": {
+      "description": "Default body text",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.md",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "body-lg": {
+      "description": "Large body text",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.lg",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.relaxed"
+    },
+    "body-sm": {
+      "description": "Small body text",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "caption": {
+      "description": "Labels, timestamps",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wide"
+    },
+    "overline": {
+      "description": "Category overline",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.2xs",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wider"
+    },
+    "code": {
+      "description": "Code blocks",
+      "fontFamily": "$tokens.fontFamilies.mono",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.relaxed"
+    },
+    "code-sm": {
+      "description": "Compact code",
+      "fontFamily": "$tokens.fontFamilies.mono",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "ui-label": {
+      "description": "Form labels",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.none"
+    },
+    "ui-button": {
+      "description": "Button text",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.none"
+    },
+    "nav-item": {
+      "description": "Navigation items",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "table-header": {
+      "description": "Table headers",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wide"
+    },
+    "table-cell": {
+      "description": "Table cells",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "content": {
+        "id": "stack-50001",
+        "type": "stack",
+        "props": {
+          "gap": "24px",
+          "padding": "28px"
+        },
+        "children": [
+          {
+            "id": "breadcrumb-50002",
+            "type": "breadcrumb",
+            "props": {
+              "items": [
+                {
+                  "label": "Home",
+                  "href": "/"
+                },
+                {
+                  "label": "Dashboard"
+                }
+              ],
+              "separator": "/",
+              "color": "#64748b",
+              "gap": "8px"
+            }
+          },
+          {
+            "id": "row-50003",
+            "type": "row",
+            "props": {
+              "gap": "16px",
+              "align": "center",
+              "justify": "space-between",
+              "wrap": false
+            },
+            "children": [
+              {
+                "id": "row-50004",
+                "type": "row",
+                "props": {
+                  "gap": "12px",
+                  "align": "center",
+                  "justify": "flex-start",
+                  "wrap": false
+                },
+                "children": [
+                  {
+                    "id": "heading-50005",
+                    "type": "heading",
+                    "props": {
+                      "content": "Pipeline Dashboard",
+                      "level": 1,
+                      "color": "#0f172a",
+                      "font": {
+                        "fontFamily": "'Inter', Inter, -apple-system, sans-serif"
+                      }
+                    }
+                  },
+                  {
+                    "id": "badge-50006",
+                    "type": "badge",
+                    "props": {
+                      "content": "v2.4.1",
+                      "color": "accent",
+                      "borderRadius": "9999px"
+                    }
+                  },
+                  {
+                    "id": "badge-50007",
+                    "type": "badge",
+                    "props": {
+                      "content": "Production",
+                      "color": "success",
+                      "borderRadius": "9999px"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "row-50008",
+                "type": "row",
+                "props": {
+                  "gap": "10px",
+                  "align": "center",
+                  "justify": "flex-end",
+                  "wrap": false
+                },
+                "children": [
+                  {
+                    "id": "search-50009",
+                    "type": "search",
+                    "props": {
+                      "placeholder": "Search runs, artifacts...",
+                      "background": "#ffffff",
+                      "borderRadius": "8px"
+                    }
+                  },
+                  {
+                    "id": "select-50010",
+                    "type": "select",
+                    "props": {
+                      "placeholder": "All Statuses",
+                      "options": [
+                        {
+                          "value": "all",
+                          "label": "All Statuses"
+                        },
+                        {
+                          "value": "active",
+                          "label": "Active"
+                        },
+                        {
+                          "value": "completed",
+                          "label": "Completed"
+                        },
+                        {
+                          "value": "failed",
+                          "label": "Failed"
+                        }
+                      ],
+                      "background": "#ffffff",
+                      "borderRadius": "8px"
+                    }
+                  },
+                  {
+                    "id": "button-50011",
+                    "type": "button",
+                    "props": {
+                      "label": "New Run",
+                      "variant": "primary",
+                      "borderRadius": "8px",
+                      "icon": "Plus"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "grid-50012",
+            "type": "grid",
+            "props": {
+              "columns": "4",
+              "gap": "16px"
+            },
+            "children": [
+              {
+                "id": "stat-card-50013",
+                "type": "stat-card",
+                "props": {
+                  "label": "Total Runs",
+                  "value": "1,234",
+                  "icon": "ChartLineUp",
+                  "trendDirection": "up",
+                  "trend": "+12.5%",
+                  "padding": "20px",
+                  "background": "#ffffff",
+                  "borderRadius": "12px"
+                }
+              },
+              {
+                "id": "stat-card-50014",
+                "type": "stat-card",
+                "props": {
+                  "label": "Active Pipelines",
+                  "value": "23",
+                  "icon": "Lightning",
+                  "trendDirection": "up",
+                  "trend": "+3",
+                  "padding": "20px",
+                  "background": "#ffffff",
+                  "borderRadius": "12px"
+                }
+              },
+              {
+                "id": "stat-card-50015",
+                "type": "stat-card",
+                "props": {
+                  "label": "Success Rate",
+                  "value": "94.2%",
+                  "icon": "CheckCircle",
+                  "trendDirection": "up",
+                  "trend": "+2.1%",
+                  "padding": "20px",
+                  "background": "#ffffff",
+                  "borderRadius": "12px"
+                }
+              },
+              {
+                "id": "stat-card-50016",
+                "type": "stat-card",
+                "props": {
+                  "label": "Avg Duration",
+                  "value": "4m 32s",
+                  "icon": "Clock",
+                  "trendDirection": "down",
+                  "trend": "-18s",
+                  "padding": "20px",
+                  "background": "#ffffff",
+                  "borderRadius": "12px"
+                }
+              }
+            ]
+          },
+          {
+            "id": "alert-50017",
+            "type": "alert",
+            "props": {
+              "variant": "warning",
+              "title": "Pending Review",
+              "message": "3 pipeline runs completed and are awaiting validation review.",
+              "dismissible": true,
+              "padding": "14px",
+              "borderRadius": "10px"
+            }
+          },
+          {
+            "id": "row-50018",
+            "type": "row",
+            "props": {
+              "gap": "12px",
+              "align": "center",
+              "justify": "space-between",
+              "wrap": false
+            },
+            "children": [
+              {
+                "id": "heading-50019",
+                "type": "heading",
+                "props": {
+                  "content": "Recent Runs",
+                  "level": 2,
+                  "color": "#0f172a",
+                  "font": {
+                    "fontFamily": "'Inter', Inter, -apple-system, sans-serif"
+                  }
+                }
+              },
+              {
+                "id": "link-50020",
+                "type": "link",
+                "props": {
+                  "label": "View all runs →",
+                  "href": "/runs",
+                  "target": "_self",
+                  "variant": "accent"
+                }
+              }
+            ]
+          },
+          {
+            "id": "divider-50021",
+            "type": "divider",
+            "props": {
+              "color": "#e8e8e8",
+              "lineStyle": "solid"
+            }
+          },
+          {
+            "id": "table-50022",
+            "type": "table",
+            "props": {
+              "dataSource": "runs",
+              "columns": [
+                {
+                  "key": "id",
+                  "label": "Run ID",
+                  "width": "12%"
+                },
+                {
+                  "key": "pipeline",
+                  "label": "Pipeline",
+                  "width": "22%"
+                },
+                {
+                  "key": "status",
+                  "label": "Status",
+                  "width": "14%"
+                },
+                {
+                  "key": "gate",
+                  "label": "Gate",
+                  "width": "14%"
+                },
+                {
+                  "key": "duration",
+                  "label": "Duration",
+                  "width": "14%"
+                },
+                {
+                  "key": "started",
+                  "label": "Started",
+                  "width": "16%"
+                },
+                {
+                  "key": "actions",
+                  "label": "",
+                  "width": "8%"
+                }
+              ],
+              "striped": true,
+              "compact": false,
+              "borderRadius": "10px"
+            }
+          },
+          {
+            "id": "row-50023",
+            "type": "row",
+            "props": {
+              "gap": "12px",
+              "align": "center",
+              "justify": "space-between",
+              "wrap": false
+            },
+            "children": [
+              {
+                "id": "text-50024",
+                "type": "text",
+                "props": {
+                  "content": "Showing 1–10 of 47 runs",
+                  "color": "#64748b"
+                }
+              },
+              {
+                "id": "pagination-50025",
+                "type": "pagination",
+                "props": {
+                  "totalPages": "5",
+                  "currentPage": "1",
+                  "size": "md",
+                  "gap": "4px",
+                  "accentColor": "#634aff"
+                }
+              }
+            ]
+          },
+          {
+            "id": "progress-50026",
+            "type": "progress",
+            "props": {
+              "value": "75",
+              "variant": "default",
+              "barColor": "#634aff",
+              "size": "sm",
+              "showLabel": true,
+              "borderRadius": "9999px"
+            }
+          },
+          {
+            "id": "row-50027",
+            "type": "row",
+            "props": {
+              "gap": "8px",
+              "align": "center",
+              "justify": "flex-start",
+              "wrap": false
+            },
+            "children": [
+              {
+                "id": "icon-50028",
+                "type": "icon",
+                "props": {
+                  "name": "Info",
+                  "size": "16",
+                  "color": "#64748b"
+                }
+              },
+              {
+                "id": "text-50029",
+                "type": "text",
+                "props": {
+                  "content": "Pipeline health: 94.2% success rate over the last 30 days",
+                  "color": "#64748b"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "run-detail": {
+      "id": "run-detail",
+      "label": "Run #937",
+      "route": "/run-detail",
+      "content": {
+        "id": "stack-50030",
+        "type": "stack",
+        "props": {
+          "gap": "20px",
+          "padding": "28px"
+        },
+        "children": [
+          {
+            "id": "breadcrumb-50031",
+            "type": "breadcrumb",
+            "props": {
+              "items": [
+                {
+                  "label": "Home",
+                  "href": "/"
+                },
+                {
+                  "label": "Runs",
+                  "href": "/runs"
+                },
+                {
+                  "label": "Run #937"
+                }
+              ],
+              "separator": ">",
+              "color": "#64748b",
+              "gap": "8px"
+            }
+          },
+          {
+            "id": "row-50032",
+            "type": "row",
+            "props": {
+              "gap": "16px",
+              "align": "center",
+              "justify": "space-between",
+              "wrap": false
+            },
+            "children": [
+              {
+                "id": "row-50033",
+                "type": "row",
+                "props": {
+                  "gap": "10px",
+                  "align": "center",
+                  "justify": "flex-start",
+                  "wrap": false
+                },
+                "children": [
+                  {
+                    "id": "heading-50034",
+                    "type": "heading",
+                    "props": {
+                      "content": "Orchestrator Run #937",
+                      "level": 1,
+                      "color": "#0f172a",
+                      "font": {
+                        "fontFamily": "'Inter', Inter, -apple-system, sans-serif"
+                      }
+                    }
+                  },
+                  {
+                    "id": "badge-50035",
+                    "type": "badge",
+                    "props": {
+                      "content": "Active",
+                      "color": "success",
+                      "borderRadius": "9999px"
+                    }
+                  },
+                  {
+                    "id": "badge-50036",
+                    "type": "badge",
+                    "props": {
+                      "content": "Test Generation",
+                      "color": "accent",
+                      "borderRadius": "9999px"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "row-50037",
+                "type": "row",
+                "props": {
+                  "gap": "8px",
+                  "align": "center",
+                  "justify": "flex-end",
+                  "wrap": false
+                },
+                "children": [
+                  {
+                    "id": "button-50038",
+                    "type": "button",
+                    "props": {
+                      "label": "Config",
+                      "variant": "secondary",
+                      "borderRadius": "8px",
+                      "icon": "GearSix"
+                    }
+                  },
+                  {
+                    "id": "button-50039",
+                    "type": "button",
+                    "props": {
+                      "label": "Resume",
+                      "variant": "primary",
+                      "borderRadius": "8px",
+                      "icon": "Play"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "spacer-50040",
+            "type": "spacer",
+            "props": {
+              "size": "8px"
+            }
+          },
+          {
+            "id": "tabs-50041",
+            "type": "tabs",
+            "props": {
+              "tabs": [
+                {
+                  "id": "overview",
+                  "label": "Overview"
+                },
+                {
+                  "id": "artifacts",
+                  "label": "Artifacts"
+                },
+                {
+                  "id": "logs",
+                  "label": "Logs"
+                }
+              ],
+              "defaultTab": "overview",
+              "activeColor": "#634aff"
+            }
+          },
+          {
+            "id": "grid-50042",
+            "type": "grid",
+            "props": {
+              "columns": "2",
+              "gap": "20px"
+            },
+            "children": [
+              {
+                "id": "card-50043",
+                "type": "card",
+                "props": {
+                  "title": "Run Configuration",
+                  "padding": "20px",
+                  "background": "#ffffff",
+                  "borderRadius": "12px"
+                },
+                "children": [
+                  {
+                    "id": "key-value-50044",
+                    "type": "key-value",
+                    "props": {
+                      "layout": "horizontal",
+                      "items": [
+                        {
+                          "label": "Pipeline",
+                          "value": "Code Generation"
+                        },
+                        {
+                          "label": "Provider",
+                          "value": "Claude Sonnet 4"
+                        },
+                        {
+                          "label": "Started",
+                          "value": "Feb 4, 2026 — 07:41 UTC"
+                        },
+                        {
+                          "label": "Duration",
+                          "value": "4m 32s"
+                        },
+                        {
+                          "label": "Current Phase",
+                          "value": "Test Generation"
+                        },
+                        {
+                          "label": "Retry Attempt",
+                          "value": "1 of 3"
+                        }
+                      ],
+                      "gap": "10px"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "card-50045",
+                "type": "card",
+                "props": {
+                  "title": "Pipeline Status",
+                  "padding": "20px",
+                  "background": "#ffffff",
+                  "borderRadius": "12px"
+                },
+                "children": [
+                  {
+                    "id": "progress-50046",
+                    "type": "progress",
+                    "props": {
+                      "value": "50",
+                      "variant": "default",
+                      "barColor": "#634aff",
+                      "size": "md",
+                      "showLabel": true,
+                      "borderRadius": "9999px"
+                    }
+                  },
+                  {
+                    "id": "row-50047",
+                    "type": "row",
+                    "props": {
+                      "gap": "10px",
+                      "align": "center",
+                      "justify": "flex-start",
+                      "wrap": false
+                    },
+                    "children": [
+                      {
+                        "id": "spinner-50048",
+                        "type": "spinner",
+                        "props": {
+                          "size": "sm",
+                          "color": "#634aff"
+                        }
+                      },
+                      {
+                        "id": "text-50049",
+                        "type": "text",
+                        "props": {
+                          "content": "Generating test specifications from contract...",
+                          "color": "#64748b"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "card-50050",
+            "type": "card",
+            "props": {
+              "title": "Active Artifacts",
+              "padding": "20px",
+              "background": "#ffffff",
+              "borderRadius": "12px"
+            },
+            "children": [
+              {
+                "id": "list-50051",
+                "type": "list",
+                "props": {
+                  "dataSource": "artifacts",
+                  "maxItems": "5",
+                  "gap": "2px",
+                  "borderRadius": "8px"
+                }
+              }
+            ]
+          },
+          {
+            "id": "accordion-50052",
+            "type": "accordion",
+            "props": {
+              "items": [
+                {
+                  "title": "Phase 1 — Task Definitions ✓",
+                  "content": "Task definitions loaded. 12 contracts parsed, 3 normative documents indexed."
+                },
+                {
+                  "title": "Phase 2 — Plan Generation ✓",
+                  "content": "Execution plan generated with 8 steps. Dependencies resolved. Estimated: 6 min."
+                },
+                {
+                  "title": "Phase 3 — Test Generation ⏳",
+                  "content": "Generating Jest test suites from contract specifications. Progress: 50%."
+                },
+                {
+                  "title": "Phase 4 — Validation Gatekeeper",
+                  "content": "Pending — runs automatically after test generation completes."
+                },
+                {
+                  "title": "Phase 5 — Execution",
+                  "content": "Pending — final code generation and integration."
+                }
+              ],
+              "allowMultiple": true,
+              "variant": "bordered",
+              "gap": "8px",
+              "borderRadius": "10px"
+            }
+          },
+          {
+            "id": "container-50053",
+            "type": "container",
+            "props": {
+              "padding": "16px",
+              "background": "#f1f5f9",
+              "borderRadius": "12px"
+            },
+            "children": [
+              {
+                "id": "row-50054",
+                "type": "row",
+                "props": {
+                  "gap": "12px",
+                  "align": "center",
+                  "justify": "space-between",
+                  "wrap": false
+                },
+                "children": [
+                  {
+                    "id": "row-50055",
+                    "type": "row",
+                    "props": {
+                      "gap": "10px",
+                      "align": "center",
+                      "justify": "flex-start",
+                      "wrap": false
+                    },
+                    "children": [
+                      {
+                        "id": "avatar-50056",
+                        "type": "avatar",
+                        "props": {
+                          "src": "",
+                          "alt": "John Doe",
+                          "fallback": "JD",
+                          "size": "sm",
+                          "shape": "circle",
+                          "background": "#634aff",
+                          "color": "#ffffff"
+                        }
+                      },
+                      {
+                        "id": "text-50057",
+                        "type": "text",
+                        "props": {
+                          "content": "Started by John Doe • 2 hours ago",
+                          "color": "#64748b"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "tooltip-50058",
+                    "type": "tooltip",
+                    "props": {
+                      "content": "This run uses normative contracts to drive test-first code generation.",
+                      "position": "top",
+                      "background": "#0f172a"
+                    },
+                    "children": [
+                      {
+                        "id": "text-50059",
+                        "type": "text",
+                        "props": {
+                          "content": "ℹ️ Pipeline info",
+                          "color": "#634aff"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "modal-50060",
+            "type": "modal",
+            "props": {
+              "title": "Cancel Run?",
+              "size": "sm",
+              "showClose": true,
+              "background": "#ffffff",
+              "padding": "24px",
+              "borderRadius": "14px"
+            },
+            "children": [
+              {
+                "id": "text-50061",
+                "type": "text",
+                "props": {
+                  "content": "Are you sure you want to cancel Run #937? This action will terminate all active pipeline phases and cannot be undone.",
+                  "color": "#0f172a"
+                }
+              },
+              {
+                "id": "button-50062",
+                "type": "button",
+                "props": {
+                  "label": "Cancel Run",
+                  "variant": "destructive",
+                  "borderRadius": "8px",
+                  "icon": "X"
+                }
+              }
+            ]
+          },
+          {
+            "id": "drawer-50063",
+            "type": "drawer",
+            "props": {
+              "title": "Run Details",
+              "position": "right",
+              "width": "360px",
+              "background": "#ffffff",
+              "padding": "20px",
+              "gap": "16px"
+            },
+            "children": [
+              {
+                "id": "text-50064",
+                "type": "text",
+                "props": {
+                  "content": "Extended configuration and metadata for this orchestrator run, including provider settings, retry policies, and artifact output paths.",
+                  "color": "#64748b"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "settings": {
+      "id": "settings",
+      "label": "Settings",
+      "route": "/settings",
+      "content": {
+        "id": "stack-50065",
+        "type": "stack",
+        "props": {
+          "gap": "20px",
+          "padding": "28px"
+        },
+        "children": [
+          {
+            "id": "breadcrumb-50066",
+            "type": "breadcrumb",
+            "props": {
+              "items": [
+                {
+                  "label": "Home",
+                  "href": "/"
+                },
+                {
+                  "label": "Settings"
+                }
+              ],
+              "separator": "/",
+              "color": "#64748b",
+              "gap": "8px"
+            }
+          },
+          {
+            "id": "heading-50067",
+            "type": "heading",
+            "props": {
+              "content": "Settings",
+              "level": 1,
+              "color": "#0f172a",
+              "font": {
+                "fontFamily": "'Inter', Inter, -apple-system, sans-serif"
+              }
+            }
+          },
+          {
+            "id": "text-50068",
+            "type": "text",
+            "props": {
+              "content": "Configure your orchestrator workspace, notifications, and integrations.",
+              "color": "#64748b"
+            }
+          },
+          {
+            "id": "row-50069",
+            "type": "row",
+            "props": {
+              "gap": "0px",
+              "align": "stretch",
+              "justify": "flex-start",
+              "wrap": false
+            },
+            "children": [
+              {
+                "id": "sidebar-50070",
+                "type": "sidebar",
+                "props": {
+                  "width": "200px",
+                  "position": "left",
+                  "background": "#f1f5f9",
+                  "padding": "16px",
+                  "gap": "4px",
+                  "collapsible": false
+                },
+                "children": [
+                  {
+                    "id": "menu-50071",
+                    "type": "menu",
+                    "props": {
+                      "items": [
+                        {
+                          "label": "General",
+                          "href": "#general",
+                          "icon": "GearSix"
+                        },
+                        {
+                          "label": "Notifications",
+                          "href": "#notif",
+                          "icon": "Bell"
+                        },
+                        {
+                          "label": "Integrations",
+                          "href": "#integrations",
+                          "icon": "Plugs"
+                        },
+                        {
+                          "label": "Advanced",
+                          "href": "#advanced",
+                          "icon": "Wrench"
+                        }
+                      ],
+                      "direction": "vertical",
+                      "gap": "4px",
+                      "activeColor": "#634aff"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "stack-50072",
+                "type": "stack",
+                "props": {
+                  "gap": "24px",
+                  "padding": "24px"
+                },
+                "children": [
+                  {
+                    "id": "card-50073",
+                    "type": "card",
+                    "props": {
+                      "title": "General Settings",
+                      "padding": "24px",
+                      "background": "#ffffff",
+                      "borderRadius": "12px"
+                    },
+                    "children": [
+                      {
+                        "id": "input-50074",
+                        "type": "input",
+                        "props": {
+                          "label": "Workspace Name",
+                          "placeholder": "My Workspace",
+                          "inputType": "text",
+                          "required": true,
+                          "disabled": false,
+                          "borderRadius": "8px"
+                        }
+                      },
+                      {
+                        "id": "textarea-50075",
+                        "type": "textarea",
+                        "props": {
+                          "label": "Description",
+                          "placeholder": "Describe what this workspace is used for...",
+                          "rows": "3",
+                          "required": false,
+                          "disabled": false,
+                          "borderRadius": "8px"
+                        }
+                      },
+                      {
+                        "id": "select-50076",
+                        "type": "select",
+                        "props": {
+                          "placeholder": "Select default provider",
+                          "options": [
+                            {
+                              "value": "claude-sonnet",
+                              "label": "Claude Sonnet 4"
+                            },
+                            {
+                              "value": "claude-opus",
+                              "label": "Claude Opus 4"
+                            },
+                            {
+                              "value": "gpt4o",
+                              "label": "GPT-4o"
+                            },
+                            {
+                              "value": "gemini",
+                              "label": "Gemini 2.0 Flash"
+                            }
+                          ],
+                          "background": "#ffffff",
+                          "borderRadius": "8px"
+                        }
+                      },
+                      {
+                        "id": "divider-50077",
+                        "type": "divider",
+                        "props": {
+                          "color": "#e8e8e8",
+                          "lineStyle": "solid"
+                        }
+                      },
+                      {
+                        "id": "row-50078",
+                        "type": "row",
+                        "props": {
+                          "gap": "32px",
+                          "align": "center",
+                          "justify": "flex-start",
+                          "wrap": true
+                        },
+                        "children": [
+                          {
+                            "id": "switch-50079",
+                            "type": "switch",
+                            "props": {
+                              "label": "Auto-validate on completion",
+                              "checked": true,
+                              "disabled": false,
+                              "accentColor": "#634aff"
+                            }
+                          },
+                          {
+                            "id": "checkbox-50080",
+                            "type": "checkbox",
+                            "props": {
+                              "label": "Enable email notifications",
+                              "checked": true,
+                              "disabled": false,
+                              "accentColor": "#634aff"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "radio-50081",
+                        "type": "radio",
+                        "props": {
+                          "name": "theme",
+                          "options": [
+                            {
+                              "value": "light",
+                              "label": "Light Theme"
+                            },
+                            {
+                              "value": "dark",
+                              "label": "Dark Theme"
+                            },
+                            {
+                              "value": "system",
+                              "label": "System Default"
+                            }
+                          ],
+                          "disabled": false,
+                          "accentColor": "#634aff",
+                          "gap": "12px"
+                        }
+                      },
+                      {
+                        "id": "button-50082",
+                        "type": "button",
+                        "props": {
+                          "label": "Save Settings",
+                          "variant": "primary",
+                          "borderRadius": "8px",
+                          "icon": "FloppyDisk"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "card-50083",
+                    "type": "card",
+                    "props": {
+                      "title": "Media & Branding",
+                      "padding": "24px",
+                      "background": "#ffffff",
+                      "borderRadius": "12px"
+                    },
+                    "children": [
+                      {
+                        "id": "heading-50084",
+                        "type": "heading",
+                        "props": {
+                          "content": "Logo",
+                          "level": 4,
+                          "color": "#0f172a"
+                        }
+                      },
+                      {
+                        "id": "image-50085",
+                        "type": "image",
+                        "props": {
+                          "src": "",
+                          "alt": "Workspace Logo",
+                          "size": "64",
+                          "borderRadius": "12px"
+                        }
+                      },
+                      {
+                        "id": "heading-50086",
+                        "type": "heading",
+                        "props": {
+                          "content": "Demo Video",
+                          "level": 4,
+                          "color": "#0f172a"
+                        }
+                      },
+                      {
+                        "id": "video-50087",
+                        "type": "video",
+                        "props": {
+                          "src": "",
+                          "poster": "",
+                          "autoplay": false,
+                          "controls": true,
+                          "loop": false,
+                          "muted": true,
+                          "aspectRatio": "16/9",
+                          "borderRadius": "10px"
+                        }
+                      },
+                      {
+                        "id": "heading-50088",
+                        "type": "heading",
+                        "props": {
+                          "content": "Screenshots",
+                          "level": 4,
+                          "color": "#0f172a"
+                        }
+                      },
+                      {
+                        "id": "carousel-50089",
+                        "type": "carousel",
+                        "props": {
+                          "autoplay": true,
+                          "interval": "5",
+                          "showDots": true,
+                          "showArrows": true,
+                          "gap": "16px",
+                          "borderRadius": "10px"
+                        },
+                        "children": [
+                          {
+                            "id": "container-50090",
+                            "type": "container",
+                            "props": {
+                              "padding": "40px",
+                              "background": "#eff6ff",
+                              "borderRadius": "8px"
+                            },
+                            "children": [
+                              {
+                                "id": "text-50091",
+                                "type": "text",
+                                "props": {
+                                  "content": "Dashboard Overview",
+                                  "color": "#3b82f6"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "id": "container-50092",
+                            "type": "container",
+                            "props": {
+                              "padding": "40px",
+                              "background": "#e0dbff",
+                              "borderRadius": "8px"
+                            },
+                            "children": [
+                              {
+                                "id": "text-50093",
+                                "type": "text",
+                                "props": {
+                                  "content": "Run Detail View",
+                                  "color": "#634aff"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "id": "container-50094",
+                            "type": "container",
+                            "props": {
+                              "padding": "40px",
+                              "background": "#ecfdf5",
+                              "borderRadius": "8px"
+                            },
+                            "children": [
+                              {
+                                "id": "text-50095",
+                                "type": "text",
+                                "props": {
+                                  "content": "Settings Panel",
+                                  "color": "#10b981"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "grid-50096",
+                    "type": "grid",
+                    "props": {
+                      "columns": "2",
+                      "gap": "16px"
+                    },
+                    "children": [
+                      {
+                        "id": "skeleton-50097",
+                        "type": "skeleton",
+                        "props": {
+                          "variant": "rectangular",
+                          "width": "100%",
+                          "height": "120px",
+                          "borderRadius": "10px"
+                        }
+                      },
+                      {
+                        "id": "skeleton-50098",
+                        "type": "skeleton",
+                        "props": {
+                          "variant": "rectangular",
+                          "width": "100%",
+                          "height": "120px",
+                          "borderRadius": "10px"
+                        }
+                      },
+                      {
+                        "id": "skeleton-50099",
+                        "type": "skeleton",
+                        "props": {
+                          "variant": "text",
+                          "width": "75%",
+                          "height": "16px",
+                          "borderRadius": "4px"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "spacer-50100",
+                    "type": "spacer",
+                    "props": {
+                      "size": "16px"
+                    }
+                  },
+                  {
+                    "id": "slot-50101",
+                    "type": "slot",
+                    "props": {
+                      "name": "custom-integration",
+                      "padding": "24px",
+                      "borderRadius": "10px"
+                    }
+                  },
+                  {
+                    "id": "row-50102",
+                    "type": "row",
+                    "props": {
+                      "gap": "8px",
+                      "align": "center",
+                      "justify": "center",
+                      "wrap": false
+                    },
+                    "children": [
+                      {
+                        "id": "icon-50103",
+                        "type": "icon",
+                        "props": {
+                          "name": "Sparkle",
+                          "size": "16",
+                          "color": "#949494"
+                        }
+                      },
+                      {
+                        "id": "text-50104",
+                        "type": "text",
+                        "props": {
+                          "content": "End of settings",
+                          "color": "#949494"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "divider-50105",
+                    "type": "divider",
+                    "props": {
+                      "color": "#e8e8e8",
+                      "lineStyle": "dashed"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

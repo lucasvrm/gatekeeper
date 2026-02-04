@@ -302,14 +302,36 @@ export class AgentOrchestratorBridge {
     if (memoryArtifacts.size === 0 && this.isCliProvider(phase) && outputDir) {
       console.log(`[Bridge] Claude Code spec: scanning ${outputDir} for new artifacts...`)
       memoryArtifacts = this.readArtifactsFromDir(outputDir)
-      // Filter to only new spec files (exclude plan artifacts)
-      const existingNames = new Set(Object.keys(existingArtifacts))
+      // Filter to only spec files (exclude plan artifacts from step 1)
+      // Use a fixed list instead of existingArtifacts to avoid filtering out spec files on re-generation
+      const PLAN_ARTIFACTS = new Set(['plan.json', 'contract.md', 'task.spec.md'])
       const specOnly = new Map<string, string>()
       for (const [name, content] of memoryArtifacts) {
-        if (!existingNames.has(name)) specOnly.set(name, content)
+        // Keep everything EXCEPT plan artifacts
+        if (!PLAN_ARTIFACTS.has(name)) {
+          specOnly.set(name, content)
+        }
       }
       if (specOnly.size > 0) memoryArtifacts = specOnly
-      console.log(`[Bridge] Found ${memoryArtifacts.size} new spec file(s)`)
+      console.log(`[Bridge] Found ${memoryArtifacts.size} spec file(s) (excluding plan artifacts)`)
+    }
+
+    // Fallback for API providers: if no artifacts from save_artifact tool, try reading from disk
+    if (memoryArtifacts.size === 0 && !this.isCliProvider(phase)) {
+      console.log('[Bridge] API provider returned no artifacts, trying disk fallback...')
+      const outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
+      const diskArtifacts = this.readArtifactsFromDir(outputDir)
+      const PLAN_ARTIFACTS = new Set(['plan.json', 'contract.md', 'task.spec.md'])
+      const specOnly = new Map<string, string>()
+      for (const [name, content] of diskArtifacts) {
+        if (!PLAN_ARTIFACTS.has(name)) {
+          specOnly.set(name, content)
+        }
+      }
+      if (specOnly.size > 0) {
+        memoryArtifacts = specOnly
+        console.log(`[Bridge] Disk fallback found ${memoryArtifacts.size} spec file(s)`)
+      }
     }
 
     if (memoryArtifacts.size === 0 && result.text) {

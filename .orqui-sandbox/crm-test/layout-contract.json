@@ -1,0 +1,1316 @@
+{
+  "$orqui": {
+    "schema": "layout-contract",
+    "version": "2.0.0",
+    "hash": "e2e-test-1770215583959",
+    "generatedAt": "2026-02-04T14:33:03.959Z",
+    "pageCount": 3
+  },
+  "structure": {
+    "regions": {
+      "sidebar": {
+        "enabled": true,
+        "position": "left",
+        "dimensions": {
+          "width": "$tokens.sizing.sidebar-width",
+          "height": "$tokens.sizing.full-height",
+          "minWidth": "$tokens.sizing.sidebar-min"
+        },
+        "padding": {
+          "top": "$tokens.spacing.md",
+          "right": "$tokens.spacing.sm",
+          "bottom": "$tokens.spacing.md",
+          "left": "$tokens.spacing.sm"
+        },
+        "containers": [
+          {
+            "name": "brand",
+            "description": "Logo e nome da aplicação",
+            "order": 0,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.spacing.xs",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.spacing.xs"
+            }
+          },
+          {
+            "name": "search",
+            "description": "Campo de busca global",
+            "order": 1,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.spacing.xs",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.spacing.xs"
+            }
+          },
+          {
+            "name": "navigation",
+            "description": "Links de navegação principal",
+            "order": 2,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.spacing.xs",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.spacing.xs"
+            }
+          },
+          {
+            "name": "sidebarFooter",
+            "description": "Perfil do usuário e ações de conta",
+            "order": 3,
+            "padding": {
+              "top": "$tokens.spacing.xs",
+              "right": "$tokens.spacing.xs",
+              "bottom": "$tokens.spacing.xs",
+              "left": "$tokens.spacing.xs"
+            }
+          }
+        ],
+        "behavior": {
+          "fixed": true,
+          "collapsible": true,
+          "scrollable": true,
+          "collapsedDisplay": "icon-only"
+        },
+        "navigation": {
+          "icons": {
+            "enabled": true,
+            "size": "$tokens.sizing.icon-md",
+            "gap": "$tokens.spacing.sm"
+          }
+        },
+        "collapseButton": {
+          "icon": "chevron",
+          "position": "header-end",
+          "size": "$tokens.sizing.icon-md"
+        },
+        "separators": {
+          "header": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          },
+          "footer": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          },
+          "navGroups": {
+            "enabled": false,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          }
+        }
+      },
+      "header": {
+        "enabled": true,
+        "position": "top",
+        "dimensions": {
+          "height": "$tokens.sizing.header-height"
+        },
+        "padding": {
+          "top": "$tokens.spacing.sm",
+          "right": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.sm",
+          "left": "$tokens.spacing.xl"
+        },
+        "containers": [
+          {
+            "name": "breadcrumb",
+            "description": "Navegação hierárquica da página atual",
+            "order": 0
+          },
+          {
+            "name": "pageTitle",
+            "description": "Título e descrição da página",
+            "order": 1
+          },
+          {
+            "name": "actions",
+            "description": "Ações contextuais (botões, filtros, busca)",
+            "order": 2
+          },
+          {
+            "name": "userMenu",
+            "description": "Avatar, notificações, menu do usuário",
+            "order": 3
+          }
+        ],
+        "behavior": {
+          "fixed": true,
+          "collapsible": false,
+          "scrollable": false
+        },
+        "separators": {
+          "bottom": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          }
+        }
+      },
+      "main": {
+        "enabled": true,
+        "position": "center",
+        "dimensions": {
+          "maxWidth": "$tokens.sizing.content-max-width"
+        },
+        "padding": {
+          "top": "$tokens.spacing.xl",
+          "right": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.2xl",
+          "left": "$tokens.spacing.xl"
+        },
+        "containers": [
+          {
+            "name": "alerts",
+            "description": "Alertas e notificações de sistema",
+            "order": 0
+          },
+          {
+            "name": "content",
+            "description": "Conteúdo principal da página",
+            "order": 1
+          }
+        ],
+        "behavior": {
+          "fixed": false,
+          "collapsible": false,
+          "scrollable": true
+        }
+      },
+      "footer": {
+        "enabled": true,
+        "position": "bottom",
+        "dimensions": {
+          "height": "$tokens.sizing.footer-height"
+        },
+        "padding": {
+          "top": "$tokens.spacing.sm",
+          "right": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.sm",
+          "left": "$tokens.spacing.xl"
+        },
+        "containers": [
+          {
+            "name": "status",
+            "description": "Status do sistema e versão",
+            "order": 0
+          },
+          {
+            "name": "links",
+            "description": "Links de suporte e documentação",
+            "order": 1
+          }
+        ],
+        "behavior": {
+          "fixed": false,
+          "collapsible": false,
+          "scrollable": false
+        },
+        "separators": {
+          "top": {
+            "enabled": true,
+            "color": "$tokens.colors.border",
+            "width": "$tokens.borderWidth.thin",
+            "style": "solid"
+          }
+        }
+      }
+    },
+    "breadcrumbs": {
+      "enabled": true,
+      "position": "header",
+      "alignment": "left",
+      "separator": "/",
+      "clickable": true
+    }
+  },
+  "tokens": {
+    "spacing": {
+      "2xs": {
+        "value": 2,
+        "unit": "px"
+      },
+      "xs": {
+        "value": 4,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 8,
+        "unit": "px"
+      },
+      "md": {
+        "value": 16,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 24,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 32,
+        "unit": "px"
+      },
+      "2xl": {
+        "value": 48,
+        "unit": "px"
+      },
+      "3xl": {
+        "value": 64,
+        "unit": "px"
+      }
+    },
+    "sizing": {
+      "sidebar-width": {
+        "value": 260,
+        "unit": "px"
+      },
+      "sidebar-min": {
+        "value": 200,
+        "unit": "px"
+      },
+      "sidebar-collapsed": {
+        "value": 64,
+        "unit": "px"
+      },
+      "header-height": {
+        "value": 56,
+        "unit": "px"
+      },
+      "footer-height": {
+        "value": 40,
+        "unit": "px"
+      },
+      "full-height": {
+        "value": 100,
+        "unit": "vh"
+      },
+      "content-max-width": {
+        "value": 1200,
+        "unit": "px"
+      },
+      "dialog-sm": {
+        "value": 400,
+        "unit": "px"
+      },
+      "dialog-md": {
+        "value": 560,
+        "unit": "px"
+      },
+      "dialog-lg": {
+        "value": 720,
+        "unit": "px"
+      },
+      "sheet-width": {
+        "value": 380,
+        "unit": "px"
+      },
+      "drawer-height": {
+        "value": 320,
+        "unit": "px"
+      },
+      "popover-width": {
+        "value": 280,
+        "unit": "px"
+      },
+      "command-width": {
+        "value": 480,
+        "unit": "px"
+      },
+      "avatar-sm": {
+        "value": 24,
+        "unit": "px"
+      },
+      "avatar-md": {
+        "value": 36,
+        "unit": "px"
+      },
+      "avatar-lg": {
+        "value": 48,
+        "unit": "px"
+      },
+      "icon-sm": {
+        "value": 14,
+        "unit": "px"
+      },
+      "icon-md": {
+        "value": 18,
+        "unit": "px"
+      },
+      "icon-lg": {
+        "value": 24,
+        "unit": "px"
+      },
+      "input-height": {
+        "value": 36,
+        "unit": "px"
+      },
+      "input-height-sm": {
+        "value": 28,
+        "unit": "px"
+      },
+      "input-height-lg": {
+        "value": 44,
+        "unit": "px"
+      }
+    },
+    "fontFamilies": {
+      "primary": {
+        "family": "Inter",
+        "fallbacks": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif"
+        ]
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "fallbacks": [
+          "SF Mono",
+          "Fira Code",
+          "Cascadia Code",
+          "monospace"
+        ]
+      },
+      "display": {
+        "family": "Inter",
+        "fallbacks": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "sans-serif"
+        ]
+      }
+    },
+    "fontSizes": {
+      "2xs": {
+        "value": 10,
+        "unit": "px"
+      },
+      "xs": {
+        "value": 11,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 13,
+        "unit": "px"
+      },
+      "md": {
+        "value": 14,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 16,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 18,
+        "unit": "px"
+      },
+      "2xl": {
+        "value": 22,
+        "unit": "px"
+      },
+      "3xl": {
+        "value": 28,
+        "unit": "px"
+      },
+      "4xl": {
+        "value": 36,
+        "unit": "px"
+      },
+      "5xl": {
+        "value": 48,
+        "unit": "px"
+      }
+    },
+    "fontWeights": {
+      "regular": {
+        "value": 400
+      },
+      "medium": {
+        "value": 500
+      },
+      "semibold": {
+        "value": 600
+      },
+      "bold": {
+        "value": 700
+      }
+    },
+    "lineHeights": {
+      "none": {
+        "value": 1
+      },
+      "tight": {
+        "value": 1.2
+      },
+      "snug": {
+        "value": 1.35
+      },
+      "normal": {
+        "value": 1.5
+      },
+      "relaxed": {
+        "value": 1.7
+      }
+    },
+    "letterSpacings": {
+      "tighter": {
+        "value": -0.03,
+        "unit": "em"
+      },
+      "tight": {
+        "value": -0.015,
+        "unit": "em"
+      },
+      "normal": {
+        "value": 0,
+        "unit": "em"
+      },
+      "wide": {
+        "value": 0.025,
+        "unit": "em"
+      },
+      "wider": {
+        "value": 0.05,
+        "unit": "em"
+      }
+    },
+    "colors": {
+      "bg": {
+        "value": "#0a0a0b"
+      },
+      "surface": {
+        "value": "#141417"
+      },
+      "surface-2": {
+        "value": "#1c1c21"
+      },
+      "surface-3": {
+        "value": "#24242b"
+      },
+      "border": {
+        "value": "#2a2a33"
+      },
+      "border-2": {
+        "value": "#3a3a45"
+      },
+      "text": {
+        "value": "#e4e4e7"
+      },
+      "text-muted": {
+        "value": "#8b8b96"
+      },
+      "text-dim": {
+        "value": "#5b5b66"
+      },
+      "accent": {
+        "value": "#6d9cff"
+      },
+      "accent-dim": {
+        "value": "#4a7adf"
+      },
+      "accent-fg": {
+        "value": "#ffffff"
+      },
+      "danger": {
+        "value": "#ff6b6b"
+      },
+      "danger-dim": {
+        "value": "#cc5555"
+      },
+      "success": {
+        "value": "#4ade80"
+      },
+      "success-dim": {
+        "value": "#22c55e"
+      },
+      "warning": {
+        "value": "#fbbf24"
+      },
+      "warning-dim": {
+        "value": "#d4a017"
+      },
+      "sidebar-bg": {
+        "value": "#111114"
+      },
+      "header-bg": {
+        "value": "#0a0a0b"
+      },
+      "input-bg": {
+        "value": "#1c1c21"
+      },
+      "input-border": {
+        "value": "#2a2a33"
+      },
+      "card-bg": {
+        "value": "#141417"
+      },
+      "card-border": {
+        "value": "#2a2a33"
+      },
+      "ring": {
+        "value": "#6d9cff44"
+      }
+    },
+    "borderRadius": {
+      "none": {
+        "value": 0,
+        "unit": "px"
+      },
+      "sm": {
+        "value": 4,
+        "unit": "px"
+      },
+      "md": {
+        "value": 6,
+        "unit": "px"
+      },
+      "lg": {
+        "value": 8,
+        "unit": "px"
+      },
+      "xl": {
+        "value": 12,
+        "unit": "px"
+      },
+      "full": {
+        "value": 9999,
+        "unit": "px"
+      }
+    },
+    "borderWidth": {
+      "none": {
+        "value": 0,
+        "unit": "px"
+      },
+      "thin": {
+        "value": 1,
+        "unit": "px"
+      },
+      "medium": {
+        "value": 2,
+        "unit": "px"
+      }
+    }
+  },
+  "textStyles": {
+    "display-1": {
+      "description": "Hero / display heading, usado em landing pages e estados vazios",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.5xl",
+      "fontWeight": "$tokens.fontWeights.bold",
+      "lineHeight": "$tokens.lineHeights.none",
+      "letterSpacing": "$tokens.letterSpacings.tighter"
+    },
+    "heading-1": {
+      "description": "Título principal de página",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.3xl",
+      "fontWeight": "$tokens.fontWeights.bold",
+      "lineHeight": "$tokens.lineHeights.tight",
+      "letterSpacing": "$tokens.letterSpacings.tight"
+    },
+    "heading-2": {
+      "description": "Título de seção",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.2xl",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.tight",
+      "letterSpacing": "$tokens.letterSpacings.tight"
+    },
+    "heading-3": {
+      "description": "Título de card ou grupo",
+      "fontFamily": "$tokens.fontFamilies.display",
+      "fontSize": "$tokens.fontSizes.lg",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "heading-4": {
+      "description": "Subtítulo ou label de grupo",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.md",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "body": {
+      "description": "Texto padrão de conteúdo",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.md",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "body-lg": {
+      "description": "Texto de leitura, parágrafos longos",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.lg",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.relaxed"
+    },
+    "body-sm": {
+      "description": "Texto secundário, descrições curtas",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "caption": {
+      "description": "Labels, metadados, timestamps",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wide"
+    },
+    "overline": {
+      "description": "Texto acima de títulos, categorias em caps",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.2xs",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wider"
+    },
+    "code": {
+      "description": "Código inline e blocos de código",
+      "fontFamily": "$tokens.fontFamilies.mono",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.relaxed"
+    },
+    "code-sm": {
+      "description": "Código em contextos compactos (badges, tags)",
+      "fontFamily": "$tokens.fontFamilies.mono",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    },
+    "ui-label": {
+      "description": "Labels de formulário e controles de UI",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.none"
+    },
+    "ui-button": {
+      "description": "Texto em botões",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.none"
+    },
+    "nav-item": {
+      "description": "Itens de navegação em sidebar e menus",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.medium",
+      "lineHeight": "$tokens.lineHeights.snug"
+    },
+    "table-header": {
+      "description": "Cabeçalhos de tabela e data table",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.xs",
+      "fontWeight": "$tokens.fontWeights.semibold",
+      "lineHeight": "$tokens.lineHeights.normal",
+      "letterSpacing": "$tokens.letterSpacings.wide"
+    },
+    "table-cell": {
+      "description": "Células de tabela",
+      "fontFamily": "$tokens.fontFamilies.primary",
+      "fontSize": "$tokens.fontSizes.sm",
+      "fontWeight": "$tokens.fontWeights.regular",
+      "lineHeight": "$tokens.lineHeights.normal"
+    }
+  },
+  "variables": {
+    "categories": [
+      {
+        "id": "contacts",
+        "label": "Contatos",
+        "description": "Dados de contatos do CRM",
+        "items": [
+          {
+            "id": "contacts.total",
+            "label": "Total de contatos",
+            "type": "number",
+            "example": "1.247"
+          },
+          {
+            "id": "contacts.new_this_month",
+            "label": "Novos este mês",
+            "type": "number",
+            "example": "89"
+          },
+          {
+            "id": "contacts.active",
+            "label": "Ativos",
+            "type": "number",
+            "example": "856"
+          },
+          {
+            "id": "contacts.conversion_rate",
+            "label": "Taxa de conversão",
+            "type": "number",
+            "example": "0.68"
+          }
+        ]
+      },
+      {
+        "id": "deals",
+        "label": "Negociações",
+        "items": [
+          {
+            "id": "deals.pipeline_value",
+            "label": "Valor do pipeline",
+            "type": "number",
+            "example": "2450000"
+          },
+          {
+            "id": "deals.won_this_quarter",
+            "label": "Ganhos no trimestre",
+            "type": "number",
+            "example": "34"
+          },
+          {
+            "id": "deals.lost_this_quarter",
+            "label": "Perdidos no trimestre",
+            "type": "number",
+            "example": "12"
+          },
+          {
+            "id": "deals.avg_deal_size",
+            "label": "Ticket médio",
+            "type": "number",
+            "example": "72058.82"
+          }
+        ]
+      }
+    ]
+  },
+  "pages": {
+    "crm-dashboard": {
+      "id": "crm-dashboard",
+      "label": "CRM Dashboard",
+      "route": "/",
+      "browserTitle": "CRM — Dashboard",
+      "content": {
+        "id": "dash-root",
+        "type": "stack",
+        "props": {
+          "gap": "$tokens.spacing.lg"
+        },
+        "children": [
+          {
+            "id": "dash-title",
+            "type": "heading",
+            "props": {
+              "content": "Dashboard",
+              "level": 1,
+              "textStyle": "heading-1"
+            }
+          },
+          {
+            "id": "stats-grid",
+            "type": "grid",
+            "props": {
+              "columns": 4,
+              "gap": "$tokens.spacing.md"
+            },
+            "children": [
+              {
+                "id": "stat-contacts",
+                "type": "stat-card",
+                "props": {
+                  "label": "Contatos",
+                  "value": "{{contacts.total}}",
+                  "icon": "Users"
+                }
+              },
+              {
+                "id": "stat-new",
+                "type": "stat-card",
+                "props": {
+                  "label": "Novos este mês",
+                  "value": "{{contacts.new_this_month}}",
+                  "icon": "UserPlus",
+                  "color": "success"
+                }
+              },
+              {
+                "id": "stat-pipeline",
+                "type": "stat-card",
+                "props": {
+                  "label": "Pipeline",
+                  "value": "{{deals.pipeline_value | currency:BRL}}",
+                  "icon": "CurrencyDollar",
+                  "color": "accent"
+                }
+              },
+              {
+                "id": "stat-conversion",
+                "type": "stat-card",
+                "props": {
+                  "label": "Conversão",
+                  "value": "{{contacts.conversion_rate | percent}}",
+                  "icon": "ChartLineUp",
+                  "color": "warning"
+                }
+              }
+            ]
+          },
+          {
+            "id": "content-grid",
+            "type": "grid",
+            "props": {
+              "columns": 3,
+              "gap": "$tokens.spacing.md"
+            },
+            "children": [
+              {
+                "id": "deals-card",
+                "type": "card",
+                "props": {
+                  "title": "Negociações recentes",
+                  "span": 2
+                },
+                "children": [
+                  {
+                    "id": "deals-table",
+                    "type": "table",
+                    "props": {
+                      "dataSource": "deals.recent",
+                      "compact": true,
+                      "columns": [
+                        {
+                          "key": "name",
+                          "label": "Nome",
+                          "width": "35%"
+                        },
+                        {
+                          "key": "company",
+                          "label": "Empresa",
+                          "width": "25%"
+                        },
+                        {
+                          "key": "value",
+                          "label": "Valor",
+                          "width": "20%"
+                        },
+                        {
+                          "key": "stage",
+                          "label": "Etapa",
+                          "width": "20%"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "sidebar-stats",
+                "type": "card",
+                "props": {
+                  "title": "Resumo Q1 2026"
+                },
+                "children": [
+                  {
+                    "id": "kv-summary",
+                    "type": "key-value",
+                    "props": {
+                      "layout": "vertical",
+                      "items": [
+                        {
+                          "label": "Ganhos",
+                          "value": "{{deals.won_this_quarter}}"
+                        },
+                        {
+                          "label": "Perdidos",
+                          "value": "{{deals.lost_this_quarter}}"
+                        },
+                        {
+                          "label": "Ticket médio",
+                          "value": "{{deals.avg_deal_size | currency:BRL}}"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "contacts-list": {
+      "id": "contacts-list",
+      "label": "Contatos",
+      "route": "/contacts",
+      "browserTitle": "CRM — Contatos",
+      "content": {
+        "id": "contacts-root",
+        "type": "stack",
+        "props": {
+          "gap": "$tokens.spacing.lg"
+        },
+        "children": [
+          {
+            "id": "contacts-header",
+            "type": "row",
+            "props": {
+              "justify": "space-between",
+              "align": "center"
+            },
+            "children": [
+              {
+                "id": "contacts-title",
+                "type": "heading",
+                "props": {
+                  "content": "Contatos",
+                  "level": 1,
+                  "textStyle": "heading-1"
+                }
+              },
+              {
+                "id": "btn-new-contact",
+                "type": "button",
+                "props": {
+                  "label": "Novo contato",
+                  "variant": "primary",
+                  "icon": "Plus",
+                  "route": "/contacts/new"
+                }
+              }
+            ]
+          },
+          {
+            "id": "contacts-filters",
+            "type": "row",
+            "props": {
+              "gap": "$tokens.spacing.sm",
+              "align": "center"
+            },
+            "children": [
+              {
+                "id": "filter-search",
+                "type": "search",
+                "props": {
+                  "placeholder": "Buscar contato..."
+                }
+              },
+              {
+                "id": "filter-status",
+                "type": "select",
+                "props": {
+                  "placeholder": "Status",
+                  "options": [
+                    {
+                      "value": "active",
+                      "label": "Ativo"
+                    },
+                    {
+                      "value": "inactive",
+                      "label": "Inativo"
+                    },
+                    {
+                      "value": "lead",
+                      "label": "Lead"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "filter-source",
+                "type": "select",
+                "props": {
+                  "placeholder": "Origem",
+                  "options": [
+                    {
+                      "value": "organic",
+                      "label": "Orgânico"
+                    },
+                    {
+                      "value": "referral",
+                      "label": "Indicação"
+                    },
+                    {
+                      "value": "paid",
+                      "label": "Pago"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "contacts-alert",
+            "type": "alert",
+            "props": {
+              "content": "{{contacts.new_this_month}} novos contatos este mês — {{contacts.conversion_rate | percent}} de conversão.",
+              "variant": "info"
+            }
+          },
+          {
+            "id": "contacts-table",
+            "type": "table",
+            "props": {
+              "dataSource": "contacts.list",
+              "sortable": true,
+              "pagination": true,
+              "emptyMessage": "Nenhum contato encontrado",
+              "columns": [
+                {
+                  "key": "name",
+                  "label": "Nome",
+                  "width": "25%"
+                },
+                {
+                  "key": "email",
+                  "label": "E-mail",
+                  "width": "25%"
+                },
+                {
+                  "key": "company",
+                  "label": "Empresa",
+                  "width": "20%"
+                },
+                {
+                  "key": "status",
+                  "label": "Status",
+                  "width": "10%"
+                },
+                {
+                  "key": "source",
+                  "label": "Origem",
+                  "width": "10%"
+                },
+                {
+                  "key": "created_at",
+                  "label": "Criado",
+                  "width": "10%"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "contact-detail": {
+      "id": "contact-detail",
+      "label": "Detalhe do Contato",
+      "route": "/contacts/:id",
+      "browserTitle": "{{contact.name}} — CRM",
+      "content": {
+        "id": "detail-root",
+        "type": "stack",
+        "props": {
+          "gap": "$tokens.spacing.lg"
+        },
+        "children": [
+          {
+            "id": "detail-header",
+            "type": "row",
+            "props": {
+              "gap": "$tokens.spacing.md",
+              "align": "center"
+            },
+            "children": [
+              {
+                "id": "contact-avatar",
+                "type": "avatar",
+                "props": {
+                  "name": "{{contact.name}}",
+                  "size": "lg"
+                }
+              },
+              {
+                "id": "header-text",
+                "type": "stack",
+                "props": {
+                  "gap": "$tokens.spacing.xs"
+                },
+                "children": [
+                  {
+                    "id": "contact-name",
+                    "type": "heading",
+                    "props": {
+                      "content": "{{contact.name}}",
+                      "level": 2,
+                      "textStyle": "heading-2"
+                    }
+                  },
+                  {
+                    "id": "contact-email",
+                    "type": "text",
+                    "props": {
+                      "content": "{{contact.email}}",
+                      "textStyle": "body-sm",
+                      "color": "$tokens.colors.text-muted"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "contact-status-badge",
+                "type": "badge",
+                "props": {
+                  "content": "{{contact.status}}",
+                  "color": "success"
+                }
+              }
+            ]
+          },
+          {
+            "id": "detail-divider",
+            "type": "divider",
+            "props": {}
+          },
+          {
+            "id": "contact-tabs",
+            "type": "tabs",
+            "props": {
+              "defaultTab": "info",
+              "items": [
+                {
+                  "id": "info",
+                  "label": "Informações"
+                },
+                {
+                  "id": "deals",
+                  "label": "Negociações"
+                },
+                {
+                  "id": "history",
+                  "label": "Histórico"
+                }
+              ]
+            },
+            "children": [
+              {
+                "id": "tab-info-content",
+                "type": "grid",
+                "props": {
+                  "columns": 2,
+                  "gap": "$tokens.spacing.md",
+                  "tab": "info"
+                },
+                "children": [
+                  {
+                    "id": "info-basic",
+                    "type": "card",
+                    "props": {
+                      "title": "Dados básicos"
+                    },
+                    "children": [
+                      {
+                        "id": "kv-basic",
+                        "type": "key-value",
+                        "props": {
+                          "layout": "vertical",
+                          "items": [
+                            {
+                              "label": "Empresa",
+                              "value": "{{contact.company}}"
+                            },
+                            {
+                              "label": "Telefone",
+                              "value": "{{contact.phone}}"
+                            },
+                            {
+                              "label": "Cargo",
+                              "value": "{{contact.role}}"
+                            },
+                            {
+                              "label": "Origem",
+                              "value": "{{contact.source}}"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "info-address",
+                    "type": "card",
+                    "props": {
+                      "title": "Endereço"
+                    },
+                    "children": [
+                      {
+                        "id": "kv-address",
+                        "type": "key-value",
+                        "props": {
+                          "layout": "vertical",
+                          "items": [
+                            {
+                              "label": "Cidade",
+                              "value": "{{contact.city}}"
+                            },
+                            {
+                              "label": "Estado",
+                              "value": "{{contact.state}}"
+                            },
+                            {
+                              "label": "CEP",
+                              "value": "{{contact.zip}}"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "tab-deals-table",
+                "type": "table",
+                "props": {
+                  "tab": "deals",
+                  "dataSource": "contact.deals",
+                  "emptyMessage": "Nenhuma negociação",
+                  "columns": [
+                    {
+                      "key": "name",
+                      "label": "Nome",
+                      "width": "30%"
+                    },
+                    {
+                      "key": "value",
+                      "label": "Valor",
+                      "width": "20%"
+                    },
+                    {
+                      "key": "stage",
+                      "label": "Etapa",
+                      "width": "25%"
+                    },
+                    {
+                      "key": "updated_at",
+                      "label": "Atualizado",
+                      "width": "25%"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "tab-history",
+                "type": "slot",
+                "props": {
+                  "name": "contact-history",
+                  "tab": "history"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

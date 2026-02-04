@@ -59,11 +59,29 @@ for (const def of ALL_DEFINITIONS) {
 }
 
 /**
+ * Regex to detect Orqui token references: $tokens.{group}.{id}
+ * e.g. "$tokens.spacing.lg" → tokenId "lg"
+ */
+const TOKEN_REF_REGEX = /^\$tokens\.([\w-]+)\.([\w-]+)$/;
+
+/**
  * Wrap a raw scalar into Easyblocks token value format.
  * Already-wrapped objects (from EB-native entries) pass through unchanged.
+ *
+ * Handles three cases:
+ *   1. Already an object → pass through (e.g. { tokenId: "lg", value: "24px" })
+ *   2. "$tokens.spacing.lg" → { tokenId: "lg" } (EB resolves value from config)
+ *   3. "24px" → { value: "24px" } (custom value, no token)
  */
 function wrapTokenValue(value: unknown): unknown {
   if (typeof value === "object" && value !== null) return value;
+  if (typeof value === "string") {
+    const match = value.match(TOKEN_REF_REGEX);
+    if (match) {
+      // match[1] = group (spacing, colors, etc.), match[2] = id (lg, accent, etc.)
+      return { tokenId: match[2] };
+    }
+  }
   return { value };
 }
 
