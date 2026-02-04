@@ -351,7 +351,43 @@ export function OrchestratorPage() {
   const [schemaError, setSchemaError] = useState<string | null>(null)
 
   // Step 4 result
-  const [executeResult, setExecuteResult] = useState<{ mode: string; command?: string } | null>(null)
+  const [executeResult, setExecuteResult] = useState<{ mode: string; command?: string; tokensUsed?: { inputTokens: number; outputTokens: number } } | null>(null)
+
+  // Execution phase tracking (WRITING = LLM working, null = idle)
+  const [executionPhase, setExecutionPhase] = useState<"WRITING" | null>(null)
+  const executionPhaseRef = useRef<"WRITING" | null>(null)
+  executionPhaseRef.current = executionPhase
+
+  const [executionProgress, setExecutionProgress] = useState<{
+    provider: string
+    model: string
+    iteration: number
+    inputTokens: number
+    outputTokens: number
+    lastTool: string | null
+    thinkingSeconds: number
+    startedAt: number       // Date.now() when execution started
+    lastToolTime: number    // Date.now() when last tool_call/iteration arrived
+  } | null>(null)
+
+  // Force re-render every 5s during WRITING to update elapsed timers
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (executionPhase !== "WRITING") return
+    const interval = setInterval(() => setTick(t => t + 1), 5000)
+    return () => clearInterval(interval)
+  }, [executionPhase])
+
+  // Trigger for auto-validation after execute_done (avoids stale closures in SSE handler)
+  const [executeDoneData, setExecuteDoneData] = useState<any>(null)
+
+  // Git commit phase
+  const [commitMessage, setCommitMessage] = useState("")
+  const [commitMode, setCommitMode] = useState<"all" | "manifest">("manifest")
+  const [gitChangedFiles, setGitChangedFiles] = useState<Array<{ path: string; status: string }>>([])
+  const [commitResult, setCommitResult] = useState<{ commitHash: string; message: string } | null>(null)
+  const [pushResult, setPushResult] = useState<{ branch: string; commitHash: string } | null>(null)
+  const [gitLoading, setGitLoading] = useState(false)
 
   // Attachments (ad-hoc files for plan generation context)
   const [attachments, setAttachments] = useState<Array<{ name: string; type: string; content: string; size: number }>>([])
@@ -435,6 +471,14 @@ export function OrchestratorPage() {
     setValidationStatus(null)
     setRunResults(null)
     setExecuteResult(null)
+    setExecutionPhase(null)
+    setExecutionProgress(null)
+    setExecuteDoneData(null)
+    setCommitMessage("")
+    setCommitResult(null)
+    setPushResult(null)
+    setGitChangedFiles([])
+    setGitLoading(false)
     setError(null)
     setLogs([])
     setTaskDescription("")
@@ -475,6 +519,33 @@ export function OrchestratorPage() {
   const handleSSE = useCallback(
     (event: OrchestratorEvent) => {
       const debug = debugModeRef.current
+
+      // ── Track execution progress during WRITING phase ──
+      if (executionPhaseRef.current === "WRITING") {
+        const now = Date.now()
+        if (event.type === "agent:start") {
+          setExecutionProgress(prev => ({
+            ...(prev || { iteration: 0, inputTokens: 0, outputTokens: 0, lastTool: null, thinkingSeconds: 0, startedAt: now, lastToolTime: now }),
+            provider: String(event.provider ?? ""),
+            model: String(event.model ?? ""),
+            startedAt: prev?.startedAt || now,
+            lastToolTime: now,
+          }))
+        } else if (event.type === "agent:iteration") {
+          setExecutionProgress(prev => prev ? {
+            ...prev,
+            iteration: Number(event.iteration ?? prev.iteration),
+            inputTokens: Number((event.tokensUsed as any)?.inputTokens ?? prev.inputTokens),
+            outputTokens: Number((event.tokensUsed as any)?.outputTokens ?? prev.outputTokens),
+            thinkingSeconds: 0,
+            lastToolTime: now,
+          } : prev)
+        } else if (event.type === "agent:tool_call") {
+          setExecutionProgress(prev => prev ? { ...prev, lastTool: String(event.tool ?? prev.lastTool), thinkingSeconds: 0, lastToolTime: now } : prev)
+        } else if (event.type === "agent:thinking") {
+          setExecutionProgress(prev => prev ? { ...prev, thinkingSeconds: Math.round(((event as any).elapsedMs ?? 0) / 1000) } : prev)
+        }
+      }
 
       switch (event.type) {
         case "agent:bridge_start":
@@ -567,11 +638,33 @@ export function OrchestratorPage() {
           toast.success("Plano gerado com sucesso")
           break
         }
-        case "agent:error":
-          setError(String(event.error))
+        case "agent:bridge_execute_done": {
+          const tokens = (event as any).tokensUsed as { inputTokens: number; outputTokens: number } | undefined
+          setExecutionPhase(null)
+          setExecutionProgress(null)
+          setExecuteResult({
+            mode: String((event as any).mode || "agent"),
+            tokensUsed: tokens,
+          })
           setLoading(false)
+          addLog("success", `Execução concluída — ${tokens?.inputTokens?.toLocaleString() ?? "?"}in / ${tokens?.outputTokens?.toLocaleString() ?? "?"}out`)
+          toast.success("Execução concluída — validando integridade...")
+          setExecuteDoneData(event) // trigger auto-validation via useEffect
+          break
+        }
+        case "agent:error":
           addLog("error", String(event.error))
-          toast.error(String(event.error))
+          if (executionPhaseRef.current === "WRITING") {
+            // Non-fatal: LLM may still be running. Show error but don't reset UI.
+            toast.error(`Erro durante execução: ${String(event.error)}`, { duration: 6000 })
+          } else {
+            // Fatal: no active execution, safe to reset everything.
+            setError(String(event.error))
+            setLoading(false)
+            setExecutionPhase(null)
+            setExecutionProgress(null)
+            toast.error(String(event.error))
+          }
           break
         default:
           if (debug) {
@@ -1074,68 +1167,25 @@ export function OrchestratorPage() {
       toast.error(msg)
       return
     }
+
     setError(null)
     setLoading(true)
-    addLog("info", `Executando implementação... (provider: ${stepLLMs[4].provider}, model: ${stepLLMs[4].model})`)
+    setExecuteResult(null)
+    setCommitResult(null)
+    setPushResult(null)
+    setExecutionPhase("WRITING")
+    setExecutionProgress(null)
+    setValidationStatus(null)
+    setRunResults(null)
+    addLog("info", `Executando implementação... (${stepLLMs[4].provider}/${stepLLMs[4].model})`)
+
     try {
-      // Execute returns 202 — result comes via SSE (agent:bridge_execute_done)
-      const result = await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4].provider, model: stepLLMs[4].model }, 1)
-      setExecuteResult(result)
+      // 202 — LLM starts in background. Completion comes via SSE: agent:bridge_execute_done
+      await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4].provider, model: stepLLMs[4].model }, 1)
       markComplete(3)
-      markComplete(4)
       setStep(4)
-      addLog("success", `Execução concluída (modo: ${result.mode})`)
-      toast.success("Execução concluída — iniciando validação de integridade...")
-
-      // Auto-trigger post-execution validation (Gates 2-3)
-      try {
-        addLog("info", "Iniciando validação pós-execução (Gates 2-3)...")
-        setValidationStatus("RUNNING")
-        validationResolvedRef.current = false
-
-        const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
-        if (planArtifact) {
-          const plan = JSON.parse(planArtifact.content)
-          const files = plan.manifest?.files || plan.files || []
-          const testFile = plan.manifest?.testFile || plan.testFile || specArtifacts[0]?.filename || "spec.test.ts"
-          const contract = plan.contract || undefined
-
-          const execRunResponse = await api.runs.create({
-            projectId: selectedProjectId!,
-            outputId,
-            taskPrompt: taskDescription,
-            manifest: { files, testFile },
-            contract,
-            dangerMode: plan.dangerMode || false,
-            runType: "EXECUTION",
-          })
-
-          setRunId(execRunResponse.runId)
-          addLog("success", `Run de execução criada: ${execRunResponse.runId}`)
-
-          if (specArtifacts.length > 0) {
-            try {
-              addLog("info", `Upload de arquivos para run EXECUTION...`)
-              const formData = new FormData()
-              const planBlob = new Blob([planArtifact.content], { type: "application/json" })
-              formData.append("planJson", planBlob, "plan.json")
-              const specBlob = new Blob([specArtifacts[0].content], { type: "text/plain" })
-              formData.append("specFile", specBlob, specArtifacts[0].filename)
-              
-              await api.runs.uploadFiles(execRunResponse.runId, formData)
-              addLog("success", `Upload EXECUTION concluído — validando gates 2-3...`)
-            } catch (uploadErr) {
-              const uploadMsg = uploadErr instanceof Error ? uploadErr.message : "Erro no upload"
-              addLog("error", `Falha no upload EXECUTION: ${uploadMsg}`)
-              throw uploadErr // Re-throw to be caught by outer catch
-            }
-          } else {
-            addLog("warning", "Nenhum artifact para upload EXECUTION")
-          }
-        }
-      } catch (execValErr) {
-        addLog("warning", `Validação pós-execução não pôde ser iniciada: ${execValErr instanceof Error ? execValErr.message : String(execValErr)}`)
-      }
+      addLog("info", "LLM iniciou — acompanhe o progresso abaixo")
+      // Note: loading stays true, setLoading(false) happens in SSE handler
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Erro na execução"
       const isNetwork = raw === "Failed to fetch" || raw.includes("NetworkError")
@@ -1143,12 +1193,149 @@ export function OrchestratorPage() {
         ? `Erro de rede ao chamar /agent/bridge/execute — verifique se o servidor está rodando em ${API_BASE}`
         : raw
       setError(msg)
+      setExecutionPhase(null)
+      setExecutionProgress(null)
       addLog("error", msg)
       toast.error(isNetwork ? "Servidor inacessível" : msg)
-    } finally {
       setLoading(false)
     }
   }
+
+  // ── Auto-trigger Gates 2-3 after execute_done (via useEffect to avoid stale closures) ──
+  const startExecutionValidation = async () => {
+    if (!outputId || !selectedProjectId) return
+
+    setValidationStatus("RUNNING")
+    setRunResults(null)
+    validationResolvedRef.current = false
+    addLog("info", "Iniciando validação pós-execução (Gates 2-3)...")
+
+    try {
+      const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+      if (!planArtifact) throw new Error("plan.json não encontrado")
+
+      const plan = JSON.parse(planArtifact.content)
+      const files = plan.manifest?.files || plan.files || []
+      const testFile = plan.manifest?.testFile || plan.testFile || specArtifacts[0]?.filename || "spec.test.ts"
+      const contract = plan.contract || undefined
+
+      const response = await api.runs.create({
+        projectId: selectedProjectId,
+        outputId,
+        taskPrompt: taskDescription,
+        manifest: { files, testFile },
+        contract,
+        dangerMode: plan.dangerMode || false,
+        runType: "EXECUTION",
+      })
+
+      setRunId(response.runId)
+      addLog("success", `Run EXECUTION: ${response.runId}`)
+
+      if (specArtifacts.length > 0) {
+        const formData = new FormData()
+        formData.append("planJson", new Blob([planArtifact.content], { type: "application/json" }), "plan.json")
+        formData.append("specFile", new Blob([specArtifacts[0].content], { type: "text/plain" }), specArtifacts[0].filename)
+        await api.runs.uploadFiles(response.runId, formData)
+        addLog("success", "Upload concluído — validando gates 2-3...")
+      }
+    } catch (err) {
+      addLog("warning", `Validação pós-execução falhou: ${err instanceof Error ? err.message : String(err)}`)
+      setValidationStatus(null)
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!executeDoneData) return
+    setExecuteDoneData(null) // consume once
+    startExecutionValidation()
+  }, [executeDoneData]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto-load git status when Gates 2-3 pass ──
+  useEffect(() => {
+    if (step === 4 && validationStatus === "PASSED" && selectedProjectId) {
+      api.git.changedFiles(selectedProjectId).then(setGitChangedFiles).catch(() => setGitChangedFiles([]))
+      const prov = stepLLMs[4]?.provider ?? "unknown"
+      setCommitMessage(`${prov}_${outputId || "unknown"}`)
+    }
+  }, [step, validationStatus]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Git commit ────────────────────────────────────────────────────────
+  const handleGitCommit = async () => {
+    if (!selectedProjectId || !commitMessage.trim()) return
+    setGitLoading(true)
+
+    try {
+      // Stage files
+      if (commitMode === "all") {
+        await api.git.add(selectedProjectId)
+      } else {
+        const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+        if (planArtifact) {
+          const plan = JSON.parse(planArtifact.content)
+          const manifestFiles = (plan.manifest?.files || []).map((f: any) => f.path)
+          if (manifestFiles.length > 0) {
+            await api.git.addFiles(selectedProjectId, manifestFiles)
+          }
+        }
+      }
+
+      const result = await api.git.commit(selectedProjectId, commitMessage, runId || undefined)
+      setCommitResult(result)
+      addLog("success", `Commit: ${result.commitHash.slice(0, 7)} ${result.message}`)
+      toast.success("🎉 Commit realizado!")
+
+      // Refresh changed files
+      api.git.changedFiles(selectedProjectId).then(setGitChangedFiles).catch(() => {})
+    } catch (err: any) {
+      const msg = err?.message || "Erro no commit"
+      addLog("error", msg)
+      toast.error(msg)
+    } finally {
+      setGitLoading(false)
+    }
+  }
+
+  const handleGitPush = async () => {
+    if (!selectedProjectId) return
+    setGitLoading(true)
+
+    try {
+      const result = await api.git.push(selectedProjectId)
+      setPushResult(result)
+      addLog("success", `Push: ${result.branch} → ${result.commitHash.slice(0, 7)}`)
+      toast.success("Push realizado!")
+    } catch (err: any) {
+      const msg = err?.message || "Erro no push"
+      addLog("error", msg)
+      toast.error(msg)
+    } finally {
+      setGitLoading(false)
+    }
+  }
+
+  // ── LLM name formatter for display ────────────────────────────────────
+  const formatLLMName = (progress: { provider: string; model: string } | null): string => {
+    if (!progress) return "LLM"
+    const providerInfo = PROVIDER_MODELS[progress.provider]
+    const modelInfo = providerInfo?.models.find((m) => m.value === progress.model)
+    if (modelInfo) {
+      const shortProvider = providerInfo.label.split(" (")[0]
+      return `${shortProvider} ${modelInfo.label}`
+    }
+    return `${progress.provider}/${progress.model}`
+  }
+
+  // ── Manifest file paths (for commit mode comparison) ──────────────────
+  const manifestFilePaths: string[] = (() => {
+    const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+    if (!planArtifact) return []
+    try {
+      const plan = JSON.parse(planArtifact.content)
+      return (plan.manifest?.files || []).map((f: any) => f.path)
+    } catch { return [] }
+  })()
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -1811,25 +1998,29 @@ export function OrchestratorPage() {
             </div>
           )}
 
-          {/* ─── Step 4: Execute result + Post-execution validation ───── */}
+          {/* ─── Step 4: Execute + Validate + Commit ───── */}
           {step === 4 && (
             <div className="space-y-4">
-              {/* Header card — context-aware title */}
+              {/* ── Main execution card ── */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className={executeResult ? "text-green-400" : ""}>
-                      {executeResult ? "Execução Concluída" : "Execução"}
+                    <CardTitle className={executeResult && !executionPhase ? "text-green-400" : ""}>
+                      {executionPhase === "WRITING" ? "Execução em Andamento"
+                        : executeResult ? "Execução Concluída"
+                        : "Execução"}
                     </CardTitle>
                     <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
                   </div>
-                  {!executeResult && !validationStatus && (
+                  {!executionPhase && !executeResult && !validationStatus && !loading && (
                     <CardDescription>
                       Gates 0-1 aprovados. Pronto para executar a implementação.
                     </CardDescription>
                   )}
                 </CardHeader>
-                {!executeResult && !validationStatus && (
+
+                {/* IDLE — execute button */}
+                {!executionPhase && !executeResult && !validationStatus && !loading && (
                   <CardContent className="space-y-3">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="shrink-0">LLM:</span>
@@ -1855,30 +2046,110 @@ export function OrchestratorPage() {
                     </Button>
                   </CardContent>
                 )}
-                {executeResult && (
-                  <CardContent className="space-y-4">
-                    {executeResult.mode === "cli" && executeResult.command && (
-                      <div className="space-y-2">
-                        <Label>Comando para executar manualmente:</Label>
-                        <pre className="p-4 rounded bg-muted text-xs font-mono overflow-auto">
-                          {executeResult.command}
-                        </pre>
+
+                {/* WRITING — LLM progress */}
+                {executionPhase === "WRITING" && (() => {
+                  const now = Date.now()
+                  const totalElapsed = executionProgress?.startedAt ? Math.round((now - executionProgress.startedAt) / 1000) : 0
+                  const sinceTool = executionProgress?.lastToolTime ? Math.round((now - executionProgress.lastToolTime) / 1000) : 0
+                  const isStale = sinceTool > 120 // 2min sem atividade real
+                  const isVeryStale = sinceTool > 300 // 5min sem atividade
+                  const formatElapsed = (s: number) => s >= 60 ? `${Math.floor(s / 60)}m${(s % 60).toString().padStart(2, "0")}s` : `${s}s`
+
+                  return (
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm">
+                            🤫 Silêncio. <span className="font-medium text-foreground">{formatLLMName(executionProgress)}</span> escrevendo código...
+                          </p>
+                          {totalElapsed > 0 && (
+                            <span className="text-xs text-muted-foreground font-mono">{formatElapsed(totalElapsed)}</span>
+                          )}
+                        </div>
+
+                        {executionProgress && (
+                          <div className={`text-xs text-muted-foreground space-y-1 font-mono p-3 rounded ${isStale ? "bg-amber-500/10 border border-amber-500/20" : "bg-muted/30"}`}>
+                            <div>Iteração {executionProgress.iteration} • {executionProgress.inputTokens.toLocaleString()} in / {executionProgress.outputTokens.toLocaleString()} out</div>
+                            {executionProgress.lastTool && <div className="text-foreground/70">🔧 {executionProgress.lastTool}</div>}
+                            {executionProgress.thinkingSeconds > 0 && (
+                              <div className={executionProgress.thinkingSeconds > 120 ? "text-amber-400" : ""}>
+                                ⏳ Pensando... {formatElapsed(executionProgress.thinkingSeconds)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {!executionProgress && (
+                          <div className="text-xs text-muted-foreground animate-pulse">Conectando ao LLM...</div>
+                        )}
+
+                        {/* Stall warning */}
+                        {isStale && !isVeryStale && (
+                          <div className="text-xs text-amber-400 flex items-center gap-1">
+                            ⚠️ Sem atividade há {formatElapsed(sinceTool)} — LLM pode estar travado
+                          </div>
+                        )}
+
+                        {/* Very stale — show fallback actions */}
+                        {isVeryStale && (
+                          <div className="space-y-2 p-3 rounded border border-amber-500/30 bg-amber-500/5">
+                            <div className="text-xs text-amber-400 font-medium">
+                              ⚠️ Sem atividade há {formatElapsed(sinceTool)} — possível travamento
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs"
+                                onClick={() => {
+                                  setExecutionPhase(null)
+                                  setExecutionProgress(null)
+                                  setLoading(false)
+                                  addLog("warning", "Execução abandonada pelo usuário — use Revalidar para verificar o estado do disco")
+                                  toast.warning("Execução abandonada")
+                                }}
+                              >
+                                Abandonar e Revalidar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-xs"
+                                onClick={() => {
+                                  setExecutionProgress(prev => prev ? { ...prev, lastToolTime: Date.now() } : prev)
+                                  addLog("info", "Timer de stall resetado — aguardando mais...")
+                                }}
+                              >
+                                Continuar Aguardando
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {executeResult.mode === "sdk" && (
-                      <p className="text-sm text-muted-foreground">
-                        Implementação executada via Claude Agent SDK.
-                      </p>
-                    )}
+                    </CardContent>
+                  )
+                })()}
+
+                {/* Execution summary (after WRITING completes) */}
+                {executeResult && !executionPhase && (
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Implementação via {executeResult.mode}
+                      {executeResult.tokensUsed && ` — ${executeResult.tokensUsed.inputTokens.toLocaleString()} in / ${executeResult.tokensUsed.outputTokens.toLocaleString()} out`}
+                    </p>
                   </CardContent>
                 )}
               </Card>
 
-              {/* Post-execution validation (Gates 2-3) */}
+              {/* ── Gates 2-3 RUNNING ── */}
               {validationStatus === "RUNNING" && (
                 <Card className="border-blue-500/30">
                   <CardHeader>
-                    <CardTitle className="text-blue-400">⏳ Validação Pós-Execução (Gates 2-3)</CardTitle>
+                    <CardTitle className="text-blue-400 flex items-center gap-2">
+                      <span className="animate-spin inline-block w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full" />
+                      Validação Pós-Execução (Gates 2-3)
+                    </CardTitle>
                     <CardDescription>Verificando compilação, testes, escopo de diff e integridade...</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1896,15 +2167,89 @@ export function OrchestratorPage() {
                 </Card>
               )}
 
-              {validationStatus === "PASSED" && (
+              {/* ── Gates 2-3 PASSED — Commit phase ── */}
+              {validationStatus === "PASSED" && !commitResult && (
                 <Card className="border-green-500/30">
                   <CardHeader>
                     <CardTitle className="text-green-400">✅ Pipeline Completo</CardTitle>
-                    <CardDescription>Todas as 4 gates passaram. Código validado e pronto.</CardDescription>
+                    <CardDescription>Todas as gates passaram. Pronto para commit.</CardDescription>
                   </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Commit message</Label>
+                      <Textarea
+                        value={commitMessage}
+                        onChange={(e) => setCommitMessage(e.target.value)}
+                        rows={2}
+                        className="font-mono text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Arquivos</Label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input type="radio" name="commitMode" value="manifest" checked={commitMode === "manifest"} onChange={() => setCommitMode("manifest")} className="accent-green-500" />
+                          Apenas manifest ({manifestFilePaths.length} arquivos)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input type="radio" name="commitMode" value="all" checked={commitMode === "all"} onChange={() => setCommitMode("all")} className="accent-green-500" />
+                          Todos os alterados (git add -A)
+                        </label>
+                      </div>
+                    </div>
+
+                    {gitChangedFiles.length > 0 && (
+                      <div className="space-y-1 max-h-40 overflow-auto rounded border p-2">
+                        {gitChangedFiles.map((f) => {
+                          const inManifest = manifestFilePaths.includes(f.path)
+                          const included = commitMode === "all" || inManifest
+                          return (
+                            <div key={f.path} className={`flex items-center gap-2 text-xs font-mono ${included ? "" : "opacity-30"}`}>
+                              <Badge variant="outline" className={`text-[10px] shrink-0 ${f.status === "untracked" ? "border-green-500/40 text-green-400" : f.status === "deleted" ? "border-red-500/40 text-red-400" : ""}`}>
+                                {f.status.slice(0, 3).toUpperCase()}
+                              </Badge>
+                              <span className="truncate">{f.path}</span>
+                              {inManifest && <Badge variant="secondary" className="text-[10px] shrink-0">manifest</Badge>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    <Button onClick={handleGitCommit} disabled={gitLoading || !commitMessage.trim()} className="w-full">
+                      {gitLoading ? "Commitando..." : "🎉 Git Commit"}
+                    </Button>
+                  </CardContent>
                 </Card>
               )}
 
+              {/* ── COMMITTED — result + push ── */}
+              {commitResult && (
+                <Card className="border-green-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-green-400">✅ Commit Realizado!</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="text-sm font-mono bg-muted/30 p-3 rounded">
+                      <span className="text-amber-400">{commitResult.commitHash.slice(0, 7)}</span>{" "}
+                      {commitResult.message}
+                    </div>
+
+                    {!pushResult ? (
+                      <Button onClick={handleGitPush} disabled={gitLoading} variant="outline" className="w-full">
+                        {gitLoading ? "Pushing..." : "Push →"}
+                      </Button>
+                    ) : (
+                      <div className="text-sm text-green-400 font-medium">
+                        ✓ Pushed to {pushResult.branch}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* ── Gates 2-3 FAILED ── */}
               {validationStatus === "FAILED" && runResults && (
                 <Card className="border-destructive/30">
                   <CardHeader>
@@ -1937,24 +2282,33 @@ export function OrchestratorPage() {
                 </Card>
               )}
 
-              <div className="flex gap-2">
-                <Button onClick={handleReset}>
+              {/* ── Footer ── */}
+              <div className="flex items-center justify-between">
+                <Button variant="ghost" onClick={handleReset}>
                   Nova Tarefa
                 </Button>
-                {outputId && (
-                  <Button
-                    variant="secondary"
-                    disabled={loading || validationStatus === "RUNNING"}
-                    onClick={() => handleRerunFromDisk()}
-                  >
-                    ↻ Revalidar do disco (0 tokens)
-                  </Button>
-                )}
-                {runId && (
-                  <Button variant="outline" onClick={() => navigate(`/runs/${runId}/v2`)}>
-                    Ver Run
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {validationStatus === "FAILED" && outputId && (
+                    <Button variant="secondary" size="sm" disabled={loading} onClick={() => startExecutionValidation()}>
+                      ↻ Revalidar Gates 2-3 (0 tokens)
+                    </Button>
+                  )}
+                  {(validationStatus === "FAILED" || (!executionPhase && executeResult && validationStatus !== "RUNNING")) && outputId && (
+                    <Button variant="secondary" size="sm" disabled={loading || executionPhase === "WRITING"} onClick={handleExecute}>
+                      Executar Novamente (LLM)
+                    </Button>
+                  )}
+                  {outputId && !executionPhase && validationStatus !== "RUNNING" && (
+                    <Button variant="secondary" size="sm" disabled={loading} onClick={() => handleRerunFromDisk()}>
+                      ↻ Revalidar do disco (0 tokens)
+                    </Button>
+                  )}
+                  {runId && (
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)}>
+                      Ver Run
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           )}

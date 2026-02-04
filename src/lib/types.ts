@@ -322,6 +322,11 @@ export interface GitDiffResponse {
   diff: string
 }
 
+export interface GitChangedFile {
+  path: string
+  status: string
+}
+
 export interface GitErrorResponse {
   error: {
     code: 'NO_CHANGES' | 'HAS_CONFLICTS' | 'REMOTE_AHEAD' | 'PERMISSION_DENIED' | 'COMMIT_FAILED' | 'PUSH_FAILED'

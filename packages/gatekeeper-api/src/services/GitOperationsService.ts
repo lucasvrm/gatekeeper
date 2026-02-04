@@ -93,7 +93,7 @@ export class GitOperationsService {
       const status = this.execGit('status --porcelain')
       // Lines starting with "UU" indicate merge conflicts
       return status.split('\n').some(line => line.startsWith('UU') || line.startsWith('AA') || line.startsWith('DD'))
-    } catch {
+    } catch (err) {
       return false
     }
   }
@@ -104,7 +104,7 @@ export class GitOperationsService {
   getDiffStat(): string {
     try {
       return this.execGit('diff --stat')
-    } catch {
+    } catch (err) {
       return 'No changes'
     }
   }
@@ -164,6 +164,40 @@ export class GitOperationsService {
       const message = error instanceof Error ? error.message : 'Failed to stage changes'
       throw new Error(`Failed to stage changes: ${message}`)
     }
+  }
+
+
+  /**
+   * Stage specific files (git add <files>)
+   */
+  async addFiles(files: string[]): Promise<void> {
+    if (!files.length) return
+    try {
+      const escaped = files.map(f => `"${this.escapePath(f)}"`).join(' ')
+      this.execGit(`add ${escaped}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to stage files'
+      throw new Error(`Failed to stage files: ${message}`)
+    }
+  }
+
+  /**
+   * Get list of changed files from git status --porcelain
+   */
+  getChangedFiles(): Array<{ path: string; status: string }> {
+    const output = this.execGit('status --porcelain')
+    if (!output) return []
+    return output.split('\n').filter(Boolean).map(line => {
+      const statusCode = line.substring(0, 2).trim()
+      const filePath = line.substring(3).trim()
+      let status = 'modified'
+      if (statusCode === '??') status = 'untracked'
+      else if (statusCode.includes('A')) status = 'added'
+      else if (statusCode.includes('D')) status = 'deleted'
+      else if (statusCode.includes('R')) status = 'renamed'
+      else if (statusCode.includes('M')) status = 'modified'
+      return { path: filePath, status }
+    })
   }
 
   /**

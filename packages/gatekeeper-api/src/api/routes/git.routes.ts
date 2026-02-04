@@ -7,6 +7,8 @@ const gitController = new GitController()
 // Git operations routes
 router.post('/git/status', (req, res) => gitController.getStatus(req, res))
 router.post('/git/add', (req, res) => gitController.add(req, res))
+router.post('/git/add-files', (req, res) => gitController.addFiles(req, res))
+router.post('/git/changed-files', (req, res) => gitController.getChangedFiles(req, res))
 router.post('/git/commit', (req, res) => gitController.commit(req, res))
 router.get('/git/diff', (req, res) => gitController.getDiff(req, res))
 router.post('/git/push', (req, res) => gitController.push(req, res))

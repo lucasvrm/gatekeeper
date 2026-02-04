@@ -360,7 +360,7 @@ model SessionProfilePrompt {
 /// Queried by AgentRunnerService to build PhaseConfig for each pipeline step.
 model AgentPhaseConfig {
   step                  Int      @id @default(autoincrement())  // 1, 2, 3, 4
-  provider              String   @default("anthropic")  // 'anthropic' | 'openai' | 'mistral'
+  provider              String   @default("claude-code")  // 'anthropic' | 'openai' | 'mistral' | 'claude-code'
   model                 String   @default("claude-sonnet-4-5-20250929")
   maxTokens             Int      @default(8192)
   maxIterations         Int      @default(30)

@@ -8,7 +8,7 @@ const ProviderEnum = z.enum(['anthropic', 'openai', 'mistral', 'claude-code'])
 
 export const CreatePhaseConfigSchema = z.object({
   step: z.number().int().min(1).max(4),
-  provider: ProviderEnum.default('anthropic'),
+  provider: ProviderEnum.default('claude-code'),
   model: z.string().min(1),
   maxTokens: z.number().int().min(256).max(65536).default(8192),
   maxIterations: z.number().int().min(1).max(100).default(30),

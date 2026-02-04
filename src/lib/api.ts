@@ -582,6 +582,33 @@ export const api = {
       return response.json()
     },
 
+    addFiles: async (projectId: string, files: string[]): Promise<{ success: boolean }> => {
+      const response = await fetch(`${API_BASE}/git/add-files`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, files }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to stage files")
+      }
+      return response.json()
+    },
+
+    changedFiles: async (projectId: string): Promise<Array<{ path: string; status: string }>> => {
+      const response = await fetch(`${API_BASE}/git/changed-files`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error?.message || "Failed to get changed files")
+      }
+      const data = await response.json()
+      return data.files || []
+    },
+
     commit: async (
       projectId: string | undefined,
       message: string,

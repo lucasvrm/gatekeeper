@@ -128,6 +128,61 @@ export class GitController {
     }
   }
 
+
+  /**
+   * POST /api/git/add-files
+   * Stage specific files
+   */
+  async addFiles(req: Request, res: Response): Promise<void> {
+    try {
+      const { files } = req.body
+      if (!Array.isArray(files) || files.length === 0) {
+        res.status(400).json({
+          error: {
+            code: 'FILES_REQUIRED',
+            message: 'files array is required',
+          },
+        })
+        return
+      }
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      await gitService.addFiles(files)
+      res.json({ success: true })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to stage files'
+      console.error('Git addFiles error:', error)
+      res.status(500).json({
+        error: {
+          code: 'ADD_FILES_FAILED',
+          message,
+        },
+      })
+    }
+  }
+
+  /**
+   * POST /api/git/changed-files
+   * Get list of changed files
+   */
+  async getChangedFiles(req: Request, res: Response): Promise<void> {
+    try {
+      const gitService = await this.resolveGitService(req, res)
+      if (!gitService) return
+      const files = gitService.getChangedFiles()
+      res.json({ files })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to get changed files'
+      console.error('Git changed-files error:', error)
+      res.status(500).json({
+        error: {
+          code: 'CHANGED_FILES_FAILED',
+          message,
+        },
+      })
+    }
+  }
+
   /**
    * POST /api/git/commit
    * Commit staged changes
