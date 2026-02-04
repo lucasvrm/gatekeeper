@@ -917,6 +917,522 @@ You have full access to the project:
 
   console.log(`✓ Seeded ${pipelinePrompts.length} pipeline prompt entries`)
 
+  // =============================================================================
+  // USER MESSAGE TEMPLATES (PromptInstruction with role='user')
+  // =============================================================================
+  // These are Handlebars templates for building user messages in each pipeline step.
+  // Placeholders are replaced at runtime with actual values.
+
+  const userMessageTemplates = [
+    // ── Step 1: Plan User Message ──────────────────────────────────────────────
+    {
+      name: 'plan-user-message',
+      step: 1,
+      kind: 'instruction',
+      role: 'user',
+      order: 1,
+      content: `## Task
+**Description:** {{taskDescription}}
+{{#if taskType}}
+**Type:** {{taskType}}
+{{/if}}
+**Output ID:** {{outputId}}
+
+Analyze the codebase and produce the plan artifacts: plan.json, contract.md, task.spec.md.
+Use the save_artifact tool for each one.
+
+{{#if attachments}}
+## Attachments
+{{{attachments}}}
+{{/if}}`,
+    },
+
+    // ── Step 2: Spec User Message ──────────────────────────────────────────────
+    {
+      name: 'spec-user-message',
+      step: 2,
+      kind: 'instruction',
+      role: 'user',
+      order: 1,
+      content: `## ⚠️ CRITICAL: You MUST call save_artifact
+After generating the test file, you MUST call the \`save_artifact\` tool to save it.
+Do NOT output the test code as text in your response — that will be LOST.
+Expected call: \`save_artifact("{{testFileName}}", <complete test file content>)\`
+
+## Output ID: {{outputId}}
+
+## Artifacts from Step 1
+{{{artifactBlocks}}}
+
+## Instructions
+1. Explore the project to understand testing conventions, imports, and patterns.
+2. Generate the complete test file: **{{testFileName}}**
+3. Use the save_artifact tool to save the test file.
+
+## REMINDER: call save_artifact("{{testFileName}}", content) — do NOT just output text.`,
+    },
+
+    // ── Step 3: Fix User Message (API mode) ────────────────────────────────────
+    {
+      name: 'fix-user-message',
+      step: 3,
+      kind: 'instruction',
+      role: 'user',
+      order: 1,
+      content: `## ⚠️ CRITICAL: You MUST call save_artifact
+Your ONLY job is to fix the artifacts and save them. You are NOT done until you call \`save_artifact\`.
+- Do NOT just explain what needs to change — that accomplishes NOTHING.
+- Do NOT end your turn without calling \`save_artifact\`.
+- You MUST read the artifact, apply fixes, then call: \`save_artifact(filename, corrected_content)\`
+- If you do not call \`save_artifact\`, your work is LOST and you have FAILED the task.
+
+## Target: {{target}}
+## Output ID: {{outputId}}
+
+## Failed Validators
+{{#each failedValidators}}
+- \`{{this}}\`
+{{/each}}
+
+{{#if rejectionReport}}
+## Rejection Report
+{{{rejectionReport}}}
+{{/if}}
+
+{{#if taskPrompt}}
+## Original Task Prompt
+{{{taskPrompt}}}
+{{/if}}
+
+## Current Artifacts
+{{{artifactBlocks}}}
+
+## CRITICAL: You MUST use save_artifact
+Do NOT just explain what needs to change. Call \`save_artifact(filename, corrected_content)\` for each file.`,
+    },
+
+    // ── Step 3: Fix User Message (CLI mode - Claude Code) ──────────────────────
+    {
+      name: 'fix-user-message-cli',
+      step: 3,
+      kind: 'cli',
+      role: 'user',
+      order: 1,
+      content: `## ⚠️ CRITICAL: You MUST write the corrected files
+Your ONLY job is to fix the artifacts and write them to disk. You are NOT done until you use your Write tool.
+- Do NOT just explain what needs to change — that accomplishes NOTHING.
+- Do NOT end your turn without writing the corrected files.
+- You MUST: 1) Read the artifact, 2) Apply fixes, 3) Write the corrected file to: {{outputDir}}/
+- If you do not write the file, your work is LOST and you have FAILED the task.
+
+## Target: {{target}}
+## Output ID: {{outputId}}
+
+## Failed Validators
+{{#each failedValidators}}
+- \`{{this}}\`
+{{/each}}
+
+{{#if rejectionReport}}
+## Rejection Report
+{{{rejectionReport}}}
+{{/if}}
+
+{{#if taskPrompt}}
+## Original Task
+{{{taskPrompt}}}
+{{/if}}
+
+## Artifact Files
+The artifacts are on disk. Use your Read tool to read them:
+{{#each artifactFiles}}
+- {{this.path}} ({{this.chars}} chars)
+{{/each}}
+
+## Instructions
+{{#if isSpec}}
+1. Read the test file(s): {{specFiles}}
+2. Fix the issues described in the rejection report above
+3. Write the corrected file(s) back to: {{outputDir}}/
+   Use the EXACT same filename(s).
+{{else}}
+1. Read plan.json from: {{outputDir}}/plan.json
+2. Fix the issues described in the rejection report above
+3. Write the corrected plan.json back to: {{outputDir}}/plan.json
+{{/if}}
+
+## ⚠️ REMINDER: You MUST write the files
+Do NOT just explain what needs to change. Use your Write tool to save the corrected file(s) to {{outputDir}}/.
+If you do not write the files, your fixes will be LOST and the pipeline will FAIL.`,
+    },
+
+    // ── Step 4: Execute User Message ───────────────────────────────────────────
+    {
+      name: 'execute-user-message',
+      step: 4,
+      kind: 'instruction',
+      role: 'user',
+      order: 1,
+      content: `## Output ID: {{outputId}}
+
+## Approved Artifacts
+{{{artifactBlocks}}}
+
+## Instructions
+Implement the code to make all tests pass.
+Use write_file to create/modify files and bash to run tests.`,
+    },
+  ]
+
+  for (const template of userMessageTemplates) {
+    await prisma.promptInstruction.upsert({
+      where: { name: template.name },
+      create: template,
+      update: {
+        content: template.content,
+        step: template.step,
+        kind: template.kind,
+        role: template.role,
+        order: template.order,
+      },
+    })
+  }
+
+  console.log(`✓ Seeded ${userMessageTemplates.length} user message templates`)
+
+  // =============================================================================
+  // DYNAMIC INSTRUCTIONS TEMPLATES
+  // =============================================================================
+  // These templates replace hardcoded instructions throughout the codebase.
+  // All can be customized via the Config UI.
+
+  const dynamicInstructionTemplates = [
+    // ── Retry Templates ───────────────────────────────────────────────────────
+    {
+      name: 'retry-api-critical-failure',
+      step: 3,
+      kind: 'retry',
+      role: 'user',
+      order: 1,
+      content: `## ⚠️ CRITICAL FAILURE: You did NOT call save_artifact!
+Your previous response explained the fixes but you NEVER called the tool.
+All your work is LOST. You MUST call save_artifact NOW.
+
+**DO NOT EXPLAIN AGAIN.** Just call: save_artifact("{{targetFilename}}", <corrected content>)`,
+    },
+    {
+      name: 'retry-cli-critical-failure',
+      step: 3,
+      kind: 'retry-cli',
+      role: 'user',
+      order: 1,
+      content: `## ⚠️ CRITICAL FAILURE: You did NOT write any files!
+Your previous response explained the fixes but you NEVER used your Write tool.
+All your work is LOST. You MUST write the file NOW.
+
+**DO NOT EXPLAIN AGAIN.** Just write the corrected file to: {{outputDir}}/{{targetFilename}}`,
+    },
+    {
+      name: 'retry-previous-response-reference',
+      step: 3,
+      kind: 'retry',
+      role: 'user',
+      order: 2,
+      content: `## Your Previous Response (for reference)
+You already analyzed the issues and described the fixes:
+
+\`\`\`
+{{{previousResponse}}}
+\`\`\`
+
+Now APPLY those fixes and save the file.`,
+    },
+    {
+      name: 'retry-original-artifact',
+      step: 3,
+      kind: 'retry',
+      role: 'user',
+      order: 3,
+      content: `## Original Artifact to Fix
+{{{originalArtifact}}}`,
+    },
+    {
+      name: 'retry-rejection-reminder',
+      step: 3,
+      kind: 'retry',
+      role: 'user',
+      order: 4,
+      content: `## Rejection Report (reminder)
+{{{rejectionReport}}}`,
+    },
+    {
+      name: 'retry-api-final-instruction',
+      step: 3,
+      kind: 'retry',
+      role: 'user',
+      order: 10,
+      content: `## YOUR ONLY TASK NOW
+Call save_artifact("{{targetFilename}}", <fully corrected content>)
+Do NOT explain. Do NOT analyze. Just CALL THE TOOL.`,
+    },
+    {
+      name: 'retry-cli-final-instruction',
+      step: 3,
+      kind: 'retry-cli',
+      role: 'user',
+      order: 10,
+      content: `## YOUR ONLY TASK NOW
+Use your Write tool to save the corrected {{targetFilename}} to {{outputDir}}/
+Do NOT explain. Do NOT analyze. Just WRITE THE FILE.`,
+    },
+
+    // ── System Prompt Appends (CLI) ───────────────────────────────────────────
+    {
+      name: 'cli-append-plan',
+      step: 1,
+      kind: 'system-append-cli',
+      role: 'system',
+      order: 1,
+      content: `IMPORTANT: You must write each artifact as a file using your Write tool.
+Write artifacts to this directory: {{outputDir}}/
+Required files: plan.json, contract.md, task.spec.md`,
+    },
+    {
+      name: 'cli-append-spec',
+      step: 2,
+      kind: 'system-append-cli',
+      role: 'system',
+      order: 1,
+      content: `IMPORTANT: Write test file(s) using your Write tool to: {{outputDir}}/`,
+    },
+    {
+      name: 'cli-append-fix',
+      step: 3,
+      kind: 'system-append-cli',
+      role: 'system',
+      order: 1,
+      content: `IMPORTANT: You must write each corrected artifact as a file using your Write tool.
+Write corrected files to this directory: {{outputDir}}/
+Use the EXACT same filename as the original artifact.`,
+    },
+    {
+      name: 'cli-append-execute',
+      step: 4,
+      kind: 'system-append-cli',
+      role: 'system',
+      order: 1,
+      content: `IMPORTANT: Implement the code changes using your Write and Edit tools. Run tests using Bash.`,
+    },
+
+    // ── Git Strategy Templates ────────────────────────────────────────────────
+    {
+      name: 'git-strategy-new-branch',
+      step: null,
+      kind: 'git-strategy',
+      role: 'system',
+      order: 1,
+      content: `## Git Strategy
+Crie uma nova branch antes de implementar: {{branch}}`,
+    },
+    {
+      name: 'git-strategy-existing-branch',
+      step: null,
+      kind: 'git-strategy',
+      role: 'system',
+      order: 2,
+      content: `## Git Strategy
+Use a branch existente: {{branch}}`,
+    },
+    {
+      name: 'git-strategy-main',
+      step: null,
+      kind: 'git-strategy',
+      role: 'system',
+      order: 3,
+      content: `## Git Strategy
+Commit direto na branch atual.`,
+    },
+
+    // ── Custom Instructions Header ────────────────────────────────────────────
+    {
+      name: 'custom-instructions-header',
+      step: null,
+      kind: 'custom-instructions',
+      role: 'system',
+      order: 1,
+      content: `## Instruções Adicionais`,
+    },
+
+    // ── Validator Fix Guidance Templates ──────────────────────────────────────
+    {
+      name: 'guidance-implicit-files',
+      step: 3,
+      kind: 'guidance',
+      role: 'user',
+      order: 1,
+      content: `## Original Task Prompt
+The validators NO_IMPLICIT_FILES and TASK_CLARITY_CHECK analyze the **task prompt text below**, NOT the plan artifacts. To fix these failures you MUST also save a corrected version of the task prompt as an artifact named \`corrected-task-prompt.txt\`.
+
+\`\`\`
+{{{taskPrompt}}}
+\`\`\`
+
+Remove any implicit/vague references (e.g. "etc", "...", "outros arquivos", "e tal", "among others", "all files", "any file", "related files", "necessary files", "e outros") and replace them with explicit, specific file or component names.`,
+    },
+    {
+      name: 'guidance-manifest-fix',
+      step: 3,
+      kind: 'guidance',
+      role: 'user',
+      order: 2,
+      content: `## Manifest Fix Guidance
+These validators check \`manifest.files\` and \`manifest.testFile\` inside **plan.json**. To fix, update the manifest section in plan.json and save it via save_artifact.
+
+- **TASK_SCOPE_SIZE**: Reduce the number of files in \`manifest.files\` in plan.json (split into smaller tasks if needed)
+- **DELETE_DEPENDENCY_CHECK**: Files marked DELETE have importers not listed in manifest. Add those importers as MODIFY in \`manifest.files\`
+- **PATH_CONVENTION**: The \`manifest.testFile\` path does not follow project conventions. Update the testFile path in plan.json
+- **SENSITIVE_FILES_LOCK**: Manifest includes sensitive files (.env, prisma/schema, etc.) but dangerMode is off. Remove sensitive files from manifest or flag the task as dangerMode`,
+    },
+    {
+      name: 'guidance-contract-clause-mapping',
+      step: 3,
+      kind: 'guidance',
+      role: 'user',
+      order: 3,
+      content: `## Contract Fix Guidance
+**TEST_CLAUSE_MAPPING_VALID** checks that every test has a valid \`// @clause CL-XXX\` comment matching a clause ID defined in the \`contract\` field of plan.json. To fix:
+1. If clause IDs in tests don't match contract: update either the test file or the contract clauses in plan.json
+2. If tests are missing \`// @clause\` tags: add them to the spec test file
+3. Save both corrected plan.json (with updated contract.clauses) and the test file as needed`,
+    },
+    {
+      name: 'guidance-test-resilience',
+      step: 3,
+      kind: 'guidance',
+      role: 'user',
+      order: 4,
+      content: `## Test Resilience Fix Guidance
+**TEST_RESILIENCE_CHECK**: The test file contains **fragile patterns** that depend on implementation details. You MUST replace ALL of these patterns in the spec file:
+
+| Fragile Pattern | Replacement |
+|----------------|-------------|
+| \`.innerHTML\` | \`toHaveTextContent()\` or \`screen.getByText()\` |
+| \`.outerHTML\` | \`toHaveTextContent()\` or specific accessible assertions |
+| \`container.firstChild\` | \`screen.getByRole()\` or \`screen.getByTestId()\` |
+| \`container.children\` | \`screen.getAllByRole()\` or \`within()\` for scoped queries |
+| \`.querySelector()\` / \`.querySelectorAll()\` | \`screen.getByRole()\` / \`screen.getAllByRole()\` |
+| \`.getElementsByClassName()\` / \`.getElementsByTagName()\` / \`.getElementById()\` | \`screen.getByRole()\` / \`screen.getByTestId()\` |
+| \`.className\` | \`toHaveClass()\` or accessible assertions |
+| \`.style.\` | \`toHaveStyle()\` or CSS-in-JS utilities |
+| \`wrapper.find()\` / \`.dive()\` | Migrate to React Testing Library queries |
+| \`toMatchSnapshot()\` / \`toMatchInlineSnapshot()\` | Explicit assertions like \`toHaveTextContent()\`, \`toBeVisible()\` |
+
+Use ONLY resilient patterns: \`screen.getByRole()\`, \`screen.getByText()\`, \`screen.getByTestId()\`, \`userEvent.*\`, \`toBeVisible()\`, \`toBeInTheDocument()\`, \`toHaveTextContent()\`, \`toHaveAttribute()\`.`,
+    },
+    {
+      name: 'guidance-test-quality',
+      step: 3,
+      kind: 'guidance',
+      role: 'user',
+      order: 5,
+      content: `## Test Quality Fix Guidance
+These validators check the **test spec file** content. You MUST:
+1. Read the current spec file from the artifacts
+2. Apply ALL the fixes below
+3. Save the corrected spec file using \`save_artifact\` with the EXACT same filename
+
+- **NO_DECORATIVE_TESTS**: Remove tests that only check rendering without meaningful assertions (e.g. \`expect(component).toBeDefined()\`). Every test must assert observable behavior.
+- **TEST_HAS_ASSERTIONS**: Some test blocks are missing \`expect()\` calls. Add meaningful assertions to every \`it()\` / \`test()\` block.
+- **TEST_COVERS_HAPPY_AND_SAD_PATH**: The test file must cover both success (happy path) and failure/error (sad path) scenarios.
+- **TEST_INTENT_ALIGNMENT**: Test descriptions (\`it("should...")\`) must match what the test actually asserts. Align names with assertions.
+- **TEST_SYNTAX_VALID**: The test file has syntax errors. Fix TypeScript/JavaScript syntax issues.
+- **IMPORT_REALITY_CHECK**: The test file imports modules that don't exist. Fix import paths to reference real files.
+- **MANIFEST_FILE_LOCK**: The test file modifies files not listed in the manifest. Only touch files declared in plan.json manifest.`,
+    },
+    {
+      name: 'guidance-contract-schema',
+      step: 3,
+      kind: 'guidance',
+      role: 'user',
+      order: 6,
+      content: `## Contract Schema Fix Guidance
+**CONTRACT_SCHEMA_INVALID**: The \`contract\` object inside plan.json has fields with wrong types. The Zod schema enforces strict types. Common mistakes:
+
+- \`assertionSurface.effects\` must be an **array of strings**, e.g. \`["effect1", "effect2"]\` — NOT an object like \`{ "key": "value" }\`
+- \`assertionSurface.http.methods\` must be an **array**, e.g. \`["GET", "POST"]\`
+- \`assertionSurface.http.successStatuses\` must be an **array of integers**, e.g. \`[200, 201]\`
+- \`assertionSurface.ui.routes\` must be an **array of strings**
+- All array fields must be actual JSON arrays \`[]\`, never objects \`{}\` or strings
+
+**You MUST:**
+1. Read the current plan.json from the artifacts above
+2. Find and fix every field that has the wrong type
+3. Save the corrected plan.json using \`save_artifact\` with filename \`plan.json\`
+
+The rejection report above tells you exactly which fields failed.`,
+    },
+    {
+      name: 'guidance-danger-mode',
+      step: 3,
+      kind: 'guidance',
+      role: 'user',
+      order: 7,
+      content: `## DangerMode Note
+**DANGER_MODE_EXPLICIT** failed because dangerMode is enabled but manifest has no sensitive files, or sensitive files are present without dangerMode. This setting is controlled by the user in the UI. You can fix the plan.json by setting \`"dangerMode": true\` if sensitive files are needed, or remove sensitive files from the manifest if dangerMode should stay off.`,
+    },
+
+    // ── Message Replacements (CLI mode) ───────────────────────────────────────
+    {
+      name: 'cli-replace-save-artifact-plan',
+      step: 1,
+      kind: 'cli-replace',
+      role: 'user',
+      order: 1,
+      content: `Write each artifact file to: {{outputDir}}/`,
+    },
+    {
+      name: 'cli-replace-critical-spec',
+      step: 2,
+      kind: 'cli-replace',
+      role: 'user',
+      order: 1,
+      content: `## ⚠️ CRITICAL: You MUST write the test file
+Use your Write tool to save the test file to: {{outputDir}}/`,
+    },
+    {
+      name: 'cli-replace-reminder-spec',
+      step: 2,
+      kind: 'cli-replace',
+      role: 'user',
+      order: 2,
+      content: `## REMINDER: Write the test file to {{outputDir}}/ — do NOT just output text.`,
+    },
+    {
+      name: 'cli-replace-execute-tools',
+      step: 4,
+      kind: 'cli-replace',
+      role: 'user',
+      order: 1,
+      content: `Use your Write/Edit tools to create/modify files and Bash to run tests.`,
+    },
+  ]
+
+  for (const template of dynamicInstructionTemplates) {
+    await prisma.promptInstruction.upsert({
+      where: { name: template.name },
+      create: template,
+      update: {
+        content: template.content,
+        step: template.step,
+        kind: template.kind,
+        role: template.role,
+        order: template.order,
+      },
+    })
+  }
+
+  console.log(`✓ Seeded ${dynamicInstructionTemplates.length} dynamic instruction templates`)
+
   console.log('✓ Seed completed successfully')
 }
 

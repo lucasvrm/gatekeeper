@@ -2,20 +2,22 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
 import type { PromptInstruction } from "@/lib/types"
-import { PIPELINE_STEPS } from "@/lib/types"
+import { PIPELINE_STEPS, USER_MESSAGE_PLACEHOLDERS } from "@/lib/types"
 
 interface Props {
   prompt: PromptInstruction | null
   defaultStep?: number | null
+  defaultRole?: 'system' | 'user'
   onClose: () => void
   onSave: () => void
 }
 
-export function PromptFormDialog({ prompt, defaultStep, onClose, onSave }: Props) {
+export function PromptFormDialog({ prompt, defaultStep, defaultRole, onClose, onSave }: Props) {
   const [name, setName] = useState("")
   const [content, setContent] = useState("")
   const [step, setStep] = useState<number | null>(null)
   const [kind, setKind] = useState<string>("instruction")
+  const [role, setRole] = useState<'system' | 'user'>('system')
   const [order, setOrder] = useState<number>(0)
   const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,12 +29,14 @@ export function PromptFormDialog({ prompt, defaultStep, onClose, onSave }: Props
       setContent(prompt.content)
       setStep(prompt.step)
       setKind(prompt.kind || "instruction")
+      setRole(prompt.role || 'system')
       setOrder(prompt.order || 0)
       setIsActive(prompt.isActive)
     } else {
       setStep(defaultStep ?? null)
+      setRole(defaultRole ?? 'system')
     }
-  }, [prompt, defaultStep])
+  }, [prompt, defaultStep, defaultRole])
 
   const handleSubmit = async () => {
     if (!name.trim() || !content.trim()) {
@@ -47,6 +51,7 @@ export function PromptFormDialog({ prompt, defaultStep, onClose, onSave }: Props
         content: content.trim(),
         step,
         kind: step !== null ? kind : null, // kind only for pipeline prompts
+        role,
         order,
         isActive,
       }
@@ -100,7 +105,7 @@ export function PromptFormDialog({ prompt, defaultStep, onClose, onSave }: Props
             />
           </div>
 
-          {/* Step Selector (only for new prompts or if editing allows changing) */}
+          {/* Step Selector + Role Toggle */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Step (Pipeline)</label>
@@ -123,8 +128,48 @@ export function PromptFormDialog({ prompt, defaultStep, onClose, onSave }: Props
               </p>
             </div>
 
-            {/* Kind (only for pipeline prompts) */}
+            {/* Role (system prompt vs user message template) */}
             {isPipeline && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Role</label>
+                <div className="flex gap-1 p-1 bg-muted rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setRole('system')}
+                    data-testid="prompt-role-system"
+                    className={`flex-1 px-3 py-2 rounded text-sm transition-colors ${
+                      role === 'system'
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    ⚙ System
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('user')}
+                    data-testid="prompt-role-user"
+                    className={`flex-1 px-3 py-2 rounded text-sm transition-colors ${
+                      role === 'user'
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    💬 User
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {role === 'system'
+                    ? 'Concatenado no system prompt'
+                    : 'Template de user message (Handlebars)'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Kind (only for pipeline prompts) */}
+          {isPipeline && (
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Tipo</label>
                 <select
@@ -136,13 +181,43 @@ export function PromptFormDialog({ prompt, defaultStep, onClose, onSave }: Props
                   <option value="instruction">instruction</option>
                   <option value="doc">doc</option>
                   <option value="prompt">prompt</option>
+                  {role === 'user' && <option value="cli">cli (Claude Code)</option>}
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  instruction = regras, doc = referência, prompt = template
+                  {role === 'user'
+                    ? 'cli = template específico para Claude Code'
+                    : 'instruction = regras, doc = referência'}
                 </p>
               </div>
-            )}
-          </div>
+              <div />
+            </div>
+          )}
+
+          {/* Placeholders help (only for user message templates) */}
+          {isPipeline && role === 'user' && step && USER_MESSAGE_PLACEHOLDERS[step] && (
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+              <h4 className="text-sm font-medium text-green-700 mb-2">
+                💬 Placeholders Handlebars disponíveis para Step {step}
+              </h4>
+              <div className="grid grid-cols-2 gap-1.5">
+                {USER_MESSAGE_PLACEHOLDERS[step].map((ph) => (
+                  <div key={ph.name} className="text-xs">
+                    <code className="bg-green-500/20 px-1 py-0.5 rounded text-green-800 font-mono">
+                      {'{{'}
+                      {ph.name}
+                      {'}}'}
+                    </code>
+                    <span className="text-muted-foreground ml-1.5">{ph.description}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Use <code className="bg-muted px-1 rounded">{'{{#if var}}...{{/if}}'}</code> para condicionais e{' '}
+                <code className="bg-muted px-1 rounded">{'{{#each arr}}...{{/each}}'}</code> para loops.
+                Use <code className="bg-muted px-1 rounded">{'{{{var}}}'}</code> (três chaves) para conteúdo HTML/markdown.
+              </p>
+            </div>
+          )}
 
           {/* Order and Active (for pipeline prompts) */}
           {isPipeline && (

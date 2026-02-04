@@ -158,9 +158,15 @@ export class AgentOrchestratorBridge {
     if (this.isCliProvider(phase)) {
       // Claude Code: write files directly via its Write tool
       outputDir = await this.resolveOutputDir(outputId, input.projectPath)
-      systemPrompt += `\n\nIMPORTANT: You must write each artifact as a file using your Write tool.\nWrite artifacts to this directory: ${outputDir}/\nRequired files: plan.json, contract.md, task.spec.md`
-      userMessage = this.buildPlanUserMessage(input.taskDescription, outputId, input.taskType)
-        .replace('Use the save_artifact tool for each one.', `Write each artifact file to: ${outputDir}/`)
+      // Try to get CLI append from templates, fallback to hardcoded
+      const cliAppend = await this.assembler.getCliSystemAppend(1, { outputDir })
+      systemPrompt += cliAppend
+        ? `\n\n${cliAppend}`
+        : `\n\nIMPORTANT: You must write each artifact as a file using your Write tool.\nWrite artifacts to this directory: ${outputDir}/\nRequired files: plan.json, contract.md, task.spec.md`
+      userMessage = await this.buildPlanUserMessageAsync(input.taskDescription, outputId, input.taskType)
+      // Try to get CLI replacement from templates
+      const cliReplace = await this.assembler.getCliReplacement(1, 'save-artifact-plan', { outputDir })
+      userMessage = userMessage.replace('Use the save_artifact tool for each one.', cliReplace || `Write each artifact file to: ${outputDir}/`)
       tools = [...READ_TOOLS] // no save_artifact for claude-code
 
       // Save image attachments to disk so Claude Code can Read them
@@ -183,7 +189,7 @@ export class AgentOrchestratorBridge {
         userMessage += attachParts.join('\n')
       }
     } else {
-      userMessage = this.buildPlanUserMessage(input.taskDescription, outputId, input.taskType)
+      userMessage = await this.buildPlanUserMessageAsync(input.taskDescription, outputId, input.taskType)
 
       // Inline attachments for API providers
       if (input.attachments?.length) {
@@ -283,18 +289,26 @@ export class AgentOrchestratorBridge {
     await toolExecutor.loadSafetyConfig()
     const runner = new AgentRunnerService(this.registry, toolExecutor)
 
-    let userMessage = this.buildSpecUserMessage(input.outputId, existingArtifacts)
+    let userMessage = await this.buildSpecUserMessageAsync(input.outputId, existingArtifacts)
     let tools = [...READ_TOOLS, SAVE_ARTIFACT_TOOL]
     let outputDir: string | undefined
 
     if (this.isCliProvider(phase)) {
       outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
-      systemPrompt += `\n\nIMPORTANT: Write test file(s) using your Write tool to: ${outputDir}/`
+      // Try to get CLI append from templates, fallback to hardcoded
+      const cliAppend = await this.assembler.getCliSystemAppend(2, { outputDir })
+      systemPrompt += cliAppend
+        ? `\n\n${cliAppend}`
+        : `\n\nIMPORTANT: Write test file(s) using your Write tool to: ${outputDir}/`
       // Replace save_artifact instructions with Write tool instructions for CLI
+      const criticalReplace = await this.assembler.getCliReplacement(2, 'critical-spec', { outputDir })
+      const reminderReplace = await this.assembler.getCliReplacement(2, 'reminder-spec', { outputDir })
       userMessage = userMessage
         .replace(
           /## ⚠️ CRITICAL: You MUST call save_artifact[\s\S]*?Expected call:.*\n/,
-          `## ⚠️ CRITICAL: You MUST write the test file\nUse your Write tool to save the test file to: ${outputDir}/\n`,
+          criticalReplace
+            ? `${criticalReplace}\n`
+            : `## ⚠️ CRITICAL: You MUST write the test file\nUse your Write tool to save the test file to: ${outputDir}/\n`,
         )
         .replace(
           'Use the save_artifact tool to save the test file.',
@@ -302,7 +316,7 @@ export class AgentOrchestratorBridge {
         )
         .replace(
           /## REMINDER:.*$/,
-          `## REMINDER: Write the test file to ${outputDir}/ — do NOT just output text.`,
+          reminderReplace || `## REMINDER: Write the test file to ${outputDir}/ — do NOT just output text.`,
         )
       tools = [...READ_TOOLS]
     }
@@ -419,17 +433,22 @@ export class AgentOrchestratorBridge {
     await toolExecutor.loadSafetyConfig()
     const runner = new AgentRunnerService(this.registry, toolExecutor)
 
-    let userMessage = this.buildExecuteUserMessage(input.outputId, existingArtifacts)
+    let userMessage = await this.buildExecuteUserMessageAsync(input.outputId, existingArtifacts)
     let tools = [...READ_TOOLS, ...WRITE_TOOLS, SAVE_ARTIFACT_TOOL]
 
     if (this.isCliProvider(phase)) {
       // CLI providers have their own Write, Edit, Bash built-in — no need for our tools
       tools = [] // CLI ignores tools param entirely, uses its own
       // Replace API tool references with CLI tool names
+      const cliToolsReplace = await this.assembler.getCliReplacement(4, 'execute-tools', {})
       userMessage = userMessage
         .replace('Use write_file to create/modify files and bash to run tests.',
-          'Use your Write/Edit tools to create/modify files and Bash to run tests.')
-      systemPrompt += `\n\nIMPORTANT: Implement the code changes using your Write and Edit tools. Run tests using Bash.`
+          cliToolsReplace || 'Use your Write/Edit tools to create/modify files and Bash to run tests.')
+      // Try to get CLI append from templates, fallback to hardcoded
+      const cliAppend = await this.assembler.getCliSystemAppend(4, {})
+      systemPrompt += cliAppend
+        ? `\n\n${cliAppend}`
+        : `\n\nIMPORTANT: Implement the code changes using your Write and Edit tools. Run tests using Bash.`
     }
 
     console.log('[Bridge:Execute] provider type:', this.isCliProvider(phase) ? 'CLI' : 'API')
@@ -500,6 +519,16 @@ export class AgentOrchestratorBridge {
       input.provider,
       input.model,
     )
+
+    // FIX-1: Bump maxTokens for fix operations (same issue as generateSpec)
+    // The LLM needs to output the entire corrected artifact inside save_artifact.
+    // With 8192 default, the model often runs out of tokens explaining changes
+    // and never emits the tool call.
+    if (phase.maxTokens <= 8192) {
+      console.log(`[Bridge:Fix] Bumping maxTokens from ${phase.maxTokens} to 16384 for artifact fix`)
+      phase.maxTokens = 16384
+    }
+
     const sessionContext = await this.fetchSessionContext(input.profileId)
     const basePrompt = await this.assembler.assembleForStep(3)
     let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
@@ -521,7 +550,11 @@ export class AgentOrchestratorBridge {
     if (this.isCliProvider(phase)) {
       outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
       tools = [...READ_TOOLS] // no save_artifact for claude-code — it uses its own Write tool
-      systemPrompt += `\n\nIMPORTANT: You must write each corrected artifact as a file using your Write tool.\nWrite corrected files to this directory: ${outputDir}/\nUse the EXACT same filename as the original artifact.`
+      // Try to get CLI append from templates, fallback to hardcoded
+      const cliAppend = await this.assembler.getCliSystemAppend(3, { outputDir })
+      systemPrompt += cliAppend
+        ? `\n\n${cliAppend}`
+        : `\n\nIMPORTANT: You must write each corrected artifact as a file using your Write tool.\nWrite corrected files to this directory: ${outputDir}/\nUse the EXACT same filename as the original artifact.`
     }
 
     let userMessage: string
@@ -529,7 +562,7 @@ export class AgentOrchestratorBridge {
     if (this.isCliProvider(phase) && outputDir) {
       // CLI mode: reference files by PATH instead of embedding content
       // This reduces the prompt from 80KB+ to ~3KB
-      userMessage = this.buildFixUserMessageForCli(
+      userMessage = await this.buildFixUserMessageForCliAsync(
         input.target,
         input.outputId,
         outputDir,
@@ -540,7 +573,7 @@ export class AgentOrchestratorBridge {
       )
     } else {
       // API mode: embed artifact content inline (save_artifact tool handles output)
-      userMessage = this.buildFixUserMessage(
+      userMessage = await this.buildFixUserMessageAsync(
         input.target,
         input.outputId,
         existingArtifacts,
@@ -608,19 +641,126 @@ export class AgentOrchestratorBridge {
       console.log(`[Bridge:Fix] Parsed ${savedArtifacts.size} artifact(s) from text`)
     }
 
-    // ── RETRY: If LLM explained but didn't save, force a second attempt ──
-    if (savedArtifacts.size === 0 && result.text.length > 100) {
-      console.warn('[Bridge:Fix] ⚠️ LLM explained fixes but did NOT call save_artifact. Forcing retry...')
+    // FIX-2 & FIX-3: Smart recovery — extract largest code block from text response
+    // When the LLM outputs the corrected artifact as text (not via save_artifact),
+    // parseArtifactsFromText fails because LLMs write ```typescript not ```typescript filename.tsx
+    // This extracts the largest code block and maps it to the expected filename.
+    if (savedArtifacts.size === 0 && result.text && result.text.length > 500) {
+      console.log('[Bridge:Fix] Text parse failed, trying smart code block extraction...')
+      const codeBlock = this.extractLargestCodeBlock(result.text)
+      if (codeBlock) {
+        // Determine the expected filename based on target
+        let targetFilename: string | null = null
+        if (input.target === 'spec') {
+          // Find spec file from existing artifacts
+          targetFilename = Object.keys(existingArtifacts).find(
+            (n) => n.endsWith('.spec.ts') || n.endsWith('.spec.tsx') || n.endsWith('.test.ts') || n.endsWith('.test.tsx'),
+          ) || this.extractTestFileNameFromPlan(existingArtifacts)
+        } else {
+          targetFilename = 'plan.json'
+        }
 
-      const retryMessage = this.isCliProvider(phase)
-        ? `You explained the fixes but did NOT write any files. Your work is LOST.\n\n` +
-          `YOU MUST USE YOUR WRITE TOOL NOW.\n\n` +
-          `Write the corrected file to: ${outputDir}/\n` +
-          `Do NOT explain again. Just write the file.`
-        : `You explained the fixes but did NOT call save_artifact. Your work is LOST.\n\n` +
-          `YOU MUST CALL save_artifact NOW.\n\n` +
-          `Call: save_artifact(filename, corrected_content)\n` +
-          `Do NOT explain again. Just call the tool.`
+        if (targetFilename) {
+          savedArtifacts.set(targetFilename, codeBlock)
+          console.log(`[Bridge:Fix] ✅ Smart recovery: extracted "${targetFilename}" (${codeBlock.length} chars) from text response`)
+        } else {
+          console.warn(`[Bridge:Fix] ⚠️ Smart recovery failed: could not determine target filename`)
+        }
+      } else {
+        console.warn(`[Bridge:Fix] ⚠️ Smart recovery failed: no code block found in ${result.text.length} char response`)
+      }
+    }
+
+    // ── RETRY: If LLM explained but didn't save, force a second attempt ──
+    // FIX-4: Include full context in retry (spec, rejection report, previous response)
+    // Now uses templates from the database with fallback to hardcoded.
+    if (savedArtifacts.size === 0 && result.text.length > 100) {
+      console.warn('[Bridge:Fix] ⚠️ LLM explained fixes but did NOT call save_artifact. Forcing retry with full context...')
+
+      // Determine target filename for the retry message
+      let targetFilename = 'the artifact'
+      if (input.target === 'spec') {
+        targetFilename = Object.keys(existingArtifacts).find(
+          (n) => n.endsWith('.spec.ts') || n.endsWith('.spec.tsx') || n.endsWith('.test.ts') || n.endsWith('.test.tsx'),
+        ) || 'the spec file'
+      } else {
+        targetFilename = 'plan.json'
+      }
+
+      // Build original artifact content for retry context
+      const originalArtifact = input.target === 'spec'
+        ? Object.entries(existingArtifacts)
+            .filter(([n]) => n.endsWith('.spec.ts') || n.endsWith('.spec.tsx') || n.endsWith('.test.ts') || n.endsWith('.test.tsx'))
+            .map(([n, c]) => `### ${n}\n\`\`\`\n${c}\n\`\`\``)
+            .join('\n\n')
+        : `### plan.json\n\`\`\`json\n${existingArtifacts['plan.json'] || '{}'}\n\`\`\``
+
+      // Try to build retry message from templates
+      const retryTemplateVars = {
+        targetFilename,
+        outputDir: outputDir || '',
+        previousResponse: result.text.slice(0, 8000),
+        originalArtifact,
+        rejectionReport: rejectionReport?.slice(0, 3000) || '',
+      }
+
+      let retryMessage = await this.assembler.buildRetryMessage(
+        this.isCliProvider(phase),
+        retryTemplateVars,
+      )
+
+      // Fallback to hardcoded if no templates found
+      if (!retryMessage) {
+        console.log('[Bridge:Fix] No retry templates found, using hardcoded fallback')
+        const retryParts: string[] = []
+
+        if (this.isCliProvider(phase)) {
+          retryParts.push(
+            `## ⚠️ CRITICAL FAILURE: You did NOT write any files!\n` +
+            `Your previous response explained the fixes but you NEVER used your Write tool.\n` +
+            `All your work is LOST. You MUST write the file NOW.\n\n` +
+            `**DO NOT EXPLAIN AGAIN.** Just write the corrected file to: ${outputDir}/${targetFilename}`,
+          )
+        } else {
+          retryParts.push(
+            `## ⚠️ CRITICAL FAILURE: You did NOT call save_artifact!\n` +
+            `Your previous response explained the fixes but you NEVER called the tool.\n` +
+            `All your work is LOST. You MUST call save_artifact NOW.\n\n` +
+            `**DO NOT EXPLAIN AGAIN.** Just call: save_artifact("${targetFilename}", <corrected content>)`,
+          )
+        }
+
+        retryParts.push(
+          `## Your Previous Response (for reference)\n` +
+          `You already analyzed the issues and described the fixes:\n\n` +
+          `\`\`\`\n${result.text.slice(0, 8000)}\n\`\`\`\n\n` +
+          `Now APPLY those fixes and save the file.`,
+        )
+
+        retryParts.push(`## Original Artifact to Fix\n${originalArtifact}`)
+
+        if (rejectionReport) {
+          retryParts.push(`## Rejection Report (reminder)\n${rejectionReport.slice(0, 3000)}`)
+        }
+
+        if (this.isCliProvider(phase)) {
+          retryParts.push(
+            `## YOUR ONLY TASK NOW\n` +
+            `Use your Write tool to save the corrected ${targetFilename} to ${outputDir}/\n` +
+            `Do NOT explain. Do NOT analyze. Just WRITE THE FILE.`,
+          )
+        } else {
+          retryParts.push(
+            `## YOUR ONLY TASK NOW\n` +
+            `Call save_artifact("${targetFilename}", <fully corrected content>)\n` +
+            `Do NOT explain. Do NOT analyze. Just CALL THE TOOL.`,
+          )
+        }
+
+        retryMessage = retryParts.join('\n\n')
+      }
+
+      console.log(`[Bridge:Fix] Retry message length: ${retryMessage.length} chars`)
 
       const retryResult = await runner.run({
         phase,
@@ -651,6 +791,27 @@ export class AgentOrchestratorBridge {
       if (savedArtifacts.size === 0 && retryResult.text) {
         savedArtifacts = this.parseArtifactsFromText(retryResult.text)
         console.log(`[Bridge:Fix] Retry text parse: ${savedArtifacts.size} artifact(s)`)
+      }
+
+      // Smart recovery for retry as well
+      if (savedArtifacts.size === 0 && retryResult.text && retryResult.text.length > 500) {
+        console.log('[Bridge:Fix] Retry text parse failed, trying smart code block extraction...')
+        const codeBlock = this.extractLargestCodeBlock(retryResult.text)
+        if (codeBlock) {
+          let retryTargetFilename: string | null = null
+          if (input.target === 'spec') {
+            retryTargetFilename = Object.keys(existingArtifacts).find(
+              (n) => n.endsWith('.spec.ts') || n.endsWith('.spec.tsx') || n.endsWith('.test.ts') || n.endsWith('.test.tsx'),
+            ) || this.extractTestFileNameFromPlan(existingArtifacts)
+          } else {
+            retryTargetFilename = 'plan.json'
+          }
+
+          if (retryTargetFilename) {
+            savedArtifacts.set(retryTargetFilename, codeBlock)
+            console.log(`[Bridge:Fix] ✅ Retry smart recovery: extracted "${retryTargetFilename}" (${codeBlock.length} chars)`)
+          }
+        }
       }
 
       // Update result with retry data
@@ -1005,6 +1166,7 @@ export class AgentOrchestratorBridge {
 
   /**
    * Fetch session context from the Gatekeeper API (same as gatekeeper-orchestrator).
+   * Uses templates from the database for git strategy and custom instructions header.
    */
   private async fetchSessionContext(profileId?: string): Promise<SessionContext> {
     let gitStrategy = ''
@@ -1017,14 +1179,17 @@ export class AgentOrchestratorBridge {
       const session = (await sessionRes.json()) as Record<string, unknown>
       const config = session.config as Record<string, string> | undefined
 
-      // Git strategy
+      // Git strategy — try to use template from DB
+      const branch = config?.branch || 'feature/task'
       if (config?.gitStrategy === 'new-branch') {
-        const branch = config.branch || 'feature/task'
-        gitStrategy = `\n## Git Strategy\nCrie uma nova branch antes de implementar: ${branch}\n`
+        const template = await this.assembler.getGitStrategyTemplate('new-branch', { branch })
+        gitStrategy = template || `\n## Git Strategy\nCrie uma nova branch antes de implementar: ${branch}\n`
       } else if (config?.gitStrategy === 'existing-branch' && config.branch) {
-        gitStrategy = `\n## Git Strategy\nUse a branch existente: ${config.branch}\n`
+        const template = await this.assembler.getGitStrategyTemplate('existing-branch', { branch: config.branch })
+        gitStrategy = template || `\n## Git Strategy\nUse a branch existente: ${config.branch}\n`
       } else {
-        gitStrategy = `\n## Git Strategy\nCommit direto na branch atual.\n`
+        const template = await this.assembler.getGitStrategyTemplate('main', {})
+        gitStrategy = template || `\n## Git Strategy\nCommit direto na branch atual.\n`
       }
 
       // Resolve prompts from active profile
@@ -1058,7 +1223,9 @@ export class AgentOrchestratorBridge {
       }
 
       if (activePrompts.length > 0) {
-        customInstructions += `\n## Instruções Adicionais\n`
+        // Try to use custom instructions header from DB
+        const header = await this.assembler.getCustomInstructionsHeader()
+        customInstructions += header ? `\n${header}\n` : `\n## Instruções Adicionais\n`
         for (const p of activePrompts) {
           customInstructions += `### ${p.name}\n${p.content}\n\n`
         }
@@ -1082,6 +1249,30 @@ export class AgentOrchestratorBridge {
 
   // ─── User Message Builders ───────────────────────────────────────────
 
+  /**
+   * Build user message for Step 1 (Plan).
+   * Tries to use DB template first, falls back to hardcoded.
+   */
+  private async buildPlanUserMessageAsync(
+    taskDescription: string,
+    outputId: string,
+    taskType?: string,
+    attachments?: string,
+  ): Promise<string> {
+    // Try DB template first
+    const template = await this.assembler.assembleUserMessageForStep(1, {
+      taskDescription,
+      outputId,
+      taskType,
+      attachments,
+    })
+
+    if (template) return template
+
+    // Fallback to hardcoded
+    return this.buildPlanUserMessage(taskDescription, outputId, taskType)
+  }
+
   private buildPlanUserMessage(
     taskDescription: string,
     outputId: string,
@@ -1097,6 +1288,40 @@ export class AgentOrchestratorBridge {
       `Use the save_artifact tool for each one.`,
     ]
     return parts.filter(Boolean).join('\n')
+  }
+
+  /**
+   * Build user message for Step 2 (Spec).
+   * Tries to use DB template first, falls back to hardcoded.
+   */
+  private async buildSpecUserMessageAsync(
+    outputId: string,
+    artifacts: Record<string, string>,
+  ): Promise<string> {
+    const artifactBlocks = Object.entries(artifacts)
+      .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
+      .join('\n\n')
+
+    // Extract expected test filename from plan.json manifest
+    let testFileName = 'generated.spec.tsx'
+    try {
+      const planJson = JSON.parse(artifacts['plan.json'] || '{}')
+      if (planJson.manifest?.testFile) {
+        testFileName = planJson.manifest.testFile.split('/').pop() || testFileName
+      }
+    } catch { /* ignore parse errors */ }
+
+    // Try DB template first
+    const template = await this.assembler.assembleUserMessageForStep(2, {
+      outputId,
+      testFileName,
+      artifactBlocks,
+    })
+
+    if (template) return template
+
+    // Fallback to hardcoded
+    return this.buildSpecUserMessage(outputId, artifacts)
   }
 
   private buildSpecUserMessage(
@@ -1135,6 +1360,30 @@ export class AgentOrchestratorBridge {
     ].join('\n\n')
   }
 
+  /**
+   * Build user message for Step 4 (Execute).
+   * Tries to use DB template first, falls back to hardcoded.
+   */
+  private async buildExecuteUserMessageAsync(
+    outputId: string,
+    artifacts: Record<string, string>,
+  ): Promise<string> {
+    const artifactBlocks = Object.entries(artifacts)
+      .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
+      .join('\n\n')
+
+    // Try DB template first
+    const template = await this.assembler.assembleUserMessageForStep(4, {
+      outputId,
+      artifactBlocks,
+    })
+
+    if (template) return template
+
+    // Fallback to hardcoded
+    return this.buildExecuteUserMessage(outputId, artifacts)
+  }
+
   private buildExecuteUserMessage(
     outputId: string,
     artifacts: Record<string, string>,
@@ -1151,6 +1400,302 @@ export class AgentOrchestratorBridge {
       `Implement the code to make all tests pass.`,
       `Use write_file to create/modify files and bash to run tests.`,
     ].join('\n\n')
+  }
+
+  /**
+   * Build user message for Step 3 (Fix) - API mode.
+   * Tries to use DB template first, falls back to hardcoded.
+   */
+  private async buildFixUserMessageAsync(
+    target: 'plan' | 'spec',
+    outputId: string,
+    artifacts: Record<string, string>,
+    rejectionReport: string,
+    failedValidators: string[],
+    taskPrompt?: string,
+  ): Promise<string> {
+    const artifactBlocks = Object.entries(artifacts)
+      .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
+      .join('\n\n')
+
+    // Try DB template first
+    const template = await this.assembler.assembleUserMessageForStep(3, {
+      target: target === 'plan' ? 'Planning artifacts' : 'Test spec artifacts',
+      outputId,
+      failedValidators,
+      rejectionReport,
+      taskPrompt,
+      artifactBlocks,
+    })
+
+    if (template) return template
+
+    // Fallback to hardcoded (which has detailed guidance per validator type)
+    return await this.buildFixUserMessageWithGuidance(target, outputId, artifacts, rejectionReport, failedValidators, taskPrompt)
+  }
+
+  /**
+   * Build user message for Step 3 (Fix) - CLI mode.
+   * Tries to use DB template first, falls back to hardcoded.
+   */
+  private async buildFixUserMessageForCliAsync(
+    target: 'plan' | 'spec',
+    outputId: string,
+    outputDir: string,
+    artifacts: Record<string, string>,
+    rejectionReport: string,
+    failedValidators: string[],
+    taskPrompt?: string,
+  ): Promise<string> {
+    // Build artifact file list for template
+    const artifactFiles = Object.entries(artifacts).map(([name, content]) => ({
+      path: `${outputDir}/${name}`,
+      chars: content.length,
+    }))
+
+    // Identify spec files
+    const specFiles = Object.keys(artifacts)
+      .filter((n) => n.endsWith('.spec.ts') || n.endsWith('.spec.tsx') || n.endsWith('.test.ts') || n.endsWith('.test.tsx'))
+      .join(', ')
+
+    // Try DB template first (kind='cli' for CLI-specific template)
+    const template = await this.assembler.assembleUserMessageForStep(3, {
+      target: target === 'plan' ? 'Planning artifacts' : 'Test spec artifacts',
+      outputId,
+      outputDir,
+      failedValidators,
+      rejectionReport,
+      taskPrompt,
+      artifactFiles,
+      specFiles,
+      isSpec: target === 'spec',
+    }, 'cli')
+
+    if (template) return template
+
+    // Fallback to hardcoded with dynamic guidance
+    return await this.buildFixUserMessageForCliWithGuidance(target, outputId, outputDir, artifacts, rejectionReport, failedValidators, taskPrompt)
+  }
+
+  /**
+   * Build fix user message for API providers.
+   * Uses dynamic guidance templates from DB with hardcoded fallback.
+   */
+  private async buildFixUserMessageWithGuidance(
+    target: 'plan' | 'spec',
+    outputId: string,
+    artifacts: Record<string, string>,
+    rejectionReport: string,
+    failedValidators: string[],
+    taskPrompt?: string,
+  ): Promise<string> {
+    // Fetch dynamic guidance for failed validators from DB
+    const dynamicGuidance = await this.assembler.getGuidanceForValidators(
+      failedValidators,
+      { target, outputId, taskPrompt, failedValidators }
+    )
+
+    // If we have dynamic guidance, use simplified structure
+    if (dynamicGuidance.length > 0) {
+      return this.buildFixUserMessageWithDynamicGuidance(
+        target, outputId, artifacts, rejectionReport, failedValidators, taskPrompt, dynamicGuidance
+      )
+    }
+
+    // Fallback to fully hardcoded guidance
+    return this.buildFixUserMessage(target, outputId, artifacts, rejectionReport, failedValidators, taskPrompt)
+  }
+
+  /**
+   * Build fix user message for CLI providers.
+   * Uses dynamic guidance templates from DB with hardcoded fallback.
+   */
+  private async buildFixUserMessageForCliWithGuidance(
+    target: 'plan' | 'spec',
+    outputId: string,
+    outputDir: string,
+    artifacts: Record<string, string>,
+    rejectionReport: string,
+    failedValidators: string[],
+    taskPrompt?: string,
+  ): Promise<string> {
+    // Fetch dynamic guidance for failed validators from DB
+    const dynamicGuidance = await this.assembler.getGuidanceForValidators(
+      failedValidators,
+      { target, outputId, outputDir, taskPrompt, failedValidators }
+    )
+
+    // If we have dynamic guidance, use simplified structure
+    if (dynamicGuidance.length > 0) {
+      return this.buildFixUserMessageForCliWithDynamicGuidance(
+        target, outputId, outputDir, artifacts, rejectionReport, failedValidators, taskPrompt, dynamicGuidance
+      )
+    }
+
+    // Fallback to fully hardcoded guidance
+    return this.buildFixUserMessageForCli(target, outputId, outputDir, artifacts, rejectionReport, failedValidators, taskPrompt)
+  }
+
+  /**
+   * Build fix user message with dynamic guidance (API mode).
+   */
+  private buildFixUserMessageWithDynamicGuidance(
+    target: 'plan' | 'spec',
+    outputId: string,
+    artifacts: Record<string, string>,
+    rejectionReport: string,
+    failedValidators: string[],
+    taskPrompt: string | undefined,
+    dynamicGuidance: string[],
+  ): string {
+    // Smart artifact selection (same as hardcoded version)
+    const relevantFiles = new Set<string>()
+    if (target === 'plan') {
+      relevantFiles.add('plan.json')
+      if (failedValidators.some(v => ['TEST_CLAUSE_MAPPING_VALID', 'CONTRACT_SCHEMA_INVALID'].includes(v))) {
+        relevantFiles.add('contract.md')
+      }
+    } else {
+      for (const name of Object.keys(artifacts)) {
+        if (name.endsWith('.spec.ts') || name.endsWith('.spec.tsx') || name.endsWith('.test.ts') || name.endsWith('.test.tsx')) {
+          relevantFiles.add(name)
+        }
+      }
+      if (failedValidators.includes('TEST_CLAUSE_MAPPING_VALID')) {
+        relevantFiles.add('contract.md')
+        relevantFiles.add('plan.json')
+      }
+    }
+
+    // Build artifact blocks
+    const artifactSections: string[] = []
+    const skippedFiles: string[] = []
+    for (const [name, content] of Object.entries(artifacts)) {
+      if (relevantFiles.has(name)) {
+        artifactSections.push(`### ${name}\n\`\`\`\n${content}\n\`\`\``)
+      } else {
+        skippedFiles.push(`- ${name} (${content.length} chars — use read_file if needed)`)
+      }
+    }
+    const artifactBlocks = artifactSections.join('\n\n')
+    const skippedBlock = skippedFiles.length > 0
+      ? `\n\n### Other artifacts (not included — use read_file to access if needed)\n${skippedFiles.join('\n')}`
+      : ''
+
+    const sections: string[] = [
+      `## ⚠️ CRITICAL: You MUST call save_artifact\n` +
+      `Your ONLY job is to fix the artifacts and save them. You are NOT done until you call \`save_artifact\`.\n` +
+      `- Do NOT just explain what needs to change — that accomplishes NOTHING.\n` +
+      `- Do NOT end your turn without calling \`save_artifact\`.\n` +
+      `- You MUST read the artifact, apply fixes, then call: \`save_artifact(filename, corrected_content)\`\n` +
+      `- If you do not call \`save_artifact\`, your work is LOST and you have FAILED the task.`,
+      `## Target: ${target === 'plan' ? 'Planning artifacts' : 'Test file'}`,
+      `## Output ID: ${outputId}`,
+      `## Failed Validators\n${failedValidators.map((v) => `- \`${v}\``).join('\n')}`,
+    ]
+
+    if (rejectionReport) {
+      sections.push(`## Rejection Report\n\n${rejectionReport}`)
+    }
+
+    if (taskPrompt && failedValidators.some(v => ['NO_IMPLICIT_FILES', 'TASK_CLARITY_CHECK', 'TOKEN_BUDGET_FIT'].includes(v))) {
+      sections.push(`## Original Task Prompt\n\`\`\`\n${taskPrompt}\n\`\`\``)
+    }
+
+    // Add dynamic guidance from DB templates
+    sections.push(`## Validator Fix Guidance\n\n${dynamicGuidance.join('\n\n')}`)
+
+    sections.push(
+      `## Current Artifacts\n\n${artifactBlocks}${skippedBlock}`,
+      '',
+      `## CRITICAL: You MUST use save_artifact\n` +
+      `Do NOT just explain what needs to change. You MUST call the \`save_artifact\` tool for each file you fix.\n` +
+      `If you do not call \`save_artifact\`, your fixes will be LOST and the pipeline will not progress.\n` +
+      `For each corrected file, call: save_artifact(filename, corrected_content)`,
+    )
+
+    return sections.filter(Boolean).join('\n\n')
+  }
+
+  /**
+   * Build fix user message for CLI with dynamic guidance.
+   */
+  private buildFixUserMessageForCliWithDynamicGuidance(
+    target: 'plan' | 'spec',
+    outputId: string,
+    outputDir: string,
+    artifacts: Record<string, string>,
+    rejectionReport: string,
+    failedValidators: string[],
+    taskPrompt: string | undefined,
+    dynamicGuidance: string[],
+  ): string {
+    const sections: string[] = []
+
+    sections.push(
+      `## ⚠️ CRITICAL: You MUST write the corrected files\n` +
+      `Your ONLY job is to fix the artifacts and write them to disk. You are NOT done until you use your Write tool.\n` +
+      `- Do NOT just explain what needs to change — that accomplishes NOTHING.\n` +
+      `- Do NOT end your turn without writing the corrected files.\n` +
+      `- You MUST: 1) Read the artifact, 2) Apply fixes, 3) Write the corrected file to: ${outputDir}/\n` +
+      `- If you do not write the file, your work is LOST and you have FAILED the task.`,
+    )
+
+    sections.push(
+      `## Target: ${target === 'plan' ? 'Planning artifacts' : 'Test spec artifacts'}`,
+      `## Output ID: ${outputId}`,
+    )
+
+    sections.push(`## Failed Validators\n${failedValidators.map((v) => `- \`${v}\``).join('\n')}`)
+
+    if (rejectionReport) {
+      sections.push(`## Rejection Report\n${rejectionReport}`)
+    }
+
+    if (taskPrompt) {
+      sections.push(`## Original Task\n${taskPrompt}`)
+    }
+
+    // Add dynamic guidance from DB templates
+    sections.push(`## Validator Fix Guidance\n\n${dynamicGuidance.join('\n\n')}`)
+
+    // File references
+    const fileList = Object.entries(artifacts)
+      .map(([name, content]) => `- ${outputDir}/${name} (${content.length} chars)`)
+      .join('\n')
+
+    sections.push(
+      `## Artifact Files\nThe artifacts are on disk. Use your Read tool to read them:\n${fileList}`,
+    )
+
+    // Instructions
+    if (target === 'spec') {
+      const specFiles = Object.keys(artifacts).filter(
+        (n) => n.endsWith('.spec.ts') || n.endsWith('.spec.tsx') || n.endsWith('.test.ts') || n.endsWith('.test.tsx'),
+      )
+      sections.push(
+        `## Instructions\n` +
+        `1. Read the test file(s): ${specFiles.join(', ')}\n` +
+        `2. Fix the issues described in the rejection report and guidance above\n` +
+        `3. Write the corrected file(s) back to: ${outputDir}/\n` +
+        `   Use the EXACT same filename(s).`,
+      )
+    } else {
+      sections.push(
+        `## Instructions\n` +
+        `1. Read plan.json from: ${outputDir}/plan.json\n` +
+        `2. Fix the issues described in the rejection report and guidance above\n` +
+        `3. Write the corrected plan.json back to: ${outputDir}/plan.json`,
+      )
+    }
+
+    sections.push(
+      `## ⚠️ REMINDER: You MUST write the files\n` +
+      `Do NOT just explain what needs to change. Use your Write tool to save the corrected file(s) to ${outputDir}/.\n` +
+      `If you do not write the files, your fixes will be LOST and the pipeline will FAIL.`,
+    )
+
+    return sections.filter(Boolean).join('\n\n')
   }
 
   private buildFixUserMessage(

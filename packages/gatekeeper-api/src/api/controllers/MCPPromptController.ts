@@ -20,11 +20,12 @@ import { prisma } from '../../db/client.js'
  */
 export class MCPPromptController {
   /**
-   * GET /mcp/prompts?step=1&kind=playbook&active=true
+   * GET /mcp/prompts?step=1&kind=playbook&role=system&active=true
    *
    * Filters:
    *   step   — Pipeline step (1-4), omit for all steps
    *   kind   — playbook | questionnaire | template | instruction
+   *   role   — system | user (system prompts vs user message templates)
    *   active — true | false, omit for all
    */
   async list(req: Request, res: Response): Promise<void> {
@@ -48,18 +49,23 @@ export class MCPPromptController {
       where.kind = req.query.kind as string
     }
 
+    if (req.query.role) {
+      where.role = req.query.role as string
+    }
+
     if (req.query.active !== undefined) {
       where.isActive = req.query.active === 'true'
     }
 
     const prompts = await prisma.promptInstruction.findMany({
       where,
-      orderBy: [{ step: 'asc' }, { kind: 'asc' }, { order: 'asc' }],
+      orderBy: [{ step: 'asc' }, { role: 'asc' }, { kind: 'asc' }, { order: 'asc' }],
       select: {
         id: true,
         name: true,
         kind: true,
         step: true,
+        role: true,
         order: true,
         isActive: true,
         createdAt: true,
@@ -75,17 +81,18 @@ export class MCPPromptController {
   /**
    * GET /mcp/prompts/steps
    *
-   * Returns overview per step: count of prompts, total chars, kinds breakdown.
+   * Returns overview per step: count of prompts, total chars, kinds and roles breakdown.
    * Useful for a dashboard/management UI.
    */
   async stepOverview(_req: Request, res: Response): Promise<void> {
     const all = await prisma.promptInstruction.findMany({
-      orderBy: [{ step: 'asc' }, { kind: 'asc' }, { order: 'asc' }],
+      orderBy: [{ step: 'asc' }, { role: 'asc' }, { kind: 'asc' }, { order: 'asc' }],
       select: {
         id: true,
         name: true,
         kind: true,
         step: true,
+        role: true,
         order: true,
         isActive: true,
         content: true,
@@ -102,6 +109,8 @@ export class MCPPromptController {
     const steps = [1, 2, 3, 4].map((step) => {
       const items = all.filter((p) => p.step === step)
       const active = items.filter((p) => p.isActive)
+      const systemPrompts = items.filter((p) => p.role === 'system')
+      const userMessages = items.filter((p) => p.role === 'user')
 
       return {
         step,
@@ -109,6 +118,10 @@ export class MCPPromptController {
         total: items.length,
         active: active.length,
         totalChars: active.reduce((sum, p) => sum + p.content.length, 0),
+        roles: {
+          system: systemPrompts.length,
+          user: userMessages.length,
+        },
         kinds: Object.fromEntries(
           ['playbook', 'questionnaire', 'template', 'instruction'].map((kind) => [
             kind,
@@ -119,6 +132,7 @@ export class MCPPromptController {
           id: p.id,
           name: p.name,
           kind: p.kind,
+          role: p.role,
           order: p.order,
           isActive: p.isActive,
           chars: p.content.length,
@@ -135,6 +149,7 @@ export class MCPPromptController {
         id: p.id,
         name: p.name,
         kind: p.kind,
+        role: p.role,
         order: p.order,
         isActive: p.isActive,
         chars: p.content.length,
@@ -232,10 +247,10 @@ export class MCPPromptController {
 
   /**
    * POST /mcp/prompts
-   * Body: { name, content, kind?, step?, order?, isActive? }
+   * Body: { name, content, kind?, step?, role?, order?, isActive? }
    */
   async create(req: Request, res: Response): Promise<void> {
-    const { name, content, kind, step, order, isActive } = req.body
+    const { name, content, kind, step, role, order, isActive } = req.body
 
     if (!name || !content) {
       res.status(400).json({ error: 'name and content are required' })
@@ -243,10 +258,19 @@ export class MCPPromptController {
     }
 
     // Validate kind if provided
-    const validKinds = ['playbook', 'questionnaire', 'template', 'instruction']
+    const validKinds = ['playbook', 'questionnaire', 'template', 'instruction', 'doc', 'prompt', 'cli']
     if (kind && !validKinds.includes(kind)) {
       res.status(400).json({
         error: `kind must be one of: ${validKinds.join(', ')}`,
+      })
+      return
+    }
+
+    // Validate role if provided
+    const validRoles = ['system', 'user']
+    if (role && !validRoles.includes(role)) {
+      res.status(400).json({
+        error: `role must be one of: ${validRoles.join(', ')}`,
       })
       return
     }
@@ -267,6 +291,7 @@ export class MCPPromptController {
           content,
           kind: kind || 'instruction',
           step: step !== undefined ? (typeof step === 'string' ? parseInt(step, 10) : step) : null,
+          role: role || 'system',
           order: order !== undefined ? (typeof order === 'string' ? parseInt(order as string, 10) : order) : 0,
           isActive: isActive ?? true,
         },
@@ -284,17 +309,26 @@ export class MCPPromptController {
 
   /**
    * PUT /mcp/prompts/:id
-   * Body: { name?, content?, kind?, step?, order?, isActive? }
+   * Body: { name?, content?, kind?, step?, role?, order?, isActive? }
    */
   async update(req: Request, res: Response): Promise<void> {
     const { id } = req.params
-    const { name, content, kind, step, order, isActive } = req.body
+    const { name, content, kind, step, role, order, isActive } = req.body
 
     // Validate kind if provided
-    const validKinds = ['playbook', 'questionnaire', 'template', 'instruction']
-    if (kind !== undefined && !validKinds.includes(kind)) {
+    const validKinds = ['playbook', 'questionnaire', 'template', 'instruction', 'doc', 'prompt', 'cli']
+    if (kind !== undefined && kind !== null && !validKinds.includes(kind)) {
       res.status(400).json({
         error: `kind must be one of: ${validKinds.join(', ')}`,
+      })
+      return
+    }
+
+    // Validate role if provided
+    const validRoles = ['system', 'user']
+    if (role !== undefined && !validRoles.includes(role)) {
+      res.status(400).json({
+        error: `role must be one of: ${validRoles.join(', ')}`,
       })
       return
     }
@@ -314,6 +348,7 @@ export class MCPPromptController {
     if (content !== undefined) data.content = content
     if (kind !== undefined) data.kind = kind
     if (step !== undefined) data.step = step === null ? null : (typeof step === 'string' ? parseInt(step, 10) : step)
+    if (role !== undefined) data.role = role
     if (order !== undefined) data.order = typeof order === 'string' ? parseInt(order as string, 10) : order
     if (isActive !== undefined) data.isActive = isActive
 

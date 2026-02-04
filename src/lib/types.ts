@@ -368,11 +368,43 @@ export interface PromptInstruction {
   name: string
   content: string
   step: number | null  // null = session prompt, 1-4 = pipeline step
-  kind: string | null  // 'instruction' | 'doc' | 'prompt' | null
+  kind: string | null  // 'instruction' | 'doc' | 'prompt' | 'cli' | null
+  role: 'system' | 'user'  // 'system' = system prompt, 'user' = user message template
   order: number
   isActive: boolean
   createdAt: string
   updatedAt: string
+}
+
+// Placeholders available for user message templates by step
+export const USER_MESSAGE_PLACEHOLDERS: Record<number, Array<{ name: string; description: string }>> = {
+  1: [
+    { name: 'taskDescription', description: 'Descrição da tarefa' },
+    { name: 'taskType', description: 'Tipo da tarefa (bugfix, feature, etc.)' },
+    { name: 'outputId', description: 'ID único da saída do pipeline' },
+    { name: 'attachments', description: 'Arquivos anexados (formatados)' },
+  ],
+  2: [
+    { name: 'outputId', description: 'ID único da saída do pipeline' },
+    { name: 'testFileName', description: 'Nome do arquivo de teste esperado' },
+    { name: 'artifactBlocks', description: 'Artefatos do Step 1 formatados' },
+  ],
+  3: [
+    { name: 'target', description: 'Alvo da correção (plan ou spec)' },
+    { name: 'outputId', description: 'ID único da saída do pipeline' },
+    { name: 'failedValidators', description: 'Lista de validadores que falharam' },
+    { name: 'rejectionReport', description: 'Relatório de rejeição detalhado' },
+    { name: 'taskPrompt', description: 'Prompt original da tarefa' },
+    { name: 'artifactBlocks', description: 'Artefatos atuais formatados' },
+    { name: 'outputDir', description: 'Diretório de saída (CLI mode)' },
+    { name: 'artifactFiles', description: 'Lista de arquivos de artefatos (CLI mode)' },
+    { name: 'specFiles', description: 'Nomes dos arquivos de spec (CLI mode)' },
+    { name: 'isSpec', description: 'Boolean se target é spec (CLI mode)' },
+  ],
+  4: [
+    { name: 'outputId', description: 'ID único da saída do pipeline' },
+    { name: 'artifactBlocks', description: 'Artefatos aprovados formatados' },
+  ],
 }
 
 export const PIPELINE_STEPS: Record<number, { name: string; description: string }> = {
@@ -380,6 +412,17 @@ export const PIPELINE_STEPS: Record<number, { name: string; description: string 
   2: { name: 'Spec Writer', description: 'Gera o arquivo de teste (.spec.ts)' },
   3: { name: 'Fixer', description: 'Corrige artifacts rejeitados pelo Gatekeeper' },
   4: { name: 'Coder', description: 'Implementa o código para passar os testes' },
+}
+
+// Dynamic instruction template categories (kind values)
+export const DYNAMIC_INSTRUCTION_KINDS: Record<string, { label: string; description: string; icon: string }> = {
+  'retry': { label: 'Retry (API)', description: 'Mensagens de retry quando LLM não salva artifacts', icon: '🔄' },
+  'retry-cli': { label: 'Retry (CLI)', description: 'Mensagens de retry para Claude Code', icon: '🔄' },
+  'system-append-cli': { label: 'CLI Appends', description: 'Texto adicionado ao system prompt para CLI', icon: '📎' },
+  'git-strategy': { label: 'Git Strategy', description: 'Instruções de estratégia Git por tipo', icon: '🌿' },
+  'guidance': { label: 'Validator Guidance', description: 'Orientações específicas por validador', icon: '📋' },
+  'cli-replace': { label: 'CLI Replacements', description: 'Substituições de texto para modo CLI', icon: '🔀' },
+  'custom-instructions': { label: 'Custom Headers', description: 'Headers para instruções customizadas', icon: '📝' },
 }
 
 // MCP CRUD Types (v1 - mantidos para compatibilidade)

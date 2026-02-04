@@ -313,6 +313,7 @@ model PromptInstruction {
   content   String
   step      Int?              // null = generic/MCP prompt, 1-4 = pipeline step
   kind      String?           // null = generic, 'instruction' | 'doc' | 'prompt' = pipeline
+  role      String   @default("system")  // 'system' | 'user' — system prompts vs user message templates
   order     Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -320,7 +321,7 @@ model PromptInstruction {
 
   profiles SessionProfilePrompt[]
 
-  @@index([step, kind, isActive])
+  @@index([step, kind, role, isActive])
 }
 
 model SessionProfile {

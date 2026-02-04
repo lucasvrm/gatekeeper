@@ -844,9 +844,11 @@ export const api = {
     },
 
     prompts: {
-      list: async (scope?: 'session' | 'pipeline'): Promise<PromptInstruction[]> => {
+      list: async (scope?: 'session' | 'pipeline' | 'all', role?: 'system' | 'user', kind?: string): Promise<PromptInstruction[]> => {
         const params = new URLSearchParams()
-        if (scope) params.set('scope', scope)
+        if (scope && scope !== 'all') params.set('scope', scope)
+        if (role) params.set('role', role)
+        if (kind) params.set('kind', kind)
         params.set('full', 'true')
         const response = await fetch(`${API_BASE}/mcp/prompts?${params}`)
         if (!response.ok) {
@@ -861,7 +863,8 @@ export const api = {
         name: string
         content: string
         step?: number | null
-        kind?: string
+        kind?: string | null
+        role?: 'system' | 'user'
         order?: number
         isActive?: boolean
       }): Promise<PromptInstruction> => {
@@ -881,7 +884,8 @@ export const api = {
         name?: string
         content?: string
         step?: number | null
-        kind?: string
+        kind?: string | null
+        role?: 'system' | 'user'
         order?: number
         isActive?: boolean
       }): Promise<PromptInstruction> => {
