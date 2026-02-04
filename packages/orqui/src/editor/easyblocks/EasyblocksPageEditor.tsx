@@ -189,6 +189,12 @@ interface EasyblocksPageEditorProps {
   variables?: VariablesSection;
   onVariablesChange?: (v: VariablesSection) => void;
   externalVariables?: VariablesSection;
+  /** Callback to switch to Shell & Tokens mode */
+  onSwitchToShell?: () => void;
+  /** Callback to save to filesystem (undefined = no API) */
+  onSave?: () => void;
+  /** Current save status */
+  saveStatus?: string | null;
 }
 
 // ============================================================================
@@ -202,6 +208,9 @@ export function EasyblocksPageEditor({
   variables,
   onVariablesChange,
   externalVariables,
+  onSwitchToShell,
+  onSave,
+  saveStatus,
 }: EasyblocksPageEditorProps) {
   // =====================================================================
   // IFRAME DETECTION — must be FIRST, before any other logic.
@@ -225,6 +234,9 @@ export function EasyblocksPageEditor({
     variables={variables}
     onVariablesChange={onVariablesChange}
     externalVariables={externalVariables}
+    onSwitchToShell={onSwitchToShell}
+    onSave={onSave}
+    saveStatus={saveStatus}
   />;
 }
 
@@ -245,6 +257,9 @@ function EasyblocksParentEditor({
   tokens = {},
   variables,
   externalVariables,
+  onSwitchToShell,
+  onSave,
+  saveStatus,
 }: EasyblocksPageEditorProps) {
   // ---- Page selection state ----
   // null = new page (rootComponent mode), string = existing page (document mode)
@@ -474,90 +489,130 @@ function EasyblocksParentEditor({
   // Wait for URL params before rendering
   if (!ready) {
     return (
-      <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
-        {/* Keep PageSwitcher visible during loading for continuity */}
-        <PageSwitcher
-          pages={pages}
-          currentPageId={selectedPageId}
-          onSelectPage={handleSelectPage}
-          onNewPage={handleNewPage}
-          onDeletePage={handleDeletePage}
-        />
+      <div style={{ width: "100vw", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0e0e11" }}>
         <div style={{
-          flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-          background: "#0e0e11",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+          color: "#5b5b66", fontSize: 13, fontFamily: "'Inter', sans-serif",
         }}>
           <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
-            color: "#5b5b66", fontSize: 13, fontFamily: "'Inter', sans-serif",
-          }}>
-            <div style={{
-              width: 24, height: 24, borderRadius: "50%",
-              border: "2px solid #2a2a33", borderTopColor: "#6d9cff",
-              animation: "orqui-spin 0.7s linear infinite",
-            }} />
-            <span>Carregando página…</span>
-            <style>{`@keyframes orqui-spin { to { transform: rotate(360deg); } }`}</style>
-          </div>
+            width: 24, height: 24, borderRadius: "50%",
+            border: "2px solid #2a2a33", borderTopColor: "#6d9cff",
+            animation: "orqui-spin 0.7s linear infinite",
+          }} />
+          <span>Carregando página…</span>
+          <style>{`@keyframes orqui-spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </div>
     );
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // MAIN RENDER — EasyblocksEditor as SOLE viewport occupant
+  //
+  // Per Easyblocks docs: "the editor page shouldn't render any extra headers,
+  // footers, popups etc. It must be blank canvas with EasyblocksEditor being
+  // a single component rendered."
+  //
+  // All Orqui controls are rendered as fixed-position overlays ON TOP of the
+  // editor, never as siblings that would take space in the DOM flow.
+  // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
+    <>
+      {/* Token CSS variables — injected globally */}
       <style>{tokenCSS}</style>
 
-      {/* Page switcher bar */}
-      <PageSwitcher
-        pages={pages}
-        currentPageId={selectedPageId}
-        onSelectPage={handleSelectPage}
-        onNewPage={handleNewPage}
-        onDeletePage={handleDeletePage}
-      />
+      {/* ── Floating overlay: Orqui controls ─────────────────────────── */}
+      {/* Positioned in the top-left area, above the Easyblocks close (X)
+          button which is at the very top-left of the editor top bar.
+          We place our controls just below that bar (top: 40px = EB topbar). */}
+      <div style={{
+        position: "fixed",
+        top: 0, left: 64,
+        zIndex: 100001,
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "0 8px",
+        height: 40,
+        pointerEvents: "none",
+      }}>
+        {/* Switch to Shell & Tokens */}
+        {onSwitchToShell && (
+          <button
+            onClick={onSwitchToShell}
+            title="⌘⇧M — Shell & Tokens"
+            style={{
+              pointerEvents: "auto",
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+              border: "1px solid #2a2a33", cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              background: "#1a1a1f", color: "#a0a0b0",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = "#242430";
+              e.currentTarget.style.color = "#d0d0e0";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "#1a1a1f";
+              e.currentTarget.style.color = "#a0a0b0";
+            }}
+          >
+            <span style={{ fontSize: 12 }}>⚙</span>
+            Shell & Tokens
+          </button>
+        )}
 
-      {/* Easyblocks editor — re-mounted on page switch via key.
-       *
-       * HEIGHT FIX — based on source analysis of @easyblocks/editor v1.0.10:
-       *
-       * Easyblocks has an internal `heightMode` prop (not in public API) that
-       * defaults to "viewport". This causes:
-       *   - #shopstory-app  → height: 100vh
-       *   - SidebarAndContentContainer → height: calc(100vh - 40px)
-       *
-       * Since Orqui embeds the editor below its own header + page tabs,
-       * the 100vh overflows by ~62px, cutting off the sidebar and canvas bottom.
-       *
-       * Fix: Two targeted CSS rules convert the layout from viewport-based
-       * to container-based sizing, letting flex do the work.
-       */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-        <style>{`
-          /* Rule 1: Make editor root fill its flex parent instead of viewport */
-          #shopstory-app {
-            height: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-          }
-          /* Rule 2: SidebarAndContentContainer (always last DOM child of
-             #shopstory-app — providers don't create DOM elements) uses
-             flex-grow instead of calc(100vh - 40px) */
-          #shopstory-app > :last-child {
-            flex: 1 !important;
-            height: auto !important;
-            min-height: 0 !important;
-          }
-        `}</style>
-        <EasyblocksErrorBoundary onReset={handleErrorReset}>
-          <EasyblocksEditor
-            key={editorKey}
-            config={config}
-            components={ORQUI_COMPONENTS}
-            widgets={ORQUI_WIDGETS}
-          />
-        </EasyblocksErrorBoundary>
+        {/* Save button */}
+        {onSave && (
+          <button
+            onClick={onSave}
+            disabled={saveStatus === "saving"}
+            title="⌘S — Salvar"
+            style={{
+              pointerEvents: "auto",
+              padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+              border: "none", cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              background: saveStatus === "saved" ? "#22c55e" : saveStatus === "error" ? "#ef4444" : "#6d9cff",
+              color: "#fff",
+              opacity: saveStatus === "saving" ? 0.6 : 1,
+              transition: "all 0.15s",
+            }}
+          >
+            {saveStatus === "saving" ? "…" : saveStatus === "saved" ? "✓" : saveStatus === "error" ? "✕" : "Save"}
+          </button>
+        )}
       </div>
-    </div>
+
+      {/* ── Floating overlay: Page switcher ───────────────────────────── */}
+      {/* Positioned just below the Easyblocks top bar (40px high) */}
+      <div style={{
+        position: "fixed",
+        top: 40, left: 0,
+        right: 240, /* Don't overlap the sidebar (240px wide) */
+        zIndex: 100001,
+        pointerEvents: "none",
+      }}>
+        <div style={{ pointerEvents: "auto" }}>
+          <PageSwitcher
+            pages={pages}
+            currentPageId={selectedPageId}
+            onSelectPage={handleSelectPage}
+            onNewPage={handleNewPage}
+            onDeletePage={handleDeletePage}
+          />
+        </div>
+      </div>
+
+      {/* ── EasyblocksEditor — THE sole component in the viewport ───── */}
+      <EasyblocksErrorBoundary onReset={handleErrorReset}>
+        <EasyblocksEditor
+          key={editorKey}
+          config={config}
+          components={ORQUI_COMPONENTS}
+          widgets={ORQUI_WIDGETS}
+        />
+      </EasyblocksErrorBoundary>
+    </>
   );
 }

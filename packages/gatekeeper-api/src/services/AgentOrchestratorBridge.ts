@@ -855,40 +855,92 @@ export class AgentOrchestratorBridge {
     taskPrompt?: string,
   ): string {
     const artifactBlocks = Object.entries(artifacts)
-      .map(([name, content]) => `### ${name}\n\\`\\`\\`\n${content}\n\\`\\`\\``)
+      .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
       .join('\n\n')
 
-    // Check if any failed validator operates on taskPrompt (not on artifacts)
-    const TASK_PROMPT_VALIDATORS = ['NO_IMPLICIT_FILES', 'TASK_CLARITY_CHECK']
+    // Categorize failed validators by what data source they check
+    const TASK_PROMPT_VALIDATORS = ['NO_IMPLICIT_FILES', 'TASK_CLARITY_CHECK', 'TOKEN_BUDGET_FIT']
+    const MANIFEST_VALIDATORS = ['TASK_SCOPE_SIZE', 'DELETE_DEPENDENCY_CHECK', 'PATH_CONVENTION', 'SENSITIVE_FILES_LOCK', 'DANGER_MODE_EXPLICIT']
+    const CONTRACT_VALIDATORS = ['TEST_CLAUSE_MAPPING_VALID']
+
     const hasTaskPromptFailure = failedValidators.some((v) => TASK_PROMPT_VALIDATORS.includes(v))
+    const hasManifestFailure = failedValidators.some((v) => MANIFEST_VALIDATORS.includes(v))
+    const hasContractFailure = failedValidators.some((v) => CONTRACT_VALIDATORS.includes(v))
+    const hasDangerModeFailure = failedValidators.includes('DANGER_MODE_EXPLICIT')
 
     const sections: string[] = [
       `## Target: ${target === 'plan' ? 'Planning artifacts' : 'Test file'}`,
       `## Output ID: ${outputId}`,
-      `## Failed Validators\n${failedValidators.map((v) => `- \\`${v}\\``).join('\n')}`,
+      `## Failed Validators\n${failedValidators.map((v) => `- \`${v}\``).join('\n')}`,
     ]
 
     if (rejectionReport) {
       sections.push(`## Rejection Report\n\n${rejectionReport}`)
     }
 
-    // Include the taskPrompt when relevant validators failed
+    // === Guidance for taskPrompt-level validators ===
     if (hasTaskPromptFailure && taskPrompt) {
       sections.push(
         `## Original Task Prompt\n` +
         `The validators NO_IMPLICIT_FILES and TASK_CLARITY_CHECK analyze the **task prompt text below**, ` +
         `NOT the plan artifacts. To fix these failures you MUST also save a corrected version of the ` +
-        `task prompt as an artifact named \\`corrected-task-prompt.txt\\`.\n\n` +
-        `\\`\\`\\`\n${taskPrompt}\n\\`\\`\\`\n\n` +
+        `task prompt as an artifact named \`corrected-task-prompt.txt\`.\n\n` +
+        `\`\`\`\n${taskPrompt}\n\`\`\`\n\n` +
         `Remove any implicit/vague references (e.g. "etc", "...", "outros arquivos", "e tal", ` +
         `"among others", "all files", "any file", "related files", "necessary files", "e outros") ` +
         `and replace them with explicit, specific file or component names.`
       )
     }
 
+    // === Guidance for manifest-level validators ===
+    if (hasManifestFailure) {
+      const tips: string[] = []
+      if (failedValidators.includes('TASK_SCOPE_SIZE')) {
+        tips.push('- **TASK_SCOPE_SIZE**: Reduce the number of files in `manifest.files` in plan.json (split into smaller tasks if needed)')
+      }
+      if (failedValidators.includes('DELETE_DEPENDENCY_CHECK')) {
+        tips.push('- **DELETE_DEPENDENCY_CHECK**: Files marked DELETE have importers not listed in manifest. Add those importers as MODIFY in `manifest.files`')
+      }
+      if (failedValidators.includes('PATH_CONVENTION')) {
+        tips.push('- **PATH_CONVENTION**: The `manifest.testFile` path does not follow project conventions. Update the testFile path in plan.json')
+      }
+      if (failedValidators.includes('SENSITIVE_FILES_LOCK')) {
+        tips.push('- **SENSITIVE_FILES_LOCK**: Manifest includes sensitive files (.env, prisma/schema, etc.) but dangerMode is off. Remove sensitive files from manifest or flag the task as dangerMode')
+      }
+      sections.push(
+        `## Manifest Fix Guidance\n` +
+        `These validators check \`manifest.files\` and \`manifest.testFile\` inside **plan.json**. ` +
+        `To fix, update the manifest section in plan.json and save it via save_artifact.\n\n` +
+        tips.join('\n')
+      )
+    }
+
+    // === Guidance for contract-level validators ===
+    if (hasContractFailure) {
+      sections.push(
+        `## Contract Fix Guidance\n` +
+        `**TEST_CLAUSE_MAPPING_VALID** checks that every test has a valid \`// @clause CL-XXX\` comment ` +
+        `matching a clause ID defined in the \`contract\` field of plan.json. To fix:\n` +
+        `1. If clause IDs in tests don't match contract: update either the test file or the contract clauses in plan.json\n` +
+        `2. If tests are missing \`// @clause\` tags: add them to the spec test file\n` +
+        `3. Save both corrected plan.json (with updated contract.clauses) and the test file as needed`
+      )
+    }
+
+    // === Guidance for dangerMode (user-controlled) ===
+    if (hasDangerModeFailure) {
+      sections.push(
+        `## DangerMode Note\n` +
+        `**DANGER_MODE_EXPLICIT** failed because dangerMode is enabled but manifest has no sensitive files, ` +
+        `or sensitive files are present without dangerMode. This setting is controlled by the user in the UI. ` +
+        `You can fix the plan.json by setting \`"dangerMode": true\` if sensitive files are needed, ` +
+        `or remove sensitive files from the manifest if dangerMode should stay off.`
+      )
+    }
+
     sections.push(
       `## Current Artifacts\n\n${artifactBlocks}`,
-      ``,
+      '',
       `Fix the artifacts to address the failed validators. Use save_artifact for each corrected file.`,
     )
 

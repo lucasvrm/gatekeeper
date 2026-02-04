@@ -676,11 +676,16 @@ export function OrchestratorPage() {
 
       const manifest = { files, testFile }
 
+      // Extract contract from plan.json if present (used by TestClauseMappingValid)
+      const contract = plan.contract || undefined
+
       const response = await api.runs.create({
         projectId: selectedProjectId,
         outputId,
         taskPrompt: taskDescription,
         manifest,
+        contract,
+        dangerMode: plan.dangerMode || false,
         runType: "CONTRACT",
       })
 

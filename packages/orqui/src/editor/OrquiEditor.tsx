@@ -188,6 +188,37 @@ export function OrquiEditor() {
   // ════════════════════════════════════════════════════════════════════════════
   // RENDER
   // ════════════════════════════════════════════════════════════════════════════
+
+  // ── PAGES MODE — EasyblocksEditor takes the FULL viewport ─────────────────
+  // Easyblocks docs: "the editor page shouldn't render any extra headers,
+  // footers, popups etc. It must be blank canvas with EasyblocksEditor being
+  // a single component rendered."
+  // So we render NO header — just the editor + floating overlay controls.
+  if (editorMode === "pages") {
+    return (
+      <>
+        {/* Google Fonts (needed for floating controls) */}
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+        {/* EasyblocksPageEditor — sole occupant of the viewport */}
+        <EasyblocksPageEditor
+          pages={layout.pages || {}}
+          onPagesChange={(pages) => setLayout((prev: any) => ({ ...prev, pages }))}
+          tokens={layout.tokens}
+          variables={layout.variables}
+          onVariablesChange={(variables) => setLayout((prev: any) => ({ ...prev, variables }))}
+          onSwitchToShell={() => setEditorMode("shell")}
+          onSave={hasApi ? saveToFilesystem : undefined}
+          saveStatus={saveStatus}
+        />
+
+        {/* Command Palette overlay */}
+        <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} items={cmdItems} />
+      </>
+    );
+  }
+
+  // ── SHELL & TOKENS MODE — full Orqui chrome ───────────────────────────────
   return (
     <div className="orqui-editor-root" style={{
       background: COLORS.bg, height: "100vh", color: COLORS.text,
@@ -333,30 +364,14 @@ export function OrquiEditor() {
       </div>
 
       {/* ============================================================ */}
-      {/* MAIN CONTENT                                                  */}
+      {/* MAIN CONTENT — Shell & Tokens                                 */}
       {/* ============================================================ */}
-
-      {/* PAGES MODE — Easyblocks builder */}
-        {editorMode === "pages" && (
-        <div style={{ flex: 1, overflow: "hidden" }}>
-          <EasyblocksPageEditor
-            pages={layout.pages || {}}
-            onPagesChange={(pages) => setLayout((prev: any) => ({ ...prev, pages }))}
-            tokens={layout.tokens}
-            variables={layout.variables}
-            onVariablesChange={(variables) => setLayout((prev: any) => ({ ...prev, variables }))}
-            />
-        </div>
-      )}
-      {/* SHELL & TOKENS MODE — Stacked Workbench */}
-      {editorMode === "shell" && (
-        <StackedWorkbench
-          layout={layout}
-          setLayout={setLayout}
-          registry={registry}
-          setRegistry={setRegistry}
-        />
-      )}
+      <StackedWorkbench
+        layout={layout}
+        setLayout={setLayout}
+        registry={registry}
+        setRegistry={setRegistry}
+      />
 
       {/* Command Palette overlay */}
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} items={cmdItems} />
