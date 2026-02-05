@@ -98,6 +98,8 @@ type EditorAction =
   | { type: "SELECT_GRID_ITEM"; payload: { itemId: string | null } }
   | { type: "UPDATE_GRID_ITEM_POSITION"; payload: { itemId: string; colStart: number; rowStart: number } }
   | { type: "UPDATE_GRID_ITEM_SIZE"; payload: { itemId: string; colSpan: number; rowSpan: number } }
+  | { type: "ADD_GRID_ITEM"; payload: { item: any } }
+  | { type: "UPDATE_GRID_ITEM_PROPS"; payload: { itemId: string; props: Record<string, any> } }
   // History
   | { type: "UNDO" }
   | { type: "REDO" };

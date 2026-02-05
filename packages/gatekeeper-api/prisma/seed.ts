@@ -369,6 +369,13 @@ async function main() {
       category: 'TIMEOUTS',
       description: 'Timeout in ms for linting',
     },
+    {
+      ['key']: 'JWT_EXPIRY_SECONDS',
+      value: '3600',
+      type: 'NUMBER',
+      category: 'auth',
+      description: 'Tempo de expiração do token JWT em segundos (padrão: 3600 = 1 hora)',
+    },
   ]
 
   for (const config of validationConfigs) {

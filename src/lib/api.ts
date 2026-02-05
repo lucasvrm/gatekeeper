@@ -43,13 +43,31 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-// Helper for authenticated fetch
+// Helper for authenticated fetch with TOKEN_EXPIRED interception
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = {
     ...getAuthHeaders(),
     ...options.headers,
   }
-  return fetch(url, { ...options, headers })
+  const response = await fetch(url, { ...options, headers })
+
+  // Intercept 401 TOKEN_EXPIRED and redirect to login
+  if (response.status === 401) {
+    const clonedResponse = response.clone()
+    try {
+      const body = await clonedResponse.json()
+      if (body?.error === 'TOKEN_EXPIRED') {
+        // Clear token from localStorage
+        localStorage.removeItem('token')
+        // Redirect to login
+        window.location.href = '/login'
+      }
+    } catch {
+      // If JSON parsing fails, continue with normal response
+    }
+  }
+
+  return response
 }
 
 

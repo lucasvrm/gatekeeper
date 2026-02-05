@@ -19,13 +19,10 @@ export class AuthController {
       // Normalize email to lowercase for case-insensitive comparison
       const normalizedEmail = input.email.toLowerCase()
 
-      // Check if email already exists (case-insensitive)
+      // Check if email already exists (normalized to lowercase)
       const existingUser = await prisma.user.findFirst({
         where: {
-          email: {
-            equals: normalizedEmail,
-            mode: 'insensitive'
-          }
+          email: normalizedEmail
         }
       })
 

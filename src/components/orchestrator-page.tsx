@@ -387,6 +387,10 @@ export function OrchestratorPage() {
     "openai": {
       label: "OpenAI (API Key)",
       models: [
+        { value: "gpt-5.2", label: "GPT-5.2 Thinking" },
+        { value: "gpt-5.2-instant", label: "GPT-5.2 Instant" },
+        { value: "gpt-5.2-pro", label: "GPT-5.2 Pro" },
+        { value: "gpt-5.2-codex", label: "GPT-5.2 Codex" },
         { value: "gpt-4.1", label: "GPT-4.1" },
         { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
         { value: "o3-mini", label: "o3-mini" },
@@ -1526,12 +1530,12 @@ export function OrchestratorPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div>
       {headerPortals}
 
       {/* Session controls (outputId, reset, resume) - only render if has content */}
       {(outputId || (!outputId && saved?.outputId)) && (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mt-6">
           {outputId && (
             <>
               <Badge variant="outline" className="font-mono text-xs">
@@ -1565,7 +1569,7 @@ export function OrchestratorPage() {
       )}
 
       {/* ─── Pipeline content ────────────────────────────────────────── */}
-      <>
+      <div className="space-y-6">
           {/* Resuming indicator */}
           {resuming && (
             <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-sm text-blue-400 flex items-center gap-2">
@@ -2589,7 +2593,7 @@ export function OrchestratorPage() {
         failedValidators={fixDialogValidators}
         onConfirm={handleFixWithInstructions}
       />
-      </>
+      </div>
     </div>
   )
 }

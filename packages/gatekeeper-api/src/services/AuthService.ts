@@ -185,9 +185,12 @@ export class AuthService {
    * Login a user
    */
   async login(email: string, password: string): Promise<AuthResult> {
+    // Normalize email to lowercase for case-insensitive lookup
+    const normalizedEmail = email.toLowerCase()
+
     // Find user by email
     const user = await this.prisma.user.findFirst({
-      where: { email }
+      where: { email: normalizedEmail }
     })
 
     if (!user) {
