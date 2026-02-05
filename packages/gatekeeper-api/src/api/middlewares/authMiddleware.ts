@@ -1,7 +1,9 @@
 import type { Request, Response, NextFunction } from 'express'
+import jwt from 'jsonwebtoken'
 import { AuthService } from '../../services/AuthService.js'
 
 const authService = new AuthService()
+const GRACE_PERIOD_SECONDS = 900 // 15 minutes
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -102,6 +104,27 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   const tokenStatus = authService.checkTokenStatus(token)
 
   if (tokenStatus === 'expired') {
+    // Grace period: accept tokens expired within the last 15 minutes
+    try {
+      const jwtSecret = process.env.JWT_SECRET || 'test-secret-key'
+      const decoded = jwt.verify(token, jwtSecret, { ignoreExpiration: true }) as { userId?: string; exp?: number }
+      const expiredAt = (decoded.exp || 0) * 1000
+      const graceDeadline = expiredAt + GRACE_PERIOD_SECONDS * 1000
+
+      if (decoded.userId && Date.now() < graceDeadline) {
+        // Within grace period — renew token and continue
+        const newToken = authService.generateToken(decoded.userId)
+        res.setHeader('X-Renewed-Token', newToken)
+        ;(req as Request & { user: { userId: string } }).user = {
+          userId: decoded.userId,
+        }
+        next()
+        return
+      }
+    } catch {
+      // Fall through to expired response
+    }
+
     res.status(401).json({
       error: 'TOKEN_EXPIRED',
       message: 'Token has expired',

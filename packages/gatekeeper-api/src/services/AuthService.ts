@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 
 const SALT_ROUNDS = 10
-const DEFAULT_JWT_EXPIRY_SECONDS = 3600 // 1 hour
+const DEFAULT_JWT_EXPIRY_SECONDS = 57600 // 16 hours
 
 export interface JwtPayload {
   userId: string

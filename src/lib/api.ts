@@ -53,6 +53,12 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
   }
   const response = await fetch(url, { ...options, headers })
 
+  // Pick up renewed token from grace period
+  const renewedToken = response.headers.get('X-Renewed-Token')
+  if (renewedToken) {
+    localStorage.setItem('token', renewedToken)
+  }
+
   // Intercept 401 TOKEN_EXPIRED and redirect to login
   if (response.status === 401) {
     const clonedResponse = response.clone()

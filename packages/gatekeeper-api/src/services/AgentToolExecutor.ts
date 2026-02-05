@@ -142,6 +142,55 @@ const BASH_INJECTION_PATTERNS: RegExp[] = [
   /\/proc\//,           // process info access
 ]
 
+// ─── Destructive command blocklist ───────────────────────────────────────────
+
+const BASH_DESTRUCTIVE_PATTERNS: RegExp[] = [
+  // Database / migration commands
+  /\bprisma\s+db\s+push\b/,
+  /\bprisma\s+migrate\b/,
+  /\bprisma\s+db\s+pull\b/,
+  /\bprisma\s+db\s+seed\b/,
+  /\bprisma\s+studio\b/,
+  /\bprisma\s+generate\b/,
+  /\bdb:push\b/,
+  /\bdb:migrate\b/,
+  /\bdb:seed\b/,
+  /\bdb:studio\b/,
+  /\bdb:generate\b/,
+  /\bdb:pull\b/,
+  // Direct DB access
+  /\bsqlite3?\b/,
+  /\bpsql\b/,
+  /\bmysql\b/,
+  /\bmongosh?\b/,
+  /\bDROP\s+(TABLE|DATABASE|INDEX|SCHEMA)\b/i,
+  /\bTRUNCATE\b/i,
+  /\bALTER\s+TABLE\b/i,
+  /\bDELETE\s+FROM\b/i,
+  // Package manager installs
+  /\bnpm\s+install\b/,
+  /\bnpm\s+ci\b/,
+  /\bnpm\s+update\b/,
+  /\bnpm\s+audit\s+fix\b/,
+  /\byarn\s+(install|add)\b/,
+  /\bpnpm\s+(install|add)\b/,
+  /\bpip\s+install\b/,
+  // Destructive git
+  /\bgit\s+push\b/,
+  /\bgit\s+reset\s+--hard\b/,
+  /\bgit\s+clean\b/,
+  /\bgit\s+branch\s+-[dD]\b/,
+  /\bgit\s+checkout\s+\.\b/,
+  /\bgit\s+restore\s+\.\b/,
+  // System admin
+  /\bsudo\b/,
+  /\bsu\b\s/,
+  /\bsystemctl\b/,
+  /\bservice\s/,
+  /\bshutdown\b/,
+  /\breboot\b/,
+]
+
 // ─── search_code configuration ────────────────────────────────────────────
 
 const SEARCH_SKIP_DIRS = new Set([
@@ -685,6 +734,19 @@ export class AgentToolExecutor {
       return {
         content: `Command blocked by policy: "${trimmed}"`,
         isError: true,
+      }
+    }
+
+    // Step 0.5: Destructive command blocklist (hardcoded)
+    for (const pattern of BASH_DESTRUCTIVE_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        this.auditBash(trimmed, false, `destructive-blocked: ${pattern}`)
+        return {
+          content:
+            `Command blocked: "${trimmed}" matches a destructive operation (${pattern}). ` +
+            `Database, package install, destructive git, and system admin commands are not permitted.`,
+          isError: true,
+        }
       }
     }
 

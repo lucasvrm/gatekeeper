@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { api, API_BASE } from "@/lib/api"
-import type { Project, RunWithResults, ValidatorResult, GateResult, ArtifactFolder, LLMPlanOutput } from "@/lib/types"
+import type { Project, RunWithResults, ValidatorResult, GateResult, ArtifactFolder, LLMPlanOutput, ManifestFile } from "@/lib/types"
 import { useEffect } from "react"
 import { useOrchestratorEvents, type OrchestratorEvent } from "@/hooks/useOrchestratorEvents"
 import { useRunEvents } from "@/hooks/useRunEvents"
@@ -925,6 +925,47 @@ export function OrchestratorPage() {
     return merged
   }
 
+  // ── Extract manifest from plan.json (supports both LLMPlanOutput and planner-core formats) ──
+  const extractManifest = (plan: Record<string, any>, fallbackTestFile?: string) => {
+    // 1. Native manifest format: { manifest: { files: [...], testFile } }
+    if (plan.manifest?.files?.length) {
+      return {
+        files: plan.manifest.files as ManifestFile[],
+        testFile: plan.manifest.testFile || fallbackTestFile || "spec.test.ts",
+      }
+    }
+
+    // 2. Flat format: { files: [...] } (already ManifestFile[])
+    if (Array.isArray(plan.files) && plan.files.length > 0 && plan.files[0]?.path) {
+      return {
+        files: plan.files as ManifestFile[],
+        testFile: plan.testFile || fallbackTestFile || "spec.test.ts",
+      }
+    }
+
+    // 3. Planner-core format: { files_to_create, files_to_modify, test_files }
+    const mapped: ManifestFile[] = []
+    for (const p of plan.files_to_create || []) {
+      mapped.push({ path: p, action: "CREATE" })
+    }
+    for (const p of plan.files_to_modify || []) {
+      mapped.push({ path: p, action: "MODIFY" })
+    }
+
+    const testFile =
+      plan.test_files?.[0] ||
+      fallbackTestFile ||
+      specArtifacts[0]?.filename ||
+      "spec.test.ts"
+
+    // Add test file to manifest if not already present
+    if (testFile && !mapped.some((f) => f.path === testFile)) {
+      mapped.push({ path: testFile, action: "CREATE" })
+    }
+
+    return { files: mapped, testFile }
+  }
+
   // Check LLM isolation: step 1 model must differ from step 2, and both from step 4
   const apiPost = async (endpoint: string, body: Record<string, unknown>, retries = 0, timeoutMs = 300_000): Promise<any> => {
     let lastError: Error | null = null
@@ -944,6 +985,9 @@ export function OrchestratorPage() {
             signal: controller.signal,
           })
           clearTimeout(timer)
+          // Pick up renewed token from grace period
+          const renewedToken = res.headers.get("X-Renewed-Token")
+          if (renewedToken) localStorage.setItem("token", renewedToken)
           if (!res.ok) {
             const err = await res.json().catch(() => null)
             throw new Error(err?.error || err?.message || `HTTP ${res.status}`)
@@ -1111,11 +1155,10 @@ export function OrchestratorPage() {
       addLog("success", `Artefatos carregados: plan.json + ${contents.specFileName}`)
 
       // 3. Extract manifest/contract and create run
-      const files = plan.manifest?.files || []
-      const testFile = plan.manifest?.testFile || contents.specFileName
+      const manifest = extractManifest(plan, contents.specFileName)
       const contract = plan.contract || undefined
 
-      if (files.length === 0) throw new Error("plan.json não contém manifest.files")
+      if (manifest.files.length === 0) throw new Error("plan.json não contém arquivos (manifest.files, files_to_create, ou files_to_modify)")
 
       setValidationStatus("RUNNING")
       setRunResults(null)
@@ -1125,7 +1168,7 @@ export function OrchestratorPage() {
         projectId: selectedProjectId,
         outputId: oid,
         taskPrompt: plan.taskPrompt || taskDescription,
-        manifest: { files, testFile },
+        manifest,
         contract,
         dangerMode: plan.dangerMode || false,
         runType: "CONTRACT",
@@ -1170,18 +1213,14 @@ export function OrchestratorPage() {
 
       const plan = JSON.parse(planArtifact.content)
 
-      // plan.json can follow LLMPlanOutput schema (manifest.files) or be flat (files at root)
-      const files = plan.manifest?.files || plan.files || []
-      const testFile = plan.manifest?.testFile || plan.testFile || specArtifacts[0]?.filename || "spec.test.ts"
+      const manifest = extractManifest(plan)
 
-      if (files.length === 0) {
+      if (manifest.files.length === 0) {
         throw new Error(
-          "plan.json não contém arquivos no manifest. " +
-          "Verifique se o plano gerado inclui 'manifest.files' com pelo menos um arquivo."
+          "plan.json não contém arquivos. " +
+          "Verifique se o plano inclui 'manifest.files', 'files_to_create', ou 'files_to_modify'."
         )
       }
-
-      const manifest = { files, testFile }
 
       // Extract contract from plan.json if present (used by TestClauseMappingValid)
       const contract = plan.contract || undefined
