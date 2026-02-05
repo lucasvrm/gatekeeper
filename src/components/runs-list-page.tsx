@@ -251,7 +251,7 @@ export function RunsListPage() {
   const allSelected = filteredRuns.length > 0 && selectedRunIds.size === filteredRuns.length
 
   return (
-    <div className="space-y-6">
+    <div className="page-gap">
 
       <Card className="p-6 bg-card border-border">
         <div className="flex items-center justify-between gap-4 mb-6">

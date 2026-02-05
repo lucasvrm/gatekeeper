@@ -361,7 +361,7 @@ export interface SessionProfile {
 }
 
 // Agent Pipeline Phase Config
-export type ProviderName = 'anthropic' | 'openai' | 'mistral' | 'claude-code'
+export type ProviderName = 'anthropic' | 'openai' | 'mistral' | 'claude-code' | 'codex-cli'
 
 export interface AgentPhaseConfig {
   step: number  // 1=Planner, 2=Spec, 3=Fixer, 4=Coder
@@ -510,6 +510,27 @@ export interface OrchestratorContent {
   isActive: boolean
   createdAt: string
   updatedAt: string
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider Model Registry Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ProviderModel {
+  id: string
+  provider: ProviderName
+  modelId: string
+  label: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ModelDiscoveryResult {
+  curl: string
+  status: number
+  data: unknown
+  error?: string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

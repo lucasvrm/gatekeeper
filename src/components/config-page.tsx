@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { api } from "@/lib/api"
 import { ValidatorsTab } from "@/components/validators-tab"
 import { PathConfigsTab } from "@/components/path-configs-tab"
 import { SecurityRulesTab } from "@/components/security-rules-tab"
 import { AdvancedTab } from "@/components/advanced-tab"
 import { PromptsTab } from "@/components/prompts-tab"
+import { AgentsTab } from "@/components/agents-tab"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
@@ -90,8 +92,13 @@ type LegacyConfigApi = {
   }>) => Promise<ValidationConfigItem>
 }
 
+const VALID_TABS = ["validators", "security-rules", "conventions", "prompts", "agents", "advanced"] as const
+
 export function ConfigPage() {
   const legacyConfig = (api as unknown as { config?: LegacyConfigApi }).config
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get("tab")
+  const activeTab = VALID_TABS.includes(tabParam as any) ? tabParam! : "validators"
   const [loading, setLoading] = useState(true)
   const [validators, setValidators] = useState<ValidatorConfigItem[]>([])
   const [sensitiveRules, setSensitiveRules] = useState<SensitiveFileRule[]>([])
@@ -383,7 +390,7 @@ export function ConfigPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="page-gap">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
@@ -396,14 +403,15 @@ export function ConfigPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-gap">
 
-      <Tabs defaultValue="validators" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })} className="space-y-4">
         <TabsList>
           <TabsTrigger value="validators">Validators</TabsTrigger>
           <TabsTrigger value="security-rules">Security Rules</TabsTrigger>
           <TabsTrigger value="conventions">Conventions</TabsTrigger>
           <TabsTrigger value="prompts">LLM Prompts</TabsTrigger>
+          <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
@@ -436,6 +444,10 @@ export function ConfigPage() {
 
         <TabsContent value="prompts">
           <PromptsTab />
+        </TabsContent>
+
+        <TabsContent value="agents">
+          <AgentsTab />
         </TabsContent>
 
         <TabsContent value="advanced">

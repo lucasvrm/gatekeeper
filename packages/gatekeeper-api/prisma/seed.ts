@@ -730,6 +730,48 @@ async function main() {
   console.log(`✓ Seeded ${agentPhaseConfigs.length} agent phase configs`)
 
   // =============================================================================
+  // PROVIDER MODEL REGISTRY
+  // =============================================================================
+
+  const providerModels = [
+    // Anthropic
+    { provider: 'anthropic', modelId: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
+    { provider: 'anthropic', modelId: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
+    { provider: 'anthropic', modelId: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5' },
+    { provider: 'anthropic', modelId: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+    // OpenAI
+    { provider: 'openai', modelId: 'gpt-4.1', label: 'GPT-4.1' },
+    { provider: 'openai', modelId: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+    { provider: 'openai', modelId: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
+    { provider: 'openai', modelId: 'o3-mini', label: 'o3-mini' },
+    { provider: 'openai', modelId: 'gpt-4o', label: 'GPT-4o' },
+    { provider: 'openai', modelId: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { provider: 'openai', modelId: 'gpt-4', label: 'GPT-4' },
+    // Mistral
+    { provider: 'mistral', modelId: 'mistral-large-latest', label: 'Mistral Large' },
+    { provider: 'mistral', modelId: 'mistral-medium-latest', label: 'Mistral Medium' },
+    { provider: 'mistral', modelId: 'codestral-latest', label: 'Codestral' },
+    // Claude Code (CLI)
+    { provider: 'claude-code', modelId: 'sonnet', label: 'Sonnet' },
+    { provider: 'claude-code', modelId: 'opus', label: 'Opus' },
+    { provider: 'claude-code', modelId: 'haiku', label: 'Haiku' },
+    // Codex CLI (OpenAI)
+    { provider: 'codex-cli', modelId: 'o3-mini', label: 'o3-mini' },
+    { provider: 'codex-cli', modelId: 'o4-mini', label: 'o4-mini' },
+    { provider: 'codex-cli', modelId: 'gpt-4.1', label: 'GPT-4.1' },
+  ]
+
+  for (const model of providerModels) {
+    await prisma.providerModel.upsert({
+      where: { provider_modelId: { provider: model.provider, modelId: model.modelId } },
+      create: model,
+      update: { label: model.label },
+    })
+  }
+
+  console.log(`✓ Seeded ${providerModels.length} provider models`)
+
+  // =============================================================================
   // PIPELINE PROMPT CONTENT (PromptInstruction with step + kind)
   // =============================================================================
   // These are the full system prompt building blocks for each pipeline phase.

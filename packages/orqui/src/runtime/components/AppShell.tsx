@@ -20,7 +20,7 @@ import { SidebarNavRenderer } from "./SidebarNav.js";
 interface AppShellProps {
   sidebarHeader?: ReactNode;
   sidebarNav?: ReactNode;
-  sidebarFooter?: ReactNode;
+  sidebarFooter?: ReactNode | ((collapsed: boolean) => ReactNode);
   headerLeft?: ReactNode;
   headerCenter?: ReactNode;
   headerRight?: ReactNode;
@@ -352,7 +352,7 @@ export function AppShell({
           flexDirection: "column",
           gap: 4,
         }}>
-          {!collapsed && sidebarFooter}
+          {typeof sidebarFooter === "function" ? sidebarFooter(collapsed) : (!collapsed && sidebarFooter)}
           {cbPosition === "bottom" && collapseButtonEl}
         </div>
       )}
@@ -487,12 +487,18 @@ export function AppShell({
     </header>
   ) : null;
 
+  const contentGapResolved = contentLayoutConfig?.contentGap ? resolve(contentLayoutConfig.contentGap) as string : undefined;
+  const contentPaddingResolved = contentLayoutConfig?.contentPadding ? resolve(contentLayoutConfig.contentPadding) as string : undefined;
+
   const mainEl = (
     <main style={{
       flex: 1,
       padding: resolvePadding(regions.main?.padding),
       overflow: "auto",
       background: regions.main?.background ? String(resolve(regions.main.background) ?? undefined) : undefined,
+      display: "flex",
+      flexDirection: "column",
+      gap: contentGapResolved ?? undefined,
     }}>
       {/* Page Header */}
       {pageHeaderConfig?.enabled && (
@@ -510,10 +516,19 @@ export function AppShell({
       {/* Content wrapper */}
       {contentLayoutConfig ? (
         <div data-orqui-content="" style={{
+          flexGrow: 1,
+          flexShrink: 0,
           maxWidth: contentLayoutConfig.maxWidth ? (resolve(contentLayoutConfig.maxWidth) as string ?? contentLayoutConfig.maxWidth) : undefined,
           margin: contentLayoutConfig.centering !== false && contentLayoutConfig.maxWidth ? "0 auto" : undefined,
+          width: contentLayoutConfig.centering !== false && contentLayoutConfig.maxWidth ? "100%" : undefined,
+          display: contentLayoutConfig.grid?.enabled ? "grid" : "flex",
+          flexDirection: contentLayoutConfig.grid?.enabled ? undefined : "column",
+          gap: contentLayoutConfig.grid?.enabled
+            ? (resolve(contentLayoutConfig.grid.gap ?? contentLayoutConfig.grid.rowGap) as string ?? undefined)
+            : (contentGapResolved ?? undefined),
+          paddingBottom: contentPaddingResolved ?? undefined,
+          "--orqui-content-gap": contentGapResolved ?? undefined,
           ...(contentLayoutConfig.grid?.enabled ? {
-            display: "grid",
             gridTemplateColumns: (() => {
               const g = contentLayoutConfig.grid!;
               if (typeof g.columns === "number") return `repeat(${g.columns}, 1fr)`;
@@ -523,7 +538,6 @@ export function AppShell({
               }
               return g.columns as string ?? undefined;
             })(),
-            gap: resolve(contentLayoutConfig.grid.gap ?? contentLayoutConfig.grid.rowGap) as string ?? undefined,
             columnGap: contentLayoutConfig.grid.columnGap ? (resolve(contentLayoutConfig.grid.columnGap) as string ?? contentLayoutConfig.grid.columnGap) : undefined,
             rowGap: contentLayoutConfig.grid.rowGap ? (resolve(contentLayoutConfig.grid.rowGap) as string ?? contentLayoutConfig.grid.rowGap) : undefined,
           } : {}),

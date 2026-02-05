@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:1194e46d3a0fd460e4ed5919fa151aba212b50830a7b9507e8196eae4713b506",
-    "generatedAt": "2026-02-05T12:18:59.335Z",
+    "hash": "sha256:6bf549c6ca8283d4a9c1c9168eaccdba57dfaa4e27a0ccea413ba8e26c3c7531",
+    "generatedAt": "2026-02-05T17:01:03.285Z",
     "pageCount": 2
   },
   "structure": {
@@ -68,7 +68,7 @@
         "navigation": {
           "icons": {
             "enabled": true,
-            "size": "$tokens.sizing.avatar-sm",
+            "size": "$tokens.sizing.icon-md",
             "gap": "$tokens.spacing.sm"
           },
           "typography": {
@@ -484,7 +484,8 @@
         "columns": 1,
         "minColumnWidth": "280px",
         "gap": "$tokens.spacing.md"
-      }
+      },
+      "contentGap": "$tokens.spacing.md"
     },
     "pageHeader": {
       "enabled": true,
@@ -568,6 +569,21 @@
           "cards/content left edge",
           "footer paddingLeft/Right"
         ]
+      }
+    },
+    "loginPage": {
+      "background": {
+        "type": "gradient",
+        "gradient": "linear-gradient(161deg, #77abfd, #b3b7bc)"
+      },
+      "card": {
+        "background": "#a5c7fd",
+        "borderColor": "#ffffff",
+        "borderRadius": ""
+      },
+      "inputs": {
+        "background": "#ffffff",
+        "borderColor": "#bdbdbd"
       }
     }
   },
@@ -676,15 +692,15 @@
         "unit": "px"
       },
       "icon-sm": {
-        "value": 14,
+        "value": 10,
         "unit": "px"
       },
       "icon-md": {
-        "value": 17,
+        "value": 13,
         "unit": "px"
       },
       "icon-lg": {
-        "value": 22,
+        "value": 18,
         "unit": "px"
       },
       "input-height": {

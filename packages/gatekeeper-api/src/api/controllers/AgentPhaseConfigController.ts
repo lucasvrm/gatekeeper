@@ -106,49 +106,38 @@ export class AgentPhaseConfigController {
   }
 
   /**
-   * GET /agent/providers — List available providers (from env)
+   * GET /agent/providers — List available providers (from DB + env)
    */
   async listProviders(_req: Request, res: Response): Promise<void> {
-    const providers = [
-      {
-        name: 'anthropic',
-        configured: !!process.env.ANTHROPIC_API_KEY,
-        models: [
-          'claude-sonnet-4-5-20250929',
-          'claude-haiku-4-5-20251001',
-          'claude-opus-4-5-20251101',
-        ],
-      },
-      {
-        name: 'openai',
-        configured: !!process.env.OPENAI_API_KEY,
-        models: [
-          'gpt-4.1',
-          'gpt-4.1-mini',
-          'gpt-4.1-nano',
-          'o3-mini',
-        ],
-      },
-      {
-        name: 'mistral',
-        configured: !!process.env.MISTRAL_API_KEY,
-        models: [
-          'mistral-large-latest',
-          'mistral-medium-latest',
-          'codestral-latest',
-        ],
-      },
-      {
-        name: 'claude-code',
-        configured: process.env.CLAUDE_CODE_ENABLED === 'true',
-        models: [
-          'sonnet',
-          'opus',
-          'haiku',
-        ],
-        note: 'Uses Claude Code CLI (Max/Pro subscription). No API key required.',
-      },
-    ]
+    const dbModels = await prisma.providerModel.findMany({
+      where: { isActive: true },
+      orderBy: [{ provider: 'asc' }, { modelId: 'asc' }],
+    })
+
+    // Group models by provider
+    const modelsByProvider: Record<string, string[]> = {}
+    for (const m of dbModels) {
+      if (!modelsByProvider[m.provider]) modelsByProvider[m.provider] = []
+      modelsByProvider[m.provider].push(m.modelId)
+    }
+
+    const configuredMap: Record<string, boolean> = {
+      'anthropic': !!process.env.ANTHROPIC_API_KEY,
+      'openai': !!process.env.OPENAI_API_KEY,
+      'mistral': !!process.env.MISTRAL_API_KEY,
+      'claude-code': process.env.CLAUDE_CODE_ENABLED === 'true',
+      'codex-cli': process.env.CODEX_CLI_ENABLED === 'true',
+    }
+
+    const providerNames = [...new Set([...Object.keys(modelsByProvider), ...Object.keys(configuredMap)])]
+
+    const providers = providerNames.map(name => ({
+      name,
+      configured: configuredMap[name] ?? false,
+      models: modelsByProvider[name] ?? [],
+      ...(name === 'claude-code' ? { note: 'Uses Claude Code CLI (Max/Pro subscription). No API key required.' } : {}),
+      ...(name === 'codex-cli' ? { note: 'Uses OpenAI Codex CLI. Requires OPENAI_API_KEY and npm i -g @openai/codex.' } : {}),
+    }))
 
     res.json(providers)
   }

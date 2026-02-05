@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 // ─── Provider enum ─────────────────────────────────────────────────────────
 
-const ProviderEnum = z.enum(['anthropic', 'openai', 'mistral', 'claude-code'])
+const ProviderEnum = z.enum(['anthropic', 'openai', 'mistral', 'claude-code', 'codex-cli'])
 
 // ─── AgentPhaseConfig CRUD ─────────────────────────────────────────────────
 
@@ -74,6 +74,23 @@ export const RunSinglePhaseSchema = z.object({
   model: z.string().optional(),
 })
 
+// ─── ProviderModel CRUD ───────────────────────────────────────────────────
+
+export const CreateProviderModelSchema = z.object({
+  provider: z.string().min(1),
+  modelId: z.string().min(1),
+  label: z.string().optional(),
+})
+
+export const UpdateProviderModelSchema = z.object({
+  label: z.string().nullable().optional(),
+  isActive: z.boolean().optional(),
+})
+
+export const DiscoverModelsSchema = z.object({
+  provider: z.enum(['anthropic', 'openai', 'mistral']),
+})
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export type CreatePhaseConfigInput = z.infer<typeof CreatePhaseConfigSchema>
@@ -82,3 +99,6 @@ export type CreateContentInput = z.infer<typeof CreateContentSchema>
 export type UpdateContentInput = z.infer<typeof UpdateContentSchema>
 export type RunAgentInput = z.infer<typeof RunAgentSchema>
 export type RunSinglePhaseInput = z.infer<typeof RunSinglePhaseSchema>
+export type CreateProviderModelInput = z.infer<typeof CreateProviderModelSchema>
+export type UpdateProviderModelInput = z.infer<typeof UpdateProviderModelSchema>
+export type DiscoverModelsInput = z.infer<typeof DiscoverModelsSchema>

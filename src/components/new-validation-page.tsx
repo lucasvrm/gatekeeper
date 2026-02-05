@@ -151,7 +151,7 @@ export function NewValidationPage() {
   const canUseArtifactsApi = typeof api.artifacts?.list === "function"
 
   return (
-    <div className="space-y-6">
+    <div className="page-gap">
       {headerPortals}
 
       <form onSubmit={handleSubmit} className="space-y-6">

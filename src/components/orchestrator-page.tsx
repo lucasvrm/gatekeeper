@@ -539,7 +539,17 @@ export function OrchestratorPage() {
         a.filename.endsWith(".spec.ts") || a.filename.endsWith(".spec.tsx") || a.filename.endsWith(".test.ts") || a.filename.endsWith(".test.tsx")
       )
 
-      if (plan.length > 0) setPlanArtifacts(plan)
+      if (plan.length > 0) {
+        setPlanArtifacts(plan)
+        // Restore taskDescription from plan.json if available
+        const planJsonArtifact = plan.find((a) => a.filename === "plan.json")
+        if (planJsonArtifact) {
+          try {
+            const parsed = JSON.parse(planJsonArtifact.content)
+            if (parsed.taskPrompt) setTaskDescription(parsed.taskPrompt)
+          } catch { /* plan.json parse failed — keep current taskDescription */ }
+        }
+      }
       if (specs.length > 0) setSpecArtifacts(specs)
 
       // Determine which step to show
@@ -929,7 +939,7 @@ export function OrchestratorPage() {
         try {
           const res = await fetch(`${API_BASE}/agent/bridge/${endpoint}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...(() => { const t = localStorage.getItem("token"); return t ? { Authorization: `Bearer ${t}` } : {} })() },
             body: JSON.stringify(body),
             signal: controller.signal,
           })
@@ -1535,43 +1545,31 @@ export function OrchestratorPage() {
     <div>
       {headerPortals}
 
-      {/* Session controls (outputId, reset, resume) - only render if has content */}
-      {(outputId || (!outputId && saved?.outputId)) && (
+      {/* Session controls (resume only — reset moved to prompt card) */}
+      {!outputId && saved?.outputId && (
         <div className="flex items-center gap-3 mt-6">
-          {outputId && (
-            <>
-              <Badge variant="outline" className="font-mono text-xs">
-                {outputId}
-              </Badge>
-              <Button variant="ghost" size="sm" onClick={handleReset} className="h-7 text-xs text-muted-foreground hover:text-destructive">
-                ✕ Resetar
-              </Button>
-            </>
-          )}
-          {!outputId && saved?.outputId && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => {
-                if (saved.outputId) setOutputId(saved.outputId)
-                if (saved.planArtifacts?.length) setPlanArtifacts(saved.planArtifacts)
-                if (saved.specArtifacts?.length) setSpecArtifacts(saved.specArtifacts)
-                setStep((saved.step ?? 0) as WizardStep)
-                setCompletedSteps(new Set(saved.completedSteps ?? []))
-                if (saved.taskDescription) setTaskDescription(saved.taskDescription)
-                if (saved.runId) setRunId(saved.runId)
-                addLog("info", `Sessão anterior restaurada: ${saved.outputId}`)
-              }}
-            >
-              Retomar sessão ({saved.outputId?.slice(-20)})
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => {
+              if (saved.outputId) setOutputId(saved.outputId)
+              if (saved.planArtifacts?.length) setPlanArtifacts(saved.planArtifacts)
+              if (saved.specArtifacts?.length) setSpecArtifacts(saved.specArtifacts)
+              setStep((saved.step ?? 0) as WizardStep)
+              setCompletedSteps(new Set(saved.completedSteps ?? []))
+              if (saved.taskDescription) setTaskDescription(saved.taskDescription)
+              if (saved.runId) setRunId(saved.runId)
+              addLog("info", `Sessão anterior restaurada: ${saved.outputId}`)
+            }}
+          >
+            Retomar sessão ({saved.outputId?.slice(-20)})
+          </Button>
         </div>
       )}
 
       {/* ─── Pipeline content ────────────────────────────────────────── */}
-      <div className="space-y-6">
+      <div className="page-gap">
           {/* Resuming indicator */}
           {resuming && (
             <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-sm text-blue-400 flex items-center gap-2">
@@ -1663,32 +1661,35 @@ export function OrchestratorPage() {
             </div>
           )}
 
+          {/* ─── Prompt card (visible on all steps) ───────────────── */}
+          {step > 0 && taskDescription.trim() && (
+            <Card className="p-4" data-testid="task-prompt-display-card">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  PROMPT
+                </h3>
+                <div className="flex items-center gap-2">
+                  {outputId && (
+                    <span className="text-xs font-mono text-muted-foreground/60">
+                      {outputId}
+                    </span>
+                  )}
+                  {outputId && (
+                    <Button variant="ghost" size="sm" onClick={handleReset} className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive">
+                      ✕ Resetar
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-4">
+                {taskDescription}
+              </p>
+            </Card>
+          )}
+
           {/* ─── Step 0: Task input ─────────────────────────────────── */}
           {step === 0 && (
             <>
-              {/* Card de Objetivo da Tarefa */}
-              <Card data-testid="task-prompt-display-card" className="mb-4">
-                <CardHeader>
-                  <h2 className="leading-none font-semibold">Objetivo da Tarefa</h2>
-                  <CardDescription>Resumo do que será implementado</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div
-                    data-testid="task-prompt-content"
-                    className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md border-l-4 border-accent"
-                    style={{ whiteSpace: 'pre-wrap' }}
-                  >
-                    {taskDescription.trim() ? (
-                      taskDescription
-                    ) : (
-                      <span className="text-muted-foreground italic">
-                        Nenhuma tarefa descrita ainda.
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* Card existente "Descreva a Tarefa" */}
               <Card>
                 <CardHeader>

@@ -152,7 +152,7 @@ export function ProjectsListPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="page-gap">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64" />
       </div>
@@ -160,7 +160,7 @@ export function ProjectsListPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-gap">
       <div className="flex items-center justify-end">
         <Button onClick={() => navigate("/projects/new")}>
           <Plus className="w-4 h-4 mr-2" />

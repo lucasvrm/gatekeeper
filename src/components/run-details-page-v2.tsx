@@ -375,7 +375,7 @@ export function RunDetailsPageV2() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6" data-testid="loading-skeleton">
+      <div className="page-gap" data-testid="loading-skeleton">
         {headerPortals}
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-24 w-full" />
@@ -386,7 +386,7 @@ export function RunDetailsPageV2() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="page-gap">
         {headerPortals}
         <div className="flex items-center gap-4">
           <Button

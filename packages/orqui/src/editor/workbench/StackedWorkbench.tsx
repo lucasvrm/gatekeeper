@@ -8,11 +8,12 @@ import {
   TypoRefSelect, FontFamilyEditor, FontSizeEditor, FontWeightEditor,
   LineHeightEditor, LetterSpacingEditor, TextStyleAddButton,
 } from "../editors/TypographyEditors";
-import { RegionEditor } from "../editors/RegionEditors";
+import { RegionEditor, NavItemStyleEditor, CollapsedTooltipEditor } from "../editors/RegionEditors";
 import { LogoConfigEditor, FaviconEditor } from "../editors/LogoConfigEditor";
 import {
   BreadcrumbEditor, ContentLayoutEditor, PageHeaderEditor, TableSeparatorEditor,
 } from "../editors/ContentLayoutEditor";
+import { LoginPageEditor } from "../editors/LoginPageEditor";
 import { HeaderElementsEditor } from "../editors/HeaderElementsEditor";
 import { PagesEditor } from "../editors/PagesEditor";
 import { UIRegistryEditor } from "../editors/ComponentEditors";
@@ -43,12 +44,22 @@ interface ActivityDef {
 
 const ACTIVITIES: ActivityDef[] = [
   {
-    id: "identity", icon: "◆", label: "Identidade", color: "#fbbf24",
+    id: "tokens", icon: "◆", label: "Tokens", color: "#fbbf24",
+    sections: [
+      { id: "colors", label: "Cores", icon: "◆", desc: "backgrounds, texto, bordas, accent, status" },
+      { id: "font-tokens", label: "Fontes", icon: "Ff", desc: "families, sizes, weights, heights, spacings" },
+      { id: "spacing-tokens", label: "Spacing", icon: "⊞", desc: "tokens de espaçamento" },
+      { id: "sizing-tokens", label: "Sizing", icon: "↔", desc: "tokens de dimensionamento" },
+      { id: "border-tokens", label: "Borders", icon: "◻", desc: "border-radius e border-width" },
+      { id: "text-styles", label: "Text Styles", icon: "Ts", desc: "composições tipográficas nomeadas" },
+    ],
+  },
+  {
+    id: "brand", icon: "★", label: "Brand", color: "#f97316",
     sections: [
       { id: "logo", label: "Logo", icon: "⬡", desc: "tipo, texto, ícone, imagem, posição, alinhamento" },
       { id: "favicon", label: "Favicon", icon: "★", desc: "emoji, URL, cor de fundo" },
       { id: "app-title", label: "App Title", icon: "T", desc: "título padrão do app (fallback browser tab)" },
-      { id: "colors", label: "Cores", icon: "◆", desc: "backgrounds, texto, bordas, accent, status" },
     ],
   },
   {
@@ -57,41 +68,35 @@ const ACTIVITIES: ActivityDef[] = [
       { id: "layout-mode", label: "Layout Mode", icon: "⊞", desc: "sidebar-first | header-first" },
       { id: "sidebar", label: "Sidebar", icon: "◧", desc: "dimensões, padding, comportamento, navegação" },
       { id: "header", label: "Header", icon: "▬", desc: "dimensões, zonas, separador" },
-      { id: "main", label: "Main", icon: "◻", desc: "padding, comportamento, scroll" },
+      { id: "main", label: "Main", icon: "◻", desc: "padding, content layout, CSS Grid" },
       { id: "footer", label: "Footer", icon: "▭", desc: "dimensões, padding, separador" },
       { id: "header-elements", label: "Header Elements", icon: "▤", desc: "search, icons, CTAs, ordem" },
     ],
   },
   {
-    id: "typography", icon: "Aa", label: "Tipografia", color: "#f97316",
+    id: "components", icon: "◎", label: "Componentes", color: "#8b5cf6",
     sections: [
-      { id: "font-tokens", label: "Fontes", icon: "Ff", desc: "families, sizes, weights, heights, spacings" },
-      { id: "text-styles", label: "Text Styles", icon: "Ts", desc: "composições tipográficas nomeadas" },
-    ],
-  },
-  {
-    id: "content", icon: "⊡", label: "Conteúdo", color: "#22c55e",
-    sections: [
-      { id: "content-layout", label: "Content Layout", icon: "⊟", desc: "maxWidth, centralização, CSS Grid" },
+      { id: "nav-style", label: "Nav Item", icon: "◧", desc: "tipografia, cores, estados active/hover, card mode" },
+      { id: "breadcrumbs", label: "Breadcrumbs", icon: "»", desc: "separador, home, tipografia, padding" },
       { id: "page-header", label: "Page Header", icon: "H", desc: "título, subtítulo, divider, text style" },
-      { id: "breadcrumbs", label: "Breadcrumbs", icon: "»", desc: "separador, home, text style" },
-      { id: "spacing-sizing", label: "Spacing & Sizing", icon: "⊞", desc: "spacing, sizing, border-radius, border-width" },
-    ],
-  },
-  {
-    id: "appearance", icon: "◎", label: "Aparência", color: "#8b5cf6",
-    sections: [
       { id: "toast", label: "Toast", icon: "◻", desc: "posição, máximo visível, duração" },
       { id: "skeleton", label: "Loading Skeleton", icon: "▤", desc: "animação, duração, cores, raio" },
       { id: "empty-state", label: "Empty State", icon: "◇", desc: "ícone, título, descrição, ação" },
       { id: "scrollbar", label: "Scrollbar", icon: "▐", desc: "largura, raio, cores do thumb e track" },
-      { id: "table-sep", label: "Table Separator", icon: "≡", desc: "cor, largura, estilo" },
+      { id: "table-sep", label: "Table", icon: "≡", desc: "separadores de linhas e header" },
+      { id: "sidebar-tooltip", label: "Tooltip", icon: "◬", desc: "aparência do tooltip ao colapsar sidebar" },
+    ],
+  },
+  {
+    id: "pages", icon: "⊡", label: "Páginas", color: "#22c55e",
+    sections: [
+      { id: "login-page", label: "Login", icon: "🔐", desc: "logo, background, card, inputs, botão" },
+      { id: "pages-editor", label: "Registro", icon: "⊡", desc: "CRUD, label, route, browserTitle, overrides" },
     ],
   },
   {
     id: "data", icon: "⧉", label: "Dados", color: "#ef4444",
     sections: [
-      { id: "pages-editor", label: "Páginas", icon: "⊡", desc: "CRUD, label, route, browserTitle, overrides" },
       { id: "ui-registry", label: "UI Registry", icon: "⧉", desc: "name, category, props, slots, variants" },
     ],
   },
@@ -155,17 +160,17 @@ function SectionEditorContent({
       case "app-title":
         return (
           <>
-            <Field label="Título padrão do app (fallback para pages sem browserTitle)">
+            <Field label="App Title" compact>
               <input
                 value={layout.structure?.appTitle || ""}
                 onChange={(e) => onChange({ ...layout, structure: { ...layout.structure, appTitle: e.target.value } })}
-                style={s.input}
+                style={{ ...s.input, maxWidth: 300 }}
                 placeholder="Ex: Gatekeeper"
               />
             </Field>
-            <div style={s.infoBox}>
-              Cada página pode definir seu <strong style={{ color: COLORS.text }}>browserTitle</strong> em Páginas.
-              Se não definido, usa: <code style={{ color: COLORS.accent }}>label — appTitle</code>.
+            <div style={{ ...s.infoBox, marginTop: 6, fontSize: 10 }}>
+              Fallback para pages sem <code style={{ color: COLORS.accent }}>browserTitle</code>.
+              Formato: <code style={{ color: COLORS.textMuted }}>label — appTitle</code>.
             </div>
           </>
         );
@@ -185,29 +190,27 @@ function SectionEditorContent({
           { id: "families", label: "Families" },
           { id: "sizes", label: "Sizes" },
           { id: "weights", label: "Weights" },
-          { id: "lineHeights", label: "Line Heights" },
-          { id: "letterSpacings", label: "Letter Spacings" },
+          { id: "lineHeights", label: "Line H." },
+          { id: "letterSpacings", label: "Letter Sp." },
         ];
         return (
           <>
             <TabBar tabs={fontTabs} active={fontTab} onChange={setFontTab} />
-            <div style={{ marginTop: 16 }}>
-              {fontTab === "families" && (
-                <FontFamilyEditor families={layout.tokens.fontFamilies || {}} onChange={(v) => updateTokenCat("fontFamilies", v)} />
-              )}
-              {fontTab === "sizes" && (
-                <FontSizeEditor sizes={layout.tokens.fontSizes || {}} onChange={(v) => updateTokenCat("fontSizes", v)} />
-              )}
-              {fontTab === "weights" && (
-                <FontWeightEditor weights={layout.tokens.fontWeights || {}} onChange={(v) => updateTokenCat("fontWeights", v)} />
-              )}
-              {fontTab === "lineHeights" && (
-                <LineHeightEditor lineHeights={layout.tokens.lineHeights || {}} onChange={(v) => updateTokenCat("lineHeights", v)} />
-              )}
-              {fontTab === "letterSpacings" && (
-                <LetterSpacingEditor spacings={layout.tokens.letterSpacings || {}} onChange={(v) => updateTokenCat("letterSpacings", v)} />
-              )}
-            </div>
+            {fontTab === "families" && (
+              <FontFamilyEditor families={layout.tokens.fontFamilies || {}} onChange={(v) => updateTokenCat("fontFamilies", v)} />
+            )}
+            {fontTab === "sizes" && (
+              <FontSizeEditor sizes={layout.tokens.fontSizes || {}} onChange={(v) => updateTokenCat("fontSizes", v)} />
+            )}
+            {fontTab === "weights" && (
+              <FontWeightEditor weights={layout.tokens.fontWeights || {}} onChange={(v) => updateTokenCat("fontWeights", v)} />
+            )}
+            {fontTab === "lineHeights" && (
+              <LineHeightEditor lineHeights={layout.tokens.lineHeights || {}} onChange={(v) => updateTokenCat("lineHeights", v)} />
+            )}
+            {fontTab === "letterSpacings" && (
+              <LetterSpacingEditor spacings={layout.tokens.letterSpacings || {}} onChange={(v) => updateTokenCat("letterSpacings", v)} />
+            )}
           </>
         );
       };
@@ -244,31 +247,35 @@ function SectionEditorContent({
               };
               return (
                 <div style={s.card}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace" }}>{key}</div>
-                      <input value={style.description || ""} onChange={(e) => update("description", e.target.value)} placeholder="descrição" style={{ ...s.input, fontSize: 11, marginTop: 4, width: 250 }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace" }}>{key}</span>
+                      <input value={style.description || ""} onChange={(e) => update("description", e.target.value)} placeholder="descrição" style={{ ...s.input, fontSize: 10, width: 200 }} />
                     </div>
                     <button onClick={remove} style={s.btnDanger}>✕</button>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-                    <Field label="Font Family" style={{ marginBottom: 0 }}>
+                  <div style={s.grid3}>
+                    <Field label="Font Family" compact>
                       <TypoRefSelect value={style.fontFamily} tokens={layout.tokens} category="fontFamilies" onChange={(v) => update("fontFamily", v)} />
                     </Field>
-                    <Field label="Font Size" style={{ marginBottom: 0 }}>
+                    <Field label="Font Size" compact>
                       <TypoRefSelect value={style.fontSize} tokens={layout.tokens} category="fontSizes" onChange={(v) => update("fontSize", v)} />
                     </Field>
-                    <Field label="Font Weight" style={{ marginBottom: 0 }}>
+                    <Field label="Font Weight" compact>
                       <TypoRefSelect value={style.fontWeight} tokens={layout.tokens} category="fontWeights" onChange={(v) => update("fontWeight", v)} />
                     </Field>
-                    <Field label="Line Height" style={{ marginBottom: 0 }}>
+                    <Field label="Line Height" compact>
                       <TypoRefSelect value={style.lineHeight} tokens={layout.tokens} category="lineHeights" onChange={(v) => update("lineHeight", v)} />
                     </Field>
-                    <Field label="Letter Spacing" style={{ marginBottom: 0 }}>
+                    <Field label="Letter Spacing" compact>
                       <TypoRefSelect value={style.letterSpacing} tokens={layout.tokens} category="letterSpacings" onChange={(v) => update("letterSpacing", v)} />
                     </Field>
                   </div>
-                  <div style={{ background: COLORS.surface2, borderRadius: 6, padding: 12, ...css, color: COLORS.text }}>
+                  {/* Live preview */}
+                  <div style={{
+                    background: COLORS.surface2, borderRadius: 5, padding: 10, marginTop: 8,
+                    border: `1px solid ${COLORS.border}`, ...css, color: COLORS.text,
+                  }}>
                     The quick brown fox jumps over the lazy dog. 0123456789
                   </div>
                 </div>
@@ -291,7 +298,6 @@ function SectionEditorContent({
       // ── Layout ────────────────────────────────────────────────
       case "sidebar":
       case "header":
-      case "main":
       case "footer":
         return (
           <RegionEditor
@@ -302,35 +308,47 @@ function SectionEditorContent({
           />
         );
 
-      case "layout-mode":
+      case "main":
         return (
           <>
-            <Row>
-              <Field label="Modo">
-                <select
-                  value={layout.structure?.layoutMode || "sidebar-first"}
-                  onChange={(e) => onChange({ ...layout, structure: { ...layout.structure, layoutMode: e.target.value } })}
-                  style={s.select}
-                >
-                  <option value="sidebar-first">Sidebar Full Height</option>
-                  <option value="header-first">Header Full Width</option>
-                </select>
-              </Field>
-            </Row>
-            <div style={s.infoBox}>
-              <strong style={{ color: COLORS.text }}>sidebar-first:</strong> Sidebar ocupa altura total, header fica na coluna principal.
-              <br />
-              <strong style={{ color: COLORS.text }}>header-first:</strong> Header ocupa largura total no topo, sidebar começa abaixo dele.
+            <RegionEditor
+              name="main"
+              region={layout.structure.regions.main}
+              tokens={layout.tokens}
+              onChange={(r) => updateRegion("main", r)}
+            />
+            <div style={{ marginTop: 16, borderTop: `1px solid ${COLORS.border}`, paddingTop: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 600 }}>Content Layout</span>
+                <span style={{ ...s.tag }}>main region</span>
+              </div>
+              <ContentLayoutEditor
+                config={layout.structure?.contentLayout}
+                onChange={(cl) => onChange({ ...layout, structure: { ...layout.structure, contentLayout: cl } })}
+              />
             </div>
           </>
         );
 
-      case "content-layout":
+      case "layout-mode":
         return (
-          <ContentLayoutEditor
-            config={layout.structure?.contentLayout}
-            onChange={(cl) => onChange({ ...layout, structure: { ...layout.structure, contentLayout: cl } })}
-          />
+          <>
+            <Field label="Modo de Layout" compact>
+              <select
+                value={layout.structure?.layoutMode || "sidebar-first"}
+                onChange={(e) => onChange({ ...layout, structure: { ...layout.structure, layoutMode: e.target.value } })}
+                style={{ ...s.select, maxWidth: 260 }}
+              >
+                <option value="sidebar-first">Sidebar Full Height</option>
+                <option value="header-first">Header Full Width</option>
+              </select>
+            </Field>
+            <div style={{ ...s.infoBox, marginTop: 8, fontSize: 10 }}>
+              <strong style={{ color: COLORS.text }}>sidebar-first</strong> — Sidebar ocupa altura total, header na coluna principal.
+              <br />
+              <strong style={{ color: COLORS.text }}>header-first</strong> — Header largura total no topo, sidebar abaixo.
+            </div>
+          </>
         );
 
       // ── Navegação ──────────────────────────────────────────────
@@ -361,11 +379,45 @@ function SectionEditorContent({
         );
 
       // ── Cores & Dimensões ────────────────────────────────────
+      case "login-page":
+        return (
+          <LoginPageEditor
+            config={layout.structure?.loginPage || {}}
+            onChange={(c) => onChange({ ...layout, structure: { ...layout.structure, loginPage: c } })}
+            globalLogo={layout.structure?.logo || {}}
+          />
+        );
+
       case "colors":
         return <ColorTokenEditor colors={layout.tokens.colors || {}} onChange={(v) => updateTokenCat("colors", v)} />;
 
-      case "spacing-sizing":
-        return <TokenEditor tokens={layout.tokens} onChange={(t) => onChange({ ...layout, tokens: t })} />;
+      case "spacing-tokens":
+        return <TokenEditor tokens={layout.tokens} onChange={(t) => onChange({ ...layout, tokens: t })} categories={["spacing"]} />;
+
+      case "sizing-tokens":
+        return <TokenEditor tokens={layout.tokens} onChange={(t) => onChange({ ...layout, tokens: t })} categories={["sizing"]} />;
+
+      case "border-tokens":
+        return <TokenEditor tokens={layout.tokens} onChange={(t) => onChange({ ...layout, tokens: t })} categories={["borderRadius", "borderWidth"]} />;
+
+      // ── Componentes ─────────────────────────────────────────────
+      case "nav-style":
+        return (
+          <NavItemStyleEditor
+            region={layout.structure.regions.sidebar || {}}
+            tokens={layout.tokens}
+            onChange={(r) => updateRegion("sidebar", r)}
+          />
+        );
+
+      case "sidebar-tooltip":
+        return (
+          <CollapsedTooltipEditor
+            tooltip={layout.structure.regions.sidebar?.collapsedTooltip}
+            tokens={layout.tokens}
+            onChange={(tt) => updateRegion("sidebar", { ...layout.structure.regions.sidebar, collapsedTooltip: tt })}
+          />
+        );
 
       // ── Aparência ─────────────────────────────────────────────
       case "table-sep":
@@ -381,29 +433,23 @@ function SectionEditorContent({
         const sb = layout.structure?.scrollbar || {};
         const updateSb = (patch: any) => onChange({ ...layout, structure: { ...layout.structure, scrollbar: { ...sb, ...patch } } });
         return (
-          <>
-            <Row>
-              <Field label="Width">
-                <input type="text" value={sb.width || "6px"} onChange={(e) => updateSb({ width: e.target.value })} style={s.input} />
-              </Field>
-              <Field label="Border Radius">
-                <input type="text" value={sb.borderRadius || "3px"} onChange={(e) => updateSb({ borderRadius: e.target.value })} style={s.input} />
-              </Field>
-            </Row>
-            <Row>
-              <Field label="Thumb Color">
-                <ColorInput value={sb.thumbColor || "rgba(255,255,255,0.08)"} onChange={(v) => updateSb({ thumbColor: v })} />
-              </Field>
-              <Field label="Thumb Hover">
-                <ColorInput value={sb.thumbHoverColor || "rgba(255,255,255,0.15)"} onChange={(v) => updateSb({ thumbHoverColor: v })} />
-              </Field>
-            </Row>
-            <Row>
-              <Field label="Track Color">
-                <ColorInput value={sb.trackColor || "transparent"} onChange={(v) => updateSb({ trackColor: v })} />
-              </Field>
-            </Row>
-          </>
+          <div style={s.grid2}>
+            <Field label="Width" compact>
+              <input type="text" value={sb.width || "6px"} onChange={(e) => updateSb({ width: e.target.value })} style={s.input} />
+            </Field>
+            <Field label="Border Radius" compact>
+              <input type="text" value={sb.borderRadius || "3px"} onChange={(e) => updateSb({ borderRadius: e.target.value })} style={s.input} />
+            </Field>
+            <Field label="Thumb Color" compact>
+              <ColorInput value={sb.thumbColor || "rgba(255,255,255,0.08)"} onChange={(v) => updateSb({ thumbColor: v })} />
+            </Field>
+            <Field label="Thumb Hover" compact>
+              <ColorInput value={sb.thumbHoverColor || "rgba(255,255,255,0.15)"} onChange={(v) => updateSb({ thumbHoverColor: v })} />
+            </Field>
+            <Field label="Track Color" compact>
+              <ColorInput value={sb.trackColor || "transparent"} onChange={(v) => updateSb({ trackColor: v })} />
+            </Field>
+          </div>
         );
       }
 
@@ -411,28 +457,24 @@ function SectionEditorContent({
         const tc = layout.structure?.toast || {};
         const updateTc = (patch: any) => onChange({ ...layout, structure: { ...layout.structure, toast: { ...tc, ...patch } } });
         return (
-          <>
-            <Row>
-              <Field label="Position">
-                <select value={tc.position || "bottom-right"} onChange={(e) => updateTc({ position: e.target.value })} style={s.select}>
-                  <option value="top-left">Top Left</option>
-                  <option value="top-center">Top Center</option>
-                  <option value="top-right">Top Right</option>
-                  <option value="bottom-left">Bottom Left</option>
-                  <option value="bottom-center">Bottom Center</option>
-                  <option value="bottom-right">Bottom Right</option>
-                </select>
-              </Field>
-            </Row>
-            <Row>
-              <Field label="Max Visible">
-                <input type="number" min={1} max={10} value={tc.maxVisible || 3} onChange={(e) => updateTc({ maxVisible: parseInt(e.target.value) || 3 })} style={s.input} />
-              </Field>
-              <Field label="Duration (ms)">
-                <input type="number" min={1000} max={30000} step={500} value={tc.duration || 4000} onChange={(e) => updateTc({ duration: parseInt(e.target.value) || 4000 })} style={s.input} />
-              </Field>
-            </Row>
-          </>
+          <div style={s.grid3}>
+            <Field label="Position" compact>
+              <select value={tc.position || "bottom-right"} onChange={(e) => updateTc({ position: e.target.value })} style={s.select}>
+                <option value="top-left">Top Left</option>
+                <option value="top-center">Top Center</option>
+                <option value="top-right">Top Right</option>
+                <option value="bottom-left">Bottom Left</option>
+                <option value="bottom-center">Bottom Center</option>
+                <option value="bottom-right">Bottom Right</option>
+              </select>
+            </Field>
+            <Field label="Max Visible" compact>
+              <input type="number" min={1} max={10} value={tc.maxVisible || 3} onChange={(e) => updateTc({ maxVisible: parseInt(e.target.value) || 3 })} style={s.input} />
+            </Field>
+            <Field label="Duration (ms)" compact>
+              <input type="number" min={1000} max={30000} step={500} value={tc.duration || 4000} onChange={(e) => updateTc({ duration: parseInt(e.target.value) || 4000 })} style={s.input} />
+            </Field>
+          </div>
         );
       }
 
@@ -441,29 +483,28 @@ function SectionEditorContent({
         const updateEs = (patch: any) => onChange({ ...layout, structure: { ...layout.structure, emptyState: { ...es, ...patch } } });
         return (
           <>
-            <Row>
-              <Field label="Ícone (Phosphor ID)">
+            <div style={s.grid2}>
+              <Field label="Ícone (Phosphor ID)" compact>
                 <input type="text" value={es.icon || "ph:magnifying-glass"} onChange={(e) => updateEs({ icon: e.target.value })} style={s.input} />
               </Field>
-            </Row>
-            <Row>
-              <Field label="Título">
+              <Field label="Título" compact>
                 <input type="text" value={es.title || "Nenhum item encontrado"} onChange={(e) => updateEs({ title: e.target.value })} style={s.input} />
               </Field>
-            </Row>
-            <Row>
-              <Field label="Descrição">
-                <input type="text" value={es.description || ""} onChange={(e) => updateEs({ description: e.target.value })} style={s.input} />
+            </div>
+            <Field label="Descrição" compact>
+              <input type="text" value={es.description || ""} onChange={(e) => updateEs({ description: e.target.value })} style={s.input} />
+            </Field>
+            <div style={{ ...s.grid2, marginTop: 4 }}>
+              <Field label="Mostrar Ação" compact>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                  <input type="checkbox" checked={es.showAction !== false} onChange={(e) => updateEs({ showAction: e.target.checked })} />
+                  <span style={{ fontSize: 11, color: COLORS.textMuted }}>{es.showAction !== false ? "Sim" : "Não"}</span>
+                </label>
               </Field>
-            </Row>
-            <Row>
-              <Field label="Mostrar Ação">
-                <input type="checkbox" checked={es.showAction !== false} onChange={(e) => updateEs({ showAction: e.target.checked })} />
-              </Field>
-              <Field label="Label do Botão">
+              <Field label="Label do Botão" compact>
                 <input type="text" value={es.actionLabel || "Criar Novo"} onChange={(e) => updateEs({ actionLabel: e.target.value })} style={s.input} />
               </Field>
-            </Row>
+            </div>
           </>
         );
       }
@@ -473,39 +514,40 @@ function SectionEditorContent({
         const updateSk = (patch: any) => onChange({ ...layout, structure: { ...layout.structure, skeleton: { ...sk, ...patch } } });
         return (
           <>
-            <Row>
-              <Field label="Animação">
+            <div style={s.grid3}>
+              <Field label="Animação" compact>
                 <select value={sk.animation || "pulse"} onChange={(e) => updateSk({ animation: e.target.value })} style={s.select}>
                   <option value="pulse">Pulse</option>
                   <option value="shimmer">Shimmer</option>
                   <option value="none">None</option>
                 </select>
               </Field>
-              <Field label="Duração">
+              <Field label="Duração" compact>
                 <input type="text" value={sk.duration || "1.5s"} onChange={(e) => updateSk({ duration: e.target.value })} style={s.input} />
               </Field>
-            </Row>
-            <Row>
-              <Field label="Base Color">
-                <ColorInput value={sk.baseColor || "rgba(255,255,255,0.05)"} onChange={(v) => updateSk({ baseColor: v })} />
-              </Field>
-              <Field label="Highlight Color">
-                <ColorInput value={sk.highlightColor || "rgba(255,255,255,0.10)"} onChange={(v) => updateSk({ highlightColor: v })} />
-              </Field>
-            </Row>
-            <Row>
-              <Field label="Border Radius">
+              <Field label="Border Radius" compact>
                 <input type="text" value={sk.borderRadius || "6px"} onChange={(e) => updateSk({ borderRadius: e.target.value })} style={s.input} />
               </Field>
-            </Row>
+            </div>
+            <div style={s.grid2}>
+              <Field label="Base Color" compact>
+                <ColorInput value={sk.baseColor || "rgba(255,255,255,0.05)"} onChange={(v) => updateSk({ baseColor: v })} />
+              </Field>
+              <Field label="Highlight Color" compact>
+                <ColorInput value={sk.highlightColor || "rgba(255,255,255,0.10)"} onChange={(v) => updateSk({ highlightColor: v })} />
+              </Field>
+            </div>
             {/* Live preview */}
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ fontSize: 10, color: COLORS.textDim, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Preview</span>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ width: 40, height: 40, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)" }} />
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ height: 12, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)", width: "80%" }} />
-                  <div style={{ height: 10, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)", width: "60%" }} />
+            <div style={{
+              marginTop: 10, padding: 10, background: COLORS.surface2, borderRadius: 6,
+              border: `1px solid ${COLORS.border}`,
+            }}>
+              <span style={{ fontSize: 9, color: COLORS.textDim, textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 6, display: "block" }}>Preview</span>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ width: 32, height: 32, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)" }} />
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+                  <div style={{ height: 10, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)", width: "75%" }} />
+                  <div style={{ height: 8, borderRadius: sk.borderRadius || "6px", background: sk.baseColor || "rgba(255,255,255,0.05)", width: "55%" }} />
                 </div>
               </div>
             </div>
@@ -526,21 +568,24 @@ function SectionEditorContent({
   };
 
   return (
-    <div style={{ padding: 20, overflow: "auto", height: "100%" }}>
+    <div style={{ padding: "14px 18px", overflow: "auto", height: "100%" }}>
       {/* Breadcrumb */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16, fontSize: 11, color: COLORS.textDim }}>
-        <span style={{ color: activity.color, fontWeight: 600 }}>{activity.label}</span>
-        <span>›</span>
-        <span style={{ color: COLORS.text, fontWeight: 600 }}>{section.label}</span>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 5, marginBottom: 12,
+        fontSize: 10, color: COLORS.textDim, fontFamily: "'Inter', sans-serif",
+      }}>
+        <span style={{ color: activity.color, fontWeight: 600 }}>{activity.icon} {activity.label}</span>
+        <span style={{ opacity: 0.4 }}>/</span>
+        <span style={{ color: COLORS.textMuted, fontWeight: 500 }}>{section.label}</span>
       </div>
 
       {/* Section header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <span style={{ fontSize: 20, color: activity.color }}>{section.icon}</span>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.text }}>{section.label}</h2>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 16, color: activity.color, opacity: 0.8 }}>{section.icon}</span>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.text, letterSpacing: "-0.01em" }}>{section.label}</h2>
         </div>
-        <p style={{ margin: 0, fontSize: 12, color: COLORS.textDim, lineHeight: 1.5 }}>{section.desc}</p>
+        <p style={{ margin: 0, fontSize: 11, color: COLORS.textDim, lineHeight: 1.4 }}>{section.desc}</p>
       </div>
 
       {/* Actual editor content */}
@@ -561,15 +606,19 @@ function ActivityBarButton({ activity, isActive, onClick }: { activity: Activity
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={activity.label}
+      title={`${activity.label} (${activity.sections.length})`}
+      aria-label={activity.label}
+      aria-pressed={isActive}
       style={{
-        width: 36, height: 36, borderRadius: 6, border: "none",
+        width: 34, height: 34, borderRadius: 6, border: "none",
         display: "flex", alignItems: "center", justifyContent: "center",
-        background: isActive ? COLORS.accent + "12" : hovered ? COLORS.surface2 : "transparent",
-        color: isActive ? activity.color : hovered ? COLORS.text : COLORS.textDim,
-        cursor: "pointer", fontSize: 16,
+        background: isActive ? activity.color + "14" : hovered ? COLORS.surface2 : "transparent",
+        color: isActive ? activity.color : hovered ? COLORS.textMuted : COLORS.textDim,
+        cursor: "pointer", fontSize: 15,
         transition: "all 0.15s",
         borderLeft: isActive ? `2px solid ${activity.color}` : "2px solid transparent",
+        outline: "none",
+        position: "relative" as const,
       }}
     >
       {activity.icon}
@@ -581,26 +630,33 @@ function ExplorerSection({ section, isActive, onClick, color }: { section: Secti
   const [hovered, setHovered] = useState(false);
   return (
     <div
+      role="button"
+      tabIndex={0}
+      title={section.desc}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "8px 12px", cursor: "pointer",
-        background: isActive ? COLORS.accent + "12" : hovered ? COLORS.surface2 + "80" : "transparent",
+        display: "flex", alignItems: "center", gap: 7,
+        padding: "6px 12px", cursor: "pointer",
+        background: isActive ? COLORS.accent + "10" : hovered ? COLORS.surface2 + "60" : "transparent",
         borderLeft: isActive ? `2px solid ${COLORS.accent}` : "2px solid transparent",
         transition: "all 0.1s",
+        outline: "none",
       }}
     >
       <span style={{
-        width: 18, textAlign: "center" as const, fontSize: 11,
-        color: isActive ? COLORS.accent : color,
+        width: 16, textAlign: "center" as const, fontSize: 10,
+        color: isActive ? COLORS.accent : hovered ? color : COLORS.textDim,
         fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, flexShrink: 0,
+        transition: "color 0.1s",
       }}>{section.icon}</span>
       <span style={{
-        fontSize: 12, color: isActive ? COLORS.text : COLORS.textMuted,
+        fontSize: 11, color: isActive ? COLORS.text : hovered ? COLORS.textMuted : COLORS.textDim,
         fontWeight: isActive ? 600 : 400, flex: 1,
         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
+        transition: "color 0.1s",
       }}>{section.label}</span>
     </div>
   );
@@ -614,12 +670,16 @@ function EditorTabButton({ tab, isActive, onClose, onClick }: { tab: Tab; isActi
 
   return (
     <div
+      role="tab"
+      aria-selected={isActive}
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter") onClick(); }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: "flex", alignItems: "center", gap: 6,
-        padding: "0 12px", height: 34, cursor: "pointer", fontSize: 12,
+        display: "flex", alignItems: "center", gap: 5,
+        padding: "0 10px", height: 32, cursor: "pointer", fontSize: 11,
         background: isActive ? COLORS.bg : hovered ? COLORS.surface2 : "transparent",
         color: isActive ? COLORS.text : COLORS.textDim,
         borderBottom: isActive ? `2px solid ${color}` : "2px solid transparent",
@@ -628,16 +688,21 @@ function EditorTabButton({ tab, isActive, onClose, onClick }: { tab: Tab; isActi
         whiteSpace: "nowrap" as const,
         transition: "all 0.1s",
         flexShrink: 0,
+        outline: "none",
       }}
     >
-      <span style={{ fontSize: 10, color }}>{tab.icon}</span>
+      <span style={{ fontSize: 9, color, opacity: isActive ? 1 : 0.6 }}>{tab.icon}</span>
       {tab.label}
       <span
+        role="button"
+        aria-label={`Fechar ${tab.label}`}
+        tabIndex={0}
         onClick={(e) => { e.stopPropagation(); onClose(); }}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onClose(); } }}
         onMouseEnter={() => setCloseHovered(true)}
         onMouseLeave={() => setCloseHovered(false)}
         style={{
-          fontSize: 10, marginLeft: 4, padding: "1px 3px", borderRadius: 3,
+          fontSize: 9, marginLeft: 2, padding: "1px 3px", borderRadius: 3,
           color: closeHovered ? COLORS.text : COLORS.textDim,
           background: closeHovered ? COLORS.surface3 : "transparent",
           cursor: "pointer", transition: "all 0.1s",
@@ -737,11 +802,11 @@ export function StackedWorkbench({ layout, registry, setLayout, setRegistry }: S
       {/* ============================================================ */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* ── Activity Bar (left, 48px) ── */}
+        {/* ── Activity Bar (left, 44px) ── */}
         <div style={{
-          width: 48, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center",
+          width: 44, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center",
           background: COLORS.surface, borderRight: `1px solid ${COLORS.border}`,
-          paddingTop: 6, gap: 2,
+          paddingTop: 4, gap: 1,
         }}>
           {ACTIVITIES.map(act => (
             <ActivityBarButton
@@ -760,32 +825,36 @@ export function StackedWorkbench({ layout, registry, setLayout, setRegistry }: S
             onClick={() => setBottomPanelOpen(p => !p)}
             icon="↔"
             title="Toggle I/O Panel"
-            style={{ marginBottom: 6 }}
+            style={{ marginBottom: 4 }}
           />
         </div>
 
-        {/* ── Explorer Sidebar (220px) ── */}
+        {/* ── Explorer Sidebar (200px) ── */}
         <div style={{
-          width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
+          width: 200, flexShrink: 0, display: "flex", flexDirection: "column",
           borderRight: `1px solid ${COLORS.border}`, background: COLORS.bg,
         }}>
           {/* Explorer header */}
           <div style={{
-            padding: "10px 12px", fontSize: 10, fontWeight: 700,
+            padding: "8px 12px", fontSize: 9, fontWeight: 700,
             color: activity?.color,
             textTransform: "uppercase" as const, letterSpacing: "0.08em",
             borderBottom: `1px solid ${COLORS.border}`,
-            display: "flex", alignItems: "center", gap: 6,
+            display: "flex", alignItems: "center", gap: 5,
           }}>
-            <span style={{ fontSize: 12 }}>{activity?.icon}</span>
+            <span style={{ fontSize: 11 }}>{activity?.icon}</span>
             {activity?.label}
-            <span style={{ marginLeft: "auto", fontSize: 9, color: COLORS.textDim, fontWeight: 400 }}>
+            <span style={{
+              marginLeft: "auto", fontSize: 9, fontWeight: 500,
+              color: COLORS.textDim, background: COLORS.surface2,
+              padding: "1px 5px", borderRadius: 3,
+            }}>
               {activity?.sections.length}
             </span>
           </div>
 
           {/* Section list */}
-          <div style={{ flex: 1, overflow: "auto", paddingTop: 4 }}>
+          <div style={{ flex: 1, overflow: "auto", paddingTop: 2 }}>
             {activity?.sections.map(section => (
               <ExplorerSection
                 key={section.id}
@@ -807,10 +876,11 @@ export function StackedWorkbench({ layout, registry, setLayout, setRegistry }: S
               {/* Tab bar */}
               <div
                 ref={tabBarRef}
+                role="tablist"
                 style={{
                   display: "flex", flexShrink: 0, overflowX: "auto", overflowY: "hidden",
                   background: COLORS.surface, borderBottom: `1px solid ${COLORS.border}`,
-                  minHeight: 36,
+                  minHeight: 33,
                 }}
               >
                 {openTabs.map(tab => (
@@ -847,37 +917,42 @@ export function StackedWorkbench({ layout, registry, setLayout, setRegistry }: S
           {/* ── Bottom Panel (I/O) ── */}
           {bottomPanelOpen && (
             <div style={{
-              height: 200, flexShrink: 0, borderTop: `1px solid ${COLORS.border}`,
+              height: 180, flexShrink: 0, borderTop: `1px solid ${COLORS.border}`,
               background: COLORS.surface, display: "flex", flexDirection: "column",
             }}>
-              <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, flexShrink: 0 }}>
+              <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, flexShrink: 0, alignItems: "center" }}>
                 {[
                   { id: "import", label: "Import" },
                   { id: "export", label: "Export" },
                 ].map(t => (
                   <button
                     key={t.id}
+                    role="tab"
+                    aria-selected={bottomPanelTab === t.id}
                     onClick={() => setBottomPanelTab(t.id)}
                     style={{
-                      padding: "7px 14px", border: "none", fontSize: 11, fontWeight: 500,
+                      padding: "5px 12px", border: "none", fontSize: 10, fontWeight: 500,
                       background: "transparent", cursor: "pointer",
                       fontFamily: "'Inter', sans-serif",
                       color: bottomPanelTab === t.id ? COLORS.text : COLORS.textDim,
                       borderBottom: bottomPanelTab === t.id ? `2px solid ${COLORS.accent}` : "2px solid transparent",
                       transition: "all 0.1s",
+                      outline: "none",
                     }}
                   >{t.label}</button>
                 ))}
                 <div style={{ flex: 1 }} />
                 <button
                   onClick={() => setBottomPanelOpen(false)}
+                  aria-label="Fechar painel"
                   style={{
                     background: "none", border: "none", color: COLORS.textDim,
-                    fontSize: 12, cursor: "pointer", padding: "0 12px",
+                    fontSize: 10, cursor: "pointer", padding: "0 10px",
+                    outline: "none",
                   }}
                 >✕</button>
               </div>
-              <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
+              <div style={{ flex: 1, overflow: "auto", padding: 10 }}>
                 {bottomPanelTab === "import" && (
                   <ImportPanel onImportLayout={setLayout} onImportRegistry={setRegistry} />
                 )}
@@ -894,17 +969,24 @@ export function StackedWorkbench({ layout, registry, setLayout, setRegistry }: S
       {/* STATUS BAR                                                    */}
       {/* ============================================================ */}
       <div style={{
-        height: 24, flexShrink: 0, display: "flex", alignItems: "center", padding: "0 12px", gap: 12,
-        background: COLORS.accent + "10", fontSize: 10, color: COLORS.textDim,
+        height: 22, flexShrink: 0, display: "flex", alignItems: "center", padding: "0 10px", gap: 10,
+        background: COLORS.surface, fontSize: 9, color: COLORS.textDim,
         borderTop: `1px solid ${COLORS.border}`,
+        fontFamily: "'Inter', sans-serif",
       }}>
-        <span style={{ color: COLORS.accent, fontWeight: 600 }}>◆ Stacked Workbench</span>
+        <span style={{ color: COLORS.accent, fontWeight: 600, letterSpacing: "0.02em" }}>Orqui</span>
+        <span style={{ color: COLORS.border }}>|</span>
+        {activeTab && (() => {
+          const sec = getSectionDef(activeTab);
+          const act = getActivityForSection(activeTab);
+          return sec && act ? (
+            <span style={{ color: act.color, fontWeight: 500 }}>{act.label} / {sec.label}</span>
+          ) : null;
+        })()}
         <div style={{ flex: 1 }} />
-        <span>{ACTIVITIES.length} atividades</span>
-        <span style={{ color: COLORS.border }}>•</span>
-        <span>{totalSections} seções</span>
-        <span style={{ color: COLORS.border }}>•</span>
         <span>{openTabs.length} tab{openTabs.length !== 1 ? "s" : ""}</span>
+        <span style={{ color: COLORS.border }}>|</span>
+        <span>{totalSections} seções</span>
       </div>
     </div>
   );
@@ -925,13 +1007,15 @@ function ToggleButton({ active, onClick, icon, title, style: st }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={title}
+      aria-pressed={active}
       style={{
-        width: 36, height: 36, borderRadius: 6, border: "none",
+        width: 32, height: 32, borderRadius: 5, border: "none",
         display: "flex", alignItems: "center", justifyContent: "center",
-        background: active ? COLORS.accent + "12" : hovered ? COLORS.surface2 : "transparent",
-        color: active ? COLORS.accent : hovered ? COLORS.text : COLORS.textDim,
-        cursor: "pointer", fontSize: 14,
+        background: active ? COLORS.accent + "14" : hovered ? COLORS.surface2 : "transparent",
+        color: active ? COLORS.accent : hovered ? COLORS.textMuted : COLORS.textDim,
+        cursor: "pointer", fontSize: 13,
         transition: "all 0.15s",
+        outline: "none",
         ...st,
       }}
     >{icon}</button>
@@ -942,11 +1026,20 @@ function EmptyEditor() {
   return (
     <div style={{
       height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
-      flexDirection: "column", gap: 12,
+      flexDirection: "column", gap: 8,
     }}>
-      <div style={{ fontSize: 48, opacity: 0.1, color: COLORS.textDim }}>⧉</div>
-      <div style={{ fontSize: 13, color: COLORS.textDim }}>Selecione uma seção no explorer</div>
-      <div style={{ fontSize: 11, color: COLORS.textDim + "80" }}>ou use ⌘K para buscar</div>
+      <div style={{ fontSize: 36, opacity: 0.08, color: COLORS.textDim }}>⧉</div>
+      <div style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 500 }}>Selecione uma seção no explorer</div>
+      <div style={{
+        fontSize: 10, color: COLORS.textDim + "60",
+        display: "flex", alignItems: "center", gap: 4,
+      }}>
+        <kbd style={{
+          background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 3,
+          padding: "1px 5px", fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+        }}>Ctrl+W</kbd>
+        fecha a tab ativa
+      </div>
     </div>
   );
 }

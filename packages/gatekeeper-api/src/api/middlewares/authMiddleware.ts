@@ -10,8 +10,16 @@ const PUBLIC_ROUTES = [
 ]
 
 // Routes that start with these prefixes are public
+// SSE endpoints are public because EventSource API cannot send Authorization headers
 const PUBLIC_PREFIXES = [
   '/health',
+  '/api/orchestrator/events/',
+  '/api/agent/events/',
+]
+
+// SSE endpoints that need pattern matching
+const SSE_PATTERNS = [
+  /^\/api\/runs\/[^/]+\/events$/,
 ]
 
 /**
@@ -26,6 +34,13 @@ export function isPublicRoute(path: string): boolean {
   // Check prefixes
   for (const prefix of PUBLIC_PREFIXES) {
     if (path.startsWith(prefix)) {
+      return true
+    }
+  }
+
+  // Check SSE patterns
+  for (const pattern of SSE_PATTERNS) {
+    if (pattern.test(path)) {
       return true
     }
   }

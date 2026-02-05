@@ -4,6 +4,7 @@ import { OrchestratorContentController } from '../controllers/OrchestratorConten
 import { AgentRunnerController } from '../controllers/AgentRunnerController.js'
 import { AgentRunsController } from '../controllers/AgentRunsController.js'
 import { BridgeController } from '../controllers/BridgeController.js'
+import { ProviderModelController } from '../controllers/ProviderModelController.js'
 import { OrchestratorEventService, type OrchestratorStreamEvent } from '../../services/OrchestratorEventService.js'
 import {
   CreatePhaseConfigSchema,
@@ -12,6 +13,9 @@ import {
   UpdateContentSchema,
   RunAgentSchema,
   RunSinglePhaseSchema,
+  CreateProviderModelSchema,
+  UpdateProviderModelSchema,
+  DiscoverModelsSchema,
 } from '../schemas/agent.schema.js'
 
 const router = Router()
@@ -20,6 +24,7 @@ const contentCtrl = new OrchestratorContentController()
 const runnerCtrl = new AgentRunnerController()
 const runsCtrl = new AgentRunsController()
 const bridgeCtrl = new BridgeController()
+const providerModelCtrl = new ProviderModelController()
 
 // ─── System Status ─────────────────────────────────────────────────────────
 
@@ -136,6 +141,54 @@ router.put('/content/:id', async (req, res, next) => {
 router.delete('/content/:id', async (req, res, next) => {
   try {
     await contentCtrl.delete(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// ─── Provider Models CRUD ─────────────────────────────────────────────────
+
+router.get('/models', async (req, res, next) => {
+  try {
+    await providerModelCtrl.list(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/models', async (req, res, next) => {
+  try {
+    const validated = CreateProviderModelSchema.parse(req.body)
+    req.body = validated
+    await providerModelCtrl.create(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/models/discover', async (req, res, next) => {
+  try {
+    const validated = DiscoverModelsSchema.parse(req.body)
+    req.body = validated
+    await providerModelCtrl.discover(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.put('/models/:id', async (req, res, next) => {
+  try {
+    const validated = UpdateProviderModelSchema.parse(req.body)
+    req.body = validated
+    await providerModelCtrl.update(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.delete('/models/:id', async (req, res, next) => {
+  try {
+    await providerModelCtrl.delete(req, res)
   } catch (error) {
     next(error)
   }

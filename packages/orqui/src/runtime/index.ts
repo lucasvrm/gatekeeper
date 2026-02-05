@@ -64,4 +64,5 @@ export type {
   FaviconConfig,
   SeparatorConfig,
   Container,
+  LoginPageConfig,
 } from "./types.js";

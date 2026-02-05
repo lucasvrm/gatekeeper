@@ -15,7 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "sonner"
-import { PhaseConfigTab } from "./phase-config-tab"
 import { ChevronDown } from "lucide-react"
 
 interface ValidationConfigItem {
@@ -84,7 +83,6 @@ export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabPr
 
   // Collapsible states with localStorage persistence
   const [openSections, toggleSection] = usePersistedSections("advanced", {
-    llmConfig: true,
     globalFlags: true,
     timeouts: false,
     allConfigs: false,
@@ -167,30 +165,6 @@ export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabPr
 
   return (
     <div className="space-y-6">
-      {/* Pipeline LLM Config Section - Full width */}
-      <Collapsible open={openSections.llmConfig} onOpenChange={() => toggleSection('llmConfig')}>
-        <Card data-testid="pipeline-llm-config-section">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Pipeline LLM Config</CardTitle>
-                  <CardDescription>
-                    Configure provider, modelo e tokens para cada fase do pipeline.
-                  </CardDescription>
-                </div>
-                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${openSections.llmConfig ? 'rotate-180' : ''}`} />
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent>
-              <PhaseConfigTab />
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
       {/* Two columns grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Global Flags Section */}

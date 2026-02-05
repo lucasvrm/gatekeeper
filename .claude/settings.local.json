@@ -37,7 +37,26 @@
       "Bash(do sed -i \"s|from ''./src/|from ''../../src/|g\" \"$file\")",
       "Bash(ffmpeg:*)",
       "Bash(npm run test:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(node_modules/.bin/prisma generate:*)",
+      "Bash(node test-prisma.cjs:*)",
+      "WebSearch",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:docs.mistral.ai)",
+      "Bash(npm run typecheck:all:*)",
+      "Bash(npx prisma db push)",
+      "Bash(npm run db:generate:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma generate)",
+      "Bash(npm i:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(node node_modules/.bin/prisma generate:*)",
+      "Bash(node:*)",
+      "Bash(packages\\\\gatekeeper-api\\\\node_modules\\\\.bin\\\\prisma.cmd generate:*)",
+      "Bash(cmd /c \"packages\\\\gatekeeper-api\\\\node_modules\\\\.bin\\\\prisma.cmd generate --schema=packages\\\\gatekeeper-api\\\\prisma\\\\schema.prisma\")",
+      "Bash(cmd /c \"cd packages\\\\gatekeeper-api && npx prisma generate\")",
+      "Bash(cmd /c \"cd packages\\\\gatekeeper-api && npx prisma generate 2>&1\")"
     ]
   }
 }

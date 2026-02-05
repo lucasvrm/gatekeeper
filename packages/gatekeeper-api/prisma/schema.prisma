@@ -363,6 +363,23 @@ model SessionProfilePrompt {
 }
 
 // =============================================================================
+// PROVIDER MODEL REGISTRY
+// =============================================================================
+
+model ProviderModel {
+  id        String   @id @default(cuid())
+  provider  String
+  modelId   String
+  label     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, modelId])
+  @@index([provider])
+}
+
+// =============================================================================
 // AGENT RUNNER MODELS
 // =============================================================================
 
@@ -427,4 +444,40 @@ model AgentRunStep {
 
   @@index([runId])
   @@index([runId, step])
+}
+
+// =============================================================================
+// PIPELINE PERSISTENCE MODELS
+// =============================================================================
+
+/// Granular pipeline events for SSE replay and diagnostics
+model PipelineEvent {
+  id         Int      @id @default(autoincrement())
+  outputId   String
+  runId      String?
+  agentRunId String?
+  stage      String   // 'planning' | 'spec' | 'fix' | 'execute'
+  eventType  String   // 'agent:start' | 'agent:tool_call' | 'agent:text' | etc (SSE event types)
+  level      String?  // 'info' | 'warn' | 'error'
+  message    String?  // Human-readable message
+  payload    String?  // JSON stringified metadata (tool inputs, token usage, etc)
+  source     String?  // 'AgentRunnerService' | 'OrchestratorController' | etc
+  createdAt  DateTime @default(now())
+
+  @@index([outputId, id])        // Replay via Last-Event-ID: WHERE outputId=? AND id>?
+  @@index([outputId, createdAt]) // Temporal queries: WHERE outputId=? AND createdAt>?
+  @@index([outputId, stage])     // Stage filtering: WHERE outputId=? AND stage=?
+}
+
+/// Current snapshot of pipeline state (one per outputId)
+model PipelineState {
+  outputId    String   @id
+  status      String   @default("running")   // 'running' | 'completed' | 'failed'
+  stage       String   @default("planning")  // 'planning' | 'spec' | 'fix' | 'execute'
+  progress    Int      @default(0)           // 0-100%
+  summary     String?  // JSON stringified summary (artifactNames, totalTokens, etc)
+  lastEventId Int      @default(0)           // Checkpoint para replay (último PipelineEvent.id processado)
+  agentRunId  String?  // Link opcional com AgentRun.id (sem foreign key)
+  startedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

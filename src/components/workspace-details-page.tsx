@@ -61,7 +61,7 @@ export function WorkspaceDetailsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="page-gap">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64" />
       </div>
@@ -82,7 +82,7 @@ export function WorkspaceDetailsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-gap">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/workspaces")}>
           <ArrowLeft className="w-4 h-4 mr-2" />

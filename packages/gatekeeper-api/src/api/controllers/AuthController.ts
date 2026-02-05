@@ -81,14 +81,9 @@ export class AuthController {
       // Normalize email for case-insensitive lookup
       const normalizedEmail = input.email.toLowerCase()
 
-      // Find user by email (case-insensitive)
+      // Find user by email (already normalized to lowercase)
       const user = await prisma.user.findFirst({
-        where: {
-          email: {
-            equals: normalizedEmail,
-            mode: 'insensitive'
-          }
-        }
+        where: { email: normalizedEmail }
       })
 
       if (!user) {

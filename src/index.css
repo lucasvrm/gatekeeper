@@ -17,3 +17,14 @@
     font-family: var(--font-mono);
   }
 }
+
+/* Orqui: page gap controlado pelo contrato (contentLayout.contentGap).
+   Substitui space-y-6 hardcoded nas páginas para que o workbench controle
+   o espaçamento vertical de forma dinâmica e uniforme. */
+@layer utilities {
+  .page-gap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--orqui-content-gap, 1.5rem);
+  }
+}

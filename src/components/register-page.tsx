@@ -193,9 +193,9 @@ function LogoRenderer({ globalLogo, logoCfg }: { globalLogo: any; logoCfg: any }
   )
 }
 
-export function LoginPage() {
+export function RegisterPage() {
   const navigate = useNavigate()
-  const { user, login } = useAuth()
+  const { user, register } = useAuth()
   const { layout } = useContract()
   const loginCfg: LoginPageConfig = (layout.structure as any).loginPage || {}
   const styles = useLoginStyles(loginCfg)
@@ -204,6 +204,7 @@ export function LoginPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -214,12 +215,23 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (password !== confirmPassword) {
+      setError('As senhas nao coincidem')
+      return
+    }
+
+    if (password.length < 8) {
+      setError('A senha deve ter pelo menos 8 caracteres')
+      return
+    }
+
     setIsLoading(true)
     try {
-      await login(email, password)
-      toast.success('Login realizado com sucesso')
+      await register(email, password)
+      toast.success('Conta criada! Faca login para continuar.')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha no login'
+      const msg = err instanceof Error ? err.message : 'Falha no registro'
       setError(msg)
       toast.error(msg)
     } finally {
@@ -228,7 +240,7 @@ export function LoginPage() {
   }
 
   return (
-    <div style={styles.page} data-testid="login-page">
+    <div style={styles.page} data-testid="register-page">
       {styles.overlay && <div style={styles.overlay} />}
 
       {/* Logo above card */}
@@ -236,14 +248,14 @@ export function LoginPage() {
         <LogoRenderer globalLogo={globalLogo} logoCfg={logoCfg} />
       )}
 
-      <div style={styles.card} data-testid="login-form">
+      <div style={styles.card} data-testid="register-form">
         {/* Logo inside card */}
         {logoCfg.enabled !== false && logoCfg.placement !== 'above-card' && (
           <LogoRenderer globalLogo={globalLogo} logoCfg={logoCfg} />
         )}
 
         {/* Title */}
-        <h2 style={styles.title}>{loginCfg.title?.text || 'Entrar'}</h2>
+        <h2 style={styles.title}>Criar conta</h2>
 
         <form onSubmit={handleSubmit}>
           {error && (
@@ -256,9 +268,9 @@ export function LoginPage() {
           )}
 
           <div style={{ marginBottom: 14 }}>
-            <label htmlFor="login-email" style={styles.label}>Email</label>
+            <label htmlFor="register-email" style={styles.label}>Email</label>
             <StyledInput
-              id="login-email"
+              id="register-email"
               type="email"
               value={email}
               onChange={(e: any) => setEmail(e.target.value)}
@@ -268,45 +280,65 @@ export function LoginPage() {
               data-testid="email-input"
               style={styles.input}
               focusStyle={styles.inputFocus}
+
             />
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label htmlFor="login-password" style={styles.label}>Senha</label>
+            <label htmlFor="register-password" style={styles.label}>Senha</label>
             <StyledInput
-              id="login-password"
+              id="register-password"
               type="password"
               value={password}
               onChange={(e: any) => setPassword(e.target.value)}
-              placeholder="Sua senha"
+              placeholder="Minimo 8 caracteres"
               required
+              minLength={8}
               data-testid="password-input"
               style={styles.input}
               focusStyle={styles.inputFocus}
+
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label htmlFor="register-confirm-password" style={styles.label}>Confirmar Senha</label>
+            <StyledInput
+              id="register-confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e: any) => setConfirmPassword(e.target.value)}
+              placeholder="Repita a senha"
+              required
+              minLength={8}
+              data-testid="confirm-password-input"
+              style={styles.input}
+              focusStyle={styles.inputFocus}
+
             />
           </div>
 
           <StyledButton
             type="submit"
             disabled={isLoading}
-            data-testid="login-button"
+            data-testid="register-button"
             style={{ ...styles.button, opacity: isLoading ? 0.7 : 1 }}
             hoverBg={styles.buttonHover}
           >
-            {isLoading ? 'Entrando...' : 'Entrar'}
+            {isLoading ? 'Criando conta...' : 'Criar conta'}
           </StyledButton>
         </form>
 
         <div style={{ textAlign: 'center', marginTop: 16, fontSize: '14px' }}>
           <span style={{ color: 'hsl(var(--muted-foreground))' }}>
-            Nao tem conta?{' '}
+            Ja tem uma conta?{' '}
           </span>
           <StyledLink
-            to="/register"
+            to="/login"
             style={styles.link}
             hoverColor={styles.linkHover}
           >
-            Criar conta
+            Fazer login
           </StyledLink>
         </div>
 

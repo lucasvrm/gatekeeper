@@ -31,6 +31,8 @@ import type {
   OrchestratorContent,
   OrchestratorContentKind,
   AgentPhaseConfig,
+  ProviderModel,
+  ModelDiscoveryResult,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -56,10 +58,8 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
     const clonedResponse = response.clone()
     try {
       const body = await clonedResponse.json()
-      if (body?.error === 'TOKEN_EXPIRED') {
-        // Clear token from localStorage
+      if (body?.error === 'TOKEN_EXPIRED' || body?.error === 'INVALID_TOKEN') {
         localStorage.removeItem('token')
-        // Redirect to login
         window.location.href = '/login'
       }
     } catch {
@@ -114,6 +114,43 @@ export interface AgentRunCostStats {
 }
 
 export const api = {
+  // ─── Auth ────────────────────────────────────────────────────────────────
+  auth: {
+    login: async (email: string, password: string): Promise<{ token: string; user: { id: string; email: string } }> => {
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.message || 'Email ou senha invalidos')
+      }
+      return response.json()
+    },
+
+    register: async (email: string, password: string): Promise<{ user: { id: string; email: string } }> => {
+      const response = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        if (data?.error === 'EMAIL_ALREADY_EXISTS') throw new Error('Email ja cadastrado')
+        throw new Error(data?.message || 'Falha no registro')
+      }
+      return response.json()
+    },
+
+    me: async (): Promise<{ user: { id: string; email: string } }> => {
+      const response = await fetchWithAuth(`${API_BASE}/auth/me`)
+      if (!response.ok) throw new Error('Sessao invalida')
+      return response.json()
+    },
+  },
+
+  // ─── Runs ────────────────────────────────────────────────────────────────
   runs: {
     list: async (page = 1, limit = 20, status?: RunStatus): Promise<PaginatedResponse<Run>> => {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) })
@@ -999,6 +1036,46 @@ export const api = {
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to update phase config")
+        }
+        return response.json()
+      },
+    },
+
+    models: {
+      list: async (provider?: string): Promise<ProviderModel[]> => {
+        const params = provider ? `?provider=${encodeURIComponent(provider)}` : ''
+        const response = await fetchWithAuth(`${AGENT_BASE}/models${params}`)
+        if (!response.ok) throw new Error("Failed to fetch provider models")
+        return response.json()
+      },
+
+      create: async (data: { provider: string; modelId: string; label?: string }): Promise<ProviderModel> => {
+        const response = await fetchWithAuth(`${AGENT_BASE}/models`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const err = await response.json().catch(() => null)
+          throw new Error(err?.error || "Failed to create provider model")
+        }
+        return response.json()
+      },
+
+      delete: async (id: string): Promise<void> => {
+        const response = await fetchWithAuth(`${AGENT_BASE}/models/${id}`, { method: "DELETE" })
+        if (!response.ok) throw new Error("Failed to delete provider model")
+      },
+
+      discover: async (provider: 'anthropic' | 'openai' | 'mistral'): Promise<ModelDiscoveryResult> => {
+        const response = await fetchWithAuth(`${AGENT_BASE}/models/discover`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider }),
+        })
+        if (!response.ok) {
+          const err = await response.json().catch(() => null)
+          throw new Error(err?.error || "Discovery failed")
         }
         return response.json()
       },

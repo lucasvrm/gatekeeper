@@ -75,21 +75,22 @@ export function ColorTokenEditor({ colors, onChange }) {
   const ungrouped = Object.entries(colors).filter(([k]) => !allGroupedKeys.has(k));
 
   const renderColorRow = ([key, tok]) => (
-    <div key={key} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+    <div key={key} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
       <input
         type="color"
         value={tok.value?.startsWith("#") && tok.value.length <= 7 ? tok.value : "#888888"}
         onChange={(e) => updateColor(key, e.target.value)}
-        style={{ width: 32, height: 28, border: "none", borderRadius: 4, cursor: "pointer", background: "transparent", padding: 0 }}
+        aria-label={`Color picker for ${key}`}
+        style={{ width: 24, height: 22, border: "none", borderRadius: 3, cursor: "pointer", background: "transparent", padding: 0, flexShrink: 0 }}
       />
-      <span style={{ fontSize: 12, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", minWidth: 120 }}>{key}</span>
+      <span style={{ fontSize: 11, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", minWidth: 100, flexShrink: 0 }}>{key}</span>
       <input
         value={tok.value || ""}
         onChange={(e) => updateColor(key, e.target.value)}
-        style={{ ...s.input, width: 120, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
+        style={{ ...s.input, width: 100, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, padding: "3px 6px" }}
       />
-      <div style={{ width: 48, height: 24, borderRadius: 4, border: `1px solid ${COLORS.border}`, background: tok.value || "#888", flexShrink: 0 }} />
-      <button onClick={() => removeColor(key)} style={s.btnDanger}>✕</button>
+      <div style={{ width: 36, height: 18, borderRadius: 3, border: `1px solid ${COLORS.border}`, background: tok.value || "#888", flexShrink: 0 }} />
+      <button onClick={() => removeColor(key)} style={{ ...s.btnDanger, padding: "2px 6px", fontSize: 10 }}>✕</button>
     </div>
   );
 
@@ -108,17 +109,18 @@ export function ColorTokenEditor({ colors, onChange }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, margin: 0, marginBottom: 4 }}>Color Tokens</h3>
-        <p style={{ fontSize: 12, color: COLORS.textDim, margin: 0, marginBottom: 12 }}>
-          Cores do sistema. Altere aqui → todos os componentes atualizam automaticamente.
-        </p>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          {Object.keys(COLOR_PRESETS).map((name) => (
-            <button key={name} onClick={() => loadPreset(name)} style={s.btnSmall}>
-              Preset: {name}
-            </button>
-          ))}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <p style={{ fontSize: 11, color: COLORS.textDim, margin: 0 }}>
+            Altere aqui — todos os componentes atualizam automaticamente.
+          </p>
+          <div style={{ display: "flex", gap: 4 }}>
+            {Object.keys(COLOR_PRESETS).map((name) => (
+              <button key={name} onClick={() => loadPreset(name)} style={s.btnSmall}>
+                {name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -128,9 +130,9 @@ export function ColorTokenEditor({ colors, onChange }) {
 
       {activeEntries.map(renderColorRow)}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="nova cor (ex: brand-primary)" style={s.input} onKeyDown={(e) => e.key === "Enter" && addColor()} />
-        <button onClick={addColor} style={s.btn}>+ Cor</button>
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="nova cor (ex: brand-primary)" style={{ ...s.input, fontSize: 11 }} onKeyDown={(e) => e.key === "Enter" && addColor()} />
+        <button onClick={addColor} style={{ ...s.btn, whiteSpace: "nowrap" as any, flexShrink: 0, padding: "4px 10px", fontSize: 11 }}>+ Cor</button>
       </div>
     </div>
   );
@@ -138,15 +140,27 @@ export function ColorTokenEditor({ colors, onChange }) {
 
 // Token Editor (shared by Layout Editor)
 // ============================================================================
-export function TokenEditor({ tokens, onChange }) {
+const ALL_TOKEN_CATEGORIES = [
+  { id: "spacing", label: "Spacing" },
+  { id: "sizing", label: "Sizing" },
+  { id: "borderRadius", label: "Radius" },
+  { id: "borderWidth", label: "Border W" },
+];
+
+export function TokenEditor({ tokens, onChange, categories }: { tokens: any; onChange: (t: any) => void; categories?: string[] }) {
   const [newKey, setNewKey] = useState("");
-  const [activeCat, setActiveCat] = usePersistentTab("token-editor", "spacing");
+  const visibleCats = categories
+    ? ALL_TOKEN_CATEGORIES.filter(c => categories.includes(c.id))
+    : ALL_TOKEN_CATEGORIES;
+  const defaultCat = visibleCats[0]?.id || "spacing";
+  const [activeCat, setActiveCat] = usePersistentTab("token-editor", defaultCat);
+  const safeCat = visibleCats.some(c => c.id === activeCat) ? activeCat : defaultCat;
 
   const addToken = () => {
     if (!newKey.trim()) return;
     const key = newKey.trim().replace(/\s+/g, "-");
     const updated = { ...tokens };
-    updated[activeCat] = { ...updated[activeCat], [key]: { value: 0, unit: "px" } };
+    updated[safeCat] = { ...updated[safeCat], [key]: { value: 0, unit: "px" } };
     onChange(updated);
     setNewKey("");
   };
@@ -164,31 +178,28 @@ export function TokenEditor({ tokens, onChange }) {
 
   return (
     <div>
-      <TabBar
-        tabs={[
-          { id: "spacing", label: `Spacing (${Object.keys(tokens.spacing || {}).length})` },
-          { id: "sizing", label: `Sizing (${Object.keys(tokens.sizing || {}).length})` },
-          { id: "borderRadius", label: `Radius (${Object.keys(tokens.borderRadius || {}).length})` },
-          { id: "borderWidth", label: `Border W (${Object.keys(tokens.borderWidth || {}).length})` },
-        ]}
-        active={activeCat}
-        onChange={setActiveCat}
-      />
+      {visibleCats.length > 1 && (
+        <TabBar
+          tabs={visibleCats.map(c => ({ id: c.id, label: `${c.label} (${Object.keys(tokens[c.id] || {}).length})` }))}
+          active={safeCat}
+          onChange={setActiveCat}
+        />
+      )}
 
-      {Object.entries(tokens[activeCat] || {}).map(([key, tok]) => (
-        <div key={key} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-          <span style={{ fontSize: 12, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", minWidth: 120 }}>{key}</span>
-          <input type="number" value={tok.value} onChange={(e) => updateToken(activeCat, key, "value", e.target.value)} style={{ ...s.input, width: 80 }} />
-          <select value={tok.unit} onChange={(e) => updateToken(activeCat, key, "unit", e.target.value)} style={{ ...s.select, width: 70 }}>
+      {Object.entries(tokens[safeCat] || {}).map(([key, tok]) => (
+        <div key={key} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 5 }}>
+          <span style={{ fontSize: 11, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", minWidth: 100, flexShrink: 0 }}>{key}</span>
+          <input type="number" value={tok.value} onChange={(e) => updateToken(safeCat, key, "value", e.target.value)} style={{ ...s.input, width: 70, padding: "3px 6px", fontSize: 11 }} />
+          <select value={tok.unit} onChange={(e) => updateToken(safeCat, key, "unit", e.target.value)} style={{ ...s.select, width: 60, padding: "3px 6px", fontSize: 11 }}>
             {["px", "rem", "%", "vh", "vw"].map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
-          <button onClick={() => removeToken(activeCat, key)} style={s.btnDanger}>✕</button>
+          <button onClick={() => removeToken(safeCat, key)} style={{ ...s.btnDanger, padding: "2px 6px", fontSize: 10 }}>✕</button>
         </div>
       ))}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="nome do token" style={s.input} onKeyDown={(e) => e.key === "Enter" && addToken()} />
-        <button onClick={addToken} style={s.btn}>+ Token</button>
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="nome do token" style={{ ...s.input, fontSize: 11 }} onKeyDown={(e) => e.key === "Enter" && addToken()} />
+        <button onClick={addToken} style={{ ...s.btn, whiteSpace: "nowrap" as any, flexShrink: 0, padding: "4px 10px", fontSize: 11 }}>+ Token</button>
       </div>
     </div>
   );

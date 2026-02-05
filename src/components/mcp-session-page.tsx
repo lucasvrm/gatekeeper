@@ -1176,7 +1176,7 @@ export function MCPSessionPage() {
 
   if (profilesLoading) {
     return (
-      <div data-testid="mcp-session-page" className="space-y-6">
+      <div data-testid="mcp-session-page" className="page-gap">
         <Skeleton className="h-10 w-full" />
         <div className="grid grid-cols-2 gap-6">
           <Skeleton className="h-64 w-full" />
@@ -1187,7 +1187,7 @@ export function MCPSessionPage() {
   }
 
   return (
-    <div data-testid="mcp-session-page" className="space-y-6">
+    <div data-testid="mcp-session-page" className="page-gap">
       {/* Status bar */}
       <StatusBar />
 

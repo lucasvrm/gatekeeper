@@ -113,6 +113,8 @@ export const DEFAULT_LAYOUT = {
     contentLayout: {
       maxWidth: "",
       centering: true,
+      contentGap: "$tokens.spacing.md",
+      contentPadding: "$tokens.spacing.xl",
       grid: { enabled: false, columns: 1, minColumnWidth: "280px", gap: "$tokens.spacing.md" },
     },
     pageHeader: {
@@ -197,6 +199,16 @@ export const DEFAULT_LAYOUT = {
       baseColor: "rgba(255,255,255,0.05)",
       highlightColor: "rgba(255,255,255,0.10)",
       borderRadius: "6px",
+    },
+    loginPage: {
+      logo: { enabled: true, placement: "inside-card", align: "center", scale: 1, marginBottom: "16px" },
+      background: { type: "solid", color: "", gradient: "linear-gradient(135deg, #111113, #1a1a2e)", imageUrl: "", overlay: "" },
+      card: { position: "center", verticalAlign: "center", maxWidth: "420px", background: "", borderColor: "", borderRadius: "", shadow: "", padding: "" },
+      title: { text: "Entrar", align: "center" },
+      inputs: { background: "", borderColor: "", focusBorderColor: "" },
+      button: { background: "", color: "", hoverBackground: "" },
+      links: { color: "", hoverColor: "" },
+      footer: { text: "" },
     },
     pages: {},
     variables: { categories: [], items: [] },
@@ -369,16 +381,34 @@ export const COLORS = {
 };
 
 export const s = {
-  input: { background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", fontFamily: "var(--font-monospace, 'JetBrains Mono', 'SF Mono', monospace)" },
-  select: { background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", fontFamily: "var(--font-monospace, 'JetBrains Mono', 'SF Mono', monospace)", cursor: "pointer" },
-  btn: { background: COLORS.accent, border: "none", borderRadius: 6, padding: "7px 14px", color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)" },
-  btnGhost: { background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 12px", color: COLORS.textMuted, fontSize: 12, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)" },
-  btnDanger: { background: "transparent", border: `1px solid ${COLORS.danger}33`, borderRadius: 6, padding: "5px 10px", color: COLORS.danger, fontSize: 12, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)" },
-  btnSmall: { background: COLORS.surface3, border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "4px 8px", color: COLORS.textMuted, fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)" },
-  label: { fontSize: 11, color: COLORS.textMuted, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" },
-  card: { background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 16 },
-  tag: { background: COLORS.surface3, border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "2px 8px", fontSize: 11, color: COLORS.textMuted, display: "inline-block" },
-  infoBox: { padding: "8px 10px", background: COLORS.surface2, borderRadius: 6, fontSize: 11, color: COLORS.textDim, lineHeight: 1.5, borderLeft: `3px solid ${COLORS.accent}40` } as any,
+  // Inputs & selects — compact with consistent sizing
+  input: { background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "5px 8px", color: COLORS.text, fontSize: 12, outline: "none", width: "100%", fontFamily: "var(--font-monospace, 'JetBrains Mono', 'SF Mono', monospace)", lineHeight: "1.4", transition: "border-color 0.15s" } as any,
+  select: { background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "5px 8px", color: COLORS.text, fontSize: 12, outline: "none", width: "100%", fontFamily: "var(--font-monospace, 'JetBrains Mono', 'SF Mono', monospace)", cursor: "pointer", lineHeight: "1.4", transition: "border-color 0.15s" } as any,
+
+  // Buttons — primary, ghost, danger, small, icon-only
+  btn: { background: COLORS.accent, border: "none", borderRadius: 6, padding: "6px 12px", color: "#fff", fontSize: 12, cursor: "pointer", fontWeight: 600, fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)", transition: "opacity 0.15s", lineHeight: "1.4" } as any,
+  btnGhost: { background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "5px 10px", color: COLORS.textMuted, fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)", transition: "all 0.15s" } as any,
+  btnDanger: { background: "transparent", border: `1px solid ${COLORS.danger}33`, borderRadius: 5, padding: "4px 8px", color: COLORS.danger, fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)", transition: "all 0.15s" } as any,
+  btnSmall: { background: COLORS.surface3, border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "3px 7px", color: COLORS.textMuted, fontSize: 10, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)", transition: "all 0.15s" } as any,
+  btnIcon: { background: "transparent", border: "none", borderRadius: 4, padding: 4, color: COLORS.textDim, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "color 0.15s" } as any,
+
+  // Typography
+  label: { fontSize: 10, color: COLORS.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "block", lineHeight: "1.3" } as any,
+
+  // Containers
+  card: { background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 14 } as any,
+  cardFlush: { background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 0, overflow: "hidden" } as any,
+
+  // Tags & badges
+  tag: { background: COLORS.surface3, border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "1px 6px", fontSize: 10, color: COLORS.textMuted, display: "inline-block", lineHeight: "1.4" } as any,
+
+  // Info box
+  infoBox: { padding: "7px 10px", background: COLORS.surface2, borderRadius: 6, fontSize: 11, color: COLORS.textDim, lineHeight: 1.5, borderLeft: `3px solid ${COLORS.accent}30` } as any,
+
+  // Grid utilities
+  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } as any,
+  grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 } as any,
+  grid4: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 } as any,
 };
 
 

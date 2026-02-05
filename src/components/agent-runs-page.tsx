@@ -178,7 +178,7 @@ export function AgentRunsPage() {
   return (
     <>
     {headerPortals}
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: 4 }}>
+    <div className="page-gap" style={{ padding: 4 }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>

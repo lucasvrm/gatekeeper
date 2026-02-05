@@ -219,7 +219,7 @@ export function RunDetailsPage() {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="p-8 page-gap">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32" />
         <Skeleton className="h-64" />
@@ -248,7 +248,7 @@ export function RunDetailsPage() {
   const hasSplitView = !!(contractRun && executionRun)
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-8 page-gap">
       <div className="flex items-center gap-4" data-testid="run-header">
         <Button
           variant="ghost"

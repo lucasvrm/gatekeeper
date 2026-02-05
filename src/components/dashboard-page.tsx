@@ -91,7 +91,7 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="page-gap">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-32" />
@@ -102,7 +102,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-gap">
       {/* Filtros posicionados na linha do subtítulo do orqui PageHeader */}
       <div className="relative z-10 flex justify-end gap-3" style={{ marginTop: '-58px', marginBottom: '18px' }}>
         <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>

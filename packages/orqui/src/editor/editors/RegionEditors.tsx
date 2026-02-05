@@ -747,3 +747,129 @@ export function RegionEditor({ name, region, tokens, onChange }) {
   );
 }
 
+
+// ============================================================================
+// Nav Item Style Editor — extracted from SidebarConfigEditor
+// Standalone editor for navigation typography, card mode, active/hover states
+// ============================================================================
+export function NavItemStyleEditor({ region, tokens, onChange }) {
+  const nav = region.navigation || { icons: { enabled: true, size: "$tokens.sizing.icon-md", gap: "$tokens.spacing.sm" } };
+  const navTypo = nav.typography || {};
+  const updateNavTypo = (field, val) => onChange({ ...region, navigation: { ...nav, typography: { ...navTypo, [field]: val } } });
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: COLORS.textDim, margin: "0 0 16px" }}>
+        Tipografia, cores e estados interativos dos itens de navegação da sidebar.
+        Referenciam tokens definidos em <strong style={{ color: COLORS.accent }}>Tokens</strong>.
+      </p>
+
+      {/* Base Typography */}
+      <Section title="Tipografia Base" defaultOpen={true} id="nav-typo-base">
+        <Row gap={8}>
+          <Field label="Font Size" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.fontSize || ""} tokens={tokens} category="fontSizes" onChange={(v) => updateNavTypo("fontSize", v)} />
+          </Field>
+          <Field label="Font Weight" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.fontWeight || ""} tokens={tokens} category="fontWeights" onChange={(v) => updateNavTypo("fontWeight", v)} />
+          </Field>
+        </Row>
+        <Row gap={8}>
+          <Field label="Color" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.color || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("color", v)} />
+          </Field>
+          <Field label="Font Family" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.fontFamily || ""} tokens={tokens} category="fontFamilies" onChange={(v) => updateNavTypo("fontFamily", v)} />
+          </Field>
+        </Row>
+        <Row gap={8}>
+          <Field label="Letter Spacing" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.letterSpacing || ""} tokens={tokens} category="letterSpacings" onChange={(v) => updateNavTypo("letterSpacing", v)} />
+          </Field>
+          <Field label="Line Height" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.lineHeight || ""} tokens={tokens} category="lineHeights" onChange={(v) => updateNavTypo("lineHeight", v)} />
+          </Field>
+        </Row>
+      </Section>
+
+      {/* Card Mode */}
+      <Section title="Nav Item Card" defaultOpen={false} id="nav-typo-card">
+        <Row gap={8}>
+          <Field label="Card enabled" style={{ flex: 0, minWidth: 90 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", paddingTop: 4 }}>
+              <input type="checkbox" checked={navTypo.cardEnabled ?? false} onChange={(e) => updateNavTypo("cardEnabled", e.target.checked)} />
+              Ativo
+            </label>
+          </Field>
+          <Field label="Border Radius" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.cardBorderRadius || ""} tokens={tokens} category="borderRadius" onChange={(v) => updateNavTypo("cardBorderRadius", v)} />
+          </Field>
+          <Field label="Padding" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.cardPadding || ""} tokens={tokens} category="spacing" onChange={(v) => updateNavTypo("cardPadding", v)} />
+          </Field>
+        </Row>
+        {navTypo.cardEnabled && (
+          <Row gap={8}>
+            <Field label="Background" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.cardBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("cardBackground", v)} />
+            </Field>
+            <Field label="Border Color" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.cardBorderColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("cardBorderColor", v)} />
+            </Field>
+            <Field label="Border Width" style={{ flex: 1 }}>
+              <select value={navTypo.cardBorderWidth || "0"} onChange={(e) => updateNavTypo("cardBorderWidth", e.target.value)} style={s.select}>
+                <option value="0">Nenhum</option>
+                <option value="1">1px</option>
+                <option value="2">2px</option>
+              </select>
+            </Field>
+          </Row>
+        )}
+      </Section>
+
+      {/* Active State */}
+      <Section title="Estado Ativo" defaultOpen={false} id="nav-typo-active">
+        <Row gap={8}>
+          <Field label="Color" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.activeColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeColor", v)} />
+          </Field>
+          <Field label="Weight" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.activeFontWeight || ""} tokens={tokens} category="fontWeights" onChange={(v) => updateNavTypo("activeFontWeight", v)} />
+          </Field>
+          <Field label="Background" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.activeBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeBackground", v)} />
+          </Field>
+        </Row>
+        {navTypo.cardEnabled && (
+          <Row gap={8}>
+            <Field label="Card Border (active)" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.activeCardBorder || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeCardBorder", v)} />
+            </Field>
+          </Row>
+        )}
+      </Section>
+
+      {/* Hover State */}
+      <Section title="Estado Hover" defaultOpen={false} id="nav-typo-hover">
+        <Row gap={8}>
+          <Field label="Color" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.hoverColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverColor", v)} />
+          </Field>
+          <Field label="Weight" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.hoverFontWeight || ""} tokens={tokens} category="fontWeights" onChange={(v) => updateNavTypo("hoverFontWeight", v)} />
+          </Field>
+          <Field label="Background" style={{ flex: 1 }}>
+            <TokenRefSelect value={navTypo.hoverBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverBackground", v)} />
+          </Field>
+        </Row>
+        {navTypo.cardEnabled && (
+          <Row gap={8}>
+            <Field label="Card Border (hover)" style={{ flex: 1 }}>
+              <TokenRefSelect value={navTypo.hoverCardBorder || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverCardBorder", v)} />
+            </Field>
+          </Row>
+        )}
+      </Section>
+    </div>
+  );
+}

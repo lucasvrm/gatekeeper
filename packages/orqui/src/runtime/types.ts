@@ -108,11 +108,15 @@ export interface RegionConfig {
 export interface ContentLayoutConfig {
   centering?: boolean;
   maxWidth?: string;
+  contentGap?: string;
+  contentPadding?: string;
   grid?: {
     enabled?: boolean;
-    columns?: number;
+    columns?: number | "auto-fit" | "auto-fill";
     minColumnWidth?: string;
     gap?: string;
+    rowGap?: string;
+    columnGap?: string;
   };
 }
 export interface PageHeaderConfig {
@@ -225,6 +229,53 @@ export interface BreadcrumbsConfig {
   };
   _alignNote?: string;
 }
+export interface LoginPageConfig {
+  logo?: {
+    enabled?: boolean;
+    placement?: "above-card" | "inside-card";
+    align?: "left" | "center" | "right";
+    scale?: number;
+    marginBottom?: string;
+  };
+  background?: {
+    type?: "solid" | "gradient" | "image";
+    color?: string;
+    gradient?: string;
+    imageUrl?: string;
+    overlay?: string;
+  };
+  card?: {
+    position?: "left" | "center" | "right";
+    verticalAlign?: "top" | "center" | "bottom";
+    maxWidth?: string;
+    background?: string;
+    borderColor?: string;
+    borderRadius?: string;
+    shadow?: string;
+    padding?: string;
+  };
+  title?: {
+    text?: string;
+    align?: "left" | "center" | "right";
+  };
+  inputs?: {
+    background?: string;
+    borderColor?: string;
+    focusBorderColor?: string;
+  };
+  button?: {
+    background?: string;
+    color?: string;
+    hoverBackground?: string;
+  };
+  links?: {
+    color?: string;
+    hoverColor?: string;
+  };
+  footer?: {
+    text?: string;
+  };
+}
 export interface LayoutContract {
   $orqui?: Record<string, any>;
   tokens: Tokens;
@@ -251,6 +302,7 @@ export interface LayoutContract {
     tableSeparator?: Record<string, any>;
     appTitle?: string;
     alignmentGrid?: Record<string, any>;
+    loginPage?: LoginPageConfig;
   };
 }
 export interface UIRegistryContract {

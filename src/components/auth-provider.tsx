@@ -1,5 +1,8 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { api, API_BASE } from '@/lib/api'
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface User {
   id: string
@@ -10,10 +13,18 @@ interface AuthContextType {
   user: User | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string) => Promise<void>
   logout: () => void
 }
 
+const TOKEN_KEY = 'token'
+const PUBLIC_PATHS = ['/login', '/register']
+
+// ─── Context ─────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext<AuthContextType | null>(null)
+
+// ─── Provider ────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -21,47 +32,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Validate token with backend on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem(TOKEN_KEY)
 
       if (!token) {
         setIsLoading(false)
-        // Redirect to login if not on login page
-        if (location.pathname !== '/login') {
-          navigate('/login')
+        if (!PUBLIC_PATHS.includes(location.pathname)) {
+          navigate('/login', { replace: true })
         }
         return
       }
 
-      // Token exists, user is considered authenticated
-      // In a real app, we'd verify the token with the server
-      setUser({ id: 'authenticated', email: 'user@example.com' })
-      setIsLoading(false)
+      // Validate token by calling /api/auth/me
+      try {
+        const response = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (!response.ok) {
+          // Token invalid or expired — clear and redirect
+          localStorage.removeItem(TOKEN_KEY)
+          setUser(null)
+          setIsLoading(false)
+          if (!PUBLIC_PATHS.includes(location.pathname)) {
+            navigate('/login', { replace: true })
+          }
+          return
+        }
+
+        const data = await response.json()
+        setUser(data.user)
+      } catch {
+        // Network error — clear token
+        localStorage.removeItem(TOKEN_KEY)
+        setUser(null)
+        if (!PUBLIC_PATHS.includes(location.pathname)) {
+          navigate('/login', { replace: true })
+        }
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     checkAuth()
-  }, [navigate, location.pathname])
+    // Only run on mount — location changes are handled by ProtectedRoute
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const login = async (email: string, password: string) => {
-    // Login is handled in LoginPage directly
-    // This is just for context completeness
-    setUser({ id: 'user-id', email })
+  const login = useCallback(async (email: string, password: string) => {
+    const data = await api.auth.login(email, password)
+    localStorage.setItem(TOKEN_KEY, data.token)
+    setUser(data.user)
     navigate('/')
-  }
+  }, [navigate])
 
-  const logout = () => {
-    localStorage.removeItem('token')
+  const register = useCallback(async (email: string, password: string) => {
+    await api.auth.register(email, password)
+    // Backend register doesn't return token — redirect to login
+    navigate('/login')
+  }, [navigate])
+
+  const logout = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY)
     setUser(null)
     navigate('/login')
-  }
+  }, [navigate])
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )
 }
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useAuth() {
   const context = useContext(AuthContext)

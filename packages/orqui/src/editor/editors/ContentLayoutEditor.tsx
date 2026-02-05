@@ -327,7 +327,7 @@ export function TableSeparatorEditor({ config, tokens, onChange }) {
 // Content Layout Editor
 // ============================================================================
 export function ContentLayoutEditor({ config, onChange }: { config: any; onChange: (c: any) => void }) {
-  const cl = config || { maxWidth: "", centering: true, grid: { enabled: false, columns: 1, minColumnWidth: "280px", gap: "$tokens.spacing.md" } };
+  const cl = config || { maxWidth: "", centering: true, contentGap: "$tokens.spacing.md", contentPadding: "$tokens.spacing.xl", grid: { enabled: false, columns: 1, minColumnWidth: "280px", gap: "$tokens.spacing.md" } };
   const update = (field: string, val: any) => onChange({ ...cl, [field]: val });
   const updateGrid = (field: string, val: any) => onChange({ ...cl, grid: { ...(cl.grid || {}), [field]: val } });
 
@@ -341,6 +341,12 @@ export function ContentLayoutEditor({ config, onChange }: { config: any; onChang
         <Field label="Max Width" style={{ flex: 1 }}>
           <input value={cl.maxWidth || ""} onChange={(e) => update("maxWidth", e.target.value)} style={s.input} placeholder="ex: 1200px ou vazio = 100%" />
         </Field>
+        <Field label="Content Gap" style={{ flex: 1 }}>
+          <input value={cl.contentGap || ""} onChange={(e) => update("contentGap", e.target.value)} style={s.input} placeholder="$tokens.spacing.md" />
+        </Field>
+        <Field label="Content Padding" style={{ flex: 1 }}>
+          <input value={cl.contentPadding || ""} onChange={(e) => update("contentPadding", e.target.value)} style={s.input} placeholder="$tokens.spacing.xl" />
+        </Field>
         <Field label="Centering" style={{ flex: 0 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginTop: 4 }}>
             <input type="checkbox" checked={cl.centering !== false} onChange={(e) => update("centering", e.target.checked)} />
@@ -348,6 +354,11 @@ export function ContentLayoutEditor({ config, onChange }: { config: any; onChang
           </label>
         </Field>
       </Row>
+      <div style={s.infoBox}>
+        <strong style={{ color: COLORS.text }}>Content Gap:</strong> Espaçamento vertical entre os filhos do conteúdo.
+        <br />
+        <strong style={{ color: COLORS.text }}>Content Padding:</strong> Espaço inferior após o último elemento — evita que cards fiquem colados na borda da tela.
+      </div>
 
       <WBSub title="CSS Grid">
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textMuted, cursor: "pointer", marginBottom: 10 }}>
