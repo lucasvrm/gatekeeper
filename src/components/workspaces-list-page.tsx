@@ -34,7 +34,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { NewValidationCtaButton } from "@/components/new-validation-cta-button"
 
 export function WorkspacesListPage() {
   const navigate = useNavigate()
@@ -156,13 +155,10 @@ export function WorkspacesListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
-        <div className="flex items-center gap-3">
-          <Button onClick={() => navigate("/workspaces/new")}>
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Workspace
-          </Button>
-          <NewValidationCtaButton />
-        </div>
+        <Button onClick={() => navigate("/workspaces/new")}>
+          <Plus className="w-4 h-4 mr-2" />
+          Novo Workspace
+        </Button>
       </div>
 
       <Card className="p-6">

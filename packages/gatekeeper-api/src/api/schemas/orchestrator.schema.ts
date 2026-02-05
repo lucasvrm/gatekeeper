@@ -16,10 +16,15 @@ export const GenerateSpecSchema = z.object({
 export const FixArtifactsSchema = z.object({
   outputId: z.string().min(1, 'outputId é obrigatório'),
   target: z.enum(['plan', 'spec']),
-  runId: z.string().min(1, 'runId é obrigatório'),
+  runId: z.string().optional(), // Optional when fixing schema errors
   failedValidators: z.array(z.string().min(1)).min(1, 'failedValidators deve ter pelo menos 1 item'),
+  rejectionReport: z.string().optional(), // For schema errors without runId
   profileId: z.string().optional(),
   model: z.string().optional(),
+  provider: z.string().optional(),
+  projectPath: z.string().optional(),
+  taskPrompt: z.string().optional(),
+  customInstructions: z.string().optional(),
 })
 
 export const ExecuteSchema = z.object({

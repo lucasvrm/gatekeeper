@@ -5,37 +5,16 @@ import { idbGet, idbSet } from "./lib/indexeddb";
 import { apiLoadContracts, apiSaveContract, getSandboxInfo, apiResetSandbox } from "./lib/api";
 import { useCommandPaletteItems } from "./hooks/useCommandPaletteItems";
 import { CommandPalette } from "./components/CommandPalette";
-import { PageEditor } from "./page-editor/PageEditor";
 import { StackedWorkbench } from "./workbench/StackedWorkbench";
-import { EasyblocksPageEditor, invalidateAllEntries } from "./easyblocks";
-import { stripEbEntries, hydrateEbEntries } from "./easyblocks/backend";
 
 // ============================================================================
-// OrquiEditor — top-level mode switcher + topbar
-// Pages mode: DnD builder (intocável)
-// Shell & Tokens mode: Stacked Workbench (IDE-like layout)
+// OrquiEditor — Shell & Tokens Contract Editor
 //
-// PHASE 5 CHANGES:
-//   - Unified save pipeline: flush EB backend → strip _ebEntry → save
-//   - Contract v2 validation before filesystem write
-//   - IndexedDB keeps _ebEntry for hydration; filesystem strips it
-//   - hasUnsavedChanges prop passed down to EasyblocksPageEditor
+// Simplified version without Easyblocks. Directly opens the StackedWorkbench
+// for editing layout structure, tokens, and UI registry.
 // ============================================================================
-export function OrquiEditor() {
-  // Top-level mode: "pages" (DnD builder) or "shell" (Stacked Workbench)
-  const [editorMode, _setEditorMode] = useState<"pages" | "shell">("pages");
 
-  // Wrap mode switch: invalidate EB cache when returning to Pages
-  // so the editor re-hydrates from the current layout state
-  // (picks up token changes, imports, undos that happened in Shell).
-  const setEditorMode = useCallback((mode: "pages" | "shell") => {
-    _setEditorMode(prev => {
-      if (prev === "shell" && mode === "pages") {
-        invalidateAllEntries();
-      }
-      return mode;
-    });
-  }, []);
+export function OrquiEditor() {
   const [layout, setLayout] = useState(DEFAULT_LAYOUT);
 
   // Normalize registry: ensure every component has name field matching its key
@@ -67,7 +46,6 @@ export function OrquiEditor() {
 
   const undoChanges = useCallback(() => {
     if (!savedSnapshot) return;
-    invalidateAllEntries();
     setLayout(savedSnapshot.layout);
     setRegistry(savedSnapshot.registry);
   }, [savedSnapshot]);
@@ -102,22 +80,18 @@ export function OrquiEditor() {
   }, []);
 
   // Auto-save to IndexedDB on every change (draft persistence)
-  // IndexedDB KEEPS _ebEntry for hydration across browser refreshes
   useEffect(() => {
-    const hydrated = {
-      ...layout,
-      pages: layout.pages ? hydrateEbEntries(layout.pages) : {},
-    };
-    idbSet("orqui-layout", hydrated);
+    idbSet("orqui-layout", layout);
   }, [layout]);
-  useEffect(() => { idbSet("orqui-registry", registry); }, [registry]);
+  useEffect(() => {
+    idbSet("orqui-registry", registry);
+  }, [registry]);
 
   // ── Beforeunload — warn on exit with unsaved changes ────────────────────
   useEffect(() => {
     if (!hasUnsavedChanges) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      // Modern browsers ignore custom message but still show prompt
       e.returnValue = "Há alterações não salvas. Tem certeza que deseja sair?";
     };
     window.addEventListener("beforeunload", handler);
@@ -125,75 +99,30 @@ export function OrquiEditor() {
   }, [hasUnsavedChanges]);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // UNIFIED SAVE PIPELINE
-  //
-  // Sequence:
-  // 1. Emit orqui:force-save → EasyblocksPageEditor flushes debounced
-  //    backend changes via flushSync (waits for React state update)
-  // 2. Read layout state (now up-to-date with all EB changes)
-  // 3. Strip _ebEntry from pages (not needed by runtime consumers)
-  // 4. Add $orqui metadata header
-  // 5. POST to filesystem API
-  // 6. Update saved snapshot
-  //
-  // The key insight: step 1 must COMPLETE before step 2 reads layout,
-  // otherwise we save stale data. This is why we use a two-phase approach:
-  // - Phase A: flush (event handler in EB component calls flushSync)
-  // - Phase B: save (runs after a yield to the event loop)
+  // SAVE PIPELINE
   // ══════════════════════════════════════════════════════════════════════════
 
-  const saveToFilesystem = useCallback(async () => {
+  const handleSave = useCallback(async () => {
     if (!hasApi || savingRef.current) return;
     savingRef.current = true;
     setSaveStatus("saving");
 
     try {
-      // Phase A: Flush EB backend debounced changes
-      // The event listener in EasyblocksPageEditor calls backend.flushSync()
-      // which awaits React state propagation
-      window.dispatchEvent(new CustomEvent("orqui:force-save"));
-
-      // Yield to let React process the state update from flush
-      await new Promise<void>(r => setTimeout(r, 50));
-
-      // Phase B: Read current state and save
-      // We read layout via a ref-like pattern to get the latest value
-      // after the flush state update has been processed
-    } catch (err) {
-      console.error("[OrquiEditor] Flush failed:", err);
-    }
-
-    // Note: saveToFilesystemInner is called separately because we need
-    // the latest layout reference. See the useEffect that watches layout.
-    savingRef.current = false;
-  }, [hasApi]);
-
-  // The actual filesystem write — separated so it always reads latest state
-  const doFilesystemWrite = useCallback(async (currentLayout: any, currentRegistry: any) => {
-    try {
-      // ── Strip _ebEntry from pages ──────────────────────────────────
-      // Runtime consumers don't need the Easyblocks-native format.
-      // IndexedDB retains it (via hydrateEbEntries in the auto-save effect).
-      const cleanLayout = {
-        ...currentLayout,
-        pages: currentLayout.pages ? stripEbEntries(currentLayout.pages) : {},
-      };
-
       // ── Build layout contract ──────────────────────────────────────
-      const layoutHash = await computeHash(cleanLayout);
+      const layoutHash = await computeHash(layout);
       const layoutContract = {
         $orqui: {
           schema: "layout-contract",
           version: "2.0.0",
           hash: layoutHash,
           generatedAt: new Date().toISOString(),
-          pageCount: Object.keys(cleanLayout.pages || {}).length,
+          pageCount: Object.keys(layout.pages || {}).length,
         },
-        ...cleanLayout,
+        ...layout,
       };
 
       // ── Build registry contract ────────────────────────────────────
-      const registryHash = await computeHash(currentRegistry);
+      const registryHash = await computeHash(registry);
       const registryContract = {
         $orqui: {
           schema: "ui-registry-contract",
@@ -201,14 +130,13 @@ export function OrquiEditor() {
           hash: registryHash,
           generatedAt: new Date().toISOString(),
         },
-        ...currentRegistry,
+        ...registry,
       };
 
       // ── Validate contract structure ────────────────────────────────
-      const errors = validateLayoutContract(cleanLayout);
+      const errors = validateLayoutContract(layout);
       if (errors.length > 0) {
         console.warn("[OrquiEditor] Contract validation warnings:", errors);
-        // Don't block save on warnings — just log them
       }
 
       // ── Save to API ────────────────────────────────────────────────
@@ -216,7 +144,7 @@ export function OrquiEditor() {
       const r2 = await apiSaveContract(registryContract);
 
       if (r1.ok && r2.ok) {
-        setSavedSnapshot({ layout: { ...currentLayout }, registry: { ...currentRegistry } });
+        setSavedSnapshot({ layout: { ...layout }, registry: { ...registry } });
         setSaveStatus("saved");
       } else {
         console.error("[OrquiEditor] Save failed:", { r1, r2 });
@@ -227,37 +155,13 @@ export function OrquiEditor() {
       setSaveStatus("error");
     }
 
-    setTimeout(() => setSaveStatus(null), 2000);
-  }, []);
-
-  // Combined save: flush + write
-  const handleSave = useCallback(async () => {
-    if (!hasApi || savingRef.current) return;
-    savingRef.current = true;
-    setSaveStatus("saving");
-
-    try {
-      // Phase A: Flush EB backend
-      window.dispatchEvent(new CustomEvent("orqui:force-save"));
-      // Yield for React state propagation
-      await new Promise<void>(r => setTimeout(r, 100));
-    } catch {
-      // flush failed — continue with current state
-    }
-
-    // Phase B: Save — we use a functional update pattern to read latest state
-    // Unfortunately we can't read state directly in a callback, but
-    // layout/registry are available via closure (re-created on each render)
-    await doFilesystemWrite(layout, registry);
     savingRef.current = false;
-  }, [hasApi, layout, registry, doFilesystemWrite]);
+    setTimeout(() => setSaveStatus(null), 2000);
+  }, [hasApi, layout, registry]);
 
   // ── Command Palette ────────────────────────────────────────────────────────
   const [cmdOpen, setCmdOpen] = useState(false);
 
-  // Backward-compat stubs for useCommandPaletteItems
-  // (cmdItems still references setActiveTab/scrollToSection/openAccordion from the old layout;
-  //  these stubs prevent breakage — command palette → SW deep-linking is a follow-up)
   const setActiveTab = useCallback((_t: string) => {}, []);
   const scrollToSection = useCallback((_id: string) => {}, []);
   const openAccordion = useCallback((sectionId: string) => {
@@ -278,21 +182,15 @@ export function OrquiEditor() {
         setCmdOpen((v) => !v);
       }
 
-      // Ctrl+S — Save to filesystem (global, complements page-level flush)
+      // Ctrl+S — Save to filesystem
       if (ctrl && e.key === "s") {
         e.preventDefault();
         handleSave();
       }
-
-      // Ctrl+Shift+M — Toggle mode (Pages ↔ Shell)
-      if (ctrl && e.shiftKey && e.key === "M") {
-        e.preventDefault();
-        setEditorMode(editorMode === "pages" ? "shell" : "pages");
-      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSave, editorMode, setEditorMode]);
+  }, [handleSave]);
 
   // ── Orqui Favicon ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -308,40 +206,6 @@ export function OrquiEditor() {
   // RENDER
   // ════════════════════════════════════════════════════════════════════════════
 
-  // ── PAGES MODE — EasyblocksEditor takes the FULL viewport ─────────────────
-  // Easyblocks docs: "the editor page shouldn't render any extra headers,
-  // footers, popups etc. It must be blank canvas with EasyblocksEditor being
-  // a single component rendered."
-  // So we render NO header — just the editor + floating overlay controls.
-  if (editorMode === "pages") {
-    return (
-      <>
-        {/* Google Fonts (needed for floating controls) */}
-
-        {/* Sandbox indicator */}
-        <SandboxBanner variant="floating" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-
-        {/* EasyblocksPageEditor — sole occupant of the viewport */}
-        <EasyblocksPageEditor
-          pages={layout.pages || {}}
-          onPagesChange={(pages) => setLayout((prev: any) => ({ ...prev, pages }))}
-          tokens={layout.tokens}
-          variables={layout.variables}
-          onVariablesChange={(variables) => setLayout((prev: any) => ({ ...prev, variables }))}
-          onSwitchToShell={() => setEditorMode("shell")}
-          onSave={hasApi ? handleSave : undefined}
-          saveStatus={saveStatus}
-          hasUnsavedChanges={!!hasUnsavedChanges}
-        />
-
-        {/* Command Palette overlay */}
-        <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} items={cmdItems} />
-      </>
-    );
-  }
-
-  // ── SHELL & TOKENS MODE — full Orqui chrome ───────────────────────────────
   return (
     <div className="orqui-editor-root" style={{
       background: COLORS.bg, height: "100vh", color: COLORS.text,
@@ -363,7 +227,7 @@ export function OrquiEditor() {
       `}</style>
 
       {/* Sandbox indicator */}
-      <SandboxBanner variant="bar" />
+      <SandboxBanner />
 
       {/* ============================================================ */}
       {/* TOPBAR                                                        */}
@@ -387,36 +251,10 @@ export function OrquiEditor() {
         {/* Dot separator */}
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.border }} />
 
-        {/* Mode switcher — Pages vs Shell & Tokens */}
-        <div style={{
-          display: "flex", gap: 2, background: COLORS.surface2,
-          padding: 3, borderRadius: 8,
-        }}>
-          {[
-            { id: "pages" as const, label: "📐 Páginas" },
-            { id: "shell" as const, label: "⚙ Shell & Tokens" },
-          ].map(mode => (
-            <button key={mode.id} onClick={() => setEditorMode(mode.id)} title={`⌘⇧M — Alternar modo`} style={{
-              padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-              border: "none", cursor: "pointer",
-              fontFamily: "'Inter', sans-serif",
-              background: editorMode === mode.id ? COLORS.accent + "20" : "transparent",
-              color: editorMode === mode.id ? COLORS.accent : COLORS.textDim,
-              transition: "all 0.15s",
-              position: "relative",
-            }}>
-              {mode.label}
-              {/* Unsaved dot */}
-              {hasUnsavedChanges && editorMode === mode.id && (
-                <span style={{
-                  position: "absolute", top: 3, right: 3,
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: COLORS.warning,
-                }} />
-              )}
-            </button>
-          ))}
-        </div>
+        {/* Title */}
+        <span style={{ fontSize: 13, color: COLORS.textMuted, fontWeight: 500 }}>
+          Shell & Tokens
+        </span>
 
         {/* Dot separator */}
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.border }} />
@@ -450,24 +288,15 @@ export function OrquiEditor() {
           background: `${COLORS.success}15`, color: COLORS.success,
           border: `1px solid ${COLORS.success}30`,
         }}>
-          {Object.values(layout.structure.regions).filter((r: any) => r.enabled).length} regions
+          {Object.values(layout.structure?.regions || {}).filter((r: any) => r.enabled).length} regions
         </span>
         <span style={{
           ...s.tag, fontSize: 10,
           background: `${COLORS.accent}15`, color: COLORS.accent,
           border: `1px solid ${COLORS.accent}30`,
         }}>
-          {Object.keys(registry.components).length} components
+          {Object.keys(registry.components || {}).length} components
         </span>
-        {layout.pages && Object.keys(layout.pages).length > 0 && (
-          <span style={{
-            ...s.tag, fontSize: 10,
-            background: `${COLORS.orange}15`, color: COLORS.orange,
-            border: `1px solid ${COLORS.orange}30`,
-          }}>
-            {Object.keys(layout.pages).length} {Object.keys(layout.pages).length === 1 ? "página" : "páginas"}
-          </span>
-        )}
         <span style={{ ...s.tag, fontSize: 10 }}>IndexedDB ✓</span>
 
         {/* Undo */}
@@ -499,7 +328,7 @@ export function OrquiEditor() {
       </div>
 
       {/* ============================================================ */}
-      {/* MAIN CONTENT — Shell & Tokens                                 */}
+      {/* MAIN CONTENT — StackedWorkbench                               */}
       {/* ============================================================ */}
       <StackedWorkbench
         layout={layout}
@@ -518,27 +347,17 @@ export function OrquiEditor() {
 // Contract Validation
 // ============================================================================
 
-/**
- * Validate the layout contract structure before saving.
- * Returns an array of warning messages (empty = valid).
- *
- * This is non-blocking — we save even with warnings.
- * Gatekeeper can enforce stricter validation if needed.
- */
 function validateLayoutContract(layout: any): string[] {
   const warnings: string[] = [];
 
-  // Must have structure.regions
   if (!layout.structure?.regions) {
     warnings.push("Missing structure.regions");
   }
 
-  // Must have tokens
   if (!layout.tokens) {
     warnings.push("Missing tokens");
   }
 
-  // Pages validation
   if (layout.pages) {
     for (const [id, page] of Object.entries(layout.pages) as [string, any][]) {
       if (!page.content) {
@@ -550,10 +369,6 @@ function validateLayoutContract(layout: any): string[] {
       if (!page.route) {
         warnings.push(`Page "${id}" has no route`);
       }
-      // Ensure no _ebEntry leaked through
-      if (page._ebEntry) {
-        warnings.push(`Page "${id}" still has _ebEntry (should be stripped)`);
-      }
     }
   }
 
@@ -562,17 +377,11 @@ function validateLayoutContract(layout: any): string[] {
 
 // ============================================================================
 // SandboxBanner — visual indicator when running in sandbox mode
-//
-// Two variants:
-//   "bar"      — full-width strip above topbar (Shell mode)
-//   "floating" — fixed pill overlay (Pages mode, where EB needs clean viewport)
 // ============================================================================
 
-function SandboxBanner({ variant = "bar" }: { variant?: "bar" | "floating" }) {
+function SandboxBanner() {
   const sandbox = getSandboxInfo();
   if (!sandbox) return null;
-
-  const [hovering, setHovering] = useState(false);
 
   const handleReset = async () => {
     if (!confirm(`Resetar sandbox "${sandbox.name}"? Todas as alterações serão perdidas.`)) return;
@@ -587,45 +396,6 @@ function SandboxBanner({ variant = "bar" }: { variant?: "bar" | "floating" }) {
     window.location.href = url.toString();
   };
 
-  if (variant === "floating") {
-    return (
-      <div
-        onMouseEnter={() => setHovering(true)}
-        onMouseLeave={() => setHovering(false)}
-        style={{
-          position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)",
-          zIndex: 99999,
-          background: "#1a1625", border: "1px solid #7c3aed",
-          borderRadius: 8, padding: "5px 12px",
-          display: "flex", alignItems: "center", gap: 8,
-          fontFamily: "'Inter', -apple-system, sans-serif",
-          fontSize: 11, fontWeight: 600, color: "#c4b5fd",
-          boxShadow: "0 4px 24px rgba(124,58,237,0.25)",
-          transition: "all 0.2s",
-          cursor: "default",
-          opacity: hovering ? 1 : 0.7,
-        }}
-      >
-        <span style={{ fontSize: 13 }}>🧪</span>
-        <span>SANDBOX: {sandbox.name}</span>
-        {hovering && (
-          <>
-            <div style={{ width: 1, height: 14, background: "#7c3aed40" }} />
-            <button onClick={handleReset} style={{
-              background: "none", border: "none", color: "#fbbf24", cursor: "pointer",
-              fontSize: 10, fontWeight: 600, fontFamily: "inherit", padding: "2px 4px",
-            }}>Reset</button>
-            <button onClick={handleExit} style={{
-              background: "none", border: "none", color: "#94a3b8", cursor: "pointer",
-              fontSize: 10, fontWeight: 600, fontFamily: "inherit", padding: "2px 4px",
-            }}>Sair</button>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  // Bar variant — full width
   return (
     <div style={{
       height: 28, flexShrink: 0,

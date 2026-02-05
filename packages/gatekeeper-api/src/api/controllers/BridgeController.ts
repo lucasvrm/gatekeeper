@@ -185,17 +185,17 @@ export class BridgeController {
   /**
    * POST /agent/bridge/fix
    *
-   * Body: { outputId, projectPath, target, failedValidators, runId?, rejectionReport?, profileId?, provider?, model? }
+   * Body: { outputId, projectPath, target, failedValidators, runId?, rejectionReport?, profileId?, provider?, model?, customInstructions? }
    */
   async fixArtifacts(req: Request, res: Response): Promise<void> {
     const {
       outputId, projectPath, target, failedValidators,
-      runId: gkRunId, rejectionReport, profileId, model, taskPrompt,
+      runId: gkRunId, rejectionReport, profileId, model, taskPrompt, customInstructions,
     } = req.body
     const provider = asProvider(req.body.provider)
 
     console.log('[Controller:Fix] POST /agent/bridge/fix')
-    console.log('[Controller:Fix] body:', JSON.stringify({ outputId, target, failedValidators, provider, model, projectPath, runId: gkRunId, taskPromptLen: taskPrompt?.length }, null, 2))
+    console.log('[Controller:Fix] body:', JSON.stringify({ outputId, target, failedValidators, provider, model, projectPath, runId: gkRunId, taskPromptLen: taskPrompt?.length, hasCustomInstructions: !!customInstructions }, null, 2))
 
     if (!outputId || !projectPath || !target || !failedValidators) {
       console.error('[Controller:Fix] Missing required fields!')
@@ -211,7 +211,7 @@ export class BridgeController {
       const result = await bridge.fixArtifacts(
         {
           outputId, projectPath, target, failedValidators,
-          runId: gkRunId, rejectionReport, profileId, provider, model, taskPrompt,
+          runId: gkRunId, rejectionReport, profileId, provider, model, taskPrompt, customInstructions,
         },
       )
 

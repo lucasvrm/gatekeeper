@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { usePersistedSections } from "@/hooks/use-persisted-sections"
 import { ConfigSection } from "@/components/config-section"
 import { type ConfigModalField } from "@/components/config-modal"
 import { Badge } from "@/components/ui/badge"
@@ -63,14 +63,10 @@ export function SecurityRulesTab({
   onUpdateAmbiguousTerm,
   onDeleteAmbiguousTerm,
 }: SecurityRulesTabProps) {
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+  const [openSections, toggleSection] = usePersistedSections("security-rules", {
     sensitive: true,
     ambiguous: true,
   })
-
-  const toggleSection = (key: string) => {
-    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
-  }
 
   const handleCreateSensitive = async (values: Record<string, string | boolean>) => {
     await onCreateSensitiveRule({

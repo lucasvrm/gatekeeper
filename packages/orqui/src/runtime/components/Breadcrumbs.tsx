@@ -90,7 +90,11 @@ export function BreadcrumbRenderer({ config, pages, currentPage, navigate, resol
     : config.separator === "→" || config.separator === "arrow" ? "→"
     : config.separator || "/";
 
-  // Typography config
+  // Get text style from contract if defined
+  const textStyleName = config.typography?.textStyle || "caption";
+  const textStyleCSS = resolveToken ? {} : {}; // Will get from context below
+  
+  // Typography config (inline overrides on top of textStyle)
   const typo = config.typography;
   const rawFontSize = resolve(typo?.fontSize);
   const baseFontSize = (typeof rawFontSize === "number" ? rawFontSize : Number(rawFontSize)) || 13;
@@ -138,6 +142,13 @@ export function BreadcrumbRenderer({ config, pages, currentPage, navigate, resol
                   ? (activeColor as string)
                   : (baseColor as string),
                 cursor: isClickable ? "pointer" : "default",
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (isClickable) (e.target as HTMLElement).style.color = activeColor as string;
+              }}
+              onMouseLeave={(e) => {
+                if (isClickable && !isLast) (e.target as HTMLElement).style.color = baseColor as string;
               }}
             >
               {item.label}

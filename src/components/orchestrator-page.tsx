@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
+import { FixInstructionsDialog } from "@/components/fix-instructions-dialog"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Session persistence
@@ -261,6 +262,15 @@ function ArtifactViewer({ artifacts }: { artifacts: ParsedArtifact[] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LogPanel({ logs, debugMode, onToggleDebug }: { logs: LogEntry[]; debugMode: boolean; onToggleDebug: () => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when new logs arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [logs.length])
+
   if (logs.length === 0) return null
 
   return (
@@ -275,7 +285,7 @@ function LogPanel({ logs, debugMode, onToggleDebug }: { logs: LogEntry[]; debugM
         </button>
       </CardHeader>
       <CardContent>
-        <div className={`${debugMode ? "max-h-96" : "max-h-48"} overflow-auto space-y-1`}>
+        <div ref={scrollRef} className={`${debugMode ? "max-h-96" : "max-h-48"} overflow-auto space-y-1`}>
           {logs.map((log, i) => (
             <div key={i} className={`flex gap-2 text-xs font-mono ${log.type === "debug" ? "opacity-75" : ""}`}>
               <span className="text-muted-foreground shrink-0">{log.time}</span>
@@ -420,6 +430,11 @@ export function OrchestratorPage() {
   const [validationStatus, setValidationStatus] = useState<string | null>(null)
   const [runResults, setRunResults] = useState<RunWithResults | null>(null)
   const [schemaError, setSchemaError] = useState<string | null>(null)
+
+  // Fix instructions dialog
+  const [fixDialogOpen, setFixDialogOpen] = useState(false)
+  const [fixDialogTarget, setFixDialogTarget] = useState<"plan" | "spec">("plan")
+  const [fixDialogValidators, setFixDialogValidators] = useState<string[]>([])
 
   // Step 4 result
   const [executeResult, setExecuteResult] = useState<{ mode: string; command?: string; tokensUsed?: { inputTokens: number; outputTokens: number } } | null>(null)
@@ -620,7 +635,11 @@ export function OrchestratorPage() {
         } else if (event.type === "agent:tool_call") {
           setExecutionProgress(prev => prev ? { ...prev, lastTool: String(event.tool ?? prev.lastTool), thinkingSeconds: 0, lastToolTime: now } : prev)
         } else if (event.type === "agent:thinking") {
-          setExecutionProgress(prev => prev ? { ...prev, thinkingSeconds: Math.round(((event as any).elapsedMs ?? 0) / 1000) } : prev)
+          setExecutionProgress(prev => prev ? {
+            ...prev,
+            thinkingSeconds: Math.round(((event as any).elapsedMs ?? 0) / 1000),
+            iteration: (event as any).iteration ?? prev.iteration,
+          } : prev)
         }
       }
 
@@ -1160,7 +1179,29 @@ export function OrchestratorPage() {
   // ── Step 3b: Fix artifacts ─────────────────────────────────────────────
   const lastFixHashRef = useRef<string | null>(null)
 
-  const handleFix = async (target: "plan" | "spec") => {
+  // Opens the fix dialog so user can optionally add custom instructions
+  const openFixDialog = (target: "plan" | "spec") => {
+    const isSchemaFix = validationStatus === "SCHEMA_ERROR" && !!schemaError
+    let failedVCodes: string[]
+    if (isSchemaFix) {
+      failedVCodes = ["CONTRACT_SCHEMA_INVALID"]
+    } else {
+      const failedVs = (runResults?.validatorResults ?? [])
+        .filter((v: ValidatorResult) => !v.passed && !v.bypassed)
+      failedVCodes = failedVs.map((v: ValidatorResult) => v.validatorCode)
+      if (failedVCodes.length === 0) failedVCodes.push("unknown")
+    }
+    setFixDialogTarget(target)
+    setFixDialogValidators(failedVCodes)
+    setFixDialogOpen(true)
+  }
+
+  // Called when user confirms fix dialog
+  const handleFixWithInstructions = (customInstructions: string) => {
+    handleFix(fixDialogTarget, customInstructions)
+  }
+
+  const handleFix = async (target: "plan" | "spec", customInstructions?: string) => {
     if (!outputId) return
     // For schema errors, we don't need runId — we pass the error directly
     const isSchemaFix = validationStatus === "SCHEMA_ERROR" && !!schemaError
@@ -1188,6 +1229,10 @@ export function OrchestratorPage() {
       }
     }
 
+    if (customInstructions) {
+      addLog("info", `Instruções customizadas: ${customInstructions.slice(0, 100)}${customInstructions.length > 100 ? "..." : ""}`)
+    }
+
     try {
       const fixLLM = stepLLMs[3] ?? stepLLMs[2] // step 3 = fix, fallback to step 2
       const result: StepResult = await apiPost("fix", {
@@ -1201,6 +1246,7 @@ export function OrchestratorPage() {
         model: fixLLM.model,
         projectPath: getProjectPath(),
         taskPrompt: taskDescription,
+        customInstructions: customInstructions || undefined,
       })
 
       // Check for fix loop
@@ -1869,7 +1915,7 @@ export function OrchestratorPage() {
                           // Try to fix the contract in-place by re-running plan step
                           setValidationStatus(null)
                           setSchemaError(null)
-                          handleFix("plan")
+                          openFixDialog("plan")
                         }}
                         variant="outline"
                       >
@@ -2057,17 +2103,17 @@ export function OrchestratorPage() {
                           
                           return (
                             <>
-                              <Button 
-                                onClick={() => handleFix(autoTarget)} 
-                                disabled={loading} 
+                              <Button
+                                onClick={() => openFixDialog(autoTarget)}
+                                disabled={loading}
                                 variant="default"
                                 className="flex-1"
                               >
                                 {loading ? "Corrigindo..." : `Corrigir ${autoTarget === "plan" ? "Plano" : "Testes"} ⭐`}
                               </Button>
-                              <Button 
-                                onClick={() => handleFix(altTarget)} 
-                                disabled={loading} 
+                              <Button
+                                onClick={() => openFixDialog(altTarget)}
+                                disabled={loading}
                                 variant="outline"
                                 className="flex-1"
                               >
@@ -2409,6 +2455,15 @@ export function OrchestratorPage() {
 
       {/* Log panel */}
       <LogPanel logs={logs} debugMode={debugMode} onToggleDebug={() => setDebugMode(d => !d)} />
+
+      {/* Fix instructions dialog */}
+      <FixInstructionsDialog
+        open={fixDialogOpen}
+        onOpenChange={setFixDialogOpen}
+        target={fixDialogTarget}
+        failedValidators={fixDialogValidators}
+        onConfirm={handleFixWithInstructions}
+      />
       </>
     </div>
   )

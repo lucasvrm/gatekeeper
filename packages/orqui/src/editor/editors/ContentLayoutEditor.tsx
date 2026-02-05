@@ -390,7 +390,7 @@ export function ContentLayoutEditor({ config, onChange }: { config: any; onChang
 // ============================================================================
 // Page Header Editor
 // ============================================================================
-export function PageHeaderEditor({ config, onChange }: { config: any; onChange: (c: any) => void }) {
+export function PageHeaderEditor({ config, textStyles, onChange }: { config: any; textStyles?: Record<string, any>; onChange: (c: any) => void }) {
   const ph = config || { enabled: false, showTitle: true, showSubtitle: true, showDivider: false, padding: {}, typography: {} };
   const update = (field: string, val: any) => onChange({ ...ph, [field]: val });
   const updateTypo = (group: string, field: string, val: string) => {
@@ -398,9 +398,17 @@ export function PageHeaderEditor({ config, onChange }: { config: any; onChange: 
     typo[group] = { ...(typo[group] || {}), [field]: val };
     update("typography", typo);
   };
+  const updateTextStyleRef = (field: string, val: string | undefined) => {
+    const typo = { ...(ph.typography || {}), [field]: val || undefined };
+    if (!val) delete typo[field];
+    update("typography", typo);
+  };
   const updatePad = (side: string, val: string) => {
     update("padding", { ...(ph.padding || {}), [side]: val });
   };
+
+  // Get available text style names
+  const textStyleNames = textStyles ? Object.keys(textStyles) : [];
 
   return (
     <div>
@@ -430,7 +438,41 @@ export function PageHeaderEditor({ config, onChange }: { config: any; onChange: 
             </label>
           </Row>
 
-          <WBSub title="Typography — Título">
+          {textStyleNames.length > 0 && (
+            <WBSub title="Text Styles">
+              <Row gap={8}>
+                <Field label="Título (Text Style)" style={{ flex: 1 }}>
+                  <select
+                    value={ph.typography?.titleTextStyle || ""}
+                    onChange={(e) => updateTextStyleRef("titleTextStyle", e.target.value)}
+                    style={s.select}
+                  >
+                    <option value="">— Nenhum (usar inline) —</option>
+                    {textStyleNames.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Subtítulo (Text Style)" style={{ flex: 1 }}>
+                  <select
+                    value={ph.typography?.subtitleTextStyle || ""}
+                    onChange={(e) => updateTextStyleRef("subtitleTextStyle", e.target.value)}
+                    style={s.select}
+                  >
+                    <option value="">— Nenhum (usar inline) —</option>
+                    {textStyleNames.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </Field>
+              </Row>
+              <p style={{ fontSize: 11, color: COLORS.textDim, marginTop: 8 }}>
+                Text Styles aplicam tipografia definida em Tipografia → Text Styles. Overrides inline abaixo têm precedência.
+              </p>
+            </WBSub>
+          )}
+
+          <WBSub title="Typography — Título (inline override)">
             <Row gap={8}>
               <Field label="Font Size" style={{ flex: 1 }}>
                 <input value={ph.typography?.title?.fontSize || ""} onChange={(e) => updateTypo("title", "fontSize", e.target.value)} style={s.input} placeholder="$tokens.fontSizes.3xl" />
@@ -444,7 +486,7 @@ export function PageHeaderEditor({ config, onChange }: { config: any; onChange: 
             </Row>
           </WBSub>
 
-          <WBSub title="Typography — Subtítulo">
+          <WBSub title="Typography — Subtítulo (inline override)">
             <Row gap={8}>
               <Field label="Font Size" style={{ flex: 1 }}>
                 <input value={ph.typography?.subtitle?.fontSize || ""} onChange={(e) => updateTypo("subtitle", "fontSize", e.target.value)} style={s.input} placeholder="$tokens.fontSizes.sm" />

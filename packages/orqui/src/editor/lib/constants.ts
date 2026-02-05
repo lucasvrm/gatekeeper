@@ -172,6 +172,32 @@ export const DEFAULT_LAYOUT = {
       headerWidth: "2px",
       headerStyle: "solid",
     },
+    scrollbar: {
+      width: "6px",
+      borderRadius: "3px",
+      thumbColor: "rgba(255,255,255,0.08)",
+      thumbHoverColor: "rgba(255,255,255,0.15)",
+      trackColor: "transparent",
+    },
+    toast: {
+      position: "bottom-right" as const,
+      maxVisible: 3,
+      duration: 4000,
+    },
+    emptyState: {
+      icon: "ph:magnifying-glass",
+      title: "Nenhum item encontrado",
+      description: "",
+      showAction: true,
+      actionLabel: "Criar Novo",
+    },
+    skeleton: {
+      animation: "pulse" as const,
+      duration: "1.5s",
+      baseColor: "rgba(255,255,255,0.05)",
+      highlightColor: "rgba(255,255,255,0.10)",
+      borderRadius: "6px",
+    },
     pages: {},
     variables: { categories: [], items: [] },
   },
@@ -223,31 +249,43 @@ export const DEFAULT_LAYOUT = {
       wide: { value: 0.05, unit: "em" },
     },
     colors: {
-      "bg": { value: "#0a0a0b" },
-      "surface": { value: "#141417" },
-      "surface-2": { value: "#1c1c21" },
-      "surface-3": { value: "#24242b" },
-      "border": { value: "#2a2a33" },
-      "border-2": { value: "#3a3a45" },
-      "text": { value: "#e4e4e7" },
-      "text-muted": { value: "#8b8b96" },
-      "text-dim": { value: "#5b5b66" },
-      "accent": { value: "#6d9cff" },
-      "accent-dim": { value: "#4a7adf" },
+      // Backgrounds (Slate dark scale)
+      "bg": { value: "#111113" },           // slate-1
+      "surface": { value: "#18191b" },      // slate-2
+      "surface-2": { value: "#212225" },    // slate-3
+      "surface-3": { value: "#272a2d" },    // slate-4
+      
+      // Borders (Slate dark scale)
+      "border": { value: "#2e3135" },       // slate-5
+      "border-2": { value: "#363a3f" },     // slate-6
+      
+      // Text (Slate dark scale)
+      "text": { value: "#edeef0" },         // slate-12
+      "text-muted": { value: "#b0b4ba" },   // slate-11
+      "text-dim": { value: "#696e77" },     // slate-9
+      
+      // Accent (Blue dark scale)
+      "accent": { value: "#0090ff" },       // blue-9
+      "accent-hover": { value: "#3b9eff" }, // blue-10
+      "accent-dim": { value: "#70b8ff" },   // blue-11
       "accent-fg": { value: "#ffffff" },
-      "danger": { value: "#ff6b6b" },
-      "danger-dim": { value: "#cc5555" },
-      "success": { value: "#4ade80" },
-      "success-dim": { value: "#22c55e" },
-      "warning": { value: "#fbbf24" },
-      "warning-dim": { value: "#d4a017" },
-      "sidebar-bg": { value: "#111114" },
-      "header-bg": { value: "#0a0a0b" },
-      "input-bg": { value: "#1c1c21" },
-      "input-border": { value: "#2a2a33" },
-      "card-bg": { value: "#141417" },
-      "card-border": { value: "#2a2a33" },
-      "ring": { value: "#6d9cff44" },
+      
+      // Status colors (Radix)
+      "danger": { value: "#e5484d" },       // red-9
+      "danger-dim": { value: "#f2555a" },   // red-10
+      "success": { value: "#30a46c" },      // green-9
+      "success-dim": { value: "#3cb179" },  // green-10
+      "warning": { value: "#f5d90a" },      // yellow-9
+      "warning-dim": { value: "#ffef5c" },  // yellow-10
+      
+      // Semantic aliases
+      "sidebar-bg": { value: "#111113" },   // slate-1
+      "header-bg": { value: "#111113" },    // slate-1
+      "input-bg": { value: "#212225" },     // slate-3
+      "input-border": { value: "#2e3135" }, // slate-5
+      "card-bg": { value: "#18191b" },      // slate-2
+      "card-border": { value: "#2e3135" },  // slate-5
+      "ring": { value: "#0090ff44" },       // blue-9 with alpha
     },
     borderRadius: {
       none: { value: 0, unit: "px" },
@@ -299,31 +337,44 @@ export const DEFAULT_UI_REGISTRY = {
 // ============================================================================
 // Shared UI Constants
 // ============================================================================
+// ============================================================================
+// Colors — Radix Slate/Blue (same as Gatekeeper)
+// ============================================================================
 export const COLORS = {
-  bg: "#0a0a0b",
-  surface: "#141417",
-  surface2: "#1c1c21",
-  surface3: "#24242b",
-  border: "#2a2a33",
-  border2: "#3a3a45",
-  text: "#e4e4e7",
-  textMuted: "#8b8b96",
-  textDim: "#5b5b66",
-  accent: "#6d9cff",
-  accentDim: "#4a7adf",
-  danger: "#ff6b6b",
-  error: "#ff6b6b",
-  success: "#4ade80",
-  warning: "#fbbf24",
+  // Backgrounds (Slate dark scale)
+  bg: "#111113",           // slate-1
+  surface: "#18191b",      // slate-2
+  surface2: "#212225",     // slate-3
+  surface3: "#272a2d",     // slate-4
+  
+  // Borders
+  border: "#2e3135",       // slate-5
+  border2: "#363a3f",      // slate-6
+  
+  // Text (Slate dark scale)
+  text: "#edeef0",         // slate-12
+  textMuted: "#b0b4ba",    // slate-11
+  textDim: "#696e77",      // slate-9
+  
+  // Accent (Blue dark scale)
+  accent: "#0090ff",       // blue-9
+  accentHover: "#3b9eff",  // blue-10
+  accentDim: "#70b8ff",    // blue-11
+  
+  // Status colors (Radix)
+  danger: "#e5484d",       // red-9
+  error: "#e5484d",        // red-9
+  success: "#30a46c",      // green-9
+  warning: "#f5d90a",      // yellow-9
 };
 
 export const s = {
-  input: { background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", fontFamily: "'JetBrains Mono', 'SF Mono', monospace" },
-  select: { background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", fontFamily: "'JetBrains Mono', 'SF Mono', monospace", cursor: "pointer" },
-  btn: { background: COLORS.accent, border: "none", borderRadius: 6, padding: "7px 14px", color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: "'Inter', sans-serif" },
-  btnGhost: { background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 12px", color: COLORS.textMuted, fontSize: 12, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  btnDanger: { background: "transparent", border: `1px solid ${COLORS.danger}33`, borderRadius: 6, padding: "5px 10px", color: COLORS.danger, fontSize: 12, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  btnSmall: { background: COLORS.surface3, border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "4px 8px", color: COLORS.textMuted, fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
+  input: { background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", fontFamily: "var(--font-monospace, 'JetBrains Mono', 'SF Mono', monospace)" },
+  select: { background: COLORS.surface2, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", fontFamily: "var(--font-monospace, 'JetBrains Mono', 'SF Mono', monospace)", cursor: "pointer" },
+  btn: { background: COLORS.accent, border: "none", borderRadius: 6, padding: "7px 14px", color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)" },
+  btnGhost: { background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 12px", color: COLORS.textMuted, fontSize: 12, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)" },
+  btnDanger: { background: "transparent", border: `1px solid ${COLORS.danger}33`, borderRadius: 6, padding: "5px 10px", color: COLORS.danger, fontSize: 12, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)" },
+  btnSmall: { background: COLORS.surface3, border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "4px 8px", color: COLORS.textMuted, fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans-serif, 'Inter', sans-serif)" },
   label: { fontSize: 11, color: COLORS.textMuted, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" },
   card: { background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 16 },
   tag: { background: COLORS.surface3, border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "2px 8px", fontSize: 11, color: COLORS.textMuted, display: "inline-block" },

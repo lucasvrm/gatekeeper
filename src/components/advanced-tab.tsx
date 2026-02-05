@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { usePersistedSections } from "@/hooks/use-persisted-sections"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -80,18 +81,14 @@ export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabPr
   const [timeoutValues, setTimeoutValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<string | null>(null)
 
-  // Collapsible states
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+  // Collapsible states with localStorage persistence
+  const [openSections, toggleSection] = usePersistedSections("advanced", {
     llmConfig: true,
     globalFlags: true,
     timeouts: false,
     allConfigs: false,
     coverageAudit: false,
   })
-
-  const toggleSection = (key: string) => {
-    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
-  }
 
   const allowSoftGatesConfig = useMemo(() =>
     validationConfigs.find(c => c.key === "ALLOW_SOFT_GATES"),

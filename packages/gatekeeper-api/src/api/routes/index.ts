@@ -11,9 +11,11 @@ import { orchestratorRoutes } from './orchestrator.routes.js'
 import { orchestratorContentRoutes } from './orchestrator-content.routes.js'
 import { agentRoutes } from './agent.routes.js'
 import { healthRoutes } from './health.routes.js'
+import { authRoutes } from './auth.routes.js'
 
 const router = Router()
 
+router.use('/', authRoutes)
 router.use('/', healthRoutes)
 router.use('/', configRoutes)
 router.use('/', runsRoutes)

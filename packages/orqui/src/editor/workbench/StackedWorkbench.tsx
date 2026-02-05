@@ -43,65 +43,56 @@ interface ActivityDef {
 
 const ACTIVITIES: ActivityDef[] = [
   {
-    id: "brand", icon: "◆", label: "Marca", color: "#fbbf24",
+    id: "identity", icon: "◆", label: "Identidade", color: "#fbbf24",
     sections: [
-      { id: "logo", label: "Logo", icon: "⬡", desc: "type, text, icon, imageUrl, position, slot, align, padding, gap, typography" },
-      { id: "app-title", label: "App Title", icon: "T", desc: "Título padrão do app (fallback browser tab)" },
-      { id: "favicon", label: "Favicon", icon: "★", desc: "type, emoji, url, color" },
+      { id: "logo", label: "Logo", icon: "⬡", desc: "tipo, texto, ícone, imagem, posição, alinhamento" },
+      { id: "favicon", label: "Favicon", icon: "★", desc: "emoji, URL, cor de fundo" },
+      { id: "app-title", label: "App Title", icon: "T", desc: "título padrão do app (fallback browser tab)" },
+      { id: "colors", label: "Cores", icon: "◆", desc: "backgrounds, texto, bordas, accent, status" },
+    ],
+  },
+  {
+    id: "shell", icon: "□", label: "Shell", color: "#3b82f6",
+    sections: [
+      { id: "layout-mode", label: "Layout Mode", icon: "⊞", desc: "sidebar-first | header-first" },
+      { id: "sidebar", label: "Sidebar", icon: "◧", desc: "dimensões, padding, comportamento, navegação" },
+      { id: "header", label: "Header", icon: "▬", desc: "dimensões, zonas, separador" },
+      { id: "main", label: "Main", icon: "◻", desc: "padding, comportamento, scroll" },
+      { id: "footer", label: "Footer", icon: "▭", desc: "dimensões, padding, separador" },
+      { id: "header-elements", label: "Header Elements", icon: "▤", desc: "search, icons, CTAs, ordem" },
     ],
   },
   {
     id: "typography", icon: "Aa", label: "Tipografia", color: "#f97316",
     sections: [
-      { id: "font-families", label: "Font Families", icon: "Ff", desc: "Mapa nomeado de famílias de fonte" },
-      { id: "font-sizes", label: "Font Sizes", icon: "Fs", desc: "Mapa nomeado de tamanhos de fonte" },
-      { id: "font-weights", label: "Font Weights", icon: "Fw", desc: "Mapa nomeado de pesos de fonte" },
-      { id: "line-heights", label: "Line Heights", icon: "Lh", desc: "Mapa nomeado de alturas de linha" },
-      { id: "letter-spacings", label: "Letter Spacings", icon: "Ls", desc: "Mapa nomeado de espaçamentos de letra" },
-      { id: "text-styles", label: "Text Styles", icon: "Ts", desc: "Composições tipográficas nomeadas" },
+      { id: "font-tokens", label: "Fontes", icon: "Ff", desc: "families, sizes, weights, heights, spacings" },
+      { id: "text-styles", label: "Text Styles", icon: "Ts", desc: "composições tipográficas nomeadas" },
     ],
   },
   {
-    id: "tokens", icon: "●", label: "Cores & Dimensões", color: "#a855f7",
+    id: "content", icon: "⊡", label: "Conteúdo", color: "#22c55e",
     sections: [
-      { id: "colors", label: "Color Tokens", icon: "◆", desc: "backgrounds, text, borders, accent, status, custom" },
+      { id: "content-layout", label: "Content Layout", icon: "⊟", desc: "maxWidth, centralização, CSS Grid" },
+      { id: "page-header", label: "Page Header", icon: "H", desc: "título, subtítulo, divider, text style" },
+      { id: "breadcrumbs", label: "Breadcrumbs", icon: "»", desc: "separador, home, text style" },
       { id: "spacing-sizing", label: "Spacing & Sizing", icon: "⊞", desc: "spacing, sizing, border-radius, border-width" },
-    ],
-  },
-  {
-    id: "layout", icon: "□", label: "Layout", color: "#3b82f6",
-    sections: [
-      { id: "layout-mode", label: "Layout Mode", icon: "⊞", desc: "sidebar-first | header-first" },
-      { id: "sidebar", label: "Sidebar", icon: "◧", desc: "enabled, position, dimensions, padding, behavior, nav, collapsed" },
-      { id: "header", label: "Header", icon: "▬", desc: "enabled, position, dimensions, zones, separator" },
-      { id: "main", label: "Main", icon: "◻", desc: "enabled, position, dimensions, padding, behavior" },
-      { id: "footer", label: "Footer", icon: "▭", desc: "enabled, position, dimensions, padding, separator" },
-      { id: "content-layout", label: "Content Layout", icon: "⊟", desc: "maxWidth, centering, CSS Grid" },
-    ],
-  },
-  {
-    id: "navigation", icon: "⊕", label: "Navegação", color: "#22c55e",
-    sections: [
-      { id: "header-elements", label: "Header Elements", icon: "▤", desc: "search, icons, CTAs, order" },
-      { id: "breadcrumbs", label: "Breadcrumbs", icon: "»", desc: "enabled, position, alignment, separator, typography" },
-      { id: "page-header", label: "Page Header", icon: "H", desc: "título, subtítulo, divider, typography" },
     ],
   },
   {
     id: "appearance", icon: "◎", label: "Aparência", color: "#8b5cf6",
     sections: [
-      { id: "table-sep", label: "Table Separator", icon: "≡", desc: "enabled, color, width, style" },
-      { id: "scrollbar", label: "Scrollbar", icon: "▐", desc: "width, radius, thumb, track, preset" },
-      { id: "toast", label: "Toast", icon: "◻", desc: "position, maxVisible, duration" },
-      { id: "empty-state", label: "Empty State", icon: "◇", desc: "icon, title, description, action" },
-      { id: "skeleton", label: "Loading Skeleton", icon: "▤", desc: "animation, duration, colors, radius" },
+      { id: "toast", label: "Toast", icon: "◻", desc: "posição, máximo visível, duração" },
+      { id: "skeleton", label: "Loading Skeleton", icon: "▤", desc: "animação, duração, cores, raio" },
+      { id: "empty-state", label: "Empty State", icon: "◇", desc: "ícone, título, descrição, ação" },
+      { id: "scrollbar", label: "Scrollbar", icon: "▐", desc: "largura, raio, cores do thumb e track" },
+      { id: "table-sep", label: "Table Separator", icon: "≡", desc: "cor, largura, estilo" },
     ],
   },
   {
-    id: "registries", icon: "⧉", label: "Registros", color: "#ef4444",
+    id: "data", icon: "⧉", label: "Dados", color: "#ef4444",
     sections: [
       { id: "pages-editor", label: "Páginas", icon: "⊡", desc: "CRUD, label, route, browserTitle, overrides" },
-      { id: "ui-registry", label: "UI Registry", icon: "⧉", desc: "name, category, props, slots, variants, examples" },
+      { id: "ui-registry", label: "UI Registry", icon: "⧉", desc: "name, category, props, slots, variants" },
     ],
   },
 ];
@@ -188,20 +179,38 @@ function SectionEditorContent({
         );
 
       // ── Tipografia ────────────────────────────────────────────
-      case "font-families":
-        return <FontFamilyEditor families={layout.tokens.fontFamilies || {}} onChange={(v) => updateTokenCat("fontFamilies", v)} />;
-
-      case "font-sizes":
-        return <FontSizeEditor sizes={layout.tokens.fontSizes || {}} onChange={(v) => updateTokenCat("fontSizes", v)} />;
-
-      case "font-weights":
-        return <FontWeightEditor weights={layout.tokens.fontWeights || {}} onChange={(v) => updateTokenCat("fontWeights", v)} />;
-
-      case "line-heights":
-        return <LineHeightEditor lineHeights={layout.tokens.lineHeights || {}} onChange={(v) => updateTokenCat("lineHeights", v)} />;
-
-      case "letter-spacings":
-        return <LetterSpacingEditor spacings={layout.tokens.letterSpacings || {}} onChange={(v) => updateTokenCat("letterSpacings", v)} />;
+      case "font-tokens": {
+        const [fontTab, setFontTab] = usePersistentTab("sw-font-tab", "families");
+        const fontTabs = [
+          { id: "families", label: "Families" },
+          { id: "sizes", label: "Sizes" },
+          { id: "weights", label: "Weights" },
+          { id: "lineHeights", label: "Line Heights" },
+          { id: "letterSpacings", label: "Letter Spacings" },
+        ];
+        return (
+          <>
+            <TabBar tabs={fontTabs} active={fontTab} onChange={setFontTab} />
+            <div style={{ marginTop: 16 }}>
+              {fontTab === "families" && (
+                <FontFamilyEditor families={layout.tokens.fontFamilies || {}} onChange={(v) => updateTokenCat("fontFamilies", v)} />
+              )}
+              {fontTab === "sizes" && (
+                <FontSizeEditor sizes={layout.tokens.fontSizes || {}} onChange={(v) => updateTokenCat("fontSizes", v)} />
+              )}
+              {fontTab === "weights" && (
+                <FontWeightEditor weights={layout.tokens.fontWeights || {}} onChange={(v) => updateTokenCat("fontWeights", v)} />
+              )}
+              {fontTab === "lineHeights" && (
+                <LineHeightEditor lineHeights={layout.tokens.lineHeights || {}} onChange={(v) => updateTokenCat("lineHeights", v)} />
+              )}
+              {fontTab === "letterSpacings" && (
+                <LetterSpacingEditor spacings={layout.tokens.letterSpacings || {}} onChange={(v) => updateTokenCat("letterSpacings", v)} />
+              )}
+            </div>
+          </>
+        );
+      };
 
       case "text-styles": {
         const textStyleKeys = Object.keys(layout.textStyles || {});
@@ -346,6 +355,7 @@ function SectionEditorContent({
         return (
           <PageHeaderEditor
             config={layout.structure?.pageHeader}
+            textStyles={layout.textStyles}
             onChange={(ph) => onChange({ ...layout, structure: { ...layout.structure, pageHeader: ph } })}
           />
         );

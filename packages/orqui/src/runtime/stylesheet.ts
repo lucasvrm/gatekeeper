@@ -354,78 +354,71 @@ export function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string
     }
   }
 
-  // --- Scrollbar styling ---
-  const sb = layout?.structure?.scrollbar;
-  if (sb) {
-    const sbW = sb.width || "6px";
-    const sbThumb = sb.thumbColor || "rgba(255,255,255,0.08)";
-    const sbThumbHover = sb.thumbHoverColor || "rgba(255,255,255,0.15)";
-    const sbTrack = sb.trackColor || "transparent";
-    const sbRadius = sb.borderRadius || "3px";
-    lines.push("");
-    lines.push("/* Orqui Contract → Scrollbar styling */");
-    lines.push(`::-webkit-scrollbar { width: ${sbW}${imp}; height: ${sbW}${imp}; }`);
-    lines.push(`::-webkit-scrollbar-track { background: ${sbTrack}${imp}; }`);
-    lines.push(`::-webkit-scrollbar-thumb { background: ${sbThumb}${imp}; border-radius: ${sbRadius}${imp}; }`);
-    lines.push(`::-webkit-scrollbar-thumb:hover { background: ${sbThumbHover}${imp}; }`);
-    lines.push(`* { scrollbar-width: thin; scrollbar-color: ${sbThumb} ${sbTrack}; }`);
+  // --- Scrollbar styling (always generated with defaults) ---
+  const sb = layout?.structure?.scrollbar || {};
+  const sbW = sb.width || "6px";
+  const sbThumb = sb.thumbColor || "rgba(255,255,255,0.08)";
+  const sbThumbHover = sb.thumbHoverColor || "rgba(255,255,255,0.15)";
+  const sbTrack = sb.trackColor || "transparent";
+  const sbRadius = sb.borderRadius || "3px";
+  lines.push("");
+  lines.push("/* Orqui Contract → Scrollbar styling */");
+  lines.push(`::-webkit-scrollbar { width: ${sbW}${imp}; height: ${sbW}${imp}; }`);
+  lines.push(`::-webkit-scrollbar-track { background: ${sbTrack}${imp}; }`);
+  lines.push(`::-webkit-scrollbar-thumb { background: ${sbThumb}${imp}; border-radius: ${sbRadius}${imp}; }`);
+  lines.push(`::-webkit-scrollbar-thumb:hover { background: ${sbThumbHover}${imp}; }`);
+  lines.push(`::-webkit-scrollbar-button { display: none${imp}; }`);
+  lines.push(`* { scrollbar-width: thin; scrollbar-color: ${sbThumb} ${sbTrack}; }`);
+
+  // --- Skeleton animation (always generated with defaults) ---
+  const sk = layout?.structure?.skeleton || {};
+  const skBase = sk.baseColor || "rgba(255,255,255,0.05)";
+  const skHighlight = sk.highlightColor || "rgba(255,255,255,0.10)";
+  const skRadius = sk.borderRadius || "6px";
+  const skDuration = sk.duration || "1.5s";
+  const skAnim = sk.animation || "pulse";
+  lines.push("");
+  lines.push("/* Orqui Contract → Skeleton styling */");
+  lines.push(`:root { --orqui-skeleton-base: ${skBase}; --orqui-skeleton-highlight: ${skHighlight}; --orqui-skeleton-radius: ${skRadius}; --orqui-skeleton-duration: ${skDuration}; }`);
+  lines.push(`[data-orqui-skeleton] { background: var(--orqui-skeleton-base); border-radius: var(--orqui-skeleton-radius); }`);
+  if (skAnim === "pulse") {
+    lines.push(`@keyframes orqui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`);
+    lines.push(`[data-orqui-skeleton] { animation: orqui-pulse var(--orqui-skeleton-duration) ease-in-out infinite; }`);
+  } else if (skAnim === "shimmer") {
+    lines.push(`@keyframes orqui-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }`);
+    lines.push(`[data-orqui-skeleton] { background: linear-gradient(90deg, var(--orqui-skeleton-base) 25%, var(--orqui-skeleton-highlight) 50%, var(--orqui-skeleton-base) 75%); background-size: 200% 100%; animation: orqui-shimmer var(--orqui-skeleton-duration) ease-in-out infinite; }`);
   }
 
-  // --- Skeleton animation ---
-  const sk = layout?.structure?.skeleton;
-  if (sk) {
-    const skBase = sk.baseColor || "rgba(255,255,255,0.05)";
-    const skHighlight = sk.highlightColor || "rgba(255,255,255,0.10)";
-    const skRadius = sk.borderRadius || "6px";
-    const skDuration = sk.duration || "1.5s";
-    const skAnim = sk.animation || "pulse";
-    lines.push("");
-    lines.push("/* Orqui Contract → Skeleton styling */");
-    lines.push(`:root { --orqui-skeleton-base: ${skBase}; --orqui-skeleton-highlight: ${skHighlight}; --orqui-skeleton-radius: ${skRadius}; --orqui-skeleton-duration: ${skDuration}; }`);
-    lines.push(`[data-orqui-skeleton] { background: var(--orqui-skeleton-base); border-radius: var(--orqui-skeleton-radius); }`);
-    if (skAnim === "pulse") {
-      lines.push(`@keyframes orqui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`);
-      lines.push(`[data-orqui-skeleton] { animation: orqui-pulse var(--orqui-skeleton-duration) ease-in-out infinite; }`);
-    } else if (skAnim === "shimmer") {
-      lines.push(`@keyframes orqui-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }`);
-      lines.push(`[data-orqui-skeleton] { background: linear-gradient(90deg, var(--orqui-skeleton-base) 25%, var(--orqui-skeleton-highlight) 50%, var(--orqui-skeleton-base) 75%); background-size: 200% 100%; animation: orqui-shimmer var(--orqui-skeleton-duration) ease-in-out infinite; }`);
-    }
-  }
+  // --- Toast positioning CSS variables (always generated with defaults) ---
+  const tc = layout?.structure?.toast || {};
+  const pos = tc.position || "bottom-right";
+  const posMap: Record<string, { top?: string; bottom?: string; left?: string; right?: string; transform?: string; align?: string }> = {
+    "top-right":     { top: "16px", right: "16px", align: "flex-end" },
+    "top-left":      { top: "16px", left: "16px", align: "flex-start" },
+    "bottom-right":  { bottom: "16px", right: "16px", align: "flex-end" },
+    "bottom-left":   { bottom: "16px", left: "16px", align: "flex-start" },
+    "top-center":    { top: "16px", left: "50%", transform: "translateX(-50%)", align: "center" },
+    "bottom-center": { bottom: "16px", left: "50%", transform: "translateX(-50%)", align: "center" },
+  };
+  const p = posMap[pos] || posMap["bottom-right"];
+  lines.push("");
+  lines.push("/* Orqui Contract → Toast positioning */");
+  lines.push(`:root { --orqui-toast-top: ${p.top || "auto"}; --orqui-toast-bottom: ${p.bottom || "auto"}; --orqui-toast-left: ${p.left || "auto"}; --orqui-toast-right: ${p.right || "auto"}; --orqui-toast-transform: ${p.transform || "none"}; --orqui-toast-align: ${p.align || "flex-end"}; --orqui-toast-max-visible: ${tc.maxVisible || 3}; --orqui-toast-duration: ${tc.duration || 4000}ms; }`);
+  // Override sonner/radix toast container if present
+  lines.push(`[data-sonner-toaster], [data-radix-toast-viewport] { position: fixed${imp}; top: var(--orqui-toast-top)${imp}; bottom: var(--orqui-toast-bottom)${imp}; left: var(--orqui-toast-left)${imp}; right: var(--orqui-toast-right)${imp}; transform: var(--orqui-toast-transform)${imp}; align-items: var(--orqui-toast-align)${imp}; z-index: 9999${imp}; }`);
 
-  // --- Toast positioning CSS variables ---
-  const tc = layout?.structure?.toast;
-  if (tc) {
-    const pos = tc.position || "bottom-right";
-    const posMap: Record<string, { top?: string; bottom?: string; left?: string; right?: string; transform?: string; align?: string }> = {
-      "top-right":     { top: "16px", right: "16px", align: "flex-end" },
-      "top-left":      { top: "16px", left: "16px", align: "flex-start" },
-      "bottom-right":  { bottom: "16px", right: "16px", align: "flex-end" },
-      "bottom-left":   { bottom: "16px", left: "16px", align: "flex-start" },
-      "top-center":    { top: "16px", left: "50%", transform: "translateX(-50%)", align: "center" },
-      "bottom-center": { bottom: "16px", left: "50%", transform: "translateX(-50%)", align: "center" },
-    };
-    const p = posMap[pos] || posMap["bottom-right"];
-    lines.push("");
-    lines.push("/* Orqui Contract → Toast positioning */");
-    lines.push(`:root { --orqui-toast-top: ${p.top || "auto"}; --orqui-toast-bottom: ${p.bottom || "auto"}; --orqui-toast-left: ${p.left || "auto"}; --orqui-toast-right: ${p.right || "auto"}; --orqui-toast-transform: ${p.transform || "none"}; --orqui-toast-align: ${p.align || "flex-end"}; }`);
-    // Override sonner/radix toast container if present
-    lines.push(`[data-sonner-toaster], [data-radix-toast-viewport] { position: fixed${imp}; top: var(--orqui-toast-top)${imp}; bottom: var(--orqui-toast-bottom)${imp}; left: var(--orqui-toast-left)${imp}; right: var(--orqui-toast-right)${imp}; transform: var(--orqui-toast-transform)${imp}; align-items: var(--orqui-toast-align)${imp}; z-index: 9999${imp}; }`);
-  }
-
-  // --- Empty state CSS variables ---
-  const es = layout?.structure?.emptyState;
-  if (es) {
-    lines.push("");
-    lines.push("/* Orqui Contract → Empty state defaults */");
-    lines.push(`:root { --orqui-empty-title: "${(es.title || "Nenhum item encontrado").replace(/"/g, '\\"')}"; --orqui-empty-description: "${(es.description || "").replace(/"/g, '\\"')}"; --orqui-empty-action-label: "${(es.actionLabel || "Criar Novo").replace(/"/g, '\\"')}"; }`);
-  }
+  // --- Empty state CSS variables (always generated with defaults) ---
+  const es = layout?.structure?.emptyState || {};
+  lines.push("");
+  lines.push("/* Orqui Contract → Empty state defaults */");
+  lines.push(`:root { --orqui-empty-icon: "${(es.icon || "ph:magnifying-glass").replace(/"/g, '\\"')}"; --orqui-empty-title: "${(es.title || "Nenhum item encontrado").replace(/"/g, '\\"')}"; --orqui-empty-description: "${(es.description || "").replace(/"/g, '\\"')}"; --orqui-empty-show-action: ${es.showAction !== false ? 1 : 0}; --orqui-empty-action-label: "${(es.actionLabel || "Criar Novo").replace(/"/g, '\\"')}"; }`);
 
   // --- Collapsed sidebar tooltip CSS ---
   lines.push("");
   lines.push("/* Orqui Contract → Collapsed sidebar tooltips */");
   lines.push(`.orqui-nav-item:hover + .orqui-nav-tooltip, .orqui-nav-tooltip:hover { opacity: 1${imp}; }`);
   // Tooltip arrow
-  lines.push(`.orqui-nav-tooltip::before { content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%); border: 3px solid transparent; border-right-color: var(--border, #2a2a33); }`);
+  lines.push(`.orqui-nav-tooltip::before { content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%); border: 3px solid transparent; border-right-color: var(--border, #2e3135); }`);
 
   return lines.join("\n");
 }

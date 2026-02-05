@@ -97,6 +97,8 @@ export interface BridgeFixInput {
   model?: string
   /** Original task prompt — needed for validators that check taskPrompt (e.g. NO_IMPLICIT_FILES) */
   taskPrompt?: string
+  /** User-provided custom instructions to guide the fix */
+  customInstructions?: string
 }
 
 export interface BridgeFixOutput {
@@ -562,6 +564,12 @@ export class AgentOrchestratorBridge {
         input.failedValidators,
         input.taskPrompt,
       )
+    }
+
+    // Append user-provided custom instructions if present
+    if (input.customInstructions?.trim()) {
+      userMessage += `\n\n## Instruções Adicionais do Usuário\n${input.customInstructions.trim()}`
+      console.log('[Bridge:Fix] customInstructions:', input.customInstructions.slice(0, 200))
     }
 
     console.log('[Bridge:Fix] provider type:', this.isCliProvider(phase) ? 'CLI' : 'API')

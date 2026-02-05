@@ -21,7 +21,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { NewValidationCtaButton } from "@/components/new-validation-cta-button"
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -93,10 +92,6 @@ export function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-96" />
-        </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-32" />
@@ -108,40 +103,33 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div />
-        <div className="flex items-center gap-3">
-          <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Todos Workspaces" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos Workspaces</SelectItem>
-              {workspaces.map((workspace) => (
-                <SelectItem key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-48" role="button">
-              <SelectValue placeholder="Todos Projetos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos Projetos</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <NewValidationCtaButton />
-        </div>
+      {/* Filtros posicionados na linha do subtítulo do orqui PageHeader */}
+      <div className="relative z-10 flex justify-end gap-3" style={{ marginTop: '-58px', marginBottom: '18px' }}>
+        <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
+          <SelectTrigger className="w-[160px] h-8 text-xs">
+            <SelectValue placeholder="Workspace" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos Workspaces</SelectItem>
+            {workspaces.map((ws) => (
+              <SelectItem key={ws.id} value={ws.id}>{ws.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedProject} onValueChange={setSelectedProject}>
+          <SelectTrigger className="w-[160px] h-8 text-xs">
+            <SelectValue placeholder="Projeto" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos Projetos</SelectItem>
+            {projects.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
         <Card className="p-6 bg-card border-border">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center">

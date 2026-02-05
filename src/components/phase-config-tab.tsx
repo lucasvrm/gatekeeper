@@ -113,7 +113,7 @@ export function PhaseConfigTab() {
         </div>
       )}
 
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {!error && phases.length === 0 && (
           <div className="text-center py-12 border rounded-lg">
             <p className="text-muted-foreground mb-3">

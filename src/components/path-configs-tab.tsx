@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { usePersistedSections } from "@/hooks/use-persisted-sections"
 import { api } from "@/lib/api"
 import { ConfigSection } from "@/components/config-section"
 import { type ConfigModalField } from "@/components/config-modal"
@@ -74,14 +75,10 @@ export function PathConfigsTab() {
   const [testPaths, setTestPaths] = useState<TestPathConvention[]>([])
   const [systemPaths, setSystemPaths] = useState<ValidationConfigItem[]>([])
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+  const [openSections, toggleSection] = usePersistedSections("path-configs", {
     testPaths: true,
     systemPaths: true,
   })
-
-  const toggleSection = (key: string) => {
-    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
-  }
 
   useEffect(() => {
     const loadData = async () => {
