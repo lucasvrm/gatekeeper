@@ -3,6 +3,25 @@
 // ============================================================================
 import type { CSSProperties } from "react";
 
+// ============================================================================
+// Grid Engine Types
+// ============================================================================
+export interface GridItem {
+  component: string;
+  colStart: number;
+  rowStart: number;
+  colSpan: number;
+  rowSpan: number;
+  props?: Record<string, any>;
+}
+
+export interface GridLayoutConfig {
+  columns: number;
+  rowHeight: string;
+  gap: string;
+  items: GridItem[];
+}
+
 export interface TokenValue { value: number; unit: string }
 export interface FontFamilyToken { family: string; fallbacks: string[] }
 export interface FontWeightToken { value: number }
@@ -157,6 +176,7 @@ export interface PageConfig {
     headerElements?: Partial<HeaderElementsConfig>;
     contentLayout?: Partial<ContentLayoutConfig>;
     pageHeader?: Partial<PageHeaderConfig>;
+    gridLayout?: GridLayoutConfig;
   };
 }
 export interface Tokens {

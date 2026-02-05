@@ -1,6 +1,5 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { prisma } from '../db/client.js'
 
 const SALT_ROUNDS = 10
 const DEFAULT_JWT_EXPIRY_SECONDS = 3600 // 1 hour
@@ -11,11 +10,34 @@ export interface JwtPayload {
   exp?: number
 }
 
+export interface AuthError {
+  statusCode: number
+  error: string
+  message: string
+}
+
+export interface AuthUser {
+  id: string
+  email: string
+}
+
+export interface AuthResult {
+  token: string
+  user: AuthUser
+}
+
+export interface RegisterResult {
+  token: string
+  user: AuthUser
+}
+
 export class AuthService {
   private jwtSecret: string
+  private prisma: any
 
-  constructor() {
+  constructor(prisma?: any) {
     this.jwtSecret = process.env.JWT_SECRET || 'test-secret-key'
+    this.prisma = prisma
   }
 
   /**
@@ -33,14 +55,25 @@ export class AuthService {
   }
 
   /**
-   * Generate a JWT token for a user
+   * Generate a JWT token for a user (async - uses configured expiry)
    */
-  generateToken(userId: string): string {
-    const expirySeconds = this.getJwtExpirySecondsSync()
+  async generateTokenAsync(userId: string): Promise<string> {
+    const expirySeconds = await this.getJwtExpirySeconds()
     return jwt.sign(
       { userId },
       this.jwtSecret,
       { expiresIn: expirySeconds }
+    )
+  }
+
+  /**
+   * Generate a JWT token for a user (sync - uses default expiry)
+   */
+  generateToken(userId: string): string {
+    return jwt.sign(
+      { userId },
+      this.jwtSecret,
+      { expiresIn: DEFAULT_JWT_EXPIRY_SECONDS }
     )
   }
 
@@ -65,8 +98,8 @@ export class AuthService {
     try {
       jwt.verify(token, this.jwtSecret)
       return 'valid'
-    } catch (error) {
-      if (error instanceof jwt.TokenExpiredError) {
+    } catch (error: any) {
+      if (error?.name === 'TokenExpiredError' || error?.expiredAt) {
         return 'expired'
       }
       return 'invalid'
@@ -78,7 +111,8 @@ export class AuthService {
    */
   async getJwtExpirySeconds(): Promise<number> {
     try {
-      const config = await prisma.validationConfig.findUnique({
+      if (!this.prisma) return DEFAULT_JWT_EXPIRY_SECONDS
+      const config = await this.prisma.validationConfig.findUnique({
         where: { key: 'JWT_EXPIRY_SECONDS' }
       })
       if (config?.value) {
@@ -94,10 +128,118 @@ export class AuthService {
   }
 
   /**
-   * Get JWT expiry seconds synchronously (uses default if not cached)
-   * Used internally for token generation
+   * Register a new user
    */
-  private getJwtExpirySecondsSync(): number {
-    return DEFAULT_JWT_EXPIRY_SECONDS
+  async register(email: string, password: string): Promise<RegisterResult> {
+    // Validate password length
+    if (password.length < 8) {
+      const error: AuthError = {
+        statusCode: 400,
+        error: 'VALIDATION_ERROR',
+        message: 'Password must be at least 8 characters'
+      }
+      throw error
+    }
+
+    // Check if email already exists
+    const existingUser = await this.prisma.user.findFirst({
+      where: { email }
+    })
+
+    if (existingUser) {
+      const error: AuthError = {
+        statusCode: 409,
+        error: 'EMAIL_ALREADY_EXISTS',
+        message: 'Email already registered'
+      }
+      throw error
+    }
+
+    // Hash password
+    const passwordHash = await this.hashPassword(password)
+
+    // Create user
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash
+      }
+    })
+
+    // Generate token with configured expiry
+    const token = await this.generateTokenAsync(user.id)
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        email: user.email
+      }
+    }
+  }
+
+  /**
+   * Login a user
+   */
+  async login(email: string, password: string): Promise<AuthResult> {
+    // Find user by email
+    const user = await this.prisma.user.findFirst({
+      where: { email }
+    })
+
+    if (!user) {
+      const error: AuthError = {
+        statusCode: 401,
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password'
+      }
+      throw error
+    }
+
+    // Verify password
+    const isValid = await this.verifyPassword(password, user.passwordHash)
+
+    if (!isValid) {
+      const error: AuthError = {
+        statusCode: 401,
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password'
+      }
+      throw error
+    }
+
+    // Generate token with configured expiry
+    const token = await this.generateTokenAsync(user.id)
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        email: user.email
+      }
+    }
+  }
+
+  /**
+   * Get current user info
+   */
+  async getMe(userId: string): Promise<AuthUser> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    })
+
+    if (!user) {
+      const error: AuthError = {
+        statusCode: 404,
+        error: 'USER_NOT_FOUND',
+        message: 'User not found'
+      }
+      throw error
+    }
+
+    return {
+      id: user.id,
+      email: user.email
+    }
   }
 }

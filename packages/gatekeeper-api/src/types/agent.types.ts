@@ -134,7 +134,8 @@ export type AgentEvent =
   | { type: 'agent:budget_exceeded'; usedTokens: number; budgetTokens: number }
   | { type: 'agent:complete'; result: AgentResult }
   | { type: 'agent:fallback'; from: string; to: string; reason: string }
-  | { type: 'agent:error'; error: string }
+  | { type: 'agent:fallback_unavailable'; from: string; to: string; reason: string; availableProviders: ProviderName[]; originalError: string }
+  | { type: 'agent:error'; error: string; availableProviders?: ProviderName[]; canRetry?: boolean }
   // Bridge pipeline events (emitted by AgentOrchestratorBridge & BridgeController)
   | { type: 'agent:bridge_start'; step: number; outputId?: string }
   | { type: 'agent:bridge_complete'; step: number; outputId: string; artifactNames: string[] }

@@ -72,7 +72,21 @@ Formato: \`CL-<DOMÍNIO>-<NNN>\` (ex: \`CL-ROUTE-001\`, \`CL-BTN-002\`)
 
 ### Arquivos sensíveis
 Se incluir: \`package.json\`, \`.env*\`, \`prisma/schema.prisma\`
-→ Defina \`dangerMode: true\` no plan.json`
+→ Defina \`dangerMode: true\` no plan.json
+
+### ⚠️ Validador NO_IMPLICIT_FILES
+O prompt da tarefa NÃO pode conter referências implícitas como:
+- "etc", "etc.", "e outros", "among others"
+- "arquivos relacionados", "related files"
+- "e tal", "and so on"
+
+Se o prompt do usuário contiver essas expressões, o taskPrompt no plan.json deve **reescrevê-las** de forma explícita, listando exatamente quais arquivos/componentes são afetados.
+
+\`\`\`json
+// ❌ Prompt original: "modificar componentes de auth, etc."
+// ✅ taskPrompt reescrito:
+"taskPrompt": "Modificar AuthService.ts, AuthController.ts e authMiddleware.ts"
+\`\`\``
 
 
 export const PLANNER_SCHEMA_REFERENCE = `## Schema de Referência
@@ -491,7 +505,29 @@ element.className
 ### Mocks
 - Use \`vi.hoisted()\` para mocks que precisam ser levantados
 - Mock APENAS dependências externas (API, toast, clipboard, router)
-- NUNCA mock o componente/serviço sob teste`
+- NUNCA mock o componente/serviço sob teste
+
+### ⚠️ REGRA CRÍTICA: Imports devem existir
+- **NUNCA** importe arquivos que serão criados pelo Executor (action: CREATE)
+- Se o teste precisa do componente/serviço que será criado, use **mock inline**
+- Verifique os paths reais do projeto antes de importar
+- Use o alias correto do projeto (\`@/\` não \`src/\`)
+
+\`\`\`typescript
+// ❌ ERRADO: importar arquivo que será criado
+import { LoginPage } from '@/components/login-page'  // não existe ainda!
+
+// ✅ CORRETO: mock inline ou testar via API/DOM
+const LoginPage = () => <div data-testid="login-form">Mock</div>
+\`\`\`
+
+### Estratégia para testes de arquivos CREATE vs MODIFY
+| Tipo | Estratégia |
+|------|------------|
+| **MODIFY** (arquivo existe) | Importar normalmente |
+| **CREATE** (arquivo novo) | Testar via efeitos observáveis (API, DOM, eventos) |
+| **Backend CREATE** | Testar endpoint via supertest/fetch |
+| **Frontend CREATE** | Testar comportamento esperado, não implementação |`
 
 
 export const SPEC_WRITER_SCHEMA_REFERENCE = `## Schema de Referência — Arquivo de Teste
@@ -566,7 +602,35 @@ Cada cláusula \`MUST\` precisa de **3 testes**:
 | \`screen.getByRole()\` | \`container.firstChild\` |
 | \`screen.getByText()\` | \`.innerHTML\` |
 | \`userEvent.click()\` | \`.className\` |
-| \`toHaveTextContent()\` | \`toMatchSnapshot()\` |`
+| \`toHaveTextContent()\` | \`toMatchSnapshot()\` |
+
+### Manifest Awareness — Import Strategy
+O spec deve considerar o manifest do plan.json:
+
+| action no manifest | Pode importar? | Estratégia |
+|--------------------|----------------|------------|
+| \`MODIFY\` | ✅ Sim | Importar normalmente |
+| \`CREATE\` | ❌ Não | Testar via observáveis |
+| Não listado | ✅ Sim | Importar se existir |
+
+**Arquivos CREATE não existem ainda!** O teste deve:
+1. Testar o COMPORTAMENTO esperado, não a implementação
+2. Usar mocks para dependências que serão criadas
+3. Testar via API/DOM/eventos, não via import direto
+
+\`\`\`typescript
+// manifest.files tem: { path: "src/lib/auth.ts", action: "CREATE" }
+
+// ❌ ERRADO: importar arquivo CREATE
+import { auth } from '@/lib/auth'
+
+// ✅ CORRETO: testar o comportamento esperado
+it('stores token in localStorage after login', async () => {
+  // Simular o comportamento que auth.ts DEVERÁ ter
+  const mockSetItem = vi.spyOn(Storage.prototype, 'setItem')
+  // ... teste que verifica se localStorage.setItem foi chamado
+})
+\`\`\``
 
 
 export const SPEC_WRITER_EXAMPLES = `## Exemplos de Specs que Funcionam
@@ -898,6 +962,35 @@ import { Button } from '@/ui/button'
 // ✅ Verificar path correto no codebase
 import { Button } from '@/components/ui/button'
 \`\`\`
+
+**Causa comum:** Importar arquivo que será CRIADO (action: CREATE no manifest)
+\`\`\`typescript
+// ❌ Arquivo não existe ainda (será criado pelo Executor)
+import { LoginPage } from '@/components/login-page'
+
+// ✅ Testar via observáveis, não via import
+// Ou usar mock inline:
+const LoginPage = () => <div data-testid="login-form" />
+\`\`\`
+
+**Verificar:**
+1. O arquivo existe no codebase?
+2. O path usa o alias correto (@/ não src/)?
+3. O arquivo está no manifest como CREATE? → Não importar!
+
+---
+
+### NO_IMPLICIT_FILES
+**Problema:** Prompt contém referências implícitas ("etc", "e outros").
+\`\`\`
+// ❌ taskPrompt com referência implícita
+"Modificar componentes de auth, etc."
+
+// ✅ taskPrompt explícito
+"Modificar AuthService.ts, AuthController.ts e authMiddleware.ts"
+\`\`\`
+
+**Correção:** Reescrever taskPrompt no plan.json removendo termos vagos.
 
 ---
 

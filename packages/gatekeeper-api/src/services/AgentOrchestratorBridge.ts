@@ -263,9 +263,11 @@ export class AgentOrchestratorBridge {
     // Read existing artifacts from disk
     const existingArtifacts = await this.readArtifactsFromDisk(input.outputId, input.projectPath)
 
-    if (!existingArtifacts['plan.json'] || !existingArtifacts['contract.md'] || !existingArtifacts['task.spec.md']) {
-      const missing = ['plan.json', 'contract.md', 'task.spec.md']
-        .filter((f) => !existingArtifacts[f])
+    // Accept both task.spec.md and task_spec.md
+    const hasTaskSpec = existingArtifacts['task.spec.md'] || existingArtifacts['task_spec.md']
+    if (!existingArtifacts['plan.json'] || !existingArtifacts['contract.md'] || !hasTaskSpec) {
+      const missing = ['plan.json', 'contract.md', 'task.spec.md (or task_spec.md)']
+        .filter((f, i) => i === 2 ? !hasTaskSpec : !existingArtifacts[f])
       throw new BridgeError(
         `Missing step 1 artifacts: ${missing.join(', ')}`,
         'MISSING_ARTIFACTS',
@@ -330,7 +332,7 @@ export class AgentOrchestratorBridge {
       memoryArtifacts = this.readArtifactsFromDir(outputDir)
       // Filter to only spec files (exclude plan artifacts from step 1)
       // Use a fixed list instead of existingArtifacts to avoid filtering out spec files on re-generation
-      const PLAN_ARTIFACTS = new Set(['plan.json', 'contract.md', 'task.spec.md'])
+      const PLAN_ARTIFACTS = new Set(['plan.json', 'contract.md', 'task.spec.md', 'task_spec.md'])
       const specOnly = new Map<string, string>()
       for (const [name, content] of memoryArtifacts) {
         // Keep everything EXCEPT plan artifacts
@@ -347,7 +349,7 @@ export class AgentOrchestratorBridge {
       console.log('[Bridge] API provider returned no artifacts, trying disk fallback...')
       const outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
       const diskArtifacts = this.readArtifactsFromDir(outputDir)
-      const PLAN_ARTIFACTS = new Set(['plan.json', 'contract.md', 'task.spec.md'])
+      const PLAN_ARTIFACTS = new Set(['plan.json', 'contract.md', 'task.spec.md', 'task_spec.md'])
       const specOnly = new Map<string, string>()
       for (const [name, content] of diskArtifacts) {
         if (!PLAN_ARTIFACTS.has(name)) {

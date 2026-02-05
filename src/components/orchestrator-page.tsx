@@ -436,6 +436,15 @@ export function OrchestratorPage() {
   const [fixDialogTarget, setFixDialogTarget] = useState<"plan" | "spec">("plan")
   const [fixDialogValidators, setFixDialogValidators] = useState<string[]>([])
 
+  // Provider error retry state
+  const [retryState, setRetryState] = useState<{
+    canRetry: boolean
+    availableProviders: string[]
+    failedStep: number
+    selectedProvider: string
+    selectedModel: string
+  } | null>(null)
+
   // Step 4 result
   const [executeResult, setExecuteResult] = useState<{ mode: string; command?: string; tokensUsed?: { inputTokens: number; outputTokens: number } } | null>(null)
 
@@ -758,8 +767,16 @@ export function OrchestratorPage() {
           setExecuteDoneData(event) // trigger auto-validation via useEffect
           break
         }
-        case "agent:error":
+        case "agent:fallback_unavailable": {
+          const available = (event as any).availableProviders as string[] ?? []
+          addLog("warning", `⚠️ Fallback indisponível: ${(event as any).to} — providers disponíveis: ${available.join(", ") || "nenhum"}`)
+          break
+        }
+        case "agent:error": {
           addLog("error", String(event.error))
+          const availableProviders = (event as any).availableProviders as string[] | undefined
+          const canRetry = (event as any).canRetry as boolean | undefined
+
           if (executionPhaseRef.current === "WRITING") {
             // Non-fatal: LLM may still be running. Show error but don't reset UI.
             toast.error(`Erro durante execução: ${String(event.error)}`, { duration: 6000 })
@@ -769,9 +786,28 @@ export function OrchestratorPage() {
             setLoading(false)
             setExecutionPhase(null)
             setExecutionProgress(null)
-            toast.error(String(event.error))
+
+            // If we have available providers, allow retry with different provider
+            if (canRetry && availableProviders && availableProviders.length > 0) {
+              const defaultProvider = availableProviders.includes("claude-code")
+                ? "claude-code"
+                : availableProviders[0]
+              const defaultModel = PROVIDER_MODELS[defaultProvider]?.models[0]?.value ?? "sonnet"
+              setRetryState({
+                canRetry: true,
+                availableProviders,
+                failedStep: step,
+                selectedProvider: defaultProvider,
+                selectedModel: defaultModel,
+              })
+              toast.error(`Provider indisponível — selecione outro para continuar`, { duration: 8000 })
+            } else {
+              setRetryState(null)
+              toast.error(String(event.error))
+            }
           }
           break
+        }
         default:
           if (debug) {
             addLog("debug", `[${event.type}] ${typeof event.text === "string" ? event.text : JSON.stringify(event)}`)
@@ -944,6 +980,7 @@ export function OrchestratorPage() {
 
   const handleGeneratePlan = async () => {
     setError(null)
+    setRetryState(null)
     setLoading(true)
     addLog("info", "Gerando plano...")
 
@@ -988,6 +1025,7 @@ export function OrchestratorPage() {
   const handleGenerateSpec = async () => {
     if (!outputId) return
     setError(null)
+    setRetryState(null)
     setLoading(true)
     addLog("info", "Gerando testes...")
 
@@ -1302,6 +1340,7 @@ export function OrchestratorPage() {
     }
 
     setError(null)
+    setRetryState(null)
     setLoading(true)
     setExecuteResult(null)
     setCommitResult(null)
@@ -1522,13 +1561,86 @@ export function OrchestratorPage() {
             </div>
           )}
 
-          {/* Error banner */}
+          {/* Error banner with retry options */}
           {error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive flex items-center justify-between">
-              <span>{error}</span>
-              <Button variant="ghost" size="sm" onClick={handleReset} className="h-6 text-xs">
-                Resetar
-              </Button>
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+              <div className="flex items-center justify-between text-sm text-destructive">
+                <span>{error}</span>
+                <Button variant="ghost" size="sm" onClick={() => { handleReset(); setRetryState(null) }} className="h-6 text-xs">
+                  Resetar
+                </Button>
+              </div>
+
+              {/* Retry with different provider */}
+              {retryState?.canRetry && retryState.availableProviders.length > 0 && (
+                <div className="border-t border-destructive/20 pt-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Selecione outro provider para tentar novamente:
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Select
+                      value={retryState.selectedProvider}
+                      onValueChange={(v) => {
+                        const models = PROVIDER_MODELS[v]?.models
+                        setRetryState((prev) => prev ? {
+                          ...prev,
+                          selectedProvider: v,
+                          selectedModel: models?.[0]?.value ?? "sonnet",
+                        } : null)
+                      }}
+                    >
+                      <SelectTrigger className="h-8 w-[160px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {retryState.availableProviders.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {PROVIDER_MODELS[p]?.label ?? p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={retryState.selectedModel}
+                      onValueChange={(v) => setRetryState((prev) => prev ? { ...prev, selectedModel: v } : null)}
+                    >
+                      <SelectTrigger className="h-8 w-[120px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(PROVIDER_MODELS[retryState.selectedProvider]?.models || []).map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      className="h-8"
+                      disabled={loading}
+                      onClick={() => {
+                        // Update the step LLM config and retry
+                        const failedStep = retryState.failedStep
+                        setStepLLM(failedStep, "provider", retryState.selectedProvider)
+                        setStepLLM(failedStep, "model", retryState.selectedModel)
+                        setError(null)
+                        setRetryState(null)
+
+                        // Re-trigger the appropriate action based on which step failed
+                        addLog("info", `Tentando novamente com ${retryState.selectedProvider}/${retryState.selectedModel}...`)
+                        if (failedStep === 1) {
+                          handleGeneratePlan()
+                        } else if (failedStep === 2) {
+                          handleGenerateSpec()
+                        } else if (failedStep === 4) {
+                          handleExecute()
+                        }
+                      }}
+                    >
+                      Tentar novamente →
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

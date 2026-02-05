@@ -511,3 +511,23 @@ export interface OrchestratorContent {
   createdAt: string
   updatedAt: string
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grid Engine Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface GridItem {
+  component: string
+  colStart: number
+  rowStart: number
+  colSpan: number
+  rowSpan: number
+  props?: Record<string, any>
+}
+
+export interface GridLayoutConfig {
+  columns: number
+  rowHeight: string
+  gap: string
+  items: GridItem[]
+}

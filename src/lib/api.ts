@@ -37,6 +37,21 @@ export const API_BASE = "http://localhost:3001/api"
 const CONFIG_BASE = `${API_BASE}/config`
 const AGENT_BASE = `${API_BASE}/agent`
 
+// Helper to get auth headers
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// Helper for authenticated fetch
+async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = {
+    ...getAuthHeaders(),
+    ...options.headers,
+  }
+  return fetch(url, { ...options, headers })
+}
+
 
 // ─── Agent Run Types ────────────────────────────────────────────────────────
 
@@ -85,36 +100,36 @@ export const api = {
     list: async (page = 1, limit = 20, status?: RunStatus): Promise<PaginatedResponse<Run>> => {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) })
       if (status) params.append("status", status)
-      const response = await fetch(`${API_BASE}/runs?${params}`)
+      const response = await fetchWithAuth(`${API_BASE}/runs?${params}`)
       if (!response.ok) throw new Error("Failed to fetch runs")
       return response.json()
     },
 
     get: async (id: string): Promise<Run> => {
-      const response = await fetch(`${API_BASE}/runs/${id}`)
+      const response = await fetchWithAuth(`${API_BASE}/runs/${id}`)
       if (!response.ok) throw new Error("Failed to fetch run")
       return response.json()
     },
 
     getWithResults: async (id: string): Promise<RunWithResults> => {
-      const response = await fetch(`${API_BASE}/runs/${id}/results`)
+      const response = await fetchWithAuth(`${API_BASE}/runs/${id}/results`)
       if (!response.ok) throw new Error("Failed to fetch run results")
       return response.json()
     },
 
     abort: async (id: string): Promise<Run> => {
-      const response = await fetch(`${API_BASE}/runs/${id}/abort`, { method: "POST" })
+      const response = await fetchWithAuth(`${API_BASE}/runs/${id}/abort`, { method: "POST" })
       if (!response.ok) throw new Error("Failed to abort run")
       return response.json()
     },
 
     delete: async (id: string): Promise<void> => {
-      const response = await fetch(`${API_BASE}/runs/${id}`, { method: "DELETE" })
+      const response = await fetchWithAuth(`${API_BASE}/runs/${id}`, { method: "DELETE" })
       if (!response.ok) throw new Error("Failed to delete run")
     },
 
     create: async (data: CreateRunRequest): Promise<CreateRunResponse> => {
-      const response = await fetch(`${API_BASE}/runs`, {
+      const response = await fetchWithAuth(`${API_BASE}/runs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -127,13 +142,13 @@ export const api = {
     },
 
     rerunGate: async (id: string, gateNumber: number): Promise<{ message: string; runId: string }> => {
-      const response = await fetch(`${API_BASE}/runs/${id}/rerun/${gateNumber}`, { method: "POST" })
+      const response = await fetchWithAuth(`${API_BASE}/runs/${id}/rerun/${gateNumber}`, { method: "POST" })
       if (!response.ok) throw new Error("Failed to rerun gate")
       return response.json()
     },
 
     bypassValidator: async (id: string, validatorCode: string): Promise<{ message: string; runId: string }> => {
-      const response = await fetch(`${API_BASE}/runs/${id}/validators/${validatorCode}/bypass`, { method: "POST" })
+      const response = await fetchWithAuth(`${API_BASE}/runs/${id}/validators/${validatorCode}/bypass`, { method: "POST" })
       if (!response.ok) {
         const error = await response.json().catch(() => null)
         throw new Error(error?.message || error?.error || `Failed to bypass validator (${response.status})`)
@@ -145,7 +160,7 @@ export const api = {
       id: string,
       formData: FormData
     ): Promise<{ message: string; files: Array<{ type: string; path: string; size: number }>; runReset: boolean; runQueued: boolean }> => {
-      const response = await fetch(`${API_BASE}/runs/${id}/files`, {
+      const response = await fetchWithAuth(`${API_BASE}/runs/${id}/files`, {
         method: "PUT",
         body: formData,
       })
@@ -159,13 +174,13 @@ export const api = {
 
   gates: {
     list: async (): Promise<Gate[]> => {
-      const response = await fetch(`${API_BASE}/gates`)
+      const response = await fetchWithAuth(`${API_BASE}/gates`)
       if (!response.ok) throw new Error("Failed to fetch gates")
       return response.json()
     },
 
     getValidators: async (gateNumber: number): Promise<Validator[]> => {
-      const response = await fetch(`${API_BASE}/gates/${gateNumber}/validators`)
+      const response = await fetchWithAuth(`${API_BASE}/gates/${gateNumber}/validators`)
       if (!response.ok) throw new Error("Failed to fetch validators")
       return response.json()
     },
@@ -173,13 +188,13 @@ export const api = {
 
   config: {
     list: async (): Promise<ConfigItem[]> => {
-      const response = await fetch(`${API_BASE}/config`)
+      const response = await fetchWithAuth(`${API_BASE}/config`)
       if (!response.ok) throw new Error("Failed to fetch config")
       return response.json()
     },
 
     update: async (key: string, value: string | number | boolean): Promise<void> => {
-      const response = await fetch(`${API_BASE}/config/${key}`, {
+      const response = await fetchWithAuth(`${API_BASE}/config/${key}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ value }),
@@ -191,7 +206,7 @@ export const api = {
   configTables: {
     sensitiveFileRules: {
       list: async () => {
-        const response = await fetch(`${CONFIG_BASE}/sensitive-file-rules`)
+        const response = await fetchWithAuth(`${CONFIG_BASE}/sensitive-file-rules`)
         if (!response.ok) throw new Error("Failed to fetch sensitive file rules")
         return response.json()
       },
@@ -202,7 +217,7 @@ export const api = {
         description?: string
         isActive?: boolean
       }) => {
-        const response = await fetch(`${CONFIG_BASE}/sensitive-file-rules`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/sensitive-file-rules`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -217,7 +232,7 @@ export const api = {
         description: string | null
         isActive: boolean
       }>) => {
-        const response = await fetch(`${CONFIG_BASE}/sensitive-file-rules/${id}`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/sensitive-file-rules/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -226,7 +241,7 @@ export const api = {
         return response.json()
       },
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${CONFIG_BASE}/sensitive-file-rules/${id}`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/sensitive-file-rules/${id}`, {
           method: "DELETE",
         })
         if (!response.ok) throw new Error("Failed to delete sensitive file rule")
@@ -234,7 +249,7 @@ export const api = {
     },
     ambiguousTerms: {
       list: async () => {
-        const response = await fetch(`${CONFIG_BASE}/ambiguous-terms`)
+        const response = await fetchWithAuth(`${CONFIG_BASE}/ambiguous-terms`)
         if (!response.ok) throw new Error("Failed to fetch ambiguous terms")
         return response.json()
       },
@@ -244,7 +259,7 @@ export const api = {
         suggestion?: string
         isActive?: boolean
       }) => {
-        const response = await fetch(`${CONFIG_BASE}/ambiguous-terms`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/ambiguous-terms`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -258,7 +273,7 @@ export const api = {
         suggestion: string | null
         isActive: boolean
       }>) => {
-        const response = await fetch(`${CONFIG_BASE}/ambiguous-terms/${id}`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/ambiguous-terms/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -267,7 +282,7 @@ export const api = {
         return response.json()
       },
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${CONFIG_BASE}/ambiguous-terms/${id}`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/ambiguous-terms/${id}`, {
           method: "DELETE",
         })
         if (!response.ok) throw new Error("Failed to delete ambiguous term")
@@ -275,7 +290,7 @@ export const api = {
     },
     validationConfigs: {
       list: async () => {
-        const response = await fetch(`${CONFIG_BASE}/validation-configs`)
+        const response = await fetchWithAuth(`${CONFIG_BASE}/validation-configs`)
         if (!response.ok) throw new Error("Failed to fetch validation configs")
         return response.json()
       },
@@ -286,7 +301,7 @@ export const api = {
         category: string
         description?: string
       }) => {
-        const response = await fetch(`${CONFIG_BASE}/validation-configs`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/validation-configs`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -301,7 +316,7 @@ export const api = {
         category: string
         description: string | null
       }>) => {
-        const response = await fetch(`${CONFIG_BASE}/validation-configs/${id}`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/validation-configs/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -310,7 +325,7 @@ export const api = {
         return response.json()
       },
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${CONFIG_BASE}/validation-configs/${id}`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/validation-configs/${id}`, {
           method: "DELETE",
         })
         if (!response.ok) throw new Error("Failed to delete validation config")
@@ -318,7 +333,7 @@ export const api = {
     },
     testPaths: {
       list: async () => {
-        const response = await fetch(`${CONFIG_BASE}/test-paths`)
+        const response = await fetchWithAuth(`${CONFIG_BASE}/test-paths`)
         if (!response.ok) throw new Error("Failed to fetch test path conventions")
         return response.json()
       },
@@ -328,7 +343,7 @@ export const api = {
         description?: string
         isActive?: boolean
       }) => {
-        const response = await fetch(`${CONFIG_BASE}/test-paths`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/test-paths`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -341,7 +356,7 @@ export const api = {
         description: string | null
         isActive: boolean
       }>) => {
-        const response = await fetch(`${CONFIG_BASE}/test-paths/${testType}`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/test-paths/${testType}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -350,7 +365,7 @@ export const api = {
         return response.json()
       },
       delete: async (testType: string): Promise<void> => {
-        const response = await fetch(`${CONFIG_BASE}/test-paths/${testType}`, {
+        const response = await fetchWithAuth(`${CONFIG_BASE}/test-paths/${testType}`, {
           method: "DELETE",
         })
         if (!response.ok) throw new Error("Failed to delete test path convention")
@@ -360,7 +375,7 @@ export const api = {
 
   artifacts: {
     list: async (projectId: string): Promise<ArtifactFolder[]> => {
-      const response = await fetch(`${API_BASE}/artifacts?projectId=${encodeURIComponent(projectId)}`)
+      const response = await fetchWithAuth(`${API_BASE}/artifacts?projectId=${encodeURIComponent(projectId)}`)
       if (!response.ok) {
         const error = await response.json().catch(() => null)
         throw new Error(error?.error || "Failed to fetch artifacts")
@@ -368,7 +383,7 @@ export const api = {
       return response.json()
     },
     getContents: async (projectId: string, outputId: string): Promise<ArtifactContents> => {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `${API_BASE}/artifacts/${encodeURIComponent(outputId)}?projectId=${encodeURIComponent(projectId)}`
       )
       if (!response.ok) {
@@ -381,12 +396,12 @@ export const api = {
 
   validators: {
     list: async (): Promise<ConfigItem[]> => {
-      const response = await fetch(`${API_BASE}/validators`)
+      const response = await fetchWithAuth(`${API_BASE}/validators`)
       if (!response.ok) throw new Error("Failed to fetch validators")
       return response.json()
     },
     update: async (name: string, data: { isActive?: boolean; failMode?: "HARD" | "WARNING" | null }) => {
-      const response = await fetch(`${API_BASE}/validators/${name}`, {
+      const response = await fetchWithAuth(`${API_BASE}/validators/${name}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -395,7 +410,7 @@ export const api = {
       return response.json()
     },
     bulkUpdate: async (payload: { keys: string[]; updates: { isActive?: boolean; failMode?: "HARD" | "WARNING" | null } }) => {
-      const response = await fetch(`${API_BASE}/validators/bulk`, {
+      const response = await fetchWithAuth(`${API_BASE}/validators/bulk`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -412,13 +427,13 @@ export const api = {
     list: async (page = 1, limit = 20, includeInactive = false): Promise<PaginatedResponse<Workspace>> => {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) })
       if (includeInactive) params.append("includeInactive", "true")
-      const response = await fetch(`${API_BASE}/workspaces?${params}`)
+      const response = await fetchWithAuth(`${API_BASE}/workspaces?${params}`)
       if (!response.ok) throw new Error("Failed to fetch workspaces")
       return response.json()
     },
 
     get: async (id: string): Promise<Workspace> => {
-      const response = await fetch(`${API_BASE}/workspaces/${id}`)
+      const response = await fetchWithAuth(`${API_BASE}/workspaces/${id}`)
       if (!response.ok) throw new Error("Failed to fetch workspace")
       return response.json()
     },
@@ -429,7 +444,7 @@ export const api = {
       rootPath: string
       artifactsDir?: string
     }): Promise<Workspace> => {
-      const response = await fetch(`${API_BASE}/workspaces`, {
+      const response = await fetchWithAuth(`${API_BASE}/workspaces`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -448,7 +463,7 @@ export const api = {
       artifactsDir: string
       isActive: boolean
     }>): Promise<Workspace> => {
-      const response = await fetch(`${API_BASE}/workspaces/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE}/workspaces/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -461,12 +476,12 @@ export const api = {
     },
 
     delete: async (id: string): Promise<void> => {
-      const response = await fetch(`${API_BASE}/workspaces/${id}`, { method: "DELETE" })
+      const response = await fetchWithAuth(`${API_BASE}/workspaces/${id}`, { method: "DELETE" })
       if (!response.ok) throw new Error("Failed to delete workspace")
     },
 
     getConfigs: async (id: string): Promise<WorkspaceConfig[]> => {
-      const response = await fetch(`${API_BASE}/workspaces/${id}/configs`)
+      const response = await fetchWithAuth(`${API_BASE}/workspaces/${id}/configs`)
       if (!response.ok) throw new Error("Failed to fetch workspace configs")
       return response.json()
     },
@@ -477,7 +492,7 @@ export const api = {
       category?: string
       description?: string
     }): Promise<WorkspaceConfig> => {
-      const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/configs/${key}`, {
+      const response = await fetchWithAuth(`${API_BASE}/workspaces/${workspaceId}/configs/${key}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -487,7 +502,7 @@ export const api = {
     },
 
     deleteConfig: async (workspaceId: string, key: string): Promise<void> => {
-      const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/configs/${key}`, {
+      const response = await fetchWithAuth(`${API_BASE}/workspaces/${workspaceId}/configs/${key}`, {
         method: "DELETE",
       })
       if (!response.ok) throw new Error("Failed to delete workspace config")
@@ -499,13 +514,13 @@ export const api = {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) })
       if (workspaceId) params.append("workspaceId", workspaceId)
       if (includeInactive) params.append("includeInactive", "true")
-      const response = await fetch(`${API_BASE}/projects?${params}`)
+      const response = await fetchWithAuth(`${API_BASE}/projects?${params}`)
       if (!response.ok) throw new Error("Failed to fetch projects")
       return response.json()
     },
 
     get: async (id: string): Promise<Project> => {
-      const response = await fetch(`${API_BASE}/projects/${id}`)
+      const response = await fetchWithAuth(`${API_BASE}/projects/${id}`)
       if (!response.ok) throw new Error("Failed to fetch project")
       return response.json()
     },
@@ -518,7 +533,7 @@ export const api = {
       targetRef?: string
       backendWorkspace?: string
     }): Promise<Project> => {
-      const response = await fetch(`${API_BASE}/projects`, {
+      const response = await fetchWithAuth(`${API_BASE}/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -538,7 +553,7 @@ export const api = {
       backendWorkspace: string
       isActive: boolean
     }>): Promise<Project> => {
-      const response = await fetch(`${API_BASE}/projects/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE}/projects/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -551,14 +566,14 @@ export const api = {
     },
 
     delete: async (id: string): Promise<void> => {
-      const response = await fetch(`${API_BASE}/projects/${id}`, { method: "DELETE" })
+      const response = await fetchWithAuth(`${API_BASE}/projects/${id}`, { method: "DELETE" })
       if (!response.ok) throw new Error("Failed to delete project")
     },
   },
 
   git: {
     status: async (projectId?: string, projectPath?: string): Promise<GitStatusResponse> => {
-      const response = await fetch(`${API_BASE}/git/status`, {
+      const response = await fetchWithAuth(`${API_BASE}/git/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, projectPath }),
@@ -571,7 +586,7 @@ export const api = {
     },
 
     add: async (projectId?: string, projectPath?: string): Promise<{ success: boolean }> => {
-      const response = await fetch(`${API_BASE}/git/add`, {
+      const response = await fetchWithAuth(`${API_BASE}/git/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, projectPath }),
@@ -584,7 +599,7 @@ export const api = {
     },
 
     addFiles: async (projectId: string, files: string[]): Promise<{ success: boolean }> => {
-      const response = await fetch(`${API_BASE}/git/add-files`, {
+      const response = await fetchWithAuth(`${API_BASE}/git/add-files`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, files }),
@@ -597,7 +612,7 @@ export const api = {
     },
 
     changedFiles: async (projectId: string): Promise<Array<{ path: string; status: string }>> => {
-      const response = await fetch(`${API_BASE}/git/changed-files`, {
+      const response = await fetchWithAuth(`${API_BASE}/git/changed-files`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId }),
@@ -616,7 +631,7 @@ export const api = {
       runId?: string,
       projectPath?: string
     ): Promise<GitCommitResponse> => {
-      const response = await fetch(`${API_BASE}/git/commit`, {
+      const response = await fetchWithAuth(`${API_BASE}/git/commit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, projectPath, message, runId }),
@@ -639,7 +654,7 @@ export const api = {
       const params = new URLSearchParams({ file: filePath, baseRef, targetRef })
       if (projectId) params.append("projectId", projectId)
       if (projectPath) params.append("projectPath", projectPath)
-      const response = await fetch(`${API_BASE}/git/diff?${params}`)
+      const response = await fetchWithAuth(`${API_BASE}/git/diff?${params}`)
       if (!response.ok) {
         const error = await response.json().catch(() => null)
         throw new Error(error?.error?.message || "Failed to fetch diff")
@@ -648,7 +663,7 @@ export const api = {
     },
 
     push: async (projectId?: string, projectPath?: string): Promise<GitPushResponse> => {
-      const response = await fetch(`${API_BASE}/git/push`, {
+      const response = await fetchWithAuth(`${API_BASE}/git/push`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, projectPath }),
@@ -662,7 +677,7 @@ export const api = {
     },
 
     pull: async (projectId?: string, projectPath?: string): Promise<{ success: boolean }> => {
-      const response = await fetch(`${API_BASE}/git/pull`, {
+      const response = await fetchWithAuth(`${API_BASE}/git/pull`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, projectPath }),
@@ -675,7 +690,7 @@ export const api = {
     },
 
     fetchStatus: async (projectId?: string, projectPath?: string): Promise<GitFetchStatusResponse> => {
-      const response = await fetch(`${API_BASE}/git/fetch-status`, {
+      const response = await fetchWithAuth(`${API_BASE}/git/fetch-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, projectPath }),
@@ -688,7 +703,7 @@ export const api = {
     },
 
     branch: async (): Promise<{ branch: string; isProtected: boolean }> => {
-      const response = await fetch(`${API_BASE}/git/branch`)
+      const response = await fetchWithAuth(`${API_BASE}/git/branch`)
       if (!response.ok) {
         const error = await response.json().catch(() => null)
         throw new Error(error?.error?.message || "Failed to get branch info")
@@ -700,7 +715,7 @@ export const api = {
   mcp: {
     session: {
       get: async (): Promise<{ config: MCPSessionConfig }> => {
-        const response = await fetch(`${API_BASE}/mcp/session`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/session`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch session config")
@@ -709,7 +724,7 @@ export const api = {
       },
 
       update: async (data: { config: MCPSessionConfig }): Promise<{ success: boolean }> => {
-        const response = await fetch(`${API_BASE}/mcp/session`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/session`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -724,7 +739,7 @@ export const api = {
 
     status: {
       get: async (): Promise<MCPStatus> => {
-        const response = await fetch(`${API_BASE}/mcp/status`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/status`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch MCP status")
@@ -735,7 +750,7 @@ export const api = {
 
     snippets: {
       list: async (): Promise<Snippet[]> => {
-        const response = await fetch(`${API_BASE}/mcp/snippets`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/snippets`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch snippets")
@@ -745,7 +760,7 @@ export const api = {
       },
 
       create: async (data: { name: string; category: string; content: string; tags?: string[] }): Promise<Snippet> => {
-        const response = await fetch(`${API_BASE}/mcp/snippets`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/snippets`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -758,7 +773,7 @@ export const api = {
       },
 
       update: async (id: string, data: { name?: string; category?: string; content?: string; tags?: string[] }): Promise<Snippet> => {
-        const response = await fetch(`${API_BASE}/mcp/snippets/${id}`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/snippets/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -771,7 +786,7 @@ export const api = {
       },
 
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${API_BASE}/mcp/snippets/${id}`, { method: "DELETE" })
+        const response = await fetchWithAuth(`${API_BASE}/mcp/snippets/${id}`, { method: "DELETE" })
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete snippet")
@@ -781,7 +796,7 @@ export const api = {
 
     contextPacks: {
       list: async (): Promise<ContextPack[]> => {
-        const response = await fetch(`${API_BASE}/mcp/context-packs`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/context-packs`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch context packs")
@@ -791,7 +806,7 @@ export const api = {
       },
 
       create: async (data: { name: string; description?: string; files: string[] }): Promise<ContextPack> => {
-        const response = await fetch(`${API_BASE}/mcp/context-packs`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/context-packs`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -804,7 +819,7 @@ export const api = {
       },
 
       update: async (id: string, data: { name?: string; description?: string; files?: string[] }): Promise<ContextPack> => {
-        const response = await fetch(`${API_BASE}/mcp/context-packs/${id}`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/context-packs/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -817,7 +832,7 @@ export const api = {
       },
 
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${API_BASE}/mcp/context-packs/${id}`, { method: "DELETE" })
+        const response = await fetchWithAuth(`${API_BASE}/mcp/context-packs/${id}`, { method: "DELETE" })
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete context pack")
@@ -827,7 +842,7 @@ export const api = {
 
     presets: {
       list: async (): Promise<SessionPreset[]> => {
-        const response = await fetch(`${API_BASE}/mcp/presets`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/presets`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch presets")
@@ -837,7 +852,7 @@ export const api = {
       },
 
       create: async (data: { name: string; config: MCPSessionConfig }): Promise<SessionPreset> => {
-        const response = await fetch(`${API_BASE}/mcp/presets`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/presets`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -850,7 +865,7 @@ export const api = {
       },
 
       update: async (id: string, data: { name?: string; config?: MCPSessionConfig }): Promise<SessionPreset> => {
-        const response = await fetch(`${API_BASE}/mcp/presets/${id}`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/presets/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -863,7 +878,7 @@ export const api = {
       },
 
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${API_BASE}/mcp/presets/${id}`, { method: "DELETE" })
+        const response = await fetchWithAuth(`${API_BASE}/mcp/presets/${id}`, { method: "DELETE" })
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete preset")
@@ -878,7 +893,7 @@ export const api = {
         if (role) params.set('role', role)
         if (kind) params.set('kind', kind)
         params.set('full', 'true')
-        const response = await fetch(`${API_BASE}/mcp/prompts?${params}`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/prompts?${params}`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch prompts")
@@ -896,7 +911,7 @@ export const api = {
         order?: number
         isActive?: boolean
       }): Promise<PromptInstruction> => {
-        const response = await fetch(`${API_BASE}/mcp/prompts`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/prompts`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -917,7 +932,7 @@ export const api = {
         order?: number
         isActive?: boolean
       }): Promise<PromptInstruction> => {
-        const response = await fetch(`${API_BASE}/mcp/prompts/${id}`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/prompts/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -930,7 +945,7 @@ export const api = {
       },
 
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${API_BASE}/mcp/prompts/${id}`, { method: "DELETE" })
+        const response = await fetchWithAuth(`${API_BASE}/mcp/prompts/${id}`, { method: "DELETE" })
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete prompt")
@@ -940,7 +955,7 @@ export const api = {
 
     phases: {
       list: async (): Promise<AgentPhaseConfig[]> => {
-        const response = await fetch(`${AGENT_BASE}/phases`)
+        const response = await fetchWithAuth(`${AGENT_BASE}/phases`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch phase configs")
@@ -949,7 +964,7 @@ export const api = {
       },
 
       get: async (step: number): Promise<AgentPhaseConfig> => {
-        const response = await fetch(`${AGENT_BASE}/phases/${step}`)
+        const response = await fetchWithAuth(`${AGENT_BASE}/phases/${step}`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch phase config")
@@ -958,7 +973,7 @@ export const api = {
       },
 
       update: async (step: number, data: Partial<Omit<AgentPhaseConfig, 'step' | 'createdAt' | 'updatedAt'>>): Promise<AgentPhaseConfig> => {
-        const response = await fetch(`${AGENT_BASE}/phases/${step}`, {
+        const response = await fetchWithAuth(`${AGENT_BASE}/phases/${step}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -973,7 +988,7 @@ export const api = {
 
     history: {
       list: async (): Promise<SessionHistory[]> => {
-        const response = await fetch(`${API_BASE}/mcp/history`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/history`)
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to fetch history")
@@ -983,7 +998,7 @@ export const api = {
       },
 
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${API_BASE}/mcp/history/${id}`, { method: "DELETE" })
+        const response = await fetchWithAuth(`${API_BASE}/mcp/history/${id}`, { method: "DELETE" })
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete history entry")
@@ -993,14 +1008,14 @@ export const api = {
 
     profiles: {
       list: async (): Promise<SessionProfile[]> => {
-        const response = await fetch(`${API_BASE}/mcp/profiles`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/profiles`)
         if (!response.ok) throw new Error("Failed to fetch profiles")
         const json = await response.json()
         return json.data
       },
 
       get: async (id: string): Promise<SessionProfile> => {
-        const response = await fetch(`${API_BASE}/mcp/profiles/${id}`)
+        const response = await fetchWithAuth(`${API_BASE}/mcp/profiles/${id}`)
         if (!response.ok) throw new Error("Failed to fetch profile")
         return response.json()
       },
@@ -1013,7 +1028,7 @@ export const api = {
         docsDir?: string
         promptIds?: string[]
       }): Promise<SessionProfile> => {
-        const response = await fetch(`${API_BASE}/mcp/profiles`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/profiles`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -1035,7 +1050,7 @@ export const api = {
           docsDir: string | null
         }>
       ): Promise<SessionProfile> => {
-        const response = await fetch(`${API_BASE}/mcp/profiles/${id}`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/profiles/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -1048,14 +1063,14 @@ export const api = {
       },
 
       delete: async (id: string): Promise<void> => {
-        const response = await fetch(`${API_BASE}/mcp/profiles/${id}`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/profiles/${id}`, {
           method: "DELETE",
         })
         if (!response.ok) throw new Error("Failed to delete profile")
       },
 
       setPrompts: async (id: string, promptIds: string[]): Promise<SessionProfile> => {
-        const response = await fetch(`${API_BASE}/mcp/profiles/${id}/prompts`, {
+        const response = await fetchWithAuth(`${API_BASE}/mcp/profiles/${id}/prompts`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ promptIds }),
@@ -1076,7 +1091,7 @@ export const api = {
       if (step !== undefined) params.append("step", String(step))
       if (active !== undefined) params.append("active", String(active))
       const kindPlural = kind + "s"
-      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}?${params}`)
+      const response = await fetchWithAuth(`${API_BASE}/orchestrator/${kindPlural}?${params}`)
       if (!response.ok) throw new Error(`Failed to fetch orchestrator ${kindPlural}`)
       const json = await response.json()
       return json.data ?? []
@@ -1085,7 +1100,7 @@ export const api = {
     listAll: async (step?: number): Promise<OrchestratorContent[]> => {
       const params = new URLSearchParams()
       if (step !== undefined) params.append("step", String(step))
-      const response = await fetch(`${API_BASE}/orchestrator/content?${params}`)
+      const response = await fetchWithAuth(`${API_BASE}/orchestrator/content?${params}`)
       if (!response.ok) throw new Error("Failed to fetch orchestrator content")
       const json = await response.json()
       return json.data ?? []
@@ -1093,7 +1108,7 @@ export const api = {
 
     get: async (kind: OrchestratorContentKind, id: string): Promise<OrchestratorContent> => {
       const kindPlural = kind + "s"
-      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}/${id}`)
+      const response = await fetchWithAuth(`${API_BASE}/orchestrator/${kindPlural}/${id}`)
       if (!response.ok) throw new Error(`Failed to fetch orchestrator ${kind}`)
       return response.json()
     },
@@ -1106,7 +1121,7 @@ export const api = {
       isActive?: boolean
     }): Promise<OrchestratorContent> => {
       const kindPlural = kind + "s"
-      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}`, {
+      const response = await fetchWithAuth(`${API_BASE}/orchestrator/${kindPlural}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -1126,7 +1141,7 @@ export const api = {
       isActive: boolean
     }>): Promise<OrchestratorContent> => {
       const kindPlural = kind + "s"
-      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE}/orchestrator/${kindPlural}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -1140,7 +1155,7 @@ export const api = {
 
     delete: async (kind: OrchestratorContentKind, id: string): Promise<void> => {
       const kindPlural = kind + "s"
-      const response = await fetch(`${API_BASE}/orchestrator/${kindPlural}/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE}/orchestrator/${kindPlural}/${id}`, {
         method: "DELETE",
       })
       if (!response.ok) throw new Error(`Failed to delete orchestrator ${kind}`)

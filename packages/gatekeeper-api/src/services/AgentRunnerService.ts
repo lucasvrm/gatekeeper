@@ -65,8 +65,30 @@ export class AgentRunnerService {
       const provider = this.registry.get(phase.provider)
       return await this.runWithProvider(provider, phase, options, emit)
     } catch (error) {
-      // Attempt fallback if configured
+      // Attempt fallback if configured AND available
       if (phase.fallbackProvider && phase.fallbackModel) {
+        // Check if fallback provider is actually available before attempting
+        if (!this.registry.has(phase.fallbackProvider)) {
+          const available = this.registry.available()
+          emit({
+            type: 'agent:fallback_unavailable',
+            from: `${phase.provider}/${phase.model}`,
+            to: `${phase.fallbackProvider}/${phase.fallbackModel}`,
+            reason: `Fallback provider "${phase.fallbackProvider}" not configured`,
+            availableProviders: available,
+            originalError: (error as Error).message,
+          })
+          emit({
+            type: 'agent:error',
+            error: `Provider "${phase.provider}" failed: ${(error as Error).message}. ` +
+              `Fallback "${phase.fallbackProvider}" not available. ` +
+              `Available providers: ${available.join(', ') || 'none'}`,
+            availableProviders: available,
+            canRetry: available.length > 0,
+          })
+          throw error
+        }
+
         emit({
           type: 'agent:fallback',
           from: `${phase.provider}/${phase.model}`,
@@ -87,8 +109,14 @@ export class AgentRunnerService {
         return await this.runWithProvider(fallbackProvider, fallbackPhase, options, emit)
       }
 
-      // No fallback — propagate original error
-      emit({ type: 'agent:error', error: (error as Error).message })
+      // No fallback — propagate original error with available providers info
+      const available = this.registry.available()
+      emit({
+        type: 'agent:error',
+        error: (error as Error).message,
+        availableProviders: available,
+        canRetry: available.length > 0,
+      })
       throw error
     }
   }
