@@ -604,8 +604,10 @@ export function OrchestratorPage() {
   useEffect(() => {
     api.projects.list(1, 100).then((res) => {
       if (!res) return
-      setProjects(res.data)
-      const active = res.data.filter((p) => p.isActive)
+      // Support both array and paginated response (for testing compatibility)
+      const projectList = Array.isArray(res) ? res : res.data
+      setProjects(projectList)
+      const active = projectList.filter((p) => p.isActive)
       if (active.length > 0) {
         setSelectedProjectId((prev) => prev ?? active[0].id)
       }
@@ -1663,17 +1665,42 @@ export function OrchestratorPage() {
 
           {/* ─── Step 0: Task input ─────────────────────────────────── */}
           {step === 0 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Descreva a Tarefa</CardTitle>
-                  <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
-                </div>
-                <CardDescription>
-                  Descreva o que precisa ser implementado. O LLM vai gerar o plano, contrato e especificação.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <>
+              {/* Card de Objetivo da Tarefa */}
+              <Card data-testid="task-prompt-display-card" className="mb-4">
+                <CardHeader>
+                  <h2 className="leading-none font-semibold">Objetivo da Tarefa</h2>
+                  <CardDescription>Resumo do que será implementado</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div
+                    data-testid="task-prompt-content"
+                    className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md border-l-4 border-accent"
+                    style={{ whiteSpace: 'pre-wrap' }}
+                  >
+                    {taskDescription.trim() ? (
+                      taskDescription
+                    ) : (
+                      <span className="text-muted-foreground italic">
+                        Nenhuma tarefa descrita ainda.
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Card existente "Descreva a Tarefa" */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Descreva a Tarefa</CardTitle>
+                    <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
+                  </div>
+                  <CardDescription>
+                    Descreva o que precisa ser implementado. O LLM vai gerar o plano, contrato e especificação.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Projeto</Label>
                   {projects.length === 0 ? (
@@ -1764,8 +1791,9 @@ export function OrchestratorPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Descrição da tarefa</Label>
+                  <Label htmlFor="task-description-textarea">Descrição da tarefa</Label>
                   <Textarea
+                    id="task-description-textarea"
                     value={taskDescription}
                     onChange={(e) => setTaskDescription(e.target.value)}
                     placeholder="Ex: Criar um botão de logout no header que limpa a sessão e redireciona para /login"
@@ -1886,6 +1914,7 @@ export function OrchestratorPage() {
                 )}
               </CardContent>
             </Card>
+            </>
           )}
 
           {/* ─── Step 2: Plan review + generate spec ─────────────────── */}
@@ -2597,3 +2626,5 @@ export function OrchestratorPage() {
     </div>
   )
 }
+
+export default OrchestratorPage
