@@ -79,6 +79,7 @@ const TIMEOUT_KEYS = [
 
 export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabProps) {
   const [timeoutValues, setTimeoutValues] = useState<Record<string, string>>({})
+  const [jwtExpiryValue, setJwtExpiryValue] = useState<string>("")
   const [saving, setSaving] = useState<string | null>(null)
 
   // Collapsible states with localStorage persistence
@@ -92,6 +93,11 @@ export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabPr
 
   const allowSoftGatesConfig = useMemo(() =>
     validationConfigs.find(c => c.key === "ALLOW_SOFT_GATES"),
+    [validationConfigs]
+  )
+
+  const jwtExpiryConfig = useMemo(() =>
+    validationConfigs.find(c => c.key === "JWT_EXPIRY_SECONDS"),
     [validationConfigs]
   )
 
@@ -109,6 +115,23 @@ export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabPr
     } catch (error) {
       console.error("Failed to update ALLOW_SOFT_GATES:", error)
       toast.error("Falha ao atualizar ALLOW_SOFT_GATES")
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const handleSaveJwtExpiry = async () => {
+    if (!jwtExpiryConfig) return
+    const newValue = jwtExpiryValue || jwtExpiryConfig.value
+    if (newValue === jwtExpiryConfig.value) return
+
+    setSaving("JWT_EXPIRY_SECONDS")
+    try {
+      await onUpdateConfig(jwtExpiryConfig.id, newValue)
+      toast.success("JWT_EXPIRY_SECONDS atualizado")
+    } catch (error) {
+      console.error("Failed to update JWT_EXPIRY_SECONDS:", error)
+      toast.error("Falha ao atualizar JWT_EXPIRY_SECONDS")
     } finally {
       setSaving(null)
     }
@@ -188,20 +211,50 @@ export function AdvancedTab({ validationConfigs, onUpdateConfig }: AdvancedTabPr
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-0.5">
-                    <Label className="text-base font-medium">ALLOW_SOFT_GATES</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Permite gates com warnings não bloquearem.
-                    </p>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-medium">ALLOW_SOFT_GATES</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Permite gates com warnings não bloquearem.
+                      </p>
+                    </div>
+                    <Switch
+                      data-testid="allow-soft-gates-switch"
+                      role="switch"
+                      checked={allowSoftGatesConfig?.value === "true"}
+                      onCheckedChange={handleToggleAllowSoftGates}
+                      disabled={saving === "ALLOW_SOFT_GATES"}
+                    />
                   </div>
-                  <Switch
-                    data-testid="allow-soft-gates-switch"
-                    role="switch"
-                    checked={allowSoftGatesConfig?.value === "true"}
-                    onCheckedChange={handleToggleAllowSoftGates}
-                    disabled={saving === "ALLOW_SOFT_GATES"}
-                  />
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-medium">JWT_EXPIRY_SECONDS</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Tempo de expiração do token JWT em segundos.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        data-testid="jwt-expiry-config"
+                        value={jwtExpiryValue || jwtExpiryConfig?.value || ""}
+                        onChange={(e) => setJwtExpiryValue(e.target.value)}
+                        className="w-32"
+                        placeholder="3600"
+                      />
+                      {jwtExpiryValue && jwtExpiryValue !== jwtExpiryConfig?.value && (
+                        <Button
+                          size="sm"
+                          onClick={handleSaveJwtExpiry}
+                          disabled={saving === "JWT_EXPIRY_SECONDS"}
+                        >
+                          {saving === "JWT_EXPIRY_SECONDS" ? "..." : "Salvar"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </CollapsibleContent>

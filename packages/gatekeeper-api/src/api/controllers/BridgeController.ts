@@ -137,10 +137,13 @@ export class BridgeController {
         })
       } catch (err) {
         console.error('[Bridge] Plan failed:', err)
-        OrchestratorEventService.emitOrchestratorEvent(outputId, {
-          type: 'agent:error',
-          error: (err as Error).message,
-        })
+        // Only emit if AgentRunnerService didn't already emit via SSE
+        if (!(err as any)?._sseEmitted) {
+          OrchestratorEventService.emitOrchestratorEvent(outputId, {
+            type: 'agent:error',
+            error: (err as Error).message,
+          })
+        }
       }
     })
   }
@@ -281,10 +284,12 @@ export class BridgeController {
         })
       } catch (err) {
         console.error('[Bridge] Execute failed:', err)
-        OrchestratorEventService.emitOrchestratorEvent(outputId, {
-          type: 'agent:error',
-          error: (err as Error).message,
-        })
+        if (!(err as any)?._sseEmitted) {
+          OrchestratorEventService.emitOrchestratorEvent(outputId, {
+            type: 'agent:error',
+            error: (err as Error).message,
+          })
+        }
       }
     })
   }
@@ -322,10 +327,12 @@ export class BridgeController {
       projectId, provider, model, maxFixRetries,
     }).catch((err) => {
       console.error(`[Bridge] Full pipeline ${runId} failed:`, err)
-      OrchestratorEventService.emitOrchestratorEvent(runId, {
-        type: 'agent:error',
-        error: (err as Error).message,
-      })
+      if (!(err as any)?._sseEmitted) {
+        OrchestratorEventService.emitOrchestratorEvent(runId, {
+          type: 'agent:error',
+          error: (err as Error).message,
+        })
+      }
     })
   }
 
@@ -406,10 +413,12 @@ export class BridgeController {
       existingDbRunId: run.id,
     }).catch((err) => {
       console.error(`[Bridge] Pipeline resume ${sseRunId} failed:`, err)
-      OrchestratorEventService.emitOrchestratorEvent(sseRunId, {
-        type: 'agent:error',
-        error: (err as Error).message,
-      })
+      if (!(err as any)?._sseEmitted) {
+        OrchestratorEventService.emitOrchestratorEvent(sseRunId, {
+          type: 'agent:error',
+          error: (err as Error).message,
+        })
+      }
     })
   }
 

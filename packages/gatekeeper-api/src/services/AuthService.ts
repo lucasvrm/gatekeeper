@@ -131,6 +131,9 @@ export class AuthService {
    * Register a new user
    */
   async register(email: string, password: string): Promise<RegisterResult> {
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase()
+
     // Validate password length
     if (password.length < 8) {
       const error: AuthError = {
@@ -141,9 +144,9 @@ export class AuthService {
       throw error
     }
 
-    // Check if email already exists
+    // Check if email already exists (case-insensitive via normalization)
     const existingUser = await this.prisma.user.findFirst({
-      where: { email }
+      where: { email: normalizedEmail }
     })
 
     if (existingUser) {

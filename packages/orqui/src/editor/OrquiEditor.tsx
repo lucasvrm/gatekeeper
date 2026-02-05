@@ -337,6 +337,31 @@ export function OrquiEditor() {
         setRegistry={setRegistry}
       />
 
+      {/* Grid Canvas Editor Integration (Fase 2A)
+          When implementing grid mode in editor context:
+
+          {mode === 'grid' && (
+            <GridCanvas
+              layout={state.gridLayout}
+              selectedItemId={state.selectedGridItemId}
+              onSelectItem={(id) => dispatch({type: 'SELECT_GRID_ITEM', payload: {itemId: id}})}
+              onUpdateItem={(id, updates) => {
+                if ('colStart' in updates) {
+                  dispatch({
+                    type: 'UPDATE_GRID_ITEM_POSITION',
+                    payload: {itemId: id, colStart: updates.colStart, rowStart: updates.rowStart}
+                  });
+                } else if ('colSpan' in updates) {
+                  dispatch({
+                    type: 'UPDATE_GRID_ITEM_SIZE',
+                    payload: {itemId: id, colSpan: updates.colSpan, rowSpan: updates.rowSpan}
+                  });
+                }
+              }}
+            />
+          )}
+      */}
+
       {/* Command Palette overlay */}
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} items={cmdItems} />
     </div>

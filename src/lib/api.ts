@@ -1174,13 +1174,13 @@ export const api = {
       const params = new URLSearchParams()
       params.append("limit", String(limit))
       if (status) params.append("status", status)
-      const response = await fetch(`${AGENT_BASE}/runs?${params}`)
+      const response = await fetchWithAuth(`${AGENT_BASE}/runs?${params}`)
       if (!response.ok) throw new Error("Failed to fetch agent runs")
       return response.json()
     },
 
     getById: async (id: string): Promise<AgentRunCostStats> => {
-      const response = await fetch(`${AGENT_BASE}/runs/${id}`)
+      const response = await fetchWithAuth(`${AGENT_BASE}/runs/${id}`)
       if (!response.ok) throw new Error(`Failed to fetch agent run: ${id}`)
       return response.json()
     },
@@ -1190,7 +1190,7 @@ export const api = {
       model?: string
       maxFixRetries?: number
     }): Promise<{ runId: string; dbRunId: string; resumeFromStep: number; outputId: string }> => {
-      const response = await fetch(`${AGENT_BASE}/bridge/pipeline/resume`, {
+      const response = await fetchWithAuth(`${AGENT_BASE}/bridge/pipeline/resume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ runId: dbRunId, ...params }),
@@ -1214,7 +1214,7 @@ export const api = {
       artifacts: Array<{ filename: string; size: number; modified: string }>
     }> => {
       const params = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : ""
-      const response = await fetch(`${AGENT_BASE}/bridge/artifacts/${outputId}${params}`)
+      const response = await fetchWithAuth(`${AGENT_BASE}/bridge/artifacts/${outputId}${params}`)
       if (!response.ok) throw new Error(`Failed to list artifacts for: ${outputId}`)
       return response.json()
     },
@@ -1226,7 +1226,7 @@ export const api = {
       size: number
     }> => {
       const params = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : ""
-      const response = await fetch(`${AGENT_BASE}/bridge/artifacts/${outputId}/${filename}${params}`)
+      const response = await fetchWithAuth(`${AGENT_BASE}/bridge/artifacts/${outputId}/${filename}${params}`)
       if (!response.ok) throw new Error(`Failed to read artifact: ${outputId}/${filename}`)
       return response.json()
     },

@@ -86,6 +86,8 @@ export class AgentRunnerService {
             availableProviders: available,
             canRetry: available.length > 0,
           })
+          // Mark error so BridgeController doesn't emit a duplicate agent:error
+          ;(error as any)._sseEmitted = true
           throw error
         }
 
@@ -117,6 +119,8 @@ export class AgentRunnerService {
         availableProviders: available,
         canRetry: available.length > 0,
       })
+      // Mark error so BridgeController doesn't emit a duplicate agent:error
+      ;(error as any)._sseEmitted = true
       throw error
     }
   }

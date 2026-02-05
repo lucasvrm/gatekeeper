@@ -94,6 +94,10 @@ type EditorAction =
   | { type: "UPDATE_SHELL"; updates: Partial<LayoutContractV2["shell"]> }
   | { type: "OPEN_VARIABLE_PICKER"; nodeId: string; propKey: string }
   | { type: "CLOSE_VARIABLE_PICKER" }
+  // Grid Canvas actions
+  | { type: "SELECT_GRID_ITEM"; payload: { itemId: string | null } }
+  | { type: "UPDATE_GRID_ITEM_POSITION"; payload: { itemId: string; colStart: number; rowStart: number } }
+  | { type: "UPDATE_GRID_ITEM_SIZE"; payload: { itemId: string; colSpan: number; rowSpan: number } }
   // History
   | { type: "UNDO" }
   | { type: "REDO" };

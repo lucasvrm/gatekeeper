@@ -773,16 +773,26 @@ export function OrchestratorPage() {
           break
         }
         case "agent:error": {
-          addLog("error", String(event.error))
           const availableProviders = (event as any).availableProviders as string[] | undefined
           const canRetry = (event as any).canRetry as boolean | undefined
+          const errorMsg = String(event.error)
 
-          if (executionPhaseRef.current === "WRITING") {
+          // Only log if not a duplicate of the previous error
+          addLog("error", errorMsg)
+
+          // Detect terminal errors: timeout, provider not configured, fallback unavailable
+          const isTerminalError = errorMsg.includes("timed out") ||
+            errorMsg.includes("not configured") ||
+            errorMsg.includes("not available") ||
+            errorMsg.includes("Fallback") ||
+            (canRetry && availableProviders && availableProviders.length > 0)
+
+          if (executionPhaseRef.current === "WRITING" && !isTerminalError) {
             // Non-fatal: LLM may still be running. Show error but don't reset UI.
-            toast.error(`Erro durante execução: ${String(event.error)}`, { duration: 6000 })
+            toast.error(`Erro durante execução: ${errorMsg}`, { duration: 6000 })
           } else {
-            // Fatal: no active execution, safe to reset everything.
-            setError(String(event.error))
+            // Fatal: process stopped, reset UI and show retry options.
+            setError(errorMsg)
             setLoading(false)
             setExecutionPhase(null)
             setExecutionProgress(null)
@@ -800,10 +810,13 @@ export function OrchestratorPage() {
                 selectedProvider: defaultProvider,
                 selectedModel: defaultModel,
               })
-              toast.error(`Provider indisponível — selecione outro para continuar`, { duration: 8000 })
+              toast.error(`Provider falhou — selecione outro para continuar`, { duration: 8000 })
             } else {
-              setRetryState(null)
-              toast.error(String(event.error))
+              // Don't clear retryState if it was already set by a previous event
+              // (BridgeController re-emits agent:error without retry info after AgentRunnerService)
+              if (!retryState) {
+                toast.error(errorMsg)
+              }
             }
           }
           break
