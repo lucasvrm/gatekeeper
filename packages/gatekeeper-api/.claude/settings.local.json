@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma:*)",
+      "Bash(node -e \"const { execSync } = require\\(''child_process''\\); process.chdir\\(''C:/Coding/gatekeeper''\\); console.log\\(execSync\\(''npx prisma generate --schema=packages/gatekeeper-api/prisma/schema.prisma'', { encoding: ''utf8'', stdio: ''pipe'' }\\)\\)\")",
+      "Bash(where:*)",
+      "Bash(ls:*)",
+      "Bash(node /c/Coding/gatekeeper/packages/gatekeeper-api/node_modules/.bin/prisma generate:*)",
+      "Bash(node:*)",
+      "Bash(tasklist:*)",
+      "Bash(PRISMA_GENERATE_NO_ENGINE=1 node:*)",
+      "Bash(DATABASE_URL=\"file:./prisma/dev.db\" npx tsx:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

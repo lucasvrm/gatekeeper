@@ -2,6 +2,7 @@
 // Orqui Runtime — Breadcrumb Renderer
 // ============================================================================
 import React, { useState, useEffect } from "react";
+import type { CSSProperties } from "react";
 import type { BreadcrumbsConfig, BreadcrumbItem, PageConfig, Tokens } from "../types.js";
 import { resolveTokenRef } from "../tokens.js";
 import { IconValue } from "../icons.js";
@@ -12,6 +13,7 @@ export function BreadcrumbRenderer({ config, pages, currentPage, navigate, resol
   currentPage?: string;
   navigate?: (route: string) => void;
   resolveToken?: (ref: string) => string | number | null;
+  getTextStyle?: (name: string) => CSSProperties;
   /** Explicit breadcrumb trail — when provided, overrides auto-generated crumbs.
    *  Home is auto-prepended unless showHome is false. */
   items?: BreadcrumbItem[];
@@ -91,20 +93,19 @@ export function BreadcrumbRenderer({ config, pages, currentPage, navigate, resol
     : config.separator || "/";
 
   // Get text style from contract if defined
-  const textStyleName = config.typography?.textStyle || "caption";
-  const textStyleCSS = resolveToken ? {} : {}; // Will get from context below
+  const textStyleName = config.typography?.textStyle;
+  const textStyleCSS = textStyleName && getTextStyle ? getTextStyle(textStyleName) : {};
+  const hasTextStyle = !!textStyleName && !!getTextStyle;
   
   // Typography config (inline overrides on top of textStyle)
   const typo = config.typography;
-  const rawFontSize = resolve(typo?.fontSize);
-  const baseFontSize = (typeof rawFontSize === "number" ? rawFontSize : Number(rawFontSize)) || 13;
-  const rawFontWeight = resolve(typo?.fontWeight);
-  const baseFontWeight = (typeof rawFontWeight === "number" ? rawFontWeight : Number(rawFontWeight)) || 400;
+  const baseFontSize = resolve(typo?.fontSize) ?? (hasTextStyle ? undefined : 13);
+  const baseFontWeight = resolve(typo?.fontWeight) ?? (hasTextStyle ? undefined : 400);
   const baseFontFamily = resolve(typo?.fontFamily) as string | undefined;
-  const baseColor = resolve(typo?.color) ?? "var(--muted-foreground)";
-  const activeColor = resolve(typo?.activeColor) ?? "var(--foreground)";
-  const activeWeight = resolve(typo?.activeFontWeight) ?? 600;
-  const sepColor = resolve(typo?.separatorColor) ?? "var(--muted-foreground)";
+  const baseColor = resolve(typo?.color) ?? (hasTextStyle ? undefined : "var(--muted-foreground)");
+  const activeColor = resolve(typo?.activeColor) ?? (hasTextStyle ? undefined : "var(--foreground)");
+  const activeWeight = resolve(typo?.activeFontWeight) ?? (hasTextStyle ? undefined : 600);
+  const sepColor = resolve(typo?.separatorColor) ?? (hasTextStyle ? undefined : "var(--muted-foreground)");
 
   // Padding config
   const pad = config.padding;
@@ -136,25 +137,34 @@ export function BreadcrumbRenderer({ config, pages, currentPage, navigate, resol
                 }
               }}
               style={{
-                fontSize: baseFontSize as number,
-                fontWeight: (isLast ? activeWeight : baseFontWeight) as number,
-                color: isLast
-                  ? (activeColor as string)
-                  : (baseColor as string),
+                ...textStyleCSS,
+                ...(baseFontSize != null ? { fontSize: baseFontSize as string | number } : {}),
+                ...(baseFontWeight != null ? { fontWeight: baseFontWeight as string | number } : {}),
+                ...(baseFontFamily ? { fontFamily: baseFontFamily as string } : {}),
+                ...(isLast && activeWeight != null ? { fontWeight: activeWeight as string | number } : {}),
+                ...(baseColor ? { color: baseColor as string } : {}),
+                ...(isLast && activeColor ? { color: activeColor as string } : {}),
                 cursor: isClickable ? "pointer" : "default",
                 transition: "color 0.15s",
               }}
               onMouseEnter={(e) => {
-                if (isClickable) (e.target as HTMLElement).style.color = activeColor as string;
+                if (isClickable && activeColor) (e.target as HTMLElement).style.color = String(activeColor);
               }}
               onMouseLeave={(e) => {
-                if (isClickable && !isLast) (e.target as HTMLElement).style.color = baseColor as string;
+                if (isClickable && !isLast && baseColor) (e.target as HTMLElement).style.color = String(baseColor);
               }}
             >
               {item.label}
             </span>
             {!isLast && (
-              <span style={{ color: sepColor as string, margin: "0 6px", fontSize: (baseFontSize as number) * 0.9, opacity: 0.6 }}>
+              <span style={{
+                ...(sepColor ? { color: sepColor as string } : {}),
+                margin: "0 6px",
+                fontSize: typeof baseFontSize === "number"
+                  ? baseFontSize * 0.9
+                  : (baseFontSize || textStyleCSS.fontSize || 12),
+                opacity: 0.6,
+              }}>
                 {sepChar}
               </span>
             )}

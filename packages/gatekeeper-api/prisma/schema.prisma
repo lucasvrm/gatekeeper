@@ -363,6 +363,25 @@ model SessionProfilePrompt {
 }
 
 // =============================================================================
+// PROVIDER REGISTRY
+// =============================================================================
+
+model Provider {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  label      String
+  authType   String   @default("api_key") // 'api_key' | 'cli'
+  envVarName String?
+  isActive   Boolean  @default(true)
+  order      Int      @default(0)
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// =============================================================================
 // PROVIDER MODEL REGISTRY
 // =============================================================================
 

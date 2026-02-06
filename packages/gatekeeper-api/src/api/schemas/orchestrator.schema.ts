@@ -33,6 +33,15 @@ export const ExecuteSchema = z.object({
   model: z.string().optional(),
 })
 
+export const StatusParamsSchema = z.object({
+  outputId: z.string().min(1, 'outputId é obrigatório'),
+})
+
+export const EventsQuerySchema = z.object({
+  sinceId: z.coerce.number().int().min(0).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+})
+
 export type GeneratePlanInput = z.infer<typeof GeneratePlanSchema>
 export type GenerateSpecInput = z.infer<typeof GenerateSpecSchema>
 export type FixArtifactsInput = z.infer<typeof FixArtifactsSchema>

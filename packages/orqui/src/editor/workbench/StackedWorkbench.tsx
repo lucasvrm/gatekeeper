@@ -356,6 +356,7 @@ function SectionEditorContent({
         return (
           <HeaderElementsEditor
             elements={layout.structure?.headerElements}
+            textStyles={layout.textStyles}
             onChange={(he) => onChange({ ...layout, structure: { ...layout.structure, headerElements: he } })}
           />
         );
@@ -365,6 +366,7 @@ function SectionEditorContent({
           <BreadcrumbEditor
             breadcrumbs={layout.structure.breadcrumbs}
             tokens={layout.tokens}
+            textStyles={layout.textStyles}
             onChange={(bc) => onChange({ ...layout, structure: { ...layout.structure, breadcrumbs: bc } })}
           />
         );

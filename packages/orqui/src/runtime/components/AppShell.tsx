@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import type { Tokens, RegionConfig, SeparatorConfig } from "../types.js";
 import { resolveTokenRef } from "../tokens.js";
 import { PHOSPHOR_SVG_PATHS } from "../icons.js";
-import { resolvePageLayout } from "../utils.js";
+import { resolvePageKey, resolvePageLayout } from "../utils.js";
 import { useContract } from "../context.js";
 import { LogoRenderer } from "./Logo.js";
 import { HeaderElementsRenderer } from "./HeaderElements.js";
@@ -65,8 +65,10 @@ export function AppShell({
   onIconClick,
   navigate,
 }: AppShellProps) {
-  const { layout: baseLayout, tokens } = useContract();
-  const layout = resolvePageLayout(baseLayout, page);
+  const { layout: baseLayout, tokens, getTextStyle } = useContract();
+  const pageKey = resolvePageKey(baseLayout, page);
+  const resolvedPage = pageKey ?? page;
+  const layout = resolvePageLayout(baseLayout, resolvedPage);
   const { regions } = layout.structure;
   const logoConfig = layout.structure.logo;
   const headerElements = layout.structure.headerElements;
@@ -85,7 +87,7 @@ export function AppShell({
   // --- Update document.title based on current page ---
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const currentPage = page && pages ? pages[page] : null;
+    const currentPage = pageKey && pages ? pages[pageKey] : (page && pages ? pages[page] : null);
     if (currentPage?.browserTitle) {
       document.title = currentPage.browserTitle;
     } else if (currentPage?.label && appTitle) {
@@ -95,7 +97,7 @@ export function AppShell({
     } else if (appTitle) {
       document.title = appTitle;
     }
-  }, [page, pages, appTitle]);
+  }, [pageKey, page, pages, appTitle]);
 
   // Debug breadcrumbs — remove after confirming it works
   if (typeof window !== "undefined" && (window as any).__ORQUI_DEBUG !== false) {
@@ -248,7 +250,7 @@ export function AppShell({
   const effectiveNav = hasContractNav ? (
     <SidebarNavRenderer
       navConfig={sidebar!.navigation!}
-      page={page}
+      page={resolvedPage}
       navigate={navigate}
       collapsed={collapsed}
       collapsedDisplay={collapsedDisplay}
@@ -438,13 +440,28 @@ export function AppShell({
           }}>
             {/* Breadcrumbs */}
             {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && (
-              <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} items={breadcrumbItems} />
+              <BreadcrumbRenderer
+                config={breadcrumbsConfig}
+                pages={pages}
+                currentPage={pageKey ?? page}
+                navigate={navigate}
+                resolveToken={(ref) => resolveTokenRef(ref, tokens)}
+                getTextStyle={getTextStyle}
+                items={breadcrumbItems}
+              />
             )}
             {headerCenter}
             {/* Spacer */}
             <div style={{ flex: 1 }} />
             {/* Header elements (search, icons, CTAs) */}
-            <HeaderElementsRenderer config={headerElements} onSearch={onSearch} onCTA={onCTA} onIconClick={onIconClick} navigate={navigate} />
+            <HeaderElementsRenderer
+              config={headerElements}
+              onSearch={onSearch}
+              onCTA={onCTA}
+              onIconClick={onIconClick}
+              navigate={navigate}
+              getTextStyle={getTextStyle}
+            />
             {headerRight}
             <div id="orqui-header-right" style={{ display: "contents" }} />
           </div>
@@ -460,7 +477,15 @@ export function AppShell({
               <LogoRenderer config={logoConfig} />
             )}
             {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && breadcrumbsConfig?.alignment !== "center" && breadcrumbsConfig?.alignment !== "right" && (
-              <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} items={breadcrumbItems} />
+              <BreadcrumbRenderer
+                config={breadcrumbsConfig}
+                pages={pages}
+                currentPage={pageKey ?? page}
+                navigate={navigate}
+                resolveToken={(ref) => resolveTokenRef(ref, tokens)}
+                getTextStyle={getTextStyle}
+                items={breadcrumbItems}
+              />
             )}
             {headerLeft}
             <div id="orqui-header-left" style={{ display: "contents" }} />
@@ -470,12 +495,27 @@ export function AppShell({
               <LogoRenderer config={logoConfig} />
             )}
             {breadcrumbsConfig?.enabled && breadcrumbsConfig?.position === "header" && breadcrumbsConfig?.alignment === "center" && (
-              <BreadcrumbRenderer config={breadcrumbsConfig} pages={pages} currentPage={page} navigate={navigate} resolveToken={(ref) => resolveTokenRef(ref, tokens)} items={breadcrumbItems} />
+              <BreadcrumbRenderer
+                config={breadcrumbsConfig}
+                pages={pages}
+                currentPage={pageKey ?? page}
+                navigate={navigate}
+                resolveToken={(ref) => resolveTokenRef(ref, tokens)}
+                getTextStyle={getTextStyle}
+                items={breadcrumbItems}
+              />
             )}
             {headerCenter}
           </div>
           <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: "8px" }}>
-            <HeaderElementsRenderer config={headerElements} onSearch={onSearch} onCTA={onCTA} onIconClick={onIconClick} navigate={navigate} />
+            <HeaderElementsRenderer
+              config={headerElements}
+              onSearch={onSearch}
+              onCTA={onCTA}
+              onIconClick={onIconClick}
+              navigate={navigate}
+              getTextStyle={getTextStyle}
+            />
             {logoConfig?.position === "header" && logoConfig?.headerSlot === "right" && (
               <LogoRenderer config={logoConfig} />
             )}
@@ -509,7 +549,7 @@ export function AppShell({
           marginBottom: pageHeaderConfig.showDivider ? 0 : undefined,
         }}>
           {pageHeaderConfig.showTitle !== false && (
-            <PageHeaderSlot config={pageHeaderConfig} page={page} pages={pages} resolve={resolve} />
+            <PageHeaderSlot config={pageHeaderConfig} page={pageKey ?? page} pages={pages} resolve={resolve} />
           )}
         </div>
       )}

@@ -107,7 +107,7 @@ export interface LLMProvider {
 
 // ─── Provider Names & Config ─────────────────────────────────────────────────
 
-export type ProviderName = 'anthropic' | 'openai' | 'mistral' | 'claude-code' | 'codex-cli'
+export type ProviderName = string
 
 export interface PhaseConfig {
   step: number

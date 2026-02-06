@@ -24,6 +24,7 @@ export type EmittableEvent = OrchestratorEventData | AgentEvent
 export interface OrchestratorStreamEvent {
   outputId: string
   event: OrchestratorEventData
+  seq?: number // monotonic sequence for SSE id:
 }
 
 export interface PersistAndEmitOptions {
@@ -36,6 +37,7 @@ export interface PersistAndEmitOptions {
 interface BufferedEvent {
   event: OrchestratorEventData
   timestamp: number
+  seq: number // monotonic sequence for SSE id:
   id?: number // ID do evento persistido (se disponível)
 }
 
@@ -96,6 +98,9 @@ const SENSITIVE_FIELDS = new Set([
 
 class OrchestratorEventServiceClass extends EventEmitter {
   private prisma: PrismaClient | null = null
+
+  /** Monotonic sequence counter for SSE id: frames */
+  private seq = 0
 
   /** Recent events per outputId for replay on late SSE connections */
   private eventBuffer = new Map<string, BufferedEvent[]>()
@@ -159,12 +164,12 @@ class OrchestratorEventServiceClass extends EventEmitter {
     const data = event as OrchestratorEventData
     const eventType = data.type
 
-    // 1. Always emit via EventEmitter (even for filtered events)
-    console.log('[OrchestratorEventService] Emitting:', eventType, 'for:', outputId)
-    this.emit('orchestrator-event', { outputId, event: data })
+    // 1. Add to buffer (for SSE replay) — returns monotonic seq
+    const seq = this.addToBuffer(outputId, data)
 
-    // 2. Add to buffer (for SSE replay)
-    this.addToBuffer(outputId, data)
+    // 2. Always emit via EventEmitter (even for filtered events)
+    console.log('[OrchestratorEventService] Emitting:', eventType, 'for:', outputId)
+    this.emit('orchestrator-event', { outputId, event: data, seq })
 
     // 3. Check if should persist (skip agent:text, agent:thinking)
     if (options.skipPersist || !this.shouldPersist(eventType)) {
@@ -263,6 +268,7 @@ class OrchestratorEventServiceClass extends EventEmitter {
   /**
    * Get buffered events for an outputId (for replay on SSE connect).
    * Returns events from the last BUFFER_TTL_MS milliseconds.
+   * @deprecated Use getBufferedEventsWithSeq for SSE id: support
    */
   getBufferedEvents(outputId: string): OrchestratorEventData[] {
     const buffer = this.eventBuffer.get(outputId)
@@ -270,6 +276,37 @@ class OrchestratorEventServiceClass extends EventEmitter {
 
     const cutoff = Date.now() - BUFFER_TTL_MS
     return buffer.filter((b) => b.timestamp >= cutoff).map((b) => b.event)
+  }
+
+  /**
+   * Get buffered events with seq numbers for SSE replay with id: support.
+   * Returns events from the last BUFFER_TTL_MS milliseconds.
+   */
+  getBufferedEventsWithSeq(outputId: string): Array<{ event: OrchestratorEventData; seq: number }> {
+    const buffer = this.eventBuffer.get(outputId)
+    if (!buffer) return []
+
+    const cutoff = Date.now() - BUFFER_TTL_MS
+    return buffer
+      .filter((b) => b.timestamp >= cutoff)
+      .map((b) => ({ event: b.event, seq: b.seq }))
+  }
+
+  /**
+   * Get buffered events after a specific seq number (for SSE reconnection replay).
+   * Returns only events with seq > afterSeq from the last BUFFER_TTL_MS milliseconds.
+   */
+  getBufferedEventsAfter(
+    outputId: string,
+    afterSeq: number,
+  ): Array<{ event: OrchestratorEventData; seq: number }> {
+    const buffer = this.eventBuffer.get(outputId)
+    if (!buffer || buffer.length === 0) return []
+
+    const cutoff = Date.now() - BUFFER_TTL_MS
+    return buffer
+      .filter((b) => b.timestamp >= cutoff && b.seq > afterSeq)
+      .map((b) => ({ event: b.event, seq: b.seq }))
   }
 
   /**
@@ -305,6 +342,38 @@ class OrchestratorEventServiceClass extends EventEmitter {
     }
 
     await this.flushBatch()
+  }
+
+  /**
+   * Get the current PipelineState snapshot for an outputId.
+   * Returns null if not found or Prisma not initialized.
+   */
+  async getStatus(outputId: string): Promise<import('@prisma/client').PipelineState | null> {
+    if (!this.prisma) return null
+    return this.prisma.pipelineState.findUnique({ where: { outputId } })
+  }
+
+  /**
+   * Get paginated events for an outputId, ordered by id ascending.
+   * Uses cursor-based pagination (sinceId) with N+1 pattern for hasMore detection.
+   */
+  async getEventsPaginated(
+    outputId: string,
+    sinceId?: number,
+    limit: number = 50,
+  ): Promise<{ events: PipelineEvent[]; hasMore: boolean }> {
+    if (!this.prisma) return { events: [], hasMore: false }
+    const take = Math.min(limit, 200)
+    const where: Record<string, unknown> = { outputId }
+    if (sinceId !== undefined) where.id = { gt: sinceId }
+    const events = await this.prisma.pipelineEvent.findMany({
+      where,
+      orderBy: { id: 'asc' },
+      take: take + 1,
+    })
+    const hasMore = events.length > take
+    if (hasMore) events.pop()
+    return { events, hasMore }
   }
 
   /**
@@ -349,7 +418,12 @@ class OrchestratorEventServiceClass extends EventEmitter {
       }
 
       if (typeof value === 'object' && value !== null) {
-        result[key] = this.sanitizeObject(value as Record<string, unknown>)
+        const sanitized = this.sanitizeObject(value as Record<string, unknown>)
+        // Truncamento específico de tool_result.output (5000 chars, sufixo pt-br)
+        if (key === 'tool_result' && typeof sanitized.output === 'string' && sanitized.output.length > TOOL_RESULT_MAX_SIZE) {
+          sanitized.output = sanitized.output.slice(0, TOOL_RESULT_MAX_SIZE) + '... [truncado]'
+        }
+        result[key] = sanitized
         continue
       }
 
@@ -385,12 +459,7 @@ class OrchestratorEventServiceClass extends EventEmitter {
               : item,
           )
         } else {
-          const sanitized = this.sanitizeObject(value as Record<string, unknown>)
-          // Truncamento específico de tool_result.output (5000 chars, sufixo pt-br)
-          if (key === 'tool_result' && typeof sanitized.output === 'string' && sanitized.output.length > TOOL_RESULT_MAX_SIZE) {
-            sanitized.output = sanitized.output.slice(0, TOOL_RESULT_MAX_SIZE) + '... [truncado]'
-          }
-          result[key] = sanitized
+          result[key] = this.sanitizeObject(value as Record<string, unknown>)
         }
         continue
       }
@@ -474,13 +543,14 @@ class OrchestratorEventServiceClass extends EventEmitter {
 
   // ─── Buffer ───────────────────────────────────────────────────────────────
 
-  private addToBuffer(outputId: string, event: OrchestratorEventData) {
+  private addToBuffer(outputId: string, event: OrchestratorEventData): number {
     if (!this.eventBuffer.has(outputId)) {
       this.eventBuffer.set(outputId, [])
     }
 
+    const seq = ++this.seq
     const buffer = this.eventBuffer.get(outputId)!
-    buffer.push({ event, timestamp: Date.now() })
+    buffer.push({ event, timestamp: Date.now(), seq })
 
     // Trim buffer size
     if (buffer.length > MAX_BUFFER_PER_OUTPUT) {
@@ -489,6 +559,8 @@ class OrchestratorEventServiceClass extends EventEmitter {
 
     // Evict stale events periodically (on write, not on read)
     this.evictStaleEvents(buffer)
+
+    return seq
   }
 
   private evictStaleEvents(buffer: BufferedEvent[]) {

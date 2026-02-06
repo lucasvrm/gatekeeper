@@ -4,29 +4,13 @@ import { api } from "@/lib/api"
 import type { AgentPhaseConfig, ProviderName } from "@/lib/types"
 import { STEP_LABELS } from "@/lib/types"
 
-const FALLBACK_PROVIDERS: { value: string; label: string }[] = [
-  { value: 'claude-code', label: 'Claude Code CLI' },
-  { value: 'codex-cli', label: 'Codex CLI' },
-  { value: 'anthropic', label: 'Anthropic (API Key)' },
-  { value: 'openai', label: 'OpenAI (API Key)' },
-  { value: 'mistral', label: 'Mistral (API Key)' },
-]
-
-const FALLBACK_MODELS: Record<string, string[]> = {
-  'claude-code': ['sonnet', 'opus', 'haiku'],
-  'codex-cli': ['o3-mini', 'gpt-4.1', 'o4-mini'],
-  'anthropic': ['claude-sonnet-4-5-20250929', 'claude-opus-4-5-20251101'],
-  'openai': ['gpt-4.1', 'gpt-4o'],
-  'mistral': ['mistral-large-latest'],
-}
-
 interface PhaseConfigTabProps {
   modelsByProvider?: Record<string, string[]>
   providers?: { value: string; label: string }[]
 }
 
 export function PhaseConfigTab({ modelsByProvider, providers }: PhaseConfigTabProps = {}) {
-  const providerList = providers && providers.length > 0 ? providers : FALLBACK_PROVIDERS
+  const providerList = providers && providers.length > 0 ? providers : []
   const [phases, setPhases] = useState<AgentPhaseConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<number | null>(null)
@@ -129,7 +113,7 @@ export function PhaseConfigTab({ modelsByProvider, providers }: PhaseConfigTabPr
         const isSaving = saving === phase.step
         const stepLabel = STEP_LABELS[phase.step] || `Step ${phase.step}`
         const currentProvider = (formData.provider || phase.provider) as ProviderName
-        const availableModels = modelsByProvider?.[currentProvider] || FALLBACK_MODELS[currentProvider] || []
+        const availableModels = modelsByProvider?.[currentProvider] || []
 
         return (
           <div key={phase.step} className="border rounded-lg overflow-hidden">
@@ -185,7 +169,7 @@ export function PhaseConfigTab({ modelsByProvider, providers }: PhaseConfigTabPr
                       value={formData.provider || phase.provider}
                       onChange={(e) => {
                         const np = e.target.value as ProviderName
-                        const nm = modelsByProvider?.[np] || FALLBACK_MODELS[np] || []
+                        const nm = modelsByProvider?.[np] || []
                         setFormData(prev => ({ ...prev, provider: np, model: nm[0] || prev.model }))
                       }}
                       className="w-full text-xs border rounded px-2 py-1.5 bg-background"

@@ -51,12 +51,10 @@ function getValidationBridge(): GatekeeperValidationBridge {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-const VALID_PROVIDERS = new Set<ProviderName>(['anthropic', 'openai', 'mistral', 'claude-code', 'codex-cli'])
-
 /** Validate and narrow a string from req.body to ProviderName. Returns undefined for invalid/missing values. */
 function asProvider(value: unknown): ProviderName | undefined {
-  if (typeof value === 'string' && VALID_PROVIDERS.has(value as ProviderName)) {
-    return value as ProviderName
+  if (typeof value === 'string' && value.length > 0) {
+    return value
   }
   return undefined
 }

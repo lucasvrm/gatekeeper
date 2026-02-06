@@ -77,7 +77,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-FILTER-001
   it('succeeds when agent:text event is filtered and returns null without persisting', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:text', { text: 'Hello world' })
@@ -89,7 +89,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-FILTER-001
   it('succeeds when agent:thinking event is filtered and returns null without persisting', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:thinking', { thinking: 'Hmm...' })
@@ -101,7 +101,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-FILTER-001
   it('fails when agent:text event is incorrectly persisted instead of filtered', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:text', { text: 'Should not persist' })
@@ -117,7 +117,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-FILTER-002
   it('succeeds when agent:tool_call event is persisted via prisma.pipelineEvent.create', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:tool_call', { tool: 'read_file', input: { path: '/src/index.ts' } })
@@ -137,7 +137,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-FILTER-002
   it('succeeds when agent:start event is persisted via prisma.pipelineEvent.create', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:start', { provider: 'anthropic', model: 'claude-sonnet' })
@@ -149,7 +149,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-FILTER-002
   it('fails when relevant event is not persisted to database', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:tool_result', { tool: 'read_file', output: 'file content' })
@@ -165,7 +165,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-001
   it('succeeds when apiKey field is redacted before persistence', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:config', { apiKey: 'sk-secret-key-12345', model: 'gpt-4' })
@@ -179,7 +179,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-001
   it('succeeds when token field is redacted before persistence', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:auth', { token: 'bearer-token-xyz', user: 'john' })
@@ -193,7 +193,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-001
   it('fails when sensitive password field is not redacted', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:login', { password: 'super-secret', username: 'admin' })
@@ -211,7 +211,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-002
   it('succeeds when string larger than 10KB is truncated with suffix', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const largeString = 'x'.repeat(15000) // 15KB
@@ -226,7 +226,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-002
   it('succeeds when string exactly 10KB is not truncated', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const exactString = 'y'.repeat(10240) // Exactly 10KB
@@ -241,7 +241,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-002
   it('fails when large string is persisted without truncation', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const hugeString = 'z'.repeat(20000) // 20KB
@@ -260,7 +260,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-003
   it('succeeds when tool_result.output larger than 5000 chars is truncated', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const longOutput = 'a'.repeat(6000)
@@ -275,7 +275,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-003
   it('succeeds when tool_result.output exactly 5000 chars is not truncated', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const exactOutput = 'b'.repeat(5000)
@@ -289,7 +289,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-REDACT-003
   it('fails when tool_result.output exceeding 5000 chars is not truncated', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const veryLongOutput = 'c'.repeat(8000)
@@ -308,7 +308,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-001
   it('succeeds when agent:bridge_start triggers PipelineState upsert', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_start', {})
@@ -324,7 +324,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-001
   it('succeeds when agent:complete triggers PipelineState upsert', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:complete', { tokensUsed: { input: 1000, output: 500 } })
@@ -335,7 +335,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-001
   it('fails when transition event does not trigger PipelineState upsert', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:error', { error: 'Something went wrong' })
@@ -351,7 +351,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-002
   it('succeeds when lastEventId is set to saved event id in upsert', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     mockPrisma.pipelineEvent.create.mockResolvedValueOnce({
@@ -374,7 +374,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-002
   it('succeeds when lastEventId is included in create data for new PipelineState', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     mockPrisma.pipelineEvent.create.mockResolvedValueOnce({
@@ -397,7 +397,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-002
   it('fails when lastEventId is not updated after transition event persistence', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     mockPrisma.pipelineEvent.create.mockResolvedValueOnce({
@@ -420,7 +420,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-003
   it('succeeds when agent:bridge_plan_done sets stage to spec', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_plan_done', {})
@@ -437,7 +437,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-003
   it('succeeds when agent:bridge_plan_done sets progress to 25', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_plan_done', {})
@@ -454,7 +454,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-003
   it('fails when agent:bridge_plan_done does not update stage to spec', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_plan_done', {})
@@ -471,7 +471,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-004
   it('succeeds when agent:bridge_spec_done sets stage to fix', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_spec_done', {})
@@ -488,7 +488,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-004
   it('succeeds when agent:bridge_spec_done sets progress to 50', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_spec_done', {})
@@ -505,7 +505,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-004
   it('fails when agent:bridge_spec_done does not update progress to 50', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_spec_done', {})
@@ -522,7 +522,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-005
   it('succeeds when agent:bridge_execute_done sets stage to complete', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_execute_done', {})
@@ -539,7 +539,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-005
   it('succeeds when agent:bridge_execute_done sets progress to 100', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_execute_done', {})
@@ -556,7 +556,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-005
   it('fails when agent:bridge_execute_done does not set progress to 100', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:bridge_execute_done', {})
@@ -573,7 +573,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-006
   it('succeeds when agent:error sets status to failed', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:error', { error: 'Rate limit exceeded' })
@@ -590,7 +590,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-006
   it('succeeds when agent:error with details still sets status to failed', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:error', { error: 'API timeout', code: 'TIMEOUT', retryable: true })
@@ -602,7 +602,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-STATE-006
   it('fails when agent:error does not update status to failed', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     const event = createEvent('agent:error', { error: 'Unknown error' })
@@ -619,7 +619,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-RETURN-001
   it('succeeds when persisted event is returned with correct id', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     mockPrisma.pipelineEvent.create.mockResolvedValueOnce({
@@ -639,7 +639,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-RETURN-001
   it('succeeds when returned event contains outputId', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     mockPrisma.pipelineEvent.create.mockResolvedValueOnce({
@@ -656,7 +656,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-RETURN-001
   it('fails when function does not return the created PipelineEvent', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     OrchestratorEventService.setPrisma(mockPrisma as any)
 
     mockPrisma.pipelineEvent.create.mockResolvedValueOnce({
@@ -679,7 +679,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-ERROR-001
   it('succeeds when prisma is null and returns null without throwing', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     // Simulate uninitialized prisma
     ;(OrchestratorEventService as any).prisma = null
 
@@ -692,7 +692,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-ERROR-001
   it('succeeds when prisma is undefined and logs warning', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     ;(OrchestratorEventService as any).prisma = undefined
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -708,7 +708,7 @@ describe('OrchestratorEventService.persistEventAndMaybeUpdateState', () => {
 
   // @clause CL-ERROR-001
   it('fails when prisma is not initialized and function throws exception', async () => {
-    const { OrchestratorEventService } = await import('../../OrchestratorEventService.js')
+    const { OrchestratorEventService } = await import('../OrchestratorEventService.js')
     ;(OrchestratorEventService as any).prisma = null
 
     const event = createEvent('agent:tool_call', {})

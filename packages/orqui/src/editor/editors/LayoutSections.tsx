@@ -200,6 +200,7 @@ export function LayoutSections({ layout, registry, setLayout, setRegistry }: { l
           <BreadcrumbEditor
             breadcrumbs={layout.structure.breadcrumbs}
             tokens={layout.tokens}
+            textStyles={layout.textStyles}
             onChange={(bc) => onChange({ ...layout, structure: { ...layout.structure, breadcrumbs: bc } })}
           />
         </WBSection>
@@ -214,6 +215,7 @@ export function LayoutSections({ layout, registry, setLayout, setRegistry }: { l
         <WBSection title="Header Elements" dotColor={DOT.header} tag="busca · cta · ícones · ordem" id="sec-header" defaultOpen={false}>
           <HeaderElementsEditor
             elements={layout.structure?.headerElements}
+            textStyles={layout.textStyles}
             onChange={(he) => onChange({ ...layout, structure: { ...layout.structure, headerElements: he } })}
           />
         </WBSection>

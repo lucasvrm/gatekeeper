@@ -738,6 +738,28 @@ async function main() {
   console.log(`✓ Seeded ${agentPhaseConfigs.length} agent phase configs`)
 
   // =============================================================================
+  // PROVIDER REGISTRY
+  // =============================================================================
+
+  const providers = [
+    { name: 'anthropic',   label: 'Anthropic (API Key)', authType: 'api_key', envVarName: 'ANTHROPIC_API_KEY',   order: 1, note: null },
+    { name: 'openai',      label: 'OpenAI (API Key)',    authType: 'api_key', envVarName: 'OPENAI_API_KEY',      order: 2, note: null },
+    { name: 'mistral',     label: 'Mistral (API Key)',   authType: 'api_key', envVarName: 'MISTRAL_API_KEY',     order: 3, note: null },
+    { name: 'claude-code', label: 'Claude Code CLI',     authType: 'cli',     envVarName: 'CLAUDE_CODE_ENABLED', order: 4, note: 'Uses Claude Code CLI (Max/Pro subscription). No API key required.' },
+    { name: 'codex-cli',   label: 'Codex CLI',           authType: 'cli',     envVarName: 'CODEX_CLI_ENABLED',   order: 5, note: 'Uses OpenAI Codex CLI. Requires OPENAI_API_KEY and npm i -g @openai/codex.' },
+  ]
+
+  for (const p of providers) {
+    await prisma.provider.upsert({
+      where: { name: p.name },
+      create: p,
+      update: { label: p.label, authType: p.authType, envVarName: p.envVarName, order: p.order, note: p.note },
+    })
+  }
+
+  console.log(`✓ Seeded ${providers.length} providers`)
+
+  // =============================================================================
   // PROVIDER MODEL REGISTRY
   // =============================================================================
 

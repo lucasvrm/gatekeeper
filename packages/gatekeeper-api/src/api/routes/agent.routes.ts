@@ -5,6 +5,7 @@ import { AgentRunnerController } from '../controllers/AgentRunnerController.js'
 import { AgentRunsController } from '../controllers/AgentRunsController.js'
 import { BridgeController } from '../controllers/BridgeController.js'
 import { ProviderModelController } from '../controllers/ProviderModelController.js'
+import { ProviderController } from '../controllers/ProviderController.js'
 import { OrchestratorEventService, type OrchestratorStreamEvent } from '../../services/OrchestratorEventService.js'
 import {
   CreatePhaseConfigSchema,
@@ -16,6 +17,8 @@ import {
   CreateProviderModelSchema,
   UpdateProviderModelSchema,
   DiscoverModelsSchema,
+  CreateProviderSchema,
+  UpdateProviderSchema,
 } from '../schemas/agent.schema.js'
 
 const router = Router()
@@ -25,6 +28,7 @@ const runnerCtrl = new AgentRunnerController()
 const runsCtrl = new AgentRunsController()
 const bridgeCtrl = new BridgeController()
 const providerModelCtrl = new ProviderModelController()
+const providerCtrl = new ProviderController()
 
 // ─── System Status ─────────────────────────────────────────────────────────
 
@@ -36,11 +40,47 @@ router.get('/status', async (req, res, next) => {
   }
 })
 
-// ─── Providers ─────────────────────────────────────────────────────────────
+// ─── Providers CRUD ───────────────────────────────────────────────────────
 
 router.get('/providers', async (req, res, next) => {
   try {
-    await phaseConfigCtrl.listProviders(req, res)
+    await providerCtrl.list(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/providers/all', async (req, res, next) => {
+  try {
+    await providerCtrl.listAll(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/providers', async (req, res, next) => {
+  try {
+    const validated = CreateProviderSchema.parse(req.body)
+    req.body = validated
+    await providerCtrl.create(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.put('/providers/:id', async (req, res, next) => {
+  try {
+    const validated = UpdateProviderSchema.parse(req.body)
+    req.body = validated
+    await providerCtrl.update(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.delete('/providers/:id', async (req, res, next) => {
+  try {
+    await providerCtrl.delete(req, res)
   } catch (error) {
     next(error)
   }
@@ -302,9 +342,18 @@ router.get('/runs/:id', async (req, res, next) => {
 
 // ─── SSE: Stream agent events ──────────────────────────────────────────────
 
-router.get('/events/:runId', (req, res) => {
+// Helper: flush response if compression middleware buffers
+function flushAgent(res: import('express').Response) {
+  const r = res as unknown as { flush?: () => void }
+  if (typeof r.flush === 'function') r.flush()
+}
+
+router.get('/events/:runId', async (req, res) => {
   const { runId } = req.params
-  console.log('[SSE] Agent client connected for:', runId)
+  const lastEventIdHeader = req.headers['last-event-id']
+  const lastSeq = lastEventIdHeader ? parseInt(String(lastEventIdHeader), 10) : NaN
+
+  console.log('[SSE] Agent client connected for:', runId, lastEventIdHeader ? `(reconnect after seq=${lastEventIdHeader})` : '(fresh)')
 
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache, no-transform')
@@ -315,27 +364,42 @@ router.get('/events/:runId', (req, res) => {
 
   res.write(': connected\n\n')
 
-  // Replay buffered events that were emitted before this client connected
-  const buffered = OrchestratorEventService.getBufferedEvents(runId)
-  if (buffered.length > 0) {
-    console.log(`[SSE] Replaying ${buffered.length} buffered event(s) for: ${runId}`)
-    for (const event of buffered) {
-      res.write(`data: ${JSON.stringify(event)}\n\n`)
+  // ── Replay ──
+  if (!isNaN(lastSeq)) {
+    // Reconnection: try buffer first, DB fallback
+    const buffered = OrchestratorEventService.getBufferedEventsAfter(runId, lastSeq)
+    if (buffered.length > 0) {
+      console.log(`[SSE] Replaying ${buffered.length} buffered event(s) after seq=${lastSeq} for: ${runId}`)
+      for (const { event, seq } of buffered) {
+        res.write(`id:${seq}\ndata:${JSON.stringify(event)}\n\n`)
+      }
+    } else {
+      // Buffer expired or empty: fallback to DB (up to 200 events)
+      console.log(`[SSE] Buffer miss for seq=${lastSeq}, falling back to DB for: ${runId}`)
+      const dbEvents = await OrchestratorEventService.replayFromDb(runId)
+      for (const dbEvent of dbEvents) {
+        const payload = dbEvent.payload ? JSON.parse(dbEvent.payload) : { type: dbEvent.eventType }
+        res.write(`id:db-${dbEvent.id}\ndata:${JSON.stringify(payload)}\n\n`)
+      }
     }
-    const resWithFlush = res as unknown as { flush?: () => void }
-    if (typeof resWithFlush.flush === 'function') {
-      resWithFlush.flush()
+  } else {
+    // Fresh connection: replay full buffer with seq
+    const buffered = OrchestratorEventService.getBufferedEventsWithSeq(runId)
+    if (buffered.length > 0) {
+      console.log(`[SSE] Replaying ${buffered.length} buffered event(s) for: ${runId}`)
+      for (const { event, seq } of buffered) {
+        res.write(`id:${seq}\ndata:${JSON.stringify(event)}\n\n`)
+      }
     }
   }
+  flushAgent(res)
 
+  // ── Live events with id: ──
   const onEvent = (payload: OrchestratorStreamEvent) => {
     if (payload.outputId === runId) {
-      const data = `data: ${JSON.stringify(payload.event)}\n\n`
-      res.write(data)
-      const resWithFlush = res as unknown as { flush?: () => void }
-      if (typeof resWithFlush.flush === 'function') {
-        resWithFlush.flush()
-      }
+      const seq = payload.seq ?? 0
+      res.write(`id:${seq}\ndata:${JSON.stringify(payload.event)}\n\n`)
+      flushAgent(res)
 
       // Auto-close on terminal events.
       // NOTE: We do NOT close on bridge_*_done events because those are emitted
@@ -347,16 +411,25 @@ router.get('/events/:runId', (req, res) => {
         eventType === 'agent:phase_complete' ||
         eventType === 'agent:error'
       ) {
-        res.write(`data: ${JSON.stringify({ type: 'agent:stream_end' })}\n\n`)
+        res.write(`id:${seq}\ndata:${JSON.stringify({ type: 'agent:stream_end' })}\n\n`)
+        clearInterval(heartbeatInterval)
         res.end()
       }
     }
   }
 
+  // ── Heartbeat 15s ──
+  const heartbeatInterval = setInterval(() => {
+    res.write(': heartbeat\n\n')
+    flushAgent(res)
+  }, 15_000)
+
   OrchestratorEventService.on('orchestrator-event', onEvent)
 
+  // ── Cleanup ──
   req.on('close', () => {
     console.log('[SSE] Agent client disconnected for:', runId)
+    clearInterval(heartbeatInterval)
     OrchestratorEventService.off('orchestrator-event', onEvent)
   })
 })

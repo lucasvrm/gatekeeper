@@ -40,7 +40,7 @@ export function MiniPhosphorIcon({ name, size = 16, color = "currentColor" }: { 
 // ============================================================================
 // Header Elements Editor
 // ============================================================================
-export function HeaderElementsEditor({ elements, onChange }) {
+export function HeaderElementsEditor({ elements, onChange, textStyles }) {
   const cfg = elements || {
     search: { enabled: false, placeholder: "Buscar...", showIcon: true, icon: "ph:magnifying-glass" },
     cta: { enabled: false, label: "Novo", variant: "default" },
@@ -50,6 +50,13 @@ export function HeaderElementsEditor({ elements, onChange }) {
   };
   const update = (key, field, val) => onChange({ ...cfg, [key]: { ...cfg[key], [field]: val } });
   const updateRoot = (field, val) => onChange({ ...cfg, [field]: val });
+  const updateTypography = (field, val) => {
+    const typo = { ...(cfg.typography || {}) };
+    if (!val) delete typo[field];
+    else typo[field] = val;
+    updateRoot("typography", typo);
+  };
+  const textStyleNames = textStyles ? Object.keys(textStyles) : [];
 
   // Normalize icons
   const normalizeIcons = (items) => {
@@ -182,6 +189,24 @@ export function HeaderElementsEditor({ elements, onChange }) {
       </div>
 
       {renderPreview()}
+
+      {/* Typography */}
+      {textStyleNames.length > 0 && (
+        <Section title="🅰 Tipografia" defaultOpen={false} id="header-typography">
+          <Field label="Text Style">
+            <select
+              value={cfg.typography?.textStyle || ""}
+              onChange={(e) => updateTypography("textStyle", e.target.value)}
+              style={s.select}
+            >
+              <option value="">— Nenhum (usar inline) —</option>
+              {textStyleNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </Field>
+        </Section>
+      )}
 
       {/* Order */}
       <Section title="📐 Ordem dos Elementos" defaultOpen={true} id="header-order">

@@ -32,6 +32,7 @@ import type {
   OrchestratorContentKind,
   AgentPhaseConfig,
   ProviderInfo,
+  Provider,
   ProviderModel,
   ModelDiscoveryResult,
 } from "./types"
@@ -1020,6 +1021,59 @@ export const api = {
         const response = await fetchWithAuth(`${AGENT_BASE}/providers`)
         if (!response.ok) return []
         return response.json()
+      },
+
+      listAll: async (): Promise<Provider[]> => {
+        const response = await fetchWithAuth(`${AGENT_BASE}/providers/all`)
+        if (!response.ok) throw new Error("Failed to fetch all providers")
+        return response.json()
+      },
+
+      create: async (data: {
+        name: string
+        label: string
+        authType?: string
+        envVarName?: string | null
+        isActive?: boolean
+        order?: number
+        note?: string | null
+      }): Promise<Provider> => {
+        const response = await fetchWithAuth(`${AGENT_BASE}/providers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const err = await response.json().catch(() => null)
+          throw new Error(err?.error || "Failed to create provider")
+        }
+        return response.json()
+      },
+
+      update: async (id: string, data: Partial<{
+        name: string
+        label: string
+        authType: string
+        envVarName: string | null
+        isActive: boolean
+        order: number
+        note: string | null
+      }>): Promise<Provider> => {
+        const response = await fetchWithAuth(`${AGENT_BASE}/providers/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+        if (!response.ok) {
+          const err = await response.json().catch(() => null)
+          throw new Error(err?.error || "Failed to update provider")
+        }
+        return response.json()
+      },
+
+      delete: async (id: string): Promise<void> => {
+        const response = await fetchWithAuth(`${AGENT_BASE}/providers/${id}`, { method: "DELETE" })
+        if (!response.ok) throw new Error("Failed to delete provider")
       },
     },
 

@@ -165,6 +165,7 @@ export interface HeaderElementsConfig {
   ctas?: Array<{ id: string; label: string; variant?: string; route?: string; icon?: string }>;
   icons?: { enabled?: boolean; items?: Array<{ id: string; icon: string; route?: string; badge?: any }> };
   order?: string[];
+  typography?: { textStyle?: string };
 }
 export interface PageConfig {
   label?: string;
@@ -217,6 +218,7 @@ export interface BreadcrumbsConfig {
   homeRoute?: string;
   padding?: Record<string, string>;
   typography?: {
+    textStyle?: string;
     fontSize?: string;
     fontWeight?: string;
     fontFamily?: string;

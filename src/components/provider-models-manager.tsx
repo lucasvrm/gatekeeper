@@ -1,30 +1,16 @@
 import { useState } from "react"
 import { api } from "@/lib/api"
-import type { ProviderModel } from "@/lib/types"
+import type { ProviderModel, ProviderInfo } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { X, Plus } from "lucide-react"
-
-interface ProviderInfo {
-  name: string
-  configured: boolean
-  models: string[]
-}
 
 interface ProviderModelsManagerProps {
   models: ProviderModel[]
   providers: ProviderInfo[]
   onModelAdded: (model: ProviderModel) => void
   onModelDeleted: (id: string) => void
-}
-
-const PROVIDER_LABELS: Record<string, string> = {
-  'anthropic': 'Anthropic',
-  'openai': 'OpenAI',
-  'mistral': 'Mistral',
-  'claude-code': 'Claude Code',
-  'codex-cli': 'Codex CLI',
 }
 
 export function ProviderModelsManager({ models, providers, onModelAdded, onModelDeleted }: ProviderModelsManagerProps) {
@@ -35,7 +21,6 @@ export function ProviderModelsManager({ models, providers, onModelAdded, onModel
 
   const modelsByProvider = providers.map(p => ({
     ...p,
-    label: PROVIDER_LABELS[p.name] || p.name,
     dbModels: models.filter(m => m.provider === p.name),
   }))
 

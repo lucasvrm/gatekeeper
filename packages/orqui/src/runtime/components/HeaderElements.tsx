@@ -2,6 +2,7 @@
 // Orqui Runtime — Header Elements Renderer
 // ============================================================================
 import React, { useState } from "react";
+import type { CSSProperties } from "react";
 import type { HeaderElementsConfig, Tokens } from "../types.js";
 import { resolveTokenRef } from "../tokens.js";
 import { IconValue, PhosphorIcon, PHOSPHOR_SVG_PATHS } from "../icons.js";
@@ -20,14 +21,17 @@ export const CTA_VARIANT_CSS: Record<string, any> = {
   ghost:       { background: "transparent", color: "var(--foreground)", border: "none" },
 };
 
-export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, navigate }: {
+export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, navigate, getTextStyle }: {
   config?: HeaderElementsConfig;
   onSearch?: (query: string) => void;
   onCTA?: () => void;
   onIconClick?: (iconId: string, route?: string) => void;
   navigate?: (route: string) => void;
+  getTextStyle?: (name: string) => CSSProperties;
 }) {
   if (!config) return null;
+  const textStyleName = config.typography?.textStyle;
+  const textStyleCSS = textStyleName && getTextStyle ? getTextStyle(textStyleName) : {};
 
   const handleNavigation = (route?: string, callback?: () => void) => {
     if (route) {
@@ -62,8 +66,10 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
           placeholder={config.search.placeholder || "Buscar..."}
           onChange={(e) => onSearch?.(e.target.value)}
           style={{
+            fontSize: 13,
             background: "transparent", border: "none", outline: "none",
-            color: "var(--foreground)", fontSize: 13, width: 160,
+            color: "var(--foreground)", width: 160,
+            ...textStyleCSS,
           }}
         />
       </div>
@@ -82,6 +88,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
         }} style={{
           background: "transparent", border: "none", cursor: "pointer",
           padding: 4, opacity: 0.7, color: "var(--foreground)", display: "flex", alignItems: "center",
+          ...textStyleCSS,
         }} title={ic.route || ic.id}>
           <PhosphorIcon name={phName} size={18} />
         </button>
@@ -102,6 +109,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
       <button key={cta.id} onClick={() => handleNavigation(cta.route, onCTA)} style={{
         padding: "6px 14px", borderRadius: 6, cursor: "pointer",
         fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 6,
+        ...textStyleCSS,
         ...style,
       }}>
         {phIcon && <PhosphorIcon name={phIcon} size={14} />}
@@ -122,6 +130,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
         <button key={cta.id} onClick={() => handleNavigation(cta.route, onCTA)} style={{
           padding: "6px 14px", borderRadius: 6, cursor: "pointer",
           fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 6,
+          ...textStyleCSS,
           ...style,
         }}>
           {phIcon && <PhosphorIcon name={phIcon} size={14} />}

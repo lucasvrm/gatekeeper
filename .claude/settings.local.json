@@ -56,7 +56,9 @@
       "Bash(packages\\\\gatekeeper-api\\\\node_modules\\\\.bin\\\\prisma.cmd generate:*)",
       "Bash(cmd /c \"packages\\\\gatekeeper-api\\\\node_modules\\\\.bin\\\\prisma.cmd generate --schema=packages\\\\gatekeeper-api\\\\prisma\\\\schema.prisma\")",
       "Bash(cmd /c \"cd packages\\\\gatekeeper-api && npx prisma generate\")",
-      "Bash(cmd /c \"cd packages\\\\gatekeeper-api && npx prisma generate 2>&1\")"
+      "Bash(cmd /c \"cd packages\\\\gatekeeper-api && npx prisma generate 2>&1\")",
+      "Bash(VITEST_RUN_E2E=true npx vitest run:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

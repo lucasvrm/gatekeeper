@@ -43,9 +43,15 @@ export function SeparatorEditor({ separator, tokens, onChange }) {
 // ============================================================================
 // Breadcrumb Editor
 // ============================================================================
-export function BreadcrumbEditor({ breadcrumbs, tokens, onChange }) {
+export function BreadcrumbEditor({ breadcrumbs, tokens, textStyles, onChange }) {
   const bc = breadcrumbs || { enabled: false, position: "header", alignment: "left", separator: "/", clickable: true, showHome: true, homeLabel: "Home", homeRoute: "/" };
   const update = (field, val) => onChange({ ...bc, [field]: val });
+  const updateTypo = (field, val) => {
+    const typo = { ...(bc.typography || {}) };
+    if (!val) delete typo[field];
+    else typo[field] = val;
+    onChange({ ...bc, typography: typo });
+  };
 
   const SEPARATORS = [
     { value: "/", label: "/ (slash)" },
@@ -57,6 +63,7 @@ export function BreadcrumbEditor({ breadcrumbs, tokens, onChange }) {
 
   // Preview items
   const items = ["Home", "Editor", "Preview"];
+  const textStyleNames = textStyles ? Object.keys(textStyles) : [];
 
   return (
     <div style={{ ...s.card, marginBottom: 12 }}>
@@ -146,31 +153,47 @@ export function BreadcrumbEditor({ breadcrumbs, tokens, onChange }) {
 
           {/* Typography */}
           <div style={{ marginTop: 12, marginBottom: 4, fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Tipografia</div>
+          {textStyleNames.length > 0 && (
+            <Row gap={12}>
+              <Field label="Text Style" style={{ flex: 1 }}>
+                <select
+                  value={bc.typography?.textStyle || ""}
+                  onChange={(e) => updateTypo("textStyle", e.target.value)}
+                  style={s.select}
+                >
+                  <option value="">— Nenhum (usar inline) —</option>
+                  {textStyleNames.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </Field>
+            </Row>
+          )}
           <Row gap={12}>
             <Field label="Font Size" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.fontSize} category="fontSizes" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, fontSize: v } })} />
+              <TokenRefSelect tokens={tokens} value={bc.typography?.fontSize} category="fontSizes" onChange={(v) => updateTypo("fontSize", v)} />
             </Field>
             <Field label="Font Weight" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.fontWeight} category="fontWeights" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, fontWeight: v } })} />
+              <TokenRefSelect tokens={tokens} value={bc.typography?.fontWeight} category="fontWeights" onChange={(v) => updateTypo("fontWeight", v)} />
             </Field>
             <Field label="Font Family" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.fontFamily} category="fontFamilies" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, fontFamily: v } })} />
+              <TokenRefSelect tokens={tokens} value={bc.typography?.fontFamily} category="fontFamilies" onChange={(v) => updateTypo("fontFamily", v)} />
             </Field>
           </Row>
           <Row gap={12}>
             <Field label="Color (links)" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.color} category="colors" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, color: v } })} />
+              <TokenRefSelect tokens={tokens} value={bc.typography?.color} category="colors" onChange={(v) => updateTypo("color", v)} />
             </Field>
             <Field label="Color (ativo)" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.activeColor} category="colors" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, activeColor: v } })} />
+              <TokenRefSelect tokens={tokens} value={bc.typography?.activeColor} category="colors" onChange={(v) => updateTypo("activeColor", v)} />
             </Field>
             <Field label="Weight (ativo)" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.activeFontWeight} category="fontWeights" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, activeFontWeight: v } })} />
+              <TokenRefSelect tokens={tokens} value={bc.typography?.activeFontWeight} category="fontWeights" onChange={(v) => updateTypo("activeFontWeight", v)} />
             </Field>
           </Row>
           <Row gap={12}>
             <Field label="Cor separador" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.separatorColor} category="colors" onChange={(v) => onChange({ ...bc, typography: { ...bc.typography, separatorColor: v } })} />
+              <TokenRefSelect tokens={tokens} value={bc.typography?.separatorColor} category="colors" onChange={(v) => updateTypo("separatorColor", v)} />
             </Field>
           </Row>
 
@@ -526,4 +549,3 @@ export function PageHeaderEditor({ config, textStyles, onChange }: { config: any
     </div>
   );
 }
-

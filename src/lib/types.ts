@@ -361,7 +361,7 @@ export interface SessionProfile {
 }
 
 // Agent Pipeline Phase Config
-export type ProviderName = 'anthropic' | 'openai' | 'mistral' | 'claude-code' | 'codex-cli'
+export type ProviderName = string
 
 export interface AgentPhaseConfig {
   step: number  // 1=Planner, 2=Spec, 3=Fixer, 4=Coder
@@ -517,11 +517,29 @@ export interface OrchestratorContent {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ProviderInfo {
+  id: string
   name: string
   label: string
+  authType: string
+  envVarName: string | null
+  isActive: boolean
+  order: number
+  note?: string | null
   configured: boolean
   models: string[]
-  note?: string
+}
+
+export interface Provider {
+  id: string
+  name: string
+  label: string
+  authType: string
+  envVarName: string | null
+  isActive: boolean
+  order: number
+  note: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

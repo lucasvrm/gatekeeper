@@ -107,49 +107,4 @@ export class AgentPhaseConfigController {
     }
   }
 
-  /**
-   * GET /agent/providers — List available providers (from DB + env)
-   */
-  async listProviders(_req: Request, res: Response): Promise<void> {
-    const PROVIDER_LABELS: Record<string, string> = {
-      'anthropic': 'Anthropic (API Key)',
-      'openai': 'OpenAI (API Key)',
-      'mistral': 'Mistral (API Key)',
-      'claude-code': 'Claude Code CLI',
-      'codex-cli': 'Codex CLI',
-    }
-
-    const dbModels = await prisma.providerModel.findMany({
-      where: { isActive: true },
-      orderBy: [{ provider: 'asc' }, { modelId: 'asc' }],
-    })
-
-    // Group models by provider
-    const modelsByProvider: Record<string, string[]> = {}
-    for (const m of dbModels) {
-      if (!modelsByProvider[m.provider]) modelsByProvider[m.provider] = []
-      modelsByProvider[m.provider].push(m.modelId)
-    }
-
-    const configuredMap: Record<string, boolean> = {
-      'anthropic': !!process.env.ANTHROPIC_API_KEY,
-      'openai': !!process.env.OPENAI_API_KEY,
-      'mistral': !!process.env.MISTRAL_API_KEY,
-      'claude-code': process.env.CLAUDE_CODE_ENABLED === 'true',
-      'codex-cli': process.env.CODEX_CLI_ENABLED === 'true',
-    }
-
-    const providerNames = [...new Set([...Object.keys(modelsByProvider), ...Object.keys(configuredMap)])]
-
-    const providers = providerNames.map(name => ({
-      name,
-      label: PROVIDER_LABELS[name] ?? name,
-      configured: configuredMap[name] ?? false,
-      models: modelsByProvider[name] ?? [],
-      ...(name === 'claude-code' ? { note: 'Uses Claude Code CLI (Max/Pro subscription). No API key required.' } : {}),
-      ...(name === 'codex-cli' ? { note: 'Uses OpenAI Codex CLI. Requires OPENAI_API_KEY and npm i -g @openai/codex.' } : {}),
-    }))
-
-    res.json(providers)
-  }
 }

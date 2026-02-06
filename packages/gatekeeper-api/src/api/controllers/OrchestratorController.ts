@@ -109,6 +109,23 @@ export class OrchestratorController {
     }
   }
 
+  async getStatus(req: Request, res: Response): Promise<void> {
+    const { outputId } = req.params
+    const state = await OrchestratorEventService.getStatus(outputId)
+    if (!state) {
+      res.status(404).json({ error: 'Pipeline não encontrada', code: 'NOT_FOUND' })
+      return
+    }
+    res.json(state)
+  }
+
+  async getEvents(req: Request, res: Response): Promise<void> {
+    const { outputId } = req.params
+    const { sinceId, limit } = (req as any).validatedQuery as { sinceId?: number; limit: number }
+    const result = await OrchestratorEventService.getEventsPaginated(outputId, sinceId, limit)
+    res.json(result)
+  }
+
   async execute(req: Request, res: Response): Promise<void> {
     const data = req.body as ExecuteInput
 
