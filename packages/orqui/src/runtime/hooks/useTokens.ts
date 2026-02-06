@@ -98,6 +98,12 @@ export function resolveStyleOverrides(
 export function textStyleToCSS(def: TextStyleDef | undefined): React.CSSProperties {
   if (!def) return {};
 
+  const resolveStyleValue = (value?: string | number) => {
+    if (value == null) return undefined;
+    if (typeof value === "number") return value;
+    return resolveTokenToCSS(value);
+  };
+
   return {
     fontFamily: def.fontFamily ? resolveTokenToCSS(def.fontFamily) : undefined,
     fontSize: def.fontSize ? resolveTokenToCSS(def.fontSize) : undefined,
@@ -106,8 +112,8 @@ export function textStyleToCSS(def: TextStyleDef | undefined): React.CSSProperti
         ? resolveTokenToCSS(def.fontWeight)
         : def.fontWeight
       : undefined,
-    lineHeight: def.lineHeight,
-    letterSpacing: def.letterSpacing ? resolveTokenToCSS(def.letterSpacing) : undefined,
+    lineHeight: resolveStyleValue(def.lineHeight),
+    letterSpacing: resolveStyleValue(def.letterSpacing),
   } as React.CSSProperties;
 }
 

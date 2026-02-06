@@ -132,6 +132,59 @@ export function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string
   lines.push(`  -moz-osx-font-smoothing: grayscale${imp};`);
   lines.push("}");
 
+  // --- Global typography from textStyles (when available) ---
+  const textStyles = layout?.textStyles ?? {};
+  const resolveTextStyleValue = (value?: string | number) => {
+    if (value == null) return null;
+    if (typeof value === "number") return value;
+    const resolved = resolveTokenRef(value, tokens);
+    if (resolved != null) return resolved;
+    if (value.startsWith("$tokens.")) return null;
+    return value;
+  };
+
+  const pushTextStyle = (selector: string, style?: Record<string, any>) => {
+    if (!style) return;
+    const rules: string[] = [];
+    const ff = resolveTextStyleValue(style.fontFamily);
+    if (ff != null) rules.push(`  font-family: ${ff}${imp};`);
+    const fs = resolveTextStyleValue(style.fontSize);
+    if (fs != null) rules.push(`  font-size: ${fs}${imp};`);
+    const fw = resolveTextStyleValue(style.fontWeight);
+    if (fw != null) rules.push(`  font-weight: ${fw}${imp};`);
+    const lh = resolveTextStyleValue(style.lineHeight);
+    if (lh != null) rules.push(`  line-height: ${lh}${imp};`);
+    const ls = resolveTextStyleValue(style.letterSpacing);
+    if (ls != null) rules.push(`  letter-spacing: ${ls}${imp};`);
+    if (rules.length === 0) return;
+    lines.push(`${selector} {`);
+    lines.push(...rules);
+    lines.push("}");
+  };
+
+  const heading1 = textStyles["heading-1"];
+  const heading2 = textStyles["heading-2"];
+  const heading3 = textStyles["heading-3"];
+  const heading4 = textStyles["heading-4"];
+  const heading5 = textStyles["heading-5"];
+  const heading6 = textStyles["heading-6"];
+  const bodyStyle = textStyles.body;
+  const captionStyle = textStyles.caption;
+
+  if (heading1 || heading2 || heading3 || heading4 || heading5 || heading6 || bodyStyle || captionStyle) {
+    lines.push("");
+    lines.push("/* Orqui Contract → Global typography */");
+    pushTextStyle("body", bodyStyle);
+    pushTextStyle("p", bodyStyle);
+    pushTextStyle("small", captionStyle);
+    pushTextStyle("h1", heading1);
+    pushTextStyle("h2", heading2);
+    pushTextStyle("h3", heading3);
+    pushTextStyle("h4", heading4);
+    pushTextStyle("h5", heading5);
+    pushTextStyle("h6", heading6);
+  }
+
   // --- Card and component refinements ---
   // Override shadcn's rounded-xl on cards to use contract border-radius
   const cardRadius = borderRadius.lg ? `${borderRadius.lg.value}${borderRadius.lg.unit}` : null;

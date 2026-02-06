@@ -37,6 +37,11 @@ export function ContractProvider({ layout, registry, children, injectCSS = true 
       const style = (layout.textStyles as any)?.[name];
       return style ? resolveTextStyleCSS(style, layout.tokens) : {};
     },
+    getComponentDef: (name: string) => registry?.components?.[name] ?? null,
+    getComponentRenderer: (name: string) => {
+      const def = registry?.components?.[name];
+      return def?.renderer ?? null;
+    },
     getTokenValue: (category: string, key: string) => {
       const token = (layout.tokens as any)[category]?.[key];
       return token ? tokenToCSS(token) : "";
@@ -159,6 +164,6 @@ export function useLayoutMode(): "sidebar-first" | "header-first" {
 }
 
 export function useComponentDef(name: string) {
-  const { registry } = useContract();
-  return registry.components[name] ?? null;
+  const { getComponentDef } = useContract();
+  return getComponentDef(name);
 }

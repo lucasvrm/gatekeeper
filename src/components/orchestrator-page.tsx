@@ -25,7 +25,9 @@ import { FixInstructionsDialog } from "@/components/fix-instructions-dialog"
 // Session persistence
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SESSION_KEY = "gk-orchestrator-session"
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+const SESSION_KEY_PREFIX = "gk-pipeline-"
+const ACTIVE_KEY = "gk-active-pipeline"
 
 interface OrchestratorSession {
   outputId?: string
@@ -41,32 +43,84 @@ interface OrchestratorSession {
   specArtifacts: ParsedArtifact[]
   runId: string | null
   savedAt: number
+  // Pipeline reconciliation fields
+  lastEventId: number
+  lastSeq: number
+  pipelineStatus: string | null    // 'running' | 'completed' | 'failed'
+  pipelineStage: string | null     // 'planning' | 'spec' | 'fix' | 'execute' | 'complete'
+  pipelineProgress: number         // 0-100
+}
+
+function sessionKey(id: string): string {
+  return `${SESSION_KEY_PREFIX}${id}`
 }
 
 function saveSession(session: OrchestratorSession) {
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
-  } catch { /* sessionStorage full or unavailable */ }
+    if (session.outputId) {
+      localStorage.setItem(sessionKey(session.outputId), JSON.stringify(session))
+      localStorage.setItem(ACTIVE_KEY, session.outputId)
+    }
+  } catch { /* localStorage full or unavailable */ }
 }
 
-function loadSession(): OrchestratorSession | null {
+function loadSession(outputId?: string): OrchestratorSession | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
-    if (!raw) return null
-    const session = JSON.parse(raw) as OrchestratorSession
-    // Expire sessions older than 4 hours
-    if (Date.now() - session.savedAt > 4 * 60 * 60 * 1000) {
-      sessionStorage.removeItem(SESSION_KEY)
-      return null
+    // 1. Try to load by explicit outputId or active pointer
+    const targetId = outputId || localStorage.getItem(ACTIVE_KEY)
+    if (targetId) {
+      const raw = localStorage.getItem(sessionKey(targetId))
+      if (raw) {
+        const session = JSON.parse(raw) as OrchestratorSession
+        if (Date.now() - session.savedAt > SESSION_TTL_MS) {
+          localStorage.removeItem(sessionKey(targetId))
+          if (localStorage.getItem(ACTIVE_KEY) === targetId) localStorage.removeItem(ACTIVE_KEY)
+          return null
+        }
+        return session
+      }
     }
-    return session
+
+    // 2. Backward compat: migrate from old sessionStorage format
+    const legacyRaw = sessionStorage.getItem("gk-orchestrator-session")
+    if (legacyRaw) {
+      const legacy = JSON.parse(legacyRaw)
+      if (Date.now() - legacy.savedAt > SESSION_TTL_MS) {
+        sessionStorage.removeItem("gk-orchestrator-session")
+        return null
+      }
+      const migrated: OrchestratorSession = {
+        ...legacy,
+        lastEventId: 0,
+        lastSeq: 0,
+        pipelineStatus: null,
+        pipelineStage: null,
+        pipelineProgress: 0,
+      }
+      if (migrated.outputId) {
+        localStorage.setItem(sessionKey(migrated.outputId), JSON.stringify(migrated))
+        localStorage.setItem(ACTIVE_KEY, migrated.outputId)
+      }
+      sessionStorage.removeItem("gk-orchestrator-session")
+      return migrated
+    }
+
+    return null
   } catch {
     return null
   }
 }
 
-function clearSession() {
-  sessionStorage.removeItem(SESSION_KEY)
+function clearSession(outputId?: string) {
+  if (outputId) {
+    localStorage.removeItem(sessionKey(outputId))
+    if (localStorage.getItem(ACTIVE_KEY) === outputId) localStorage.removeItem(ACTIVE_KEY)
+  } else {
+    const activeId = localStorage.getItem(ACTIVE_KEY)
+    if (activeId) localStorage.removeItem(sessionKey(activeId))
+    localStorage.removeItem(ACTIVE_KEY)
+  }
+  sessionStorage.removeItem("gk-orchestrator-session")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -307,8 +361,8 @@ export function OrchestratorPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // ── Restore session from sessionStorage or URL params ────────────────
-  const saved = useRef(loadSession()).current
+  // ── Restore session from localStorage or URL params ─────────────────
+  const saved = useRef(loadSession(searchParams.get("outputId") ?? undefined)).current
   const resumeOutputId = searchParams.get("outputId")
   const resumeStep = searchParams.get("step") ? Number(searchParams.get("step")) : undefined
 
@@ -467,6 +521,13 @@ export function OrchestratorPage() {
   // Nonce to ignore SSE events from stale/previous executions
   const executionNonceRef = useRef(0)
 
+  // Pipeline reconciliation tracking refs (persisted to session)
+  const lastEventIdRef = useRef(saved?.lastEventId ?? 0)
+  const lastSeqRef = useRef(saved?.lastSeq ?? 0)
+  const pipelineStatusRef = useRef<string | null>(saved?.pipelineStatus ?? null)
+  const pipelineStageRef = useRef<string | null>(saved?.pipelineStage ?? null)
+  const pipelineProgressRef = useRef(saved?.pipelineProgress ?? 0)
+
   const [executionProgress, setExecutionProgress] = useState<{
     provider: string
     model: string
@@ -518,6 +579,11 @@ export function OrchestratorPage() {
       specArtifacts,
       runId,
       savedAt: Date.now(),
+      lastEventId: lastEventIdRef.current,
+      lastSeq: lastSeqRef.current,
+      pipelineStatus: pipelineStatusRef.current,
+      pipelineStage: pipelineStageRef.current,
+      pipelineProgress: pipelineProgressRef.current,
     })
   }, [outputId, step, completedSteps, taskDescription, taskType, selectedProjectId, provider, model, stepLLMs, planArtifacts, specArtifacts, runId])
 
@@ -580,7 +646,7 @@ export function OrchestratorPage() {
 
   // ── Reset all state ────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
-    clearSession()
+    clearSession(outputId)
     setStep(0)
     setCompletedSteps(new Set())
     setOutputId(undefined)
@@ -602,8 +668,13 @@ export function OrchestratorPage() {
     setLogs([])
     setTaskDescription("")
     setTaskType(undefined)
+    lastEventIdRef.current = 0
+    lastSeqRef.current = 0
+    pipelineStatusRef.current = null
+    pipelineStageRef.current = null
+    pipelineProgressRef.current = 0
     toast.success("Sessão resetada")
-  }, [])
+  }, [outputId])
 
   // ── Navigate to a completed step ──────────────────────────────────────
   const handleStepClick = useCallback((targetStep: WizardStep) => {

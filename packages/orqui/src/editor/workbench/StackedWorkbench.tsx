@@ -131,9 +131,13 @@ function SectionEditorContent({
   setLayout: (l: any) => void;
   setRegistry: (r: any) => void;
 }) {
+  // ⚠️ HOOKS PRIMEIRO - antes de qualquer condicional (Rules of Hooks)
+  const [activeTextStyle, setActiveTextStyle] = usePersistentTab("sw-textstyle", "");
+  const [fontTab, setFontTab] = usePersistentTab("sw-font-tab", "families");
+
+  // Depois das chamadas de hooks, podemos verificar condições
   const section = getSectionDef(sectionId);
   const activity = getActivityForSection(sectionId);
-  const [activeTextStyle, setActiveTextStyle] = usePersistentTab("sw-textstyle", "");
 
   if (!section || !activity) return null;
 
@@ -185,7 +189,6 @@ function SectionEditorContent({
 
       // ── Tipografia ────────────────────────────────────────────
       case "font-tokens": {
-        const [fontTab, setFontTab] = usePersistentTab("sw-font-tab", "families");
         const fontTabs = [
           { id: "families", label: "Families" },
           { id: "sizes", label: "Sizes" },

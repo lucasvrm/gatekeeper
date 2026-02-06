@@ -582,3 +582,27 @@ export interface GridLayoutConfig {
   gap: string
   items: GridItem[]
 }
+
+export interface PipelineState {
+  outputId: string
+  status: string   // 'running' | 'completed' | 'failed'
+  stage: string    // 'planning' | 'spec' | 'fix' | 'execute' | 'complete'
+  progress: number // 0-100
+  summary: string | null
+  lastEventId: number
+  agentRunId: string | null
+  startedAt: string
+  updatedAt: string
+}
+
+export interface PipelineEvent {
+  id: number
+  outputId: string
+  stage: string
+  eventType: string
+  level: string | null
+  message: string | null
+  payload: string | null
+  source: string | null
+  createdAt: string
+}

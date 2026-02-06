@@ -56,7 +56,7 @@ export interface TextStyleDef {
   fontSize?: string;
   fontWeight?: string | number;
   lineHeight?: string | number;
-  letterSpacing?: string;
+  letterSpacing?: string | number;
 }
 
 export interface ShellConfig {

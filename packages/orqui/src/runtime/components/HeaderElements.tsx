@@ -32,6 +32,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
   if (!config) return null;
   const textStyleName = config.typography?.textStyle;
   const textStyleCSS = textStyleName && getTextStyle ? getTextStyle(textStyleName) : {};
+  const textStyleColor = (textStyleCSS as CSSProperties).color;
 
   const handleNavigation = (route?: string, callback?: () => void) => {
     if (route) {
@@ -52,6 +53,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
   const renderSearch = () => {
     if (!config.search?.enabled) return null;
     const searchIcon = config.search.icon?.startsWith("ph:") ? config.search.icon.slice(3) : "magnifying-glass";
+    const searchIconColor = textStyleColor || "var(--muted-foreground, #888)";
     return (
       <div key="search" style={{
         display: "flex", alignItems: "center", gap: 6,
@@ -59,7 +61,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
         padding: "4px 10px", border: "1px solid var(--border)",
       }}>
         {(config.search.showIcon !== false) && (
-          <PhosphorIcon name={searchIcon} size={14} color="var(--muted-foreground, #888)" />
+          <PhosphorIcon name={searchIcon} size={14} color={searchIconColor} />
         )}
         <input
           type="text"

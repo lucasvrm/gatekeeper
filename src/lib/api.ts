@@ -35,6 +35,8 @@ import type {
   Provider,
   ProviderModel,
   ModelDiscoveryResult,
+  PipelineState,
+  PipelineEvent,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -1405,6 +1407,39 @@ export const api = {
         })
       )
       return contents
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Orchestrator Pipeline State (status + event backfill for reconciliation)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  orchestrator: {
+    /** GET /api/orchestrator/:outputId/status — returns null on 404 */
+    status: async (outputId: string): Promise<PipelineState | null> => {
+      try {
+        const response = await fetchWithAuth(`${API_BASE}/orchestrator/${outputId}/status`)
+        if (response.status === 404) return null
+        if (!response.ok) throw new Error("Failed to fetch pipeline status")
+        return response.json()
+      } catch {
+        return null
+      }
+    },
+
+    /** GET /api/orchestrator/:outputId/events?sinceId=N&limit=N */
+    events: async (outputId: string, sinceId?: number, limit?: number): Promise<{
+      events: PipelineEvent[]
+      hasMore: boolean
+    }> => {
+      const params = new URLSearchParams()
+      if (sinceId !== undefined) params.append("sinceId", String(sinceId))
+      if (limit !== undefined) params.append("limit", String(limit))
+      const response = await fetchWithAuth(
+        `${API_BASE}/orchestrator/${outputId}/events?${params}`
+      )
+      if (!response.ok) throw new Error("Failed to fetch pipeline events")
+      return response.json()
     },
   },
 

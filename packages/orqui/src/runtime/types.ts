@@ -1,7 +1,7 @@
 // ============================================================================
 // Orqui Runtime — Shared Types
 // ============================================================================
-import type { CSSProperties } from "react";
+import type { CSSProperties, ComponentType } from "react";
 
 // ============================================================================
 // Grid Engine Types
@@ -307,9 +307,45 @@ export interface LayoutContract {
     loginPage?: LoginPageConfig;
   };
 }
+export interface ComponentPropDef {
+  type: string;
+  required?: boolean;
+  description?: string;
+  default?: any;
+  enumValues?: string[];
+}
+export interface ComponentSlotDef {
+  description?: string;
+  required?: boolean;
+  acceptedComponents?: string[];
+}
+export interface ComponentVariantDef {
+  name: string;
+  props?: Record<string, any>;
+  slots?: Record<string, any>;
+}
+export interface ComponentExampleDef {
+  name: string;
+  props?: Record<string, any>;
+  slots?: Record<string, any>;
+}
+export interface ComponentDef {
+  name: string;
+  category?: string;
+  description?: string;
+  source?: string;
+  props?: Record<string, ComponentPropDef>;
+  slots?: Record<string, ComponentSlotDef>;
+  variants?: ComponentVariantDef[];
+  examples?: ComponentExampleDef[];
+  tags?: string[];
+  styles?: Record<string, any>;
+}
+export type ComponentRenderer = ComponentType<any>;
+export type ComponentRegistryEntry = ComponentDef & { renderer?: ComponentRenderer };
 export interface UIRegistryContract {
   $orqui?: Record<string, any>;
-  components: Record<string, any>;
+  components: Record<string, ComponentRegistryEntry>;
 }
 export interface ContractContextValue {
   layout: LayoutContract;
@@ -317,6 +353,8 @@ export interface ContractContextValue {
   tokens: Tokens;
   resolveToken: (ref: string) => string | number | null;
   getTextStyle: (name: string) => CSSProperties;
+  getComponentDef: (name: string) => ComponentRegistryEntry | null;
+  getComponentRenderer: (name: string) => ComponentRenderer | null;
   getTokenValue: (category: string, key: string) => string;
   color: (name: string) => string;
 }
