@@ -166,6 +166,22 @@ export function ConfigPage() {
     }
   }
 
+  const handleBulkFailModeChange = async (keys: string[], mode: FailMode) => {
+    try {
+      const updated = await api.validators.bulkUpdate({ keys, updates: { failMode: mode } })
+      if (!updated) throw new Error("Falha ao atualizar validators")
+      const updatedMap = new Map(updated.map((item: ValidatorConfigItem) => [item.key, item]))
+      setValidators((prev) => prev.map((item) => {
+        const u = updatedMap.get(item.key)
+        return u ? { ...item, ...u } : item
+      }))
+      toast.success(`${keys.length} validators atualizados para ${mode}`)
+    } catch (error) {
+      console.error("Failed to bulk update validators:", error)
+      toast.error("Falha ao atualizar validators em massa")
+    }
+  }
+
   const handleCreateSensitive = async (values: Record<string, string | boolean>) => {
     try {
       const created = api.configTables?.sensitiveFileRules?.create
@@ -421,6 +437,7 @@ export function ConfigPage() {
             validationConfigs={validationConfigs}
             onToggle={handleToggleValidator}
             onFailModeChange={handleFailModeChange}
+            onBulkFailModeChange={handleBulkFailModeChange}
             onUpdateConfig={handleUpdateValidationConfigValue}
           />
         </TabsContent>

@@ -4,15 +4,15 @@ import { api } from "@/lib/api"
 import type { AgentPhaseConfig, ProviderName } from "@/lib/types"
 import { STEP_LABELS } from "@/lib/types"
 
-const PROVIDERS: { value: ProviderName; label: string }[] = [
-  { value: 'claude-code', label: 'Claude Code (CLI)' },
-  { value: 'codex-cli', label: 'Codex CLI (OpenAI)' },
-  { value: 'anthropic', label: 'Anthropic API' },
-  { value: 'openai', label: 'OpenAI API' },
-  { value: 'mistral', label: 'Mistral API' },
+const FALLBACK_PROVIDERS: { value: string; label: string }[] = [
+  { value: 'claude-code', label: 'Claude Code CLI' },
+  { value: 'codex-cli', label: 'Codex CLI' },
+  { value: 'anthropic', label: 'Anthropic (API Key)' },
+  { value: 'openai', label: 'OpenAI (API Key)' },
+  { value: 'mistral', label: 'Mistral (API Key)' },
 ]
 
-const FALLBACK_MODELS: Record<ProviderName, string[]> = {
+const FALLBACK_MODELS: Record<string, string[]> = {
   'claude-code': ['sonnet', 'opus', 'haiku'],
   'codex-cli': ['o3-mini', 'gpt-4.1', 'o4-mini'],
   'anthropic': ['claude-sonnet-4-5-20250929', 'claude-opus-4-5-20251101'],
@@ -22,9 +22,11 @@ const FALLBACK_MODELS: Record<ProviderName, string[]> = {
 
 interface PhaseConfigTabProps {
   modelsByProvider?: Record<string, string[]>
+  providers?: { value: string; label: string }[]
 }
 
-export function PhaseConfigTab({ modelsByProvider }: PhaseConfigTabProps = {}) {
+export function PhaseConfigTab({ modelsByProvider, providers }: PhaseConfigTabProps = {}) {
+  const providerList = providers && providers.length > 0 ? providers : FALLBACK_PROVIDERS
   const [phases, setPhases] = useState<AgentPhaseConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<number | null>(null)
@@ -188,7 +190,7 @@ export function PhaseConfigTab({ modelsByProvider }: PhaseConfigTabProps = {}) {
                       }}
                       className="w-full text-xs border rounded px-2 py-1.5 bg-background"
                     >
-                      {PROVIDERS.map(p => (
+                      {providerList.map(p => (
                         <option key={p.value} value={p.value}>{p.label}</option>
                       ))}
                     </select>
@@ -259,7 +261,7 @@ export function PhaseConfigTab({ modelsByProvider }: PhaseConfigTabProps = {}) {
                       className="w-full text-xs border rounded px-2 py-1.5 bg-background"
                     >
                       <option value="">Nenhum</option>
-                      {PROVIDERS.map(p => (
+                      {providerList.map(p => (
                         <option key={p.value} value={p.value}>{p.label}</option>
                       ))}
                     </select>

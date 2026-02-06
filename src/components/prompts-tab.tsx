@@ -52,10 +52,13 @@ export function PromptsTab() {
     }
   }
 
-  const handleCreate = (step: number | null = null, role: 'system' | 'user' = 'system') => {
+  const [newPromptKind, setNewPromptKind] = useState<string | null>(null)
+
+  const handleCreate = (step: number | null = null, role: 'system' | 'user' = 'system', kind: string | null = null) => {
     setEditingPrompt(null)
     setNewPromptStep(step)
     setNewPromptRole(role)
+    setNewPromptKind(kind)
     setDialogOpen(true)
   }
 
@@ -283,6 +286,7 @@ export function PromptsTab() {
               onToggleExpand={toggleExpand}
               onEdit={handleEdit}
               onDelete={(id, name) => handleDelete(id, name)}
+              onCreate={(kind) => handleCreate(null, 'system', kind)}
             />
           )}
 
@@ -346,6 +350,7 @@ export function PromptsTab() {
           prompt={editingPrompt}
           defaultStep={newPromptStep}
           defaultRole={newPromptRole}
+          defaultKind={newPromptKind}
           onClose={() => setDialogOpen(false)}
           onSave={loadPrompts}
         />
@@ -440,6 +445,7 @@ interface DynamicInstructionsContentProps {
   onToggleExpand: (id: string) => void
   onEdit: (prompt: PromptInstruction) => void
   onDelete: (id: string, name: string) => void
+  onCreate: (kind: string) => void
 }
 
 function DynamicInstructionsContent({
@@ -450,6 +456,7 @@ function DynamicInstructionsContent({
   onToggleExpand,
   onEdit,
   onDelete,
+  onCreate,
 }: DynamicInstructionsContentProps) {
   // Group prompts by kind
   const promptsByKind = prompts.reduce((acc, p) => {
@@ -459,10 +466,10 @@ function DynamicInstructionsContent({
     return acc
   }, {} as Record<string, PromptInstruction[]>)
 
-  // Get available kinds sorted by DYNAMIC_INSTRUCTION_KINDS order
-  const availableKinds = Object.keys(DYNAMIC_INSTRUCTION_KINDS).filter(k => promptsByKind[k]?.length > 0)
+  // Show ALL defined kinds (even empty ones to allow creation) + any extra kinds from data
+  const definedKinds = Object.keys(DYNAMIC_INSTRUCTION_KINDS)
   const otherKinds = Object.keys(promptsByKind).filter(k => !DYNAMIC_INSTRUCTION_KINDS[k])
-  const allKinds = [...availableKinds, ...otherKinds]
+  const allKinds = [...definedKinds, ...otherKinds]
 
   // Current kind prompts
   const currentKindPrompts = promptsByKind[activeKind] || []
@@ -508,14 +515,21 @@ function DynamicInstructionsContent({
               <h4 className="font-semibold flex items-center gap-2">
                 {currentKindInfo?.icon && <span className="text-lg">{currentKindInfo.icon}</span>}
                 {currentKindInfo?.label || activeKind}
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({currentKindPrompts.length})
+                </span>
               </h4>
               <p className="text-xs text-muted-foreground mt-1">
                 {currentKindInfo?.description || 'Templates de instruções dinâmicas'}
               </p>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {currentKindPrompts.length} template(s)
-            </span>
+            <button
+              onClick={() => onCreate(activeKind)}
+              data-testid={`add-dynamic-${activeKind}`}
+              className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:bg-primary/90 transition-colors"
+            >
+              + Adicionar
+            </button>
           </div>
         </div>
 

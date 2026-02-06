@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { prisma } from '../../db/client.js'
 import type { CreatePhaseConfigInput, UpdatePhaseConfigInput } from '../schemas/agent.schema.js'
+import { AgentPhaseConfigService } from '../../services/AgentPhaseConfigService.js'
 
 export class AgentPhaseConfigController {
   /**
@@ -42,19 +43,20 @@ export class AgentPhaseConfigController {
   async create(req: Request, res: Response): Promise<void> {
     const data = req.body as CreatePhaseConfigInput
 
-    const existing = await prisma.agentPhaseConfig.findUnique({
-      where: { step: data.step },
-    })
+    try {
+      // Usar service para validação consistente
+      const service = new AgentPhaseConfigService(prisma)
+      await service.validateNoExisting(data.step)
 
-    if (existing) {
-      res.status(409).json({
-        error: `Phase config para step ${data.step} já existe. Use PUT para atualizar.`,
-      })
-      return
+      const config = await prisma.agentPhaseConfig.create({ data })
+      res.status(201).json(config)
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('já existe')) {
+        res.status(409).json({ error: err.message })
+        return
+      }
+      throw err
     }
-
-    const config = await prisma.agentPhaseConfig.create({ data })
-    res.status(201).json(config)
   }
 
   /**
@@ -109,6 +111,14 @@ export class AgentPhaseConfigController {
    * GET /agent/providers — List available providers (from DB + env)
    */
   async listProviders(_req: Request, res: Response): Promise<void> {
+    const PROVIDER_LABELS: Record<string, string> = {
+      'anthropic': 'Anthropic (API Key)',
+      'openai': 'OpenAI (API Key)',
+      'mistral': 'Mistral (API Key)',
+      'claude-code': 'Claude Code CLI',
+      'codex-cli': 'Codex CLI',
+    }
+
     const dbModels = await prisma.providerModel.findMany({
       where: { isActive: true },
       orderBy: [{ provider: 'asc' }, { modelId: 'asc' }],
@@ -133,6 +143,7 @@ export class AgentPhaseConfigController {
 
     const providers = providerNames.map(name => ({
       name,
+      label: PROVIDER_LABELS[name] ?? name,
       configured: configuredMap[name] ?? false,
       models: modelsByProvider[name] ?? [],
       ...(name === 'claude-code' ? { note: 'Uses Claude Code CLI (Max/Pro subscription). No API key required.' } : {}),

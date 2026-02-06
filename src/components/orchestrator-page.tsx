@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { api, API_BASE } from "@/lib/api"
-import type { Project, RunWithResults, ValidatorResult, GateResult, ArtifactFolder, LLMPlanOutput, ManifestFile } from "@/lib/types"
+import type { Project, RunWithResults, ValidatorResult, GateResult, ArtifactFolder, LLMPlanOutput, ManifestFile, AgentPhaseConfig, ProviderInfo, ProviderModel } from "@/lib/types"
 import { useEffect } from "react"
 import { useOrchestratorEvents, type OrchestratorEvent } from "@/hooks/useOrchestratorEvents"
 import { useRunEvents } from "@/hooks/useRunEvents"
@@ -338,6 +338,32 @@ export function OrchestratorPage() {
   const [showRerunPicker, setShowRerunPicker] = useState(false)
   const [rerunLoading, setRerunLoading] = useState(false)
 
+  // ── Dynamic provider catalog + phase defaults ────────────────────────
+  const [providerCatalog, setProviderCatalog] = useState<Record<string, { label: string; models: { value: string; label: string }[] }>>({})
+  const [phaseDefaults, setPhaseDefaults] = useState<AgentPhaseConfig[]>([])
+
+  useEffect(() => {
+    Promise.all([
+      api.mcp.providers.list(),
+      api.mcp.models.list(),
+      api.mcp.phases.list(),
+    ]).then(([providers, models, phases]) => {
+      // Build catalog from API data
+      const catalog: Record<string, { label: string; models: { value: string; label: string }[] }> = {}
+      for (const prov of providers) {
+        catalog[prov.name] = { label: prov.label, models: [] }
+      }
+      for (const m of models.filter(m => m.isActive)) {
+        if (!catalog[m.provider]) catalog[m.provider] = { label: m.provider, models: [] }
+        catalog[m.provider].models.push({ value: m.modelId, label: m.label || m.modelId })
+      }
+      setProviderCatalog(catalog)
+      setPhaseDefaults(phases)
+    }).catch(err => {
+      console.error('Failed to load provider catalog:', err)
+    })
+  }, [])
+
   // Step 0
   const [taskDescription, setTaskDescription] = useState(saved?.taskDescription ?? "")
   const [taskType, setTaskType] = useState<string | undefined>(saved?.taskType)
@@ -352,13 +378,41 @@ export function OrchestratorPage() {
   interface StepLLMConfig { provider: string; model: string }
 
   const [stepLLMs, setStepLLMs] = useState<Record<number, StepLLMConfig>>(
-    saved?.stepLLMs ?? {
-      1: { provider: "claude-code", model: "sonnet" },
-      2: { provider: "claude-code", model: "sonnet" },
-      3: { provider: "claude-code", model: "sonnet" },
-      4: { provider: "claude-code", model: "sonnet" },
-    }
+    saved?.stepLLMs ?? {}
   )
+
+  // Fill in defaults from phase configs when they load
+  useEffect(() => {
+    if (phaseDefaults.length > 0) {
+      setStepLLMs(prev => {
+        // If session had values, keep them
+        if (Object.keys(prev).length > 0) return prev
+        const defaults: Record<number, StepLLMConfig> = {}
+        for (const phase of phaseDefaults) {
+          defaults[phase.step] = { provider: phase.provider, model: phase.model }
+        }
+        return defaults
+      })
+    }
+  }, [phaseDefaults])
+
+  // Helper: get default provider/model for a step from phase configs
+  const getDefault = (s: number): StepLLMConfig => {
+    const phase = phaseDefaults.find(p => p.step === s)
+    return { provider: phase?.provider ?? 'claude-code', model: phase?.model ?? 'sonnet' }
+  }
+
+  // Dynamic PROVIDER_MODELS — falls back to a minimal static catalog when API hasn't loaded yet
+  const PROVIDER_MODELS: Record<string, { label: string; models: { value: string; label: string }[] }> =
+    Object.keys(providerCatalog).length > 0
+      ? providerCatalog
+      : {
+          "claude-code": { label: "Claude Code CLI", models: [{ value: "sonnet", label: "Sonnet" }, { value: "opus", label: "Opus" }, { value: "haiku", label: "Haiku" }] },
+          "codex-cli": { label: "Codex CLI", models: [{ value: "o3-mini", label: "o3-mini" }] },
+          "anthropic": { label: "Anthropic (API Key)", models: [{ value: "claude-sonnet-4-5-20250929", label: "Sonnet 4.5" }] },
+          "openai": { label: "OpenAI (API Key)", models: [{ value: "gpt-4.1", label: "GPT-4.1" }] },
+          "mistral": { label: "Mistral (API Key)", models: [{ value: "mistral-large-latest", label: "Mistral Large" }] },
+        }
 
   const setStepLLM = (step: number, field: "provider" | "model", value: string) => {
     setStepLLMs((prev) => {
@@ -372,55 +426,8 @@ export function OrchestratorPage() {
   }
 
   // Convenience aliases
-  const provider = stepLLMs[1]?.provider ?? "claude-code"
-  const model = stepLLMs[1]?.model ?? "sonnet"
-
-  const PROVIDER_MODELS: Record<string, { label: string; models: { value: string; label: string }[] }> = {
-    "anthropic": {
-      label: "Anthropic (API Key)",
-      models: [
-        { value: "claude-sonnet-4-5-20250929", label: "Sonnet 4.5" },
-        { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5" },
-        { value: "claude-opus-4-5-20251101", label: "Opus 4.5" },
-      ],
-    },
-    "openai": {
-      label: "OpenAI (API Key)",
-      models: [
-        { value: "gpt-5.2", label: "GPT-5.2 Thinking" },
-        { value: "gpt-5.2-instant", label: "GPT-5.2 Instant" },
-        { value: "gpt-5.2-pro", label: "GPT-5.2 Pro" },
-        { value: "gpt-5.2-codex", label: "GPT-5.2 Codex" },
-        { value: "gpt-4.1", label: "GPT-4.1" },
-        { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
-        { value: "o3-mini", label: "o3-mini" },
-      ],
-    },
-    "mistral": {
-      label: "Mistral (API Key)",
-      models: [
-        { value: "mistral-large-latest", label: "Mistral Large" },
-        { value: "codestral-latest", label: "Codestral" },
-      ],
-    },
-    "claude-code": {
-      label: "Claude Code CLI",
-      models: [
-        { value: "sonnet", label: "Sonnet" },
-        { value: "opus", label: "Opus" },
-        { value: "haiku", label: "Haiku" },
-      ],
-    },
-    "codex-cli": {
-      label: "Codex CLI",
-      models: [
-        { value: "o3-mini", label: "o3-mini" },
-        { value: "o4-mini", label: "o4-mini" },
-        { value: "gpt-4.1", label: "GPT-4.1" },
-        { value: "codex-mini", label: "Codex Mini" },
-      ],
-    },
-  }
+  const provider = stepLLMs[1]?.provider ?? getDefault(1).provider
+  const model = stepLLMs[1]?.model ?? getDefault(1).model
 
   // Step 1 result
   const [outputId, setOutputId] = useState<string | undefined>(resumeOutputId ?? saved?.outputId)
@@ -815,10 +822,11 @@ export function OrchestratorPage() {
 
             // If we have available providers, allow retry with different provider
             if (canRetry && availableProviders && availableProviders.length > 0) {
-              const defaultProvider = availableProviders.includes("claude-code")
-                ? "claude-code"
+              const stepDefault = getDefault(step)
+              const defaultProvider = availableProviders.includes(stepDefault.provider)
+                ? stepDefault.provider
                 : availableProviders[0]
-              const defaultModel = PROVIDER_MODELS[defaultProvider]?.models[0]?.value ?? "sonnet"
+              const defaultModel = PROVIDER_MODELS[defaultProvider]?.models[0]?.value ?? stepDefault.model
               setRetryState({
                 canRetry: true,
                 availableProviders,
@@ -1641,7 +1649,7 @@ export function OrchestratorPage() {
                         setRetryState((prev) => prev ? {
                           ...prev,
                           selectedProvider: v,
-                          selectedModel: models?.[0]?.value ?? "sonnet",
+                          selectedModel: models?.[0]?.value ?? getDefault(retryState.failedStep).model,
                         } : null)
                       }}
                     >
@@ -2048,7 +2056,7 @@ export function OrchestratorPage() {
                     {/* Inline LLM selector for execute */}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="shrink-0">LLM:</span>
-                      <Select value={stepLLMs[4]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(4, "provider", v)}>
+                      <Select value={stepLLMs[4]?.provider ?? getDefault(4).provider} onValueChange={(v) => setStepLLM(4, "provider", v)}>
                         <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
@@ -2056,10 +2064,10 @@ export function OrchestratorPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Select value={stepLLMs[4]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(4, "model", v)}>
+                      <Select value={stepLLMs[4]?.model ?? getDefault(4).model} onValueChange={(v) => setStepLLM(4, "model", v)}>
                         <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? getDefault(4).provider]?.models || []).map((m) => (
                             <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -2172,7 +2180,7 @@ export function OrchestratorPage() {
                   <CardContent className="space-y-2">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="shrink-0">LLM p/ execução:</span>
-                      <Select value={stepLLMs[4]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(4, "provider", v)}>
+                      <Select value={stepLLMs[4]?.provider ?? getDefault(4).provider} onValueChange={(v) => setStepLLM(4, "provider", v)}>
                         <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
@@ -2180,10 +2188,10 @@ export function OrchestratorPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Select value={stepLLMs[4]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(4, "model", v)}>
+                      <Select value={stepLLMs[4]?.model ?? getDefault(4).model} onValueChange={(v) => setStepLLM(4, "model", v)}>
                         <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? getDefault(4).provider]?.models || []).map((m) => (
                             <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -2249,7 +2257,7 @@ export function OrchestratorPage() {
                       {/* Inline LLM selector for fix */}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="shrink-0">LLM p/ correção:</span>
-                        <Select value={stepLLMs[3]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(3, "provider", v)}>
+                        <Select value={stepLLMs[3]?.provider ?? getDefault(3).provider} onValueChange={(v) => setStepLLM(3, "provider", v)}>
                           <SelectTrigger className="h-7 text-xs w-[160px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
@@ -2257,10 +2265,10 @@ export function OrchestratorPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <Select value={stepLLMs[3]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(3, "model", v)}>
+                        <Select value={stepLLMs[3]?.model ?? getDefault(3).model} onValueChange={(v) => setStepLLM(3, "model", v)}>
                           <SelectTrigger className="h-7 text-xs w-[120px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {(PROVIDER_MODELS[stepLLMs[3]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                            {(PROVIDER_MODELS[stepLLMs[3]?.provider ?? getDefault(3).provider]?.models || []).map((m) => (
                               <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                             ))}
                           </SelectContent>
@@ -2357,7 +2365,7 @@ export function OrchestratorPage() {
                   <CardContent className="space-y-3">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="shrink-0">LLM:</span>
-                      <Select value={stepLLMs[4]?.provider ?? "claude-code"} onValueChange={(v) => setStepLLM(4, "provider", v)}>
+                      <Select value={stepLLMs[4]?.provider ?? getDefault(4).provider} onValueChange={(v) => setStepLLM(4, "provider", v)}>
                         <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
@@ -2365,10 +2373,10 @@ export function OrchestratorPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Select value={stepLLMs[4]?.model ?? "sonnet"} onValueChange={(v) => setStepLLM(4, "model", v)}>
+                      <Select value={stepLLMs[4]?.model ?? getDefault(4).model} onValueChange={(v) => setStepLLM(4, "model", v)}>
                         <SelectTrigger className="h-7 text-xs w-[120px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? "claude-code"]?.models || []).map((m) => (
+                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? getDefault(4).provider]?.models || []).map((m) => (
                             <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                           ))}
                         </SelectContent>

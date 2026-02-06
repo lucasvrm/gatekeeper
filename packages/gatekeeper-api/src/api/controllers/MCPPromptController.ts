@@ -258,7 +258,10 @@ export class MCPPromptController {
     }
 
     // Validate kind if provided
-    const validKinds = ['playbook', 'questionnaire', 'template', 'instruction', 'doc', 'prompt', 'cli']
+    const validKinds = [
+      'playbook', 'questionnaire', 'template', 'instruction', 'doc', 'prompt', 'cli',
+      'retry', 'retry-cli', 'system-append-cli', 'git-strategy', 'guidance', 'cli-replace', 'custom-instructions',
+    ]
     if (kind && !validKinds.includes(kind)) {
       res.status(400).json({
         error: `kind must be one of: ${validKinds.join(', ')}`,
@@ -316,7 +319,10 @@ export class MCPPromptController {
     const { name, content, kind, step, role, order, isActive } = req.body
 
     // Validate kind if provided
-    const validKinds = ['playbook', 'questionnaire', 'template', 'instruction', 'doc', 'prompt', 'cli']
+    const validKinds = [
+      'playbook', 'questionnaire', 'template', 'instruction', 'doc', 'prompt', 'cli',
+      'retry', 'retry-cli', 'system-append-cli', 'git-strategy', 'guidance', 'cli-replace', 'custom-instructions',
+    ]
     if (kind !== undefined && kind !== null && !validKinds.includes(kind)) {
       res.status(400).json({
         error: `kind must be one of: ${validKinds.join(', ')}`,

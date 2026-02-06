@@ -122,7 +122,17 @@ export class ValidatorController {
       data,
     })
 
-    res.json(updated)
+    const metadata = validatorMetadataMap.get(name as ValidatorCode)
+    res.json({
+      ...updated,
+      displayName: metadata?.displayName ?? updated.key,
+      description: metadata?.description ?? '',
+      category: metadata?.category ?? '',
+      gate: metadata?.gate ?? null,
+      order: metadata?.order ?? null,
+      isHardBlock: metadata?.isHardBlock ?? true,
+      gateCategory: validatorCategoryMap.get(name) ?? 'Desconhecida',
+    })
   }
 
   async bulkUpdateValidators(req: Request, res: Response): Promise<void> {
@@ -186,6 +196,20 @@ export class ValidatorController {
     const updatedMap = new Map(updated.map((item) => [item.key, item]))
     const ordered = keys.map((key: string) => updatedMap.get(key)).filter((item): item is typeof updated[number] => Boolean(item))
 
-    res.json(ordered)
+    const enriched = ordered.map((item) => {
+      const metadata = validatorMetadataMap.get(item.key as ValidatorCode)
+      return {
+        ...item,
+        displayName: metadata?.displayName ?? item.key,
+        description: metadata?.description ?? '',
+        category: metadata?.category ?? '',
+        gate: metadata?.gate ?? null,
+        order: metadata?.order ?? null,
+        isHardBlock: metadata?.isHardBlock ?? true,
+        gateCategory: validatorCategoryMap.get(item.key) ?? 'Desconhecida',
+      }
+    })
+
+    res.json(enriched)
   }
 }

@@ -31,6 +31,7 @@ import type {
   OrchestratorContent,
   OrchestratorContentKind,
   AgentPhaseConfig,
+  ProviderInfo,
   ProviderModel,
   ModelDiscoveryResult,
 } from "./types"
@@ -1011,6 +1012,14 @@ export const api = {
           const error = await response.json().catch(() => null)
           throw new Error(error?.error || "Failed to delete prompt")
         }
+      },
+    },
+
+    providers: {
+      list: async (): Promise<ProviderInfo[]> => {
+        const response = await fetchWithAuth(`${AGENT_BASE}/providers`)
+        if (!response.ok) return []
+        return response.json()
       },
     },
 

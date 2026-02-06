@@ -2,17 +2,18 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
 import type { PromptInstruction } from "@/lib/types"
-import { PIPELINE_STEPS, USER_MESSAGE_PLACEHOLDERS } from "@/lib/types"
+import { PIPELINE_STEPS, USER_MESSAGE_PLACEHOLDERS, DYNAMIC_INSTRUCTION_KINDS } from "@/lib/types"
 
 interface Props {
   prompt: PromptInstruction | null
   defaultStep?: number | null
   defaultRole?: 'system' | 'user'
+  defaultKind?: string | null
   onClose: () => void
   onSave: () => void
 }
 
-export function PromptFormDialog({ prompt, defaultStep, defaultRole, onClose, onSave }: Props) {
+export function PromptFormDialog({ prompt, defaultStep, defaultRole, defaultKind, onClose, onSave }: Props) {
   const [name, setName] = useState("")
   const [content, setContent] = useState("")
   const [step, setStep] = useState<number | null>(null)
@@ -35,8 +36,9 @@ export function PromptFormDialog({ prompt, defaultStep, defaultRole, onClose, on
     } else {
       setStep(defaultStep ?? null)
       setRole(defaultRole ?? 'system')
+      setKind(defaultKind ?? 'instruction')
     }
-  }, [prompt, defaultStep, defaultRole])
+  }, [prompt, defaultStep, defaultRole, defaultKind])
 
   const handleSubmit = async () => {
     if (!name.trim() || !content.trim()) {
@@ -50,7 +52,7 @@ export function PromptFormDialog({ prompt, defaultStep, defaultRole, onClose, on
         name: name.trim(),
         content: content.trim(),
         step,
-        kind: step !== null ? kind : null, // kind only for pipeline prompts
+        kind: kind || null,
         role,
         order,
         isActive,
@@ -73,6 +75,8 @@ export function PromptFormDialog({ prompt, defaultStep, defaultRole, onClose, on
   }
 
   const isPipeline = step !== null
+  const isDynamic = !!DYNAMIC_INSTRUCTION_KINDS[kind]
+  const showAdvanced = isPipeline || isDynamic
 
   return (
     <div
@@ -129,7 +133,7 @@ export function PromptFormDialog({ prompt, defaultStep, defaultRole, onClose, on
             </div>
 
             {/* Role (system prompt vs user message template) */}
-            {isPipeline && (
+            {showAdvanced && (
               <div>
                 <label className="block text-sm font-medium mb-1">Role</label>
                 <div className="flex gap-1 p-1 bg-muted rounded-lg">
@@ -167,31 +171,38 @@ export function PromptFormDialog({ prompt, defaultStep, defaultRole, onClose, on
             )}
           </div>
 
-          {/* Kind (only for pipeline prompts) */}
-          {isPipeline && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Tipo</label>
-                <select
-                  value={kind}
-                  onChange={(e) => setKind(e.target.value)}
-                  data-testid="prompt-kind-select"
-                  className="border border-input rounded-md px-3 py-2 w-full bg-background"
-                >
+          {/* Kind */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Tipo</label>
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value)}
+                data-testid="prompt-kind-select"
+                className="border border-input rounded-md px-3 py-2 w-full bg-background"
+              >
+                <optgroup label="Pipeline">
                   <option value="instruction">instruction</option>
                   <option value="doc">doc</option>
                   <option value="prompt">prompt</option>
-                  {role === 'user' && <option value="cli">cli (Claude Code)</option>}
-                </select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {role === 'user'
+                  <option value="cli">cli (Claude Code)</option>
+                </optgroup>
+                <optgroup label="Dinâmicos">
+                  {Object.entries(DYNAMIC_INSTRUCTION_KINDS).map(([k, info]) => (
+                    <option key={k} value={k}>{info.icon} {info.label}</option>
+                  ))}
+                </optgroup>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {DYNAMIC_INSTRUCTION_KINDS[kind]
+                  ? DYNAMIC_INSTRUCTION_KINDS[kind].description
+                  : role === 'user'
                     ? 'cli = template específico para Claude Code'
                     : 'instruction = regras, doc = referência'}
-                </p>
-              </div>
-              <div />
+              </p>
             </div>
-          )}
+            <div />
+          </div>
 
           {/* Placeholders help (only for user message templates) */}
           {isPipeline && role === 'user' && step && USER_MESSAGE_PLACEHOLDERS[step] && (
@@ -219,8 +230,8 @@ export function PromptFormDialog({ prompt, defaultStep, defaultRole, onClose, on
             </div>
           )}
 
-          {/* Order and Active (for pipeline prompts) */}
-          {isPipeline && (
+          {/* Order and Active */}
+          {showAdvanced && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Ordem</label>

@@ -513,6 +513,18 @@ export interface OrchestratorContent {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Provider Info (from /agent/providers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ProviderInfo {
+  name: string
+  label: string
+  configured: boolean
+  models: string[]
+  note?: string
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Provider Model Registry Types
 // ─────────────────────────────────────────────────────────────────────────────
 

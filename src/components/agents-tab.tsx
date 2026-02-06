@@ -1,17 +1,10 @@
 import { useState, useEffect, useCallback } from "react"
-import { api, API_BASE } from "@/lib/api"
-import type { ProviderModel } from "@/lib/types"
+import { api } from "@/lib/api"
+import type { ProviderModel, ProviderInfo } from "@/lib/types"
 import { PhaseConfigTab } from "./phase-config-tab"
 import { ProviderModelsManager } from "./provider-models-manager"
 import { ModelDiscoveryTerminal } from "./model-discovery-terminal"
 import { toast } from "sonner"
-
-interface ProviderInfo {
-  name: string
-  configured: boolean
-  models: string[]
-  note?: string
-}
 
 export function AgentsTab() {
   const [models, setModels] = useState<ProviderModel[]>([])
@@ -23,7 +16,7 @@ export function AgentsTab() {
     try {
       const [modelsData, providersData] = await Promise.all([
         api.mcp.models.list(),
-        fetchProviders(),
+        api.mcp.providers.list(),
       ])
       setModels(modelsData)
       setProviders(providersData)
@@ -96,17 +89,12 @@ export function AgentsTab() {
         <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
           Pipeline Phases
         </h3>
-        <PhaseConfigTab modelsByProvider={modelsByProvider} />
+        <PhaseConfigTab
+          modelsByProvider={modelsByProvider}
+          providers={providers.map(p => ({ value: p.name, label: p.label }))}
+        />
       </div>
     </div>
   )
 }
 
-async function fetchProviders(): Promise<ProviderInfo[]> {
-  const token = localStorage.getItem('token')
-  const response = await fetch(`${API_BASE}/agent/providers`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-  if (!response.ok) return []
-  return response.json()
-}

@@ -58,6 +58,7 @@ const MAX_BATCH_SIZE = 50 // Tamanho máximo do batch antes de flush forçado
 const MAX_BUFFER_PER_OUTPUT = 100 // Máximo de eventos no buffer por outputId
 const BUFFER_TTL_MS = 60_000 // TTL do buffer em ms (60s)
 const MAX_PAYLOAD_SIZE = 10_240 // Tamanho máximo de payload em bytes (10KB)
+const TOOL_RESULT_MAX_SIZE = 5_000 // Tamanho máximo de tool_result.output (5000 chars)
 
 /**
  * Eventos que NÃO devem ser persistidos (alto volume, baixo valor para auditoria).
@@ -209,6 +210,57 @@ class OrchestratorEventServiceClass extends EventEmitter {
   }
 
   /**
+   * Persist a single event individually and optionally update PipelineState.
+   *
+   * Unlike persistAndEmit (batch+SSE), this method:
+   * - Uses prisma.pipelineEvent.create() (individual, not batch)
+   * - Returns the saved PipelineEvent (with id) or null
+   * - Updates PipelineState with lastEventId on transition events
+   *
+   * @returns The persisted PipelineEvent or null (filtered/no prisma)
+   */
+  async persistEventAndMaybeUpdateState(
+    outputId: string,
+    event: OrchestratorEventData,
+  ): Promise<PipelineEvent | null> {
+    // 1. Filter volatile events (agent:text, agent:thinking)
+    if (!this.shouldPersist(event.type)) {
+      return null
+    }
+
+    // 2. Guard: Prisma not initialized
+    if (!this.prisma) {
+      console.warn('[OrchestratorEventService] Prisma not initialized, cannot persist event')
+      return null
+    }
+
+    // 3. Sanitize payload
+    const cleanPayload = this.filterSensitive(event)
+    const stage = this.inferStage(event)
+    const level = this.inferLevel(event.type)
+    const message = this.extractMessage(event)
+
+    // 4. Persist individually via create()
+    const saved = await this.prisma.pipelineEvent.create({
+      data: {
+        outputId,
+        stage,
+        eventType: event.type,
+        level,
+        message,
+        payload: JSON.stringify(cleanPayload),
+      },
+    })
+
+    // 5. Update PipelineState on transition events (with lastEventId)
+    if (this.isTransitionEvent(event.type)) {
+      await this.updatePipelineState(outputId, event.type, event, undefined, saved.id)
+    }
+
+    return saved
+  }
+
+  /**
    * Get buffered events for an outputId (for replay on SSE connect).
    * Returns events from the last BUFFER_TTL_MS milliseconds.
    */
@@ -333,7 +385,12 @@ class OrchestratorEventServiceClass extends EventEmitter {
               : item,
           )
         } else {
-          result[key] = this.sanitizeObject(value as Record<string, unknown>)
+          const sanitized = this.sanitizeObject(value as Record<string, unknown>)
+          // Truncamento específico de tool_result.output (5000 chars, sufixo pt-br)
+          if (key === 'tool_result' && typeof sanitized.output === 'string' && sanitized.output.length > TOOL_RESULT_MAX_SIZE) {
+            sanitized.output = sanitized.output.slice(0, TOOL_RESULT_MAX_SIZE) + '... [truncado]'
+          }
+          result[key] = sanitized
         }
         continue
       }
@@ -456,6 +513,7 @@ class OrchestratorEventServiceClass extends EventEmitter {
     eventType: string,
     event: OrchestratorEventData,
     agentRunId?: string,
+    lastEventId?: number,
   ): Promise<void> {
     if (!this.prisma) {
       console.warn('[OrchestratorEventService] Prisma not initialized, cannot update PipelineState')
@@ -475,6 +533,7 @@ class OrchestratorEventServiceClass extends EventEmitter {
       if (transition.status) updateData.status = transition.status
       if (transition.progress !== undefined) updateData.progress = transition.progress
       if (agentRunId) updateData.agentRunId = agentRunId
+      if (lastEventId !== undefined) updateData.lastEventId = lastEventId
 
       // Extract summary from event if available
       if ('artifacts' in event || 'tokensUsed' in event) {
@@ -501,6 +560,7 @@ class OrchestratorEventServiceClass extends EventEmitter {
           stage: (transition.stage as string) || 'planning',
           progress: transition.progress ?? 0,
           agentRunId,
+          lastEventId: lastEventId ?? 0,
           summary: updateData.summary as string | undefined,
         },
         update: updateData,

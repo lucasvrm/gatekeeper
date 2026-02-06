@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { AgentPhaseConfigService } from '../src/services/AgentPhaseConfigService.js'
 
 const prisma = new PrismaClient()
 
@@ -147,7 +148,7 @@ async function main() {
     },
     {
       ['key']: 'MAX_FILES_PER_TASK',
-      value: '10',
+      value: '20',
       type: 'NUMBER',
       category: 'GATE0',
       description: 'Maximum files allowed per task',
@@ -371,10 +372,10 @@ async function main() {
     },
     {
       ['key']: 'JWT_EXPIRY_SECONDS',
-      value: '3600',
+      value: '57600',
       type: 'NUMBER',
       category: 'auth',
-      description: 'Tempo de expiração do token JWT em segundos (padrão: 3600 = 1 hora)',
+      description: 'Tempo de expiração do token JWT em segundos (padrão: 57600 = 16 horas)',
     },
   ]
 
@@ -394,33 +395,33 @@ async function main() {
   console.log(`✓ Seeded ${validationConfigs.length} validation configs`)
 
   const validatorConfigs = [
-    { key: 'TOKEN_BUDGET_FIT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TASK_SCOPE_SIZE', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TASK_CLARITY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'SENSITIVE_FILES_LOCK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'DANGER_MODE_EXPLICIT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'PATH_CONVENTION', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'DELETE_DEPENDENCY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TEST_SYNTAX_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TEST_HAS_ASSERTIONS', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TEST_COVERS_HAPPY_AND_SAD_PATH', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TEST_FAILS_BEFORE_IMPLEMENTATION', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'NO_DECORATIVE_TESTS', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TEST_RESILIENCE_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'MANIFEST_FILE_LOCK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'NO_IMPLICIT_FILES', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'IMPORT_REALITY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TEST_INTENT_ALIGNMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TEST_CLAUSE_MAPPING_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'DIFF_SCOPE_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TEST_READ_ONLY_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'UI_COMPONENT_REGISTRY', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'UI_PROPS_COMPLIANCE', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'TASK_TEST_PASSES', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'STRICT_COMPILATION', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'STYLE_CONSISTENCY_LINT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'FULL_REGRESSION_PASS', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR' },
-    { key: 'PRODUCTION_BUILD_PASS', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR' },
+    { key: 'TOKEN_BUDGET_FIT', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'TASK_SCOPE_SIZE', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'TASK_CLARITY_CHECK', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'SENSITIVE_FILES_LOCK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'DANGER_MODE_EXPLICIT', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'PATH_CONVENTION', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'DELETE_DEPENDENCY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'TEST_SYNTAX_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'TEST_HAS_ASSERTIONS', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'TEST_COVERS_HAPPY_AND_SAD_PATH', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'TEST_FAILS_BEFORE_IMPLEMENTATION', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'NO_DECORATIVE_TESTS', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'TEST_RESILIENCE_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'MANIFEST_FILE_LOCK', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'NO_IMPLICIT_FILES', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'IMPORT_REALITY_CHECK', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'TEST_INTENT_ALIGNMENT', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'TEST_CLAUSE_MAPPING_VALID', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'DIFF_SCOPE_ENFORCEMENT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'TEST_READ_ONLY_ENFORCEMENT', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'UI_COMPONENT_REGISTRY', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'UI_PROPS_COMPLIANCE', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: 'HARD' },
+    { key: 'TASK_TEST_PASSES', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'STRICT_COMPILATION', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'STYLE_CONSISTENCY_LINT', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'FULL_REGRESSION_PASS', value: 'false', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
+    { key: 'PRODUCTION_BUILD_PASS', value: 'true', type: 'BOOLEAN', category: 'VALIDATOR', failMode: null },
   ]
 
   for (const config of validatorConfigs) {
@@ -431,6 +432,7 @@ async function main() {
         // Only update metadata, preserve user's value setting
         type: config.type,
         category: config.category,
+        failMode: config.failMode,
       },
     })
   }
@@ -709,6 +711,12 @@ async function main() {
       fallbackModel: 'gpt-4o',
     },
   ]
+
+  // IMPORTANTE: seed.ts é a fonte única da verdade para AgentPhaseConfig.
+  // Garantir que não há duplicatas antes de upserts (embora step seja @id,
+  // esta verificação documenta a invariante).
+  const service = new AgentPhaseConfigService(prisma)
+  await service.removeDuplicates()
 
   for (const config of agentPhaseConfigs) {
     await prisma.agentPhaseConfig.upsert({
@@ -1125,12 +1133,32 @@ If you do not write the files, your fixes will be LOST and the pipeline will FAI
       order: 1,
       content: `## Output ID: {{outputId}}
 
-## Approved Artifacts
-{{{artifactBlocks}}}
+## Artefatos do Plano
 
-## Instructions
-Implement the code to make all tests pass.
-Use edit_file for surgical modifications, write_file for new files, and bash to run tests.`,
+### plan.json
+\`\`\`json
+{{{planJson}}}
+\`\`\`
+
+### contract.md
+{{{contractMd}}}
+
+## ⚠️ Arquivo de Teste (SOMENTE LEITURA)
+
+O arquivo abaixo JÁ EXISTE no disco em \`{{testFilePath}}\`.
+NÃO recrie, NÃO modifique — use apenas como referência.
+\`\`\`typescript
+{{{specContent}}}
+\`\`\`
+
+## Instruções
+
+Implemente o código para fazer os testes passarem.
+
+- Use \`edit_file\` para modificar arquivos existentes
+- Use \`write_file\` para criar arquivos novos do manifest
+- Use \`bash\` para rodar os testes
+- NÃO crie nem modifique o arquivo .spec.ts — ele já existe`,
     },
   ]
 
