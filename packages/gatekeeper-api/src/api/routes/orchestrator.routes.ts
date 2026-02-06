@@ -8,10 +8,27 @@ import {
   ExecuteSchema,
   StatusParamsSchema,
   EventsQuerySchema,
+  RunPipelineSchema,
 } from '../schemas/orchestrator.schema.js'
+import { createLogger } from '../../utils/logger.js'
 
 const router = Router()
 const controller = new OrchestratorController()
+const log = createLogger('orchestrator.routes')
+
+// POST /run - Inicia pipeline completa (para testes E2E)
+router.post('/run', async (req, res, next) => {
+  log.debug({ body: req.body }, 'POST /run called')
+  try {
+    const validatedData = RunPipelineSchema.parse(req.body)
+    log.debug('Validation passed')
+    req.body = validatedData
+    await controller.run(req, res)
+  } catch (error) {
+    log.error({ error }, 'POST /run error')
+    next(error)
+  }
+})
 
 // Step 1: Generate plan artifacts
 router.post('/plan', async (req, res, next) => {
@@ -57,6 +74,19 @@ router.post('/execute', async (req, res, next) => {
   }
 })
 
+/**
+ * POST /api/orchestrator/cleanup-logs
+ * Trigger manual log rotation
+ * Query: olderThanDays (optional, default: 30)
+ */
+router.post('/cleanup-logs', async (req, res, next) => {
+  try {
+    await controller.cleanupLogs(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
 // REST: Pipeline status snapshot
 router.get('/:outputId/status', async (req, res, next) => {
   try {
@@ -89,10 +119,14 @@ function flush(res: import('express').Response) {
 // SSE: Stream orchestrator events for a given outputId
 router.get('/events/:outputId', async (req, res) => {
   const { outputId } = req.params
-  const lastEventIdHeader = req.headers['last-event-id']
+  // Accept Last-Event-ID from header (browser native) OR query param (Node.js EventSource polyfill)
+  const lastEventIdHeader = req.headers['last-event-id'] || req.query.lastEventId
   const lastSeq = lastEventIdHeader ? parseInt(String(lastEventIdHeader), 10) : NaN
 
-  console.log('[SSE] Orchestrator client connected for:', outputId, lastEventIdHeader ? `(reconnect after seq=${lastEventIdHeader})` : '(fresh)')
+  log.info(
+    { outputId, lastSeq: isNaN(lastSeq) ? 'fresh' : lastSeq },
+    'SSE client connected',
+  )
 
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache, no-transform')
@@ -108,13 +142,13 @@ router.get('/events/:outputId', async (req, res) => {
     // Reconnection: try buffer first, DB fallback
     const buffered = OrchestratorEventService.getBufferedEventsAfter(outputId, lastSeq)
     if (buffered.length > 0) {
-      console.log(`[SSE] Replaying ${buffered.length} buffered event(s) after seq=${lastSeq} for: ${outputId}`)
+      log.debug({ outputId, count: buffered.length, lastSeq }, 'Replaying buffered events')
       for (const { event, seq } of buffered) {
         res.write(`id:${seq}\ndata:${JSON.stringify(event)}\n\n`)
       }
     } else {
       // Buffer expired or empty: fallback to DB (up to 200 events)
-      console.log(`[SSE] Buffer miss for seq=${lastSeq}, falling back to DB for: ${outputId}`)
+      log.debug({ outputId, lastSeq }, 'Buffer miss, falling back to DB')
       const dbEvents = await OrchestratorEventService.replayFromDb(outputId)
       for (const dbEvent of dbEvents) {
         const payload = dbEvent.payload ? JSON.parse(dbEvent.payload) : { type: dbEvent.eventType }
@@ -125,7 +159,7 @@ router.get('/events/:outputId', async (req, res) => {
     // Fresh connection: replay full buffer
     const buffered = OrchestratorEventService.getBufferedEventsWithSeq(outputId)
     if (buffered.length > 0) {
-      console.log(`[SSE] Replaying ${buffered.length} buffered event(s) for: ${outputId}`)
+      log.debug({ outputId, count: buffered.length }, 'Replaying buffered events (fresh)')
       for (const { event, seq } of buffered) {
         res.write(`id:${seq}\ndata:${JSON.stringify(event)}\n\n`)
       }
@@ -142,17 +176,17 @@ router.get('/events/:outputId', async (req, res) => {
     }
   }
 
-  // ── Heartbeat 15s ──
+  // ── Heartbeat ──
+  const heartbeatMs = parseInt(process.env.SSE_HEARTBEAT_INTERVAL || '15000', 10)
   const heartbeatInterval = setInterval(() => {
     res.write(': heartbeat\n\n')
     flush(res)
-  }, 15_000)
+  }, heartbeatMs)
 
   OrchestratorEventService.on('orchestrator-event', onEvent)
 
   // ── Cleanup ──
   req.on('close', () => {
-    console.log('[SSE] Orchestrator client disconnected for:', outputId)
     clearInterval(heartbeatInterval)
     OrchestratorEventService.off('orchestrator-event', onEvent)
   })

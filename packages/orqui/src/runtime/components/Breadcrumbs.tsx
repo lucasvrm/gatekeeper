@@ -95,17 +95,16 @@ export function BreadcrumbRenderer({ config, pages, currentPage, navigate, resol
   // Get text style from contract if defined
   const textStyleName = config.typography?.textStyle;
   const textStyleCSS = textStyleName && getTextStyle ? getTextStyle(textStyleName) : {};
-  const hasTextStyle = !!textStyleName && !!getTextStyle;
-  
-  // Typography config (inline overrides on top of textStyle)
+
+  // Typography config - Priority: inline override > textStyle > hardcoded default
   const typo = config.typography;
-  const baseFontSize = resolve(typo?.fontSize) ?? (hasTextStyle ? undefined : 13);
-  const baseFontWeight = resolve(typo?.fontWeight) ?? (hasTextStyle ? undefined : 400);
-  const baseFontFamily = resolve(typo?.fontFamily) as string | undefined;
-  const baseColor = resolve(typo?.color) ?? (hasTextStyle ? undefined : "var(--muted-foreground)");
-  const activeColor = resolve(typo?.activeColor) ?? (hasTextStyle ? undefined : "var(--foreground)");
-  const activeWeight = resolve(typo?.activeFontWeight) ?? (hasTextStyle ? undefined : 600);
-  const sepColor = resolve(typo?.separatorColor) ?? (hasTextStyle ? undefined : "var(--muted-foreground)");
+  const baseFontSize = resolve(typo?.fontSize) ?? textStyleCSS.fontSize ?? 13;
+  const baseFontWeight = resolve(typo?.fontWeight) ?? textStyleCSS.fontWeight ?? 400;
+  const baseFontFamily = resolve(typo?.fontFamily) ?? textStyleCSS.fontFamily as string | undefined;
+  const baseColor = resolve(typo?.color) ?? textStyleCSS.color ?? "var(--muted-foreground)";
+  const activeColor = resolve(typo?.activeColor) ?? textStyleCSS.color ?? "var(--foreground)";
+  const activeWeight = resolve(typo?.activeFontWeight) ?? textStyleCSS.fontWeight ?? 600;
+  const sepColor = resolve(typo?.separatorColor) ?? textStyleCSS.color ?? "var(--muted-foreground)";
 
   // Padding config
   const pad = config.padding;

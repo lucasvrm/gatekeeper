@@ -13,6 +13,7 @@ import { HeaderElementsRenderer } from "./HeaderElements.js";
 import { PageHeaderSlot } from "./PageHeader.js";
 import { BreadcrumbRenderer } from "./Breadcrumbs.js";
 import { SidebarNavRenderer } from "./SidebarNav.js";
+import { Toast } from "./Toast.js";
 
 // ============================================================================
 // AppShell — renders layout from contract, uses same CSS vars as components
@@ -39,6 +40,8 @@ interface AppShellProps {
   onIconClick?: (iconId: string, route?: string) => void;
   /** Navigation function (e.g. react-router's navigate) for icon/CTA routes */
   navigate?: (route: string) => void;
+  /** Render Toast viewport */
+  showToast?: boolean;
 }
 
 const COLLAPSE_ICONS: Record<string, [string, string]> = {
@@ -64,8 +67,10 @@ export function AppShell({
   onCTA,
   onIconClick,
   navigate,
+  showToast = true,
 }: AppShellProps) {
   const { layout: baseLayout, tokens, getTextStyle } = useContract();
+
   const pageKey = resolvePageKey(baseLayout, page);
   const resolvedPage = pageKey ?? page;
   const layout = resolvePageLayout(baseLayout, resolvedPage);
@@ -83,6 +88,8 @@ export function AppShell({
   const emptyStateConfig = layout.structure.emptyState;
   const skeletonConfig = layout.structure.skeleton;
   const appTitle = layout.structure.appTitle || "";
+  const toastEnabled = (toastConfig as any)?.enabled !== false;
+  const toastEl = showToast && toastEnabled ? <Toast /> : null;
 
   // --- Update document.title based on current page ---
   useEffect(() => {
@@ -588,6 +595,24 @@ export function AppShell({
     </main>
   );
 
+  // Footer region
+  const footer = regions.footer;
+  const footerEl = footer?.enabled ? (
+    <footer data-orqui-footer="" style={{
+      height: resolve(footer.dimensions?.height) ?? "64px",
+      minHeight: resolve(footer.dimensions?.height) ?? "64px",
+      display: "flex",
+      alignItems: "center",
+      padding: resolvePadding(footer.padding),
+      background: resolve(footer.background) ?? "var(--background)",
+      borderTop: resolveSeparator(footer.separators?.top) ?? "1px solid var(--border)",
+      flexShrink: 0,
+      boxSizing: "border-box",
+    }}>
+      <div id="orqui-footer-content" style={{ display: "contents" }} />
+    </footer>
+  ) : null;
+
   // ── Compose layout based on layoutMode ─────────────────────────────────
 
   if (layoutMode === "header-first") {
@@ -609,8 +634,10 @@ export function AppShell({
           {edgeCenterCollapseEl}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "clip" }}>
             {mainEl}
+            {footerEl}
           </div>
         </div>
+        {toastEl}
       </div>
     );
   }
@@ -632,7 +659,9 @@ export function AppShell({
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "clip" }}>
         {headerEl}
         {mainEl}
+        {footerEl}
       </div>
+      {toastEl}
     </div>
   );
 }

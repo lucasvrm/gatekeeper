@@ -4,6 +4,7 @@ import { api, API_BASE } from "@/lib/api"
 import type { Project, RunWithResults, ValidatorResult, GateResult, ArtifactFolder, LLMPlanOutput, ManifestFile, AgentPhaseConfig, ProviderInfo, ProviderModel } from "@/lib/types"
 import { useEffect } from "react"
 import { useOrchestratorEvents, type OrchestratorEvent } from "@/hooks/useOrchestratorEvents"
+import { usePipelineReconciliation } from "@/hooks/usePipelineReconciliation"
 import { useRunEvents } from "@/hooks/useRunEvents"
 import { usePageShell } from "@/hooks/use-page-shell"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
@@ -833,6 +834,8 @@ export function OrchestratorPage() {
           markComplete(1)
           setStep(2)
           setLoading(false)
+          pipelineStageRef.current = "spec"
+          pipelineProgressRef.current = 25
           addLog("success", `Plano gerado: ${event.outputId} (${artifacts.length} artefatos${tokens ? `, ${tokens.inputTokens.toLocaleString()} tokens` : ""})`)
           toast.success("Plano gerado com sucesso")
           break
@@ -856,6 +859,9 @@ export function OrchestratorPage() {
             tokensUsed: tokens,
           })
           setLoading(false)
+          pipelineStageRef.current = "complete"
+          pipelineProgressRef.current = 100
+          pipelineStatusRef.current = "completed"
           addLog("success", `Execução concluída — ${tokens?.inputTokens?.toLocaleString() ?? "?"}in / ${tokens?.outputTokens?.toLocaleString() ?? "?"}out`)
           toast.success("Execução concluída — validando integridade...")
           setExecuteDoneData(event) // trigger auto-validation via useEffect
@@ -886,6 +892,7 @@ export function OrchestratorPage() {
             toast.error(`Erro durante execução: ${errorMsg}`, { duration: 6000 })
           } else {
             // Fatal: process stopped, reset UI and show retry options.
+            pipelineStatusRef.current = "failed"
             setError(errorMsg)
             setLoading(false)
             setExecutionPhase(null)
@@ -927,7 +934,88 @@ export function OrchestratorPage() {
     [addLog]
   )
 
-  useOrchestratorEvents(outputId, handleSSE)
+  // ── Pipeline reconciliation (fetch remote state + backfill missed events) ──
+  const reconciliation = usePipelineReconciliation(
+    resumeOutputId ?? saved?.outputId,
+    saved ? {
+      outputId: saved.outputId,
+      step: saved.step,
+      completedSteps: saved.completedSteps,
+      lastEventId: saved.lastEventId ?? 0,
+      lastSeq: saved.lastSeq ?? 0,
+      pipelineStatus: saved.pipelineStatus ?? null,
+      pipelineStage: saved.pipelineStage ?? null,
+      pipelineProgress: saved.pipelineProgress ?? 0,
+    } : null,
+  )
+
+  // Apply reconciliation results when done
+  useEffect(() => {
+    if (reconciliation.isLoading) return
+
+    // Update step/completedSteps from reconciled state
+    if (reconciliation.remoteStep !== null && reconciliation.remoteStep > step) {
+      setStep(reconciliation.remoteStep as WizardStep)
+    }
+    if (reconciliation.remoteCompletedSteps !== null && reconciliation.remoteCompletedSteps.length > completedSteps.size) {
+      setCompletedSteps(new Set(reconciliation.remoteCompletedSteps))
+    }
+
+    // Update tracking refs
+    lastEventIdRef.current = reconciliation.lastEventId
+    lastSeqRef.current = reconciliation.lastSeq
+    pipelineStatusRef.current = reconciliation.pipelineStatus
+    pipelineStageRef.current = reconciliation.pipelineStage
+    pipelineProgressRef.current = reconciliation.pipelineProgress
+
+    // Replay missed events through handleSSE to rebuild artifacts/logs
+    for (const evt of reconciliation.missedEvents) {
+      if (evt.payload) {
+        try {
+          handleSSE(JSON.parse(evt.payload))
+        } catch { /* skip unparseable */ }
+      }
+    }
+
+    // If pipeline already terminated, ensure UI reflects final state
+    if (reconciliation.isTerminal) {
+      setLoading(false)
+      if (reconciliation.pipelineStatus === 'failed') {
+        setError('Pipeline falhou (recuperado da sessão)')
+      }
+    }
+
+    if (reconciliation.missedEvents.length > 0) {
+      addLog("info", `Reconciliação: ${reconciliation.missedEvents.length} evento(s) recuperado(s)`)
+    }
+  }, [reconciliation.isLoading]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build dedup set from reconciliation backfill (DB event IDs → "db-{id}")
+  const processedIdsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (reconciliation.isLoading) return
+    for (const evt of reconciliation.missedEvents) {
+      processedIdsRef.current.add(`db-${evt.id}`)
+    }
+  }, [reconciliation.isLoading]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // SSE with deduplication
+  const { lastSeqRef: sseLastSeqRef } = useOrchestratorEvents(
+    outputId,
+    handleSSE,
+    'orchestrator',
+    processedIdsRef.current,
+  )
+
+  // Sync SSE seq into our tracking ref periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (sseLastSeqRef.current > lastSeqRef.current) {
+        lastSeqRef.current = sseLastSeqRef.current
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Run validation SSE — polls run status inline ──────────────────────
   const validationResolvedRef = useRef(false)
@@ -1141,8 +1229,8 @@ export function OrchestratorPage() {
       const payload: Record<string, unknown> = {
         taskDescription,
         taskType,
-        provider: stepLLMs[1].provider,
-        model: stepLLMs[1].model,
+        provider: stepLLMs[1]?.provider ?? getDefault(1).provider,
+        model: stepLLMs[1]?.model ?? getDefault(1).model,
         projectPath: getProjectPath(),
       }
 
@@ -1182,7 +1270,7 @@ export function OrchestratorPage() {
     addLog("info", "Gerando testes...")
 
     try {
-      const result: StepResult = await apiPost("spec", { outputId, provider: stepLLMs[2].provider, model: stepLLMs[2].model, projectPath: getProjectPath() })
+      const result: StepResult = await apiPost("spec", { outputId, provider: stepLLMs[2]?.provider ?? getDefault(2).provider, model: stepLLMs[2]?.model ?? getDefault(2).model, projectPath: getProjectPath() })
 
       setSpecArtifacts(result.artifacts || [])
       markComplete(2)
@@ -1498,11 +1586,11 @@ export function OrchestratorPage() {
     setExecutionProgress(null)
     setValidationStatus(null)
     setRunResults(null)
-    addLog("info", `Executando implementação... (${stepLLMs[4].provider}/${stepLLMs[4].model}) [nonce=${myNonce}]`)
+    addLog("info", `Executando implementação... (${stepLLMs[4]?.provider ?? getDefault(4).provider}/${stepLLMs[4]?.model ?? getDefault(4).model}) [nonce=${myNonce}]`)
 
     try {
       // 202 — LLM starts in background. Completion comes via SSE: agent:bridge_execute_done
-      await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4].provider, model: stepLLMs[4].model }, 1)
+      await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4]?.provider ?? getDefault(4).provider, model: stepLLMs[4]?.model ?? getDefault(4).model }, 1)
       markComplete(3)
       setStep(4)
       addLog("info", "LLM iniciou — acompanhe o progresso abaixo")
@@ -1707,7 +1795,7 @@ export function OrchestratorPage() {
               </div>
 
               {/* Retry with different provider */}
-              {retryState?.canRetry && retryState.availableProviders.length > 0 && (
+              {retryState?.canRetry && retryState.availableProviders?.length > 0 && (
                 <div className="border-t border-destructive/20 pt-3 space-y-2">
                   <p className="text-xs text-muted-foreground">
                     Selecione outro provider para tentar novamente:
@@ -1874,7 +1962,7 @@ export function OrchestratorPage() {
                         { step: 2, label: "Testes", desc: "spec file" },
                         { step: 4, label: "Execução", desc: "implementation" },
                       ] as const).map(({ step: s, label, desc }) => {
-                        const cfg = stepLLMs[s]
+                        const cfg = stepLLMs[s] ?? getDefault(s)
 
                         return (
                           <div key={s} className="space-y-1.5 p-2.5 rounded-lg border border-border">

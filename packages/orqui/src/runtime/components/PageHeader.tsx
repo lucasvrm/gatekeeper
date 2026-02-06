@@ -28,10 +28,10 @@ export function PageHeaderSlot({
   subtitleTextStyle,
 }: PageHeaderSlotProps) {
   const { getTextStyle } = useContract();
-  
+
   const pageConfig = page ? pages?.[page] : undefined;
-  const title = pageConfig?.label || (page ? page.charAt(0).toUpperCase() + page.slice(1) : "");
-  const subtitle = pageConfig?.description || "";
+  const title = config.typography?.title?.text ?? pageConfig?.label ?? (page ? page.charAt(0).toUpperCase() + page.slice(1) : "");
+  const subtitle = config.typography?.subtitle?.text ?? pageConfig?.description ?? "";
 
   // Get text styles from contract (if defined)
   const titleStyleName = titleTextStyle || config.typography?.titleTextStyle || "heading-1";
@@ -70,6 +70,7 @@ export function PageHeaderSlot({
     ...(subtitleTypo?.fontWeight && { fontWeight: resolve(subtitleTypo.fontWeight) as number }),
     ...(subtitleTypo?.fontFamily && { fontFamily: resolve(subtitleTypo.fontFamily) as string }),
     ...(subtitleTypo?.color && { color: resolve(subtitleTypo.color) as string }),
+    ...(subtitleTypo?.letterSpacing && { letterSpacing: resolve(subtitleTypo.letterSpacing) as string }),
   };
 
   // Padding from config

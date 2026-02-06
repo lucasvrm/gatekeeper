@@ -385,7 +385,7 @@ export function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string
 
   // --- Table separator CSS ---
   const ts = layout?.structure?.tableSeparator;
-  if (ts) {
+  if (ts?.enabled) {
     const tsColor = ts.color ? (resolveTokenRef(ts.color, tokens) || ts.color) : undefined;
     const tsWidth = ts.width || "1px";
     const tsStyle = ts.style || "solid";
@@ -407,21 +407,24 @@ export function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string
     }
   }
 
-  // --- Scrollbar styling (always generated with defaults) ---
-  const sb = layout?.structure?.scrollbar || {};
-  const sbW = sb.width || "6px";
-  const sbThumb = sb.thumbColor || "rgba(255,255,255,0.08)";
-  const sbThumbHover = sb.thumbHoverColor || "rgba(255,255,255,0.15)";
-  const sbTrack = sb.trackColor || "transparent";
-  const sbRadius = sb.borderRadius || "3px";
-  lines.push("");
-  lines.push("/* Orqui Contract → Scrollbar styling */");
-  lines.push(`::-webkit-scrollbar { width: ${sbW}${imp}; height: ${sbW}${imp}; }`);
-  lines.push(`::-webkit-scrollbar-track { background: ${sbTrack}${imp}; }`);
-  lines.push(`::-webkit-scrollbar-thumb { background: ${sbThumb}${imp}; border-radius: ${sbRadius}${imp}; }`);
-  lines.push(`::-webkit-scrollbar-thumb:hover { background: ${sbThumbHover}${imp}; }`);
-  lines.push(`::-webkit-scrollbar-button { display: none${imp}; }`);
-  lines.push(`* { scrollbar-width: thin; scrollbar-color: ${sbThumb} ${sbTrack}; }`);
+  // --- Scrollbar styling (only when enabled) ---
+  const sb = layout?.structure?.scrollbar;
+  const sbEnabled = sb?.enabled !== false;
+  if (sbEnabled) {
+    const sbW = sb?.width || "6px";
+    const sbThumb = sb?.thumbColor || "rgba(255,255,255,0.08)";
+    const sbThumbHover = sb?.thumbHoverColor || "rgba(255,255,255,0.15)";
+    const sbTrack = sb?.trackColor || "transparent";
+    const sbRadius = sb?.borderRadius || "3px";
+    lines.push("");
+    lines.push("/* Orqui Contract → Scrollbar styling */");
+    lines.push(`::-webkit-scrollbar { width: ${sbW}${imp}; height: ${sbW}${imp}; }`);
+    lines.push(`::-webkit-scrollbar-track { background: ${sbTrack}${imp}; }`);
+    lines.push(`::-webkit-scrollbar-thumb { background: ${sbThumb}${imp}; border-radius: ${sbRadius}${imp}; }`);
+    lines.push(`::-webkit-scrollbar-thumb:hover { background: ${sbThumbHover}${imp}; }`);
+    lines.push(`::-webkit-scrollbar-button { display: none${imp}; }`);
+    lines.push(`* { scrollbar-width: thin; scrollbar-color: ${sbThumb} ${sbTrack}; }`);
+  }
 
   // --- Skeleton animation (always generated with defaults) ---
   const sk = layout?.structure?.skeleton || {};
@@ -466,12 +469,31 @@ export function buildStyleSheet(tokens: Tokens, layout?: LayoutContract): string
   lines.push("/* Orqui Contract → Empty state defaults */");
   lines.push(`:root { --orqui-empty-icon: "${(es.icon || "ph:magnifying-glass").replace(/"/g, '\\"')}"; --orqui-empty-title: "${(es.title || "Nenhum item encontrado").replace(/"/g, '\\"')}"; --orqui-empty-description: "${(es.description || "").replace(/"/g, '\\"')}"; --orqui-empty-show-action: ${es.showAction !== false ? 1 : 0}; --orqui-empty-action-label: "${(es.actionLabel || "Criar Novo").replace(/"/g, '\\"')}"; }`);
 
+  // --- Collapsed sidebar tooltip CSS vars ---
+  const sidebarTooltip = layout?.structure?.regions?.sidebar?.collapsedTooltip;
+  if (sidebarTooltip) {
+    lines.push("");
+    lines.push("/* Orqui Contract → Collapsed sidebar tooltip config */");
+    lines.push(":root {");
+    lines.push(`  --orqui-tooltip-bg: ${resolveTokenRef(sidebarTooltip.background, tokens) ?? 'var(--surface-3)'};`);
+    lines.push(`  --orqui-tooltip-color: ${resolveTokenRef(sidebarTooltip.color, tokens) ?? 'var(--foreground)'};`);
+    lines.push(`  --orqui-tooltip-border: ${resolveTokenRef(sidebarTooltip.borderColor, tokens) ?? 'var(--border)'};`);
+    lines.push(`  --orqui-tooltip-radius: ${resolveTokenRef(sidebarTooltip.borderRadius, tokens) ?? '4px'};`);
+    lines.push(`  --orqui-tooltip-font-size: ${resolveTokenRef(sidebarTooltip.fontSize, tokens) ?? '12px'};`);
+    lines.push(`  --orqui-tooltip-font-weight: ${resolveTokenRef(sidebarTooltip.fontWeight, tokens) ?? '500'};`);
+    lines.push(`  --orqui-tooltip-font-family: ${resolveTokenRef(sidebarTooltip.fontFamily, tokens) ?? 'var(--font-mono)'};`);
+    lines.push(`  --orqui-tooltip-padding: ${sidebarTooltip.padding ?? '5px 10px'};`);
+    lines.push(`  --orqui-tooltip-shadow: ${sidebarTooltip.shadow ?? '0 4px 12px rgba(0,0,0,0.4)'};`);
+    lines.push(`  --orqui-tooltip-offset: ${sidebarTooltip.offset ?? '12px'};`);
+    lines.push("}");
+  }
+
   // --- Collapsed sidebar tooltip CSS ---
   lines.push("");
   lines.push("/* Orqui Contract → Collapsed sidebar tooltips */");
   lines.push(`.orqui-nav-item:hover + .orqui-nav-tooltip, .orqui-nav-tooltip:hover { opacity: 1${imp}; }`);
   // Tooltip arrow
-  lines.push(`.orqui-nav-tooltip::before { content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%); border: 3px solid transparent; border-right-color: var(--border, #2e3135); }`);
+  lines.push(`.orqui-nav-tooltip::before { content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%); border: 3px solid transparent; border-right-color: var(--orqui-tooltip-border, var(--border, #2e3135)); }`);
 
   return lines.join("\n");
 }

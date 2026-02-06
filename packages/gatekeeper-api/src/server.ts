@@ -25,4 +25,5 @@ app.use('/api', router)
 
 app.use(errorHandler)
 
+export { app }
 export default app

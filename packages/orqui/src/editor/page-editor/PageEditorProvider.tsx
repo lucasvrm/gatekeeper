@@ -3,14 +3,18 @@
 // With undo/redo history, clipboard, keyboard actions
 // ============================================================================
 
-import React, { createContext, useContext, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, useMemo, useRef, useState, useEffect, type ReactNode } from "react";
 import type { NodeDef, PageDef } from "./nodeDefaults";
 import { createDefaultNode, createDefaultPage, isContainerType, generateId } from "./nodeDefaults";
-import { findNode, findParent, insertChild, removeChild, moveNode, updateNode, cloneSubtree, isDescendant } from "./treeUtils";
+import { findNode, findParent, insertChild, removeChild, moveNode, updateNode, cloneSubtree, isDescendant, flattenTree } from "./treeUtils";
+import type { GridLayoutConfig, GridItem } from "../../runtime/types";
+import { gridToTree } from "./gridConverter";
 
 // ============================================================================
 // Types
 // ============================================================================
+
+export type ViewMode = "tree" | "grid";
 
 export interface DragSource {
   type: "palette" | "canvas";
@@ -33,6 +37,8 @@ interface PEState {
     dropTarget: DropTarget | null;
   };
   clipboard: NodeDef | null;
+  viewMode: ViewMode;
+  gridLayouts: Record<string, GridLayoutConfig>;
 }
 
 // ============================================================================
@@ -215,6 +221,65 @@ function applyAction(state: PEState, action: UndoableAction): PEState | null {
         selectedNodeId: null,
       };
 
+    case "SYNC_GRID_TO_TREE": {
+      const { pageId } = action;
+      const grid = state.gridLayouts[pageId];
+      const page = state.pages[pageId];
+      if (!grid || !page) return null;
+
+      // Create nodeMap from current page content
+      const flat = flattenTree(page.content);
+      const nodeMap = new Map(flat.map(n => [n.node.id, n.node]));
+
+      // Convert grid back to tree
+      const newContent = gridToTree(grid, nodeMap);
+
+      return {
+        ...state,
+        pages: {
+          ...state.pages,
+          [pageId]: { ...page, content: newContent },
+        },
+      };
+    }
+
+    case "ADD_NODE_TO_GRID": {
+      const { node, pageId, position } = action;
+      const grid = state.gridLayouts[pageId];
+      const page = state.pages[pageId];
+      if (!grid || !page) return null;
+
+      const newItem: GridItem = {
+        component: node.id,
+        colStart: position.colStart,
+        rowStart: position.rowStart,
+        colSpan: 1,
+        rowSpan: 1,
+      };
+
+      return {
+        ...state,
+        pages: {
+          ...state.pages,
+          [pageId]: {
+            ...page,
+            content: {
+              ...page.content,
+              children: [...(page.content.children || []), node],
+            },
+          },
+        },
+        gridLayouts: {
+          ...state.gridLayouts,
+          [pageId]: {
+            ...grid,
+            items: [...grid.items, newItem],
+          },
+        },
+        selectedNodeId: node.id,
+      };
+    }
+
     default:
       return null;
   }
@@ -234,7 +299,9 @@ type UndoableAction =
   | { type: "WRAP_IN_CONTAINER"; nodeId: string; containerType: string }
   | { type: "DROP" }
   | { type: "PASTE_NODE"; parentId: string; index: number }
-  | { type: "SET_PAGES"; pages: Record<string, PageDef> };
+  | { type: "SET_PAGES"; pages: Record<string, PageDef> }
+  | { type: "SYNC_GRID_TO_TREE"; pageId: string }
+  | { type: "ADD_NODE_TO_GRID"; node: NodeDef; pageId: string; position: { colStart: number; rowStart: number } };
 
 // Non-undoable actions (UI-only: selection, drag state, clipboard)
 type TransientAction =
@@ -243,7 +310,10 @@ type TransientAction =
   | { type: "DRAG_START"; source: DragSource }
   | { type: "DRAG_OVER"; target: DropTarget | null }
   | { type: "DRAG_END" }
-  | { type: "COPY_NODE"; nodeId: string };
+  | { type: "COPY_NODE"; nodeId: string }
+  | { type: "SET_VIEW_MODE"; mode: ViewMode }
+  | { type: "SET_GRID_LAYOUT"; pageId: string; layout: GridLayoutConfig }
+  | { type: "UPDATE_GRID_ITEM"; pageId: string; itemId: string; updates: Partial<import("../../runtime/types").GridItem> };
 
 type PEAction = UndoableAction | TransientAction;
 
@@ -266,18 +336,52 @@ function applyTransient(state: PEState, action: TransientAction): PEState {
       if (!node) return state;
       return { ...state, clipboard: cloneSubtree(node) };
     }
+    case "SET_VIEW_MODE":
+      return { ...state, viewMode: action.mode };
+    case "SET_GRID_LAYOUT":
+      return {
+        ...state,
+        gridLayouts: {
+          ...state.gridLayouts,
+          [action.pageId]: action.layout,
+        },
+      };
+    case "UPDATE_GRID_ITEM": {
+      const layout = state.gridLayouts[action.pageId];
+      if (!layout) return state;
+      return {
+        ...state,
+        gridLayouts: {
+          ...state.gridLayouts,
+          [action.pageId]: {
+            ...layout,
+            items: layout.items.map(item =>
+              item.component === action.itemId
+                ? { ...item, ...action.updates }
+                : item
+            ),
+          },
+        },
+      };
+    }
     default:
       return state;
   }
 }
 
-const TRANSIENT_TYPES = new Set(["SELECT_PAGE", "SELECT_NODE", "DRAG_START", "DRAG_OVER", "DRAG_END", "COPY_NODE"]);
+const TRANSIENT_TYPES = new Set(["SELECT_PAGE", "SELECT_NODE", "DRAG_START", "DRAG_OVER", "DRAG_END", "COPY_NODE", "SET_VIEW_MODE", "SET_GRID_LAYOUT", "UPDATE_GRID_ITEM"]);
 
 // Actions that get batched (rapid typing in prop fields)
 const BATCHABLE_TYPES = new Set(["UPDATE_NODE_PROPS", "UPDATE_NODE_STYLE"]);
 
 // ============================================================================
 // History
+// ============================================================================
+// History stores complete PEState snapshots, including:
+// - pages (tree structure)
+// - gridLayouts (grid positioning)
+// - selectedNodeId
+// This enables full undo/redo across tree/grid modes (cross-mode history).
 // ============================================================================
 
 const MAX_HISTORY = 80;
@@ -318,6 +422,7 @@ interface PEContextValue {
   setDropTarget: (target: DropTarget | null) => void;
   endDrag: () => void;
   drop: () => void;
+  setViewMode: (mode: ViewMode) => void;
 }
 
 const PEContext = createContext<PEContextValue | null>(null);
@@ -326,6 +431,27 @@ export function usePageEditor(): PEContextValue {
   const ctx = useContext(PEContext);
   if (!ctx) throw new Error("usePageEditor must be inside PageEditorProvider");
   return ctx;
+}
+
+// ============================================================================
+// Persisted ViewMode Helper
+// ============================================================================
+
+function getInitialViewMode(): ViewMode {
+  try {
+    const stored = localStorage.getItem("orqui:viewMode");
+    return (stored === "grid" || stored === "tree") ? stored : "tree";
+  } catch {
+    return "tree";
+  }
+}
+
+function persistViewMode(mode: ViewMode) {
+  try {
+    localStorage.setItem("orqui:viewMode", mode);
+  } catch {
+    // Ignore localStorage errors (e.g., incognito mode)
+  }
 }
 
 // ============================================================================
@@ -346,9 +472,38 @@ export function PageEditorProvider({ initialPages, children }: ProviderProps) {
     selectedNodeId: null,
     drag: { active: false, source: null, dropTarget: null },
     clipboard: null,
+    viewMode: getInitialViewMode(),
+    gridLayouts: {},
   };
 
   const [state, setState] = useState<PEState>(initialState);
+
+  // Persist viewMode to localStorage whenever it changes
+  useEffect(() => {
+    persistViewMode(state.viewMode);
+  }, [state.viewMode]);
+
+  // Sync state when initialPages changes (e.g., parent updates pages)
+  useEffect(() => {
+    const pageKeys = Object.keys(initialPages);
+    if (pageKeys.length > 0) {
+      // If currentPageId doesn't exist in current pages, select first page
+      if (!state.currentPageId || !initialPages[state.currentPageId]) {
+        setState(prev => ({
+          ...prev,
+          pages: initialPages,
+          currentPageId: pageKeys[0],
+          selectedNodeId: null
+        }));
+      } else if (state.pages !== initialPages) {
+        // Update pages if they changed
+        setState(prev => ({
+          ...prev,
+          pages: initialPages
+        }));
+      }
+    }
+  }, [initialPages]);
 
   // Undo/redo stacks (refs — don't trigger renders on their own)
   const undoStack = useRef<HistoryEntry[]>([]);
@@ -455,6 +610,13 @@ export function PageEditorProvider({ initialPages, children }: ProviderProps) {
   const setDropTarget = useCallback((target: DropTarget | null) => dispatch({ type: "DRAG_OVER", target }), [dispatch]);
   const endDrag = useCallback(() => dispatch({ type: "DRAG_END" }), [dispatch]);
   const drop = useCallback(() => dispatch({ type: "DROP" }), [dispatch]);
+  const setViewMode = useCallback((mode: ViewMode) => {
+    // Sync grid → tree before switching to tree mode
+    if (mode === "tree" && state.viewMode === "grid" && state.currentPageId) {
+      dispatch({ type: "SYNC_GRID_TO_TREE", pageId: state.currentPageId });
+    }
+    dispatch({ type: "SET_VIEW_MODE", mode });
+  }, [dispatch, state.viewMode, state.currentPageId]);
 
   const value = useMemo<PEContextValue>(() => ({
     state, dispatch,
@@ -464,6 +626,7 @@ export function PageEditorProvider({ initialPages, children }: ProviderProps) {
     selectNode, addNode, removeNode, duplicateNode, copyNode, pasteNode,
     updateProps, updateStyle,
     startDragFromPalette, startDragFromCanvas, setDropTarget, endDrag, drop,
+    setViewMode,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [state, currentPage, currentContent, selectedNode, canUndo, canRedo, historyVersion]);
 

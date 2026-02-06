@@ -7,6 +7,7 @@ import { SecurityRulesTab } from "@/components/security-rules-tab"
 import { AdvancedTab } from "@/components/advanced-tab"
 import { PromptsTab } from "@/components/prompts-tab"
 import { AgentsTab } from "@/components/agents-tab"
+import { OrquiTab } from "@/components/orqui-tab"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
@@ -92,7 +93,7 @@ type LegacyConfigApi = {
   }>) => Promise<ValidationConfigItem>
 }
 
-const VALID_TABS = ["validators", "security-rules", "conventions", "prompts", "agents", "advanced"] as const
+const VALID_TABS = ["validators", "security-rules", "conventions", "prompts", "agents", "advanced", "orqui"] as const
 
 export function ConfigPage() {
   const legacyConfig = (api as unknown as { config?: LegacyConfigApi }).config
@@ -429,6 +430,7 @@ export function ConfigPage() {
           <TabsTrigger value="prompts">LLM Prompts</TabsTrigger>
           <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
+          <TabsTrigger value="orqui">OrqUI</TabsTrigger>
         </TabsList>
 
         <TabsContent value="validators">
@@ -472,6 +474,10 @@ export function ConfigPage() {
             validationConfigs={validationConfigs}
             onUpdateConfig={handleUpdateValidationConfigValue}
           />
+        </TabsContent>
+
+        <TabsContent value="orqui">
+          <OrquiTab />
         </TabsContent>
       </Tabs>
     </div>

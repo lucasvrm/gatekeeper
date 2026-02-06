@@ -58,7 +58,16 @@
       "Bash(cmd /c \"cd packages\\\\gatekeeper-api && npx prisma generate\")",
       "Bash(cmd /c \"cd packages\\\\gatekeeper-api && npx prisma generate 2>&1\")",
       "Bash(VITEST_RUN_E2E=true npx vitest run:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npm run test:e2e:resilience:*)",
+      "Bash(netstat:*)",
+      "Bash(npm run test:e2e:api:*)",
+      "Bash(cross-env VITEST_RUN_E2E=true npx vitest run:*)",
+      "Bash(VITEST_RUN_E2E=true timeout 45 npx vitest run:*)",
+      "Bash(VITEST_RUN_E2E=true timeout 35 npx vitest:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(grep:*)",
+      "Bash(npm list:*)"
     ]
   }
 }

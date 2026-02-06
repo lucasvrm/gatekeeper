@@ -131,23 +131,23 @@ export function SidebarNavRenderer({ navConfig, page, navigate, collapsed, colla
         {collapsed && (
           <span className="orqui-nav-tooltip" style={{
             position: "absolute",
-            left: "calc(100% + 12px)",
+            left: `calc(100% + var(--orqui-tooltip-offset, 12px))`,
             top: "50%",
             transform: "translateY(-50%)",
-            background: "var(--surface-3, #1e1e28)",
-            color: "var(--foreground, #e8e8ec)",
-            border: "1px solid var(--border, #2a2a33)",
-            borderRadius: 4,
-            padding: "5px 10px",
-            fontSize: 12,
-            fontWeight: 500,
-            fontFamily: "var(--font-mono, monospace)",
+            background: "var(--orqui-tooltip-bg, var(--surface-3, #1e1e28))",
+            color: "var(--orqui-tooltip-color, var(--foreground, #e8e8ec))",
+            border: `1px solid var(--orqui-tooltip-border, var(--border, #2a2a33))`,
+            borderRadius: "var(--orqui-tooltip-radius, 4px)",
+            padding: "var(--orqui-tooltip-padding, 5px 10px)",
+            fontSize: "var(--orqui-tooltip-font-size, 12px)",
+            fontWeight: "var(--orqui-tooltip-font-weight, 500)",
+            fontFamily: "var(--orqui-tooltip-font-family, var(--font-mono, monospace))",
             whiteSpace: "nowrap",
             pointerEvents: "none",
             opacity: 0,
             transition: "opacity 0.15s ease",
             zIndex: 1000,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+            boxShadow: "var(--orqui-tooltip-shadow, 0 4px 12px rgba(0,0,0,0.4))",
           }}>{item.label}</span>
         )}
         {/* Children (sub-items) */}

@@ -47,8 +47,11 @@ export function DndCanvas() {
   if (!currentPage) {
     return (
       <div style={emptyStyle}>
-        <span style={{ fontSize: 32, opacity: 0.2 }}>📄</span>
-        <span style={{ fontSize: 14 }}>Crie ou selecione uma página</span>
+        <span style={{ fontSize: 40, opacity: 0.2 }}>📄</span>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>Nenhuma página selecionada</span>
+        <span style={{ fontSize: 12, color: "#5b5b66" }}>
+          Crie uma nova página ou selecione uma existente
+        </span>
       </div>
     );
   }
@@ -56,8 +59,11 @@ export function DndCanvas() {
   if (!currentContent) {
     return (
       <div style={emptyStyle}>
-        <span style={{ fontSize: 32, opacity: 0.2 }}>📭</span>
-        <span style={{ fontSize: 14 }}>Página sem conteúdo</span>
+        <span style={{ fontSize: 40, opacity: 0.2 }}>📦</span>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>Página vazia</span>
+        <span style={{ fontSize: 12, color: "#5b5b66" }}>
+          Arraste elementos da paleta para começar
+        </span>
       </div>
     );
   }
@@ -626,7 +632,13 @@ const pageLabelStyle: CSSProperties = {
 };
 
 const emptyStyle: CSSProperties = {
-  flex: 1, display: "flex", flexDirection: "column",
-  alignItems: "center", justifyContent: "center", gap: 8,
-  color: C.textDim, fontFamily: "'Inter', sans-serif",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  height: "100%",
+  gap: 12,
+  color: "#8b8b96",
+  padding: 40,
+  fontFamily: "'Inter', sans-serif",
 };

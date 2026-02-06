@@ -41,6 +41,7 @@ export { PageHeaderSlot } from "./components/PageHeader.js";
 export { BreadcrumbRenderer } from "./components/Breadcrumbs.js";
 export { SidebarNavRenderer } from "./components/SidebarNav.js";
 export { Skeleton, SkeletonText, SkeletonCard } from "./components/Skeleton.js";
+export { Toast, useToast } from "./components/Toast.js";
 export { EmptyState, EmptyTableState } from "./components/EmptyState.js";
 
 // Types (re-export for consumers)
@@ -63,6 +64,8 @@ export type {
   PageHeaderConfig,
   FaviconConfig,
   SeparatorConfig,
+  ScrollbarConfig,
+  ToastConfig,
   Container,
   LoginPageConfig,
 } from "./types.js";

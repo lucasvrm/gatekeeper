@@ -40,3 +40,16 @@ export function validateRegistryContract(registry: unknown): RegistryValidationR
 export function isRegistryContract(registry: unknown): registry is UIRegistryContract {
   return validateRegistryContract(registry).valid;
 }
+
+export function resolveRegistryComponentName(registry: unknown, name: string): string | null {
+  if (!name || typeof name !== "string") return null;
+  if (!registry || typeof registry !== "object") return null;
+  const reg = registry as UIRegistryContract;
+  const components = reg.components && typeof reg.components === "object"
+    ? reg.components
+    : (registry as Record<string, any>);
+  if (!components || typeof components !== "object") return null;
+  const target = name.toLowerCase();
+  const match = Object.keys(components).find((key) => key.toLowerCase() === target);
+  return match ?? null;
+}

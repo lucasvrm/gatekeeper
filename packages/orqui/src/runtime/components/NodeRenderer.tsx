@@ -9,6 +9,9 @@ import type { NodeDef } from "../context/ContractProvider.js";
 import type { DataContext } from "../../engine/resolver.js";
 import { resolveTokenToCSS, resolveStyleOverrides, textStyleToCSS } from "../hooks/useTokens.js";
 import { isRichValue } from "../../engine/formatters.js";
+import { PHOSPHOR_SVG_PATHS } from "../icons.js";
+import { Skeleton, SkeletonCard, SkeletonText } from "./Skeleton.js";
+import { resolveRegistryComponentName } from "../registry.js";
 
 // ============================================================================
 // Props
@@ -42,10 +45,28 @@ export function NodeRenderer({ node, data = {}, slots = {}, onAction, onNavigate
   // Style overrides
   const styleOverrides = resolveStyleOverrides(node.style);
 
+  const normalizedType = normalizeNodeType(node.type);
+  const registryComponentName = !isNativeNodeType(normalizedType)
+    ? resolveRegistryComponentName(ctx.registry as any, node.type)
+    : null;
+
+  if (registryComponentName) {
+    return (
+      <ComponentRefNode
+        node={{ ...node, type: "component", props: { ...node.props, name: registryComponentName } }}
+        style={styleOverrides}
+        data={data}
+        slots={slots}
+        onAction={onAction}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   // Render based on type
   const props = node.props || {};
 
-  switch (node.type) {
+  switch (normalizedType) {
     // ---- Layout Nodes ----
     case "grid":
       return <GridNode node={node} style={styleOverrides} data={data} slots={slots} onAction={onAction} onNavigate={onNavigate} />;
@@ -97,10 +118,18 @@ export function NodeRenderer({ node, data = {}, slots = {}, onAction, onNavigate
       return <SelectNode node={node} style={styleOverrides} data={data} />;
 
     // ---- Special Nodes ----
+    case "skeleton":
+      return <SkeletonNode node={node} style={styleOverrides} />;
+    case "skeleton-text":
+      return <SkeletonTextNode node={node} style={styleOverrides} />;
+    case "skeleton-card":
+      return <SkeletonCardNode node={node} style={styleOverrides} />;
+    case "toast":
+      return <ToastNode node={node} style={styleOverrides} />;
     case "slot":
       return <SlotNode node={node} slots={slots} />;
     case "component":
-      return <ComponentRefNode node={node} data={data} />;
+      return <ComponentRefNode node={node} style={styleOverrides} data={data} slots={slots} onAction={onAction} onNavigate={onNavigate} />;
 
     default:
       return <div data-orqui-node={node.id} data-orqui-unknown={node.type} style={styleOverrides}>{renderChildren(node, data, slots, onAction, onNavigate)}</div>;
@@ -454,7 +483,10 @@ function TableNode({ node, style, data, onAction, onNavigate }: { node: NodeDef;
   const items: unknown[] = dataSource ? (data[dataSource] as unknown[] || []) : [];
   const rowHeight = p.rowHeight || 48;
   const compact = p.compact || false;
-  const emptyMessage = p.emptyMessage || "Nenhum item encontrado";
+  const emptyState = resolveEmptyState(ctx, p);
+  const emptyAction = resolveEmptyAction(p, emptyState.actionLabel);
+  const emptyActionHandler = onAction && emptyAction ? () => onAction(emptyAction, null) : undefined;
+  const tableSeparatorEnabled = isTableSeparatorEnabled(ctx);
 
   const tableStyle: CSSProperties = {
     width: "100%",
@@ -464,9 +496,50 @@ function TableNode({ node, style, data, onAction, onNavigate }: { node: NodeDef;
   };
 
   if (items.length === 0) {
+    const showAction = emptyState.showAction !== false && !!emptyActionHandler;
     return (
-      <div data-orqui-node={node.id} data-orqui-type="table-empty" style={{ textAlign: "center", padding: "32px", color: "var(--orqui-colors-text-dim)", fontSize: "14px", ...style }}>
-        {emptyMessage}
+      <div data-orqui-node={node.id} data-orqui-type="table-empty" style={{ overflowX: "auto" }}>
+        <table style={tableStyle}>
+          {columns.length > 0 && (
+            <thead>
+              <tr>
+                {columns.map((col: any) => (
+                  <th
+                    key={col.key}
+                    style={{
+                      width: col.width,
+                      textAlign: (col.align as any) || "left",
+                      padding: compact ? "8px 12px" : "10px 16px",
+                      borderBottom: tableSeparatorEnabled ? undefined : "1px solid var(--orqui-colors-border)",
+                      color: "var(--orqui-colors-text-muted)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          )}
+          <tbody>
+            <tr>
+              <td colSpan={Math.max(columns.length, 1)} style={{ padding: 0 }}>
+                <EmptyStateInline
+                  icon={emptyState.icon}
+                  title={emptyState.title}
+                  description={emptyState.description}
+                  actionLabel={emptyState.actionLabel}
+                  showAction={showAction}
+                  onAction={emptyActionHandler}
+                  size="sm"
+                  style={{ padding: "2rem 1rem" }}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -486,7 +559,7 @@ function TableNode({ node, style, data, onAction, onNavigate }: { node: NodeDef;
                   width: col.width,
                   textAlign: (col.align as any) || "left",
                   padding: compact ? "8px 12px" : "10px 16px",
-                  borderBottom: "1px solid var(--orqui-colors-border)",
+                  borderBottom: tableSeparatorEnabled ? undefined : "1px solid var(--orqui-colors-border)",
                   color: "var(--orqui-colors-text-muted)",
                   fontSize: "12px",
                   fontWeight: 500,
@@ -506,7 +579,7 @@ function TableNode({ node, style, data, onAction, onNavigate }: { node: NodeDef;
                 key={item?.id || rowIdx}
                 style={{
                   height: rowHeight,
-                  borderBottom: "1px solid var(--orqui-colors-border)",
+                  borderBottom: tableSeparatorEnabled ? undefined : "1px solid var(--orqui-colors-border)",
                 }}
               >
                 {columns.map((col: any) => {
@@ -557,6 +630,27 @@ function ListNode({ node, style, data, onAction, onNavigate }: { node: NodeDef; 
   const maxItems = p.maxItems || items.length;
   const template = p.template as NodeDef | undefined;
   const entityName = dataSource ? dataSource.replace(/s$/, "") : "item";
+  const emptyState = resolveEmptyState(ctx, p);
+  const emptyAction = resolveEmptyAction(p, emptyState.actionLabel);
+  const emptyActionHandler = onAction && emptyAction ? () => onAction(emptyAction, null) : undefined;
+
+  if (items.length === 0) {
+    const showAction = emptyState.showAction !== false && !!emptyActionHandler;
+    return (
+      <div data-orqui-node={node.id} data-orqui-type="list-empty" style={{ display: "flex", flexDirection: "column", ...style }}>
+        <EmptyStateInline
+          icon={emptyState.icon}
+          title={emptyState.title}
+          description={emptyState.description}
+          actionLabel={emptyState.actionLabel}
+          showAction={showAction}
+          onAction={emptyActionHandler}
+          size="md"
+          style={{ padding: "2.5rem 1.5rem" }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div data-orqui-node={node.id} data-orqui-type="list" style={{ display: "flex", flexDirection: "column", ...style }}>
@@ -699,13 +793,436 @@ function SlotNode({ node, slots }: { node: NodeDef; slots: Record<string, ReactN
   return <div data-orqui-node={node.id} data-orqui-type="slot" data-slot={name}>{content}</div>;
 }
 
-function ComponentRefNode({ node, data }: { node: NodeDef; data: DataContext }) {
+function ComponentRefNode({
+  node,
+  style,
+  data,
+  slots,
+  onAction,
+  onNavigate,
+}: {
+  node: NodeDef;
+  style: CSSProperties;
+  data: DataContext;
+  slots: Record<string, ReactNode>;
+  onAction?: (action: string, item: unknown) => void;
+  onNavigate?: (route: string) => void;
+}) {
   const ctx = useOrqui();
   const p = node.props || {};
-  // Component references are resolved at the consumer level via registry
+  const name = p.name || p.component || p.componentName;
+  const registry = (ctx.registry as any)?.components ?? ctx.registry;
+
+  if (!name) {
+    return (
+      <div
+        data-orqui-node={node.id}
+        data-orqui-type="component"
+        data-orqui-component-status="missing-name"
+        style={{
+          border: "1px dashed var(--orqui-colors-border)",
+          borderRadius: "6px",
+          padding: "12px",
+          color: "var(--orqui-colors-text-dim)",
+          fontSize: "13px",
+          ...style,
+        }}
+      >
+        Componente sem nome definido.
+      </div>
+    );
+  }
+
+  const entry = registry?.[name];
+  if (!entry) {
+    return (
+      <div
+        data-orqui-node={node.id}
+        data-orqui-type="component"
+        data-component={name}
+        data-orqui-component-status="missing"
+        style={{
+          border: "1px dashed var(--orqui-colors-border)",
+          borderRadius: "6px",
+          padding: "12px",
+          color: "var(--orqui-colors-text-dim)",
+          fontSize: "13px",
+          ...style,
+        }}
+      >
+        Componente "{name}" não está registrado.
+      </div>
+    );
+  }
+
+  const renderer = typeof entry === "function" ? entry : entry.renderer;
+  if (!renderer) {
+    return (
+      <div
+        data-orqui-node={node.id}
+        data-orqui-type="component"
+        data-component={name}
+        data-orqui-component-status="missing-renderer"
+        style={{
+          border: "1px dashed var(--orqui-colors-border)",
+          borderRadius: "6px",
+          padding: "12px",
+          color: "var(--orqui-colors-text-dim)",
+          fontSize: "13px",
+          ...style,
+        }}
+      >
+        Componente "{name}" registrado sem renderer.
+      </div>
+    );
+  }
+
+  const { name: _name, component: _component, componentName: _componentName, props: componentPropsRaw, slots: slotDefs, ...rest } = p;
+  const componentProps = componentPropsRaw ?? rest;
+  const resolvedSlots = resolveComponentSlots(slotDefs, node, data, slots, onAction, onNavigate);
+  const mergedStyle = componentProps?.style ? { ...componentProps.style, ...style } : style;
+
+  return React.createElement(renderer, {
+    ...componentProps,
+    style: mergedStyle,
+    slots: resolvedSlots,
+    children: resolvedSlots.default,
+    "data-orqui-node": node.id,
+    "data-orqui-type": "component",
+    "data-component": name,
+  });
+}
+
+function resolveComponentSlots(
+  slotDefs: Record<string, any> | undefined,
+  node: NodeDef,
+  data: DataContext,
+  slots: Record<string, ReactNode>,
+  onAction?: (action: string, item: unknown) => void,
+  onNavigate?: (route: string) => void,
+): Record<string, ReactNode> {
+  const resolved: Record<string, ReactNode> = {};
+  if (slotDefs && typeof slotDefs === "object") {
+    for (const [slotName, slotValue] of Object.entries(slotDefs)) {
+      resolved[slotName] = renderSlotValue(slotValue, slotName, data, slots, onAction, onNavigate);
+    }
+  }
+
+  if (!resolved.default && node.children && node.children.length > 0) {
+    resolved.default = renderChildren(node, data, slots, onAction, onNavigate);
+  }
+
+  return resolved;
+}
+
+function renderSlotValue(
+  value: any,
+  slotName: string,
+  data: DataContext,
+  slots: Record<string, ReactNode>,
+  onAction?: (action: string, item: unknown) => void,
+  onNavigate?: (route: string) => void,
+): ReactNode {
+  if (Array.isArray(value)) {
+    return value.map((entry, index) => renderSlotEntry(entry, `${slotName}-${index}`, data, slots, onAction, onNavigate));
+  }
+  return renderSlotEntry(value, slotName, data, slots, onAction, onNavigate);
+}
+
+function renderSlotEntry(
+  entry: any,
+  key: string,
+  data: DataContext,
+  slots: Record<string, ReactNode>,
+  onAction?: (action: string, item: unknown) => void,
+  onNavigate?: (route: string) => void,
+): ReactNode {
+  if (isNodeDef(entry)) {
+    return (
+      <NodeRenderer
+        key={entry.id || key}
+        node={entry}
+        data={data}
+        slots={slots}
+        onAction={onAction}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+  if (entry == null) return null;
+  return <React.Fragment key={key}>{entry as ReactNode}</React.Fragment>;
+}
+
+function isNodeDef(value: any): value is NodeDef {
+  return value && typeof value === "object" && typeof value.type === "string" && typeof value.id === "string";
+}
+
+function normalizeNodeType(type: string): string {
+  const raw = String(type || "");
+  const normalized = raw.trim();
+  const lower = normalized.toLowerCase();
+  if (lower === "skeleton") return "skeleton";
+  if (lower === "sonner" || lower === "toast") return "toast";
+  return normalized;
+}
+
+const NATIVE_NODE_TYPES = new Set([
+  "grid",
+  "stack",
+  "row",
+  "container",
+  "text",
+  "heading",
+  "badge",
+  "icon",
+  "button",
+  "image",
+  "divider",
+  "spacer",
+  "stat-card",
+  "card",
+  "key-value",
+  "table",
+  "list",
+  "tabs",
+  "search",
+  "select",
+  "skeleton",
+  "skeleton-text",
+  "skeleton-card",
+  "toast",
+  "slot",
+  "component",
+]);
+
+function isNativeNodeType(type: string): boolean {
+  return NATIVE_NODE_TYPES.has(type);
+}
+
+const EMPTY_STATE_DEFAULTS = {
+  icon: "ph:magnifying-glass",
+  title: "Nenhum item encontrado",
+  description: "",
+  showAction: true,
+  actionLabel: "Criar Novo",
+};
+
+function resolveEmptyState(ctx: ReturnType<typeof useOrqui>, props: Record<string, any>) {
+  const layoutEmpty = (ctx.contract as any)?.structure?.emptyState ?? {};
+  const overrides = {
+    icon: props.emptyIcon,
+    title: props.emptyTitle ?? props.emptyMessage,
+    description: props.emptyDescription,
+    actionLabel: props.emptyActionLabel ?? props.actionLabel,
+    showAction: props.emptyShowAction,
+  };
+
+  return {
+    icon: overrides.icon ?? layoutEmpty.icon ?? EMPTY_STATE_DEFAULTS.icon,
+    title: overrides.title ?? layoutEmpty.title ?? EMPTY_STATE_DEFAULTS.title,
+    description: overrides.description ?? layoutEmpty.description ?? EMPTY_STATE_DEFAULTS.description,
+    showAction: overrides.showAction ?? layoutEmpty.showAction ?? EMPTY_STATE_DEFAULTS.showAction,
+    actionLabel: overrides.actionLabel ?? layoutEmpty.actionLabel ?? EMPTY_STATE_DEFAULTS.actionLabel,
+  };
+}
+
+function resolveEmptyAction(props: Record<string, any>, fallbackLabel?: string) {
+  if (typeof props.emptyAction === "string") return props.emptyAction;
+  if (typeof props.action === "string") return props.action;
+  if (typeof props.onAction === "string") return props.onAction;
+  if (fallbackLabel) return fallbackLabel;
+  return "";
+}
+
+function isTableSeparatorEnabled(ctx: ReturnType<typeof useOrqui>) {
+  return (ctx.contract as any)?.structure?.tableSeparator?.enabled === true;
+}
+
+function EmptyStateInline({
+  icon,
+  title,
+  description,
+  actionLabel,
+  showAction,
+  onAction,
+  size = "md",
+  style,
+}: {
+  icon?: string | ReactNode;
+  title?: string;
+  description?: string;
+  actionLabel?: string;
+  showAction?: boolean;
+  onAction?: () => void;
+  size?: "sm" | "md" | "lg";
+  style?: CSSProperties;
+}) {
+  const sizeMap = {
+    sm: { icon: 32, title: "0.875rem", desc: "0.75rem", gap: "0.75rem", padding: "1.5rem" },
+    md: { icon: 48, title: "1rem", desc: "0.875rem", gap: "1rem", padding: "2rem" },
+    lg: { icon: 64, title: "1.25rem", desc: "1rem", gap: "1.25rem", padding: "3rem" },
+  };
+  const sz = sizeMap[size];
+
+  const renderIcon = () => {
+    if (React.isValidElement(icon)) {
+      return icon;
+    }
+
+    const resolvedIcon = icon ?? EMPTY_STATE_DEFAULTS.icon;
+    const iconName = String(resolvedIcon).replace("ph:", "");
+    const path = PHOSPHOR_SVG_PATHS[iconName as keyof typeof PHOSPHOR_SVG_PATHS];
+
+    if (path) {
+      return (
+        <svg
+          width={sz.icon}
+          height={sz.icon}
+          viewBox="0 0 256 256"
+          fill="currentColor"
+          style={{ opacity: 0.4 }}
+        >
+          <path d={path} />
+        </svg>
+      );
+    }
+
+    return (
+      <span style={{ fontSize: sz.icon, opacity: 0.4 }}>
+        {resolvedIcon}
+      </span>
+    );
+  };
+
   return (
-    <div data-orqui-node={node.id} data-orqui-type="component" data-component={p.name}>
-      {/* Consumer should provide component mapping */}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        padding: sz.padding,
+        gap: sz.gap,
+        color: "var(--orqui-colors-text-muted, #b0b4ba)",
+        ...style,
+      }}
+    >
+      <div style={{ color: "var(--orqui-colors-text-dim, #696e77)" }}>
+        {renderIcon()}
+      </div>
+
+      {title && (
+        <h3
+          style={{
+            fontSize: sz.title,
+            fontWeight: 600,
+            color: "var(--orqui-colors-text, #edeef0)",
+            margin: 0,
+          }}
+        >
+          {title}
+        </h3>
+      )}
+
+      {description && (
+        <p
+          style={{
+            fontSize: sz.desc,
+            color: "var(--orqui-colors-text-muted, #b0b4ba)",
+            margin: 0,
+            maxWidth: "24rem",
+            lineHeight: 1.5,
+          }}
+        >
+          {description}
+        </p>
+      )}
+
+      {showAction && onAction && (
+        <button
+          onClick={onAction}
+          style={{
+            marginTop: "0.5rem",
+            padding: "0.5rem 1rem",
+            fontSize: sz.desc,
+            fontWeight: 500,
+            borderRadius: "var(--orqui-borderRadius-md, 6px)",
+            cursor: "pointer",
+            transition: "all 0.15s",
+            background: "var(--orqui-colors-accent, #0090ff)",
+            color: "#fff",
+            border: "none",
+          }}
+        >
+          {actionLabel ?? EMPTY_STATE_DEFAULTS.actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ToastNode({ node, style }: { node: NodeDef; style: CSSProperties }) {
+  const p = node.props || {};
+  const title = p.title ?? p.message ?? "Toast";
+  const description = p.description ?? "";
+  return (
+    <div
+      data-orqui-node={node.id}
+      data-orqui-type="toast"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
+        background: "var(--orqui-colors-surface, #18191b)",
+        border: "1px solid var(--orqui-colors-border, #2e3135)",
+        borderRadius: 8,
+        padding: "10px 14px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+        ...style,
+      }}
+    >
+      <span style={{ fontSize: 16, opacity: 0.8 }}>✓</span>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--orqui-colors-text, #edeef0)" }}>{title}</div>
+        {description && (
+          <div style={{ fontSize: 12, color: "var(--orqui-colors-text-muted, #b0b4ba)" }}>{description}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SkeletonNode({ node, style }: { node: NodeDef; style: CSSProperties }) {
+  const p = node.props || {};
+  return (
+    <div data-orqui-node={node.id} data-orqui-type="skeleton">
+      <Skeleton
+        width={p.width}
+        height={p.height}
+        count={p.count}
+        circle={p.circle}
+        loading={p.loading ?? true}
+        style={style}
+      />
+    </div>
+  );
+}
+
+function SkeletonTextNode({ node, style }: { node: NodeDef; style: CSSProperties }) {
+  const p = node.props || {};
+  return (
+    <div data-orqui-node={node.id} data-orqui-type="skeleton-text" style={style}>
+      <SkeletonText lines={p.lines ?? p.count} />
+    </div>
+  );
+}
+
+function SkeletonCardNode({ node, style }: { node: NodeDef; style: CSSProperties }) {
+  const p = node.props || {};
+  return (
+    <div data-orqui-node={node.id} data-orqui-type="skeleton-card" style={style}>
+      <SkeletonCard width={p.width} height={p.height} />
     </div>
   );
 }

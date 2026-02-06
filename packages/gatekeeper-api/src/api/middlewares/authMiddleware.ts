@@ -17,11 +17,14 @@ const PUBLIC_PREFIXES = [
   '/health',
   '/api/orchestrator/events/',
   '/api/agent/events/',
+  '/api/orchestrator/run', // E2E testing endpoint
+  '/api/orchestrator/cleanup-logs', // Admin endpoint (should be protected in production)
 ]
 
-// SSE endpoints that need pattern matching
+// SSE endpoints and E2E test endpoints that need pattern matching
 const SSE_PATTERNS = [
   /^\/api\/runs\/[^/]+\/events$/,
+  /^\/api\/orchestrator\/[^/]+\/(status|events)$/,  // E2E testing endpoints
 ]
 
 /**
@@ -58,9 +61,11 @@ export function isPublicRoute(path: string): boolean {
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const path = req.path
+  const isPublic = isPublicRoute(path)
+  console.log(`[authMiddleware] ${req.method} ${path} - isPublic: ${isPublic}`)
 
   // Skip authentication for public routes
-  if (isPublicRoute(path)) {
+  if (isPublic) {
     next()
     return
   }

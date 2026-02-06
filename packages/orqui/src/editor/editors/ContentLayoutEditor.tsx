@@ -507,6 +507,9 @@ export function PageHeaderEditor({ config, textStyles, onChange }: { config: any
           )}
 
           <WBSub title="Typography — Título (inline override)">
+            <Field label="Custom Text (override)">
+              <input value={ph.typography?.title?.text || ""} onChange={(e) => updateTypo("title", "text", e.target.value)} style={s.input} placeholder="Deixe vazio para usar pages[key].label" />
+            </Field>
             <Row gap={8}>
               <Field label="Font Size" style={{ flex: 1 }}>
                 <input value={ph.typography?.title?.fontSize || ""} onChange={(e) => updateTypo("title", "fontSize", e.target.value)} style={s.input} placeholder="$tokens.fontSizes.3xl" />
@@ -514,19 +517,41 @@ export function PageHeaderEditor({ config, textStyles, onChange }: { config: any
               <Field label="Font Weight" style={{ flex: 1 }}>
                 <input value={ph.typography?.title?.fontWeight || ""} onChange={(e) => updateTypo("title", "fontWeight", e.target.value)} style={s.input} placeholder="$tokens.fontWeights.bold" />
               </Field>
+              <Field label="Font Family" style={{ flex: 1 }}>
+                <input value={ph.typography?.title?.fontFamily || ""} onChange={(e) => updateTypo("title", "fontFamily", e.target.value)} style={s.input} placeholder="$tokens.fontFamilies.sans" />
+              </Field>
+            </Row>
+            <Row gap={8}>
               <Field label="Color" style={{ flex: 1 }}>
                 <ColorInput value={ph.typography?.title?.color || ""} onChange={(v) => updateTypo("title", "color", v)} placeholder="var(--foreground)" />
+              </Field>
+              <Field label="Letter Spacing" style={{ flex: 1 }}>
+                <input value={ph.typography?.title?.letterSpacing || ""} onChange={(e) => updateTypo("title", "letterSpacing", e.target.value)} style={s.input} placeholder="$tokens.letterSpacings.tight" />
               </Field>
             </Row>
           </WBSub>
 
           <WBSub title="Typography — Subtítulo (inline override)">
+            <Field label="Custom Text (override)">
+              <input value={ph.typography?.subtitle?.text || ""} onChange={(e) => updateTypo("subtitle", "text", e.target.value)} style={s.input} placeholder="Deixe vazio para usar pages[key].description" />
+            </Field>
             <Row gap={8}>
               <Field label="Font Size" style={{ flex: 1 }}>
                 <input value={ph.typography?.subtitle?.fontSize || ""} onChange={(e) => updateTypo("subtitle", "fontSize", e.target.value)} style={s.input} placeholder="$tokens.fontSizes.sm" />
               </Field>
+              <Field label="Font Weight" style={{ flex: 1 }}>
+                <input value={ph.typography?.subtitle?.fontWeight || ""} onChange={(e) => updateTypo("subtitle", "fontWeight", e.target.value)} style={s.input} placeholder="$tokens.fontWeights.normal" />
+              </Field>
+              <Field label="Font Family" style={{ flex: 1 }}>
+                <input value={ph.typography?.subtitle?.fontFamily || ""} onChange={(e) => updateTypo("subtitle", "fontFamily", e.target.value)} style={s.input} placeholder="$tokens.fontFamilies.sans" />
+              </Field>
+            </Row>
+            <Row gap={8}>
               <Field label="Color" style={{ flex: 1 }}>
                 <ColorInput value={ph.typography?.subtitle?.color || ""} onChange={(v) => updateTypo("subtitle", "color", v)} placeholder="$tokens.colors.text-muted" />
+              </Field>
+              <Field label="Letter Spacing" style={{ flex: 1 }}>
+                <input value={ph.typography?.subtitle?.letterSpacing || ""} onChange={(e) => updateTypo("subtitle", "letterSpacing", e.target.value)} style={s.input} placeholder="$tokens.letterSpacings.normal" />
               </Field>
             </Row>
           </WBSub>

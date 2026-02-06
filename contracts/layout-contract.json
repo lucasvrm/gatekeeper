@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:6bf549c6ca8283d4a9c1c9168eaccdba57dfaa4e27a0ccea413ba8e26c3c7531",
-    "generatedAt": "2026-02-05T17:01:03.285Z",
+    "hash": "sha256:ba090773d11a77bba377081a22d0f0193a36a4b70940859c3a8c3ffb3d9783d3",
+    "generatedAt": "2026-02-06T16:14:13.360Z",
     "pageCount": 2
   },
   "structure": {
@@ -363,13 +363,13 @@
       },
       "iconGap": 8,
       "typography": {
-        "fontFamily": "Inter",
-        "fontSize": 19,
-        "fontWeight": 900,
+        "fontFamily": "Poppins",
+        "fontSize": 20,
+        "fontWeight": 700,
         "color": "#3a6ab5",
-        "letterSpacing": 0.4
+        "letterSpacing": 0
       },
-      "iconSize": 26,
+      "iconSize": 36,
       "_alignNote": "Padding controlled by header sidebar-zone paddingLeft"
     },
     "favicon": {
@@ -500,7 +500,7 @@
       },
       "typography": {
         "title": {
-          "fontSize": "$tokens.fontSizes.2xl",
+          "fontSize": "$tokens.fontSizes.lg",
           "fontWeight": "$tokens.fontWeights.bold",
           "letterSpacing": "-0.02em"
         },
@@ -577,13 +577,30 @@
         "gradient": "linear-gradient(161deg, #77abfd, #b3b7bc)"
       },
       "card": {
-        "background": "#a5c7fd",
+        "background": "#ffffff",
         "borderColor": "#ffffff",
         "borderRadius": ""
       },
       "inputs": {
         "background": "#ffffff",
-        "borderColor": "#bdbdbd"
+        "borderColor": "#bdbdbd",
+        "focusBorderColor": "#77abfd"
+      },
+      "logo": {
+        "placement": "inside-card",
+        "scale": 1.4,
+        "marginBottom": "20px"
+      },
+      "title": {
+        "text": "Acessar"
+      },
+      "button": {
+        "background": "#3a6ab5",
+        "color": "#ffffff",
+        "hoverBackground": "#4d91ff"
+      },
+      "footer": {
+        "text": "Powered by LLMs"
       }
     }
   },
@@ -747,7 +764,7 @@
         ]
       },
       "mono": {
-        "family": "JetBrains Mono",
+        "family": "Poppins",
         "fallbacks": [
           "JetBrains Mono",
           "Consolas",
@@ -755,7 +772,7 @@
         ]
       },
       "display": {
-        "family": "Source Sans 3",
+        "family": "Poppins",
         "fallbacks": [
           "serif"
         ]

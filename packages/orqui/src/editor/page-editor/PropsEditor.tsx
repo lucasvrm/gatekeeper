@@ -36,6 +36,13 @@ export function PropsEditor() {
       <NodeHeader node={selectedNode} isRoot={isRoot} />
 
       <div style={{ flex: 1, overflow: "auto", padding: "0 0 16px" }}>
+        {/* Grid position (only in grid mode) */}
+        {state.viewMode === "grid" && !isRoot && (
+          <Section title="📍 Position & Size">
+            <GridPositionSection node={selectedNode} />
+          </Section>
+        )}
+
         {/* Type-specific props */}
         <Section title="Propriedades">
           <TypeProps node={selectedNode} />
@@ -101,6 +108,65 @@ function Section({ title, children, defaultCollapsed }: { title: string; childre
         <span>{title}</span>
       </button>
       {open && <div style={{ padding: "0 14px 12px" }}>{children}</div>}
+    </div>
+  );
+}
+
+// ============================================================================
+// Grid Position Section (grid mode only)
+// ============================================================================
+
+function GridPositionSection({ node }: { node: NodeDef }) {
+  const { state, dispatch } = usePageEditor();
+  const pageId = state.currentPageId!;
+  const grid = state.gridLayouts[pageId];
+  const item = grid?.items.find(i => i.component === node.id);
+
+  if (!item || !grid) return null;
+
+  const updateGridItem = (updates: Partial<typeof item>) => {
+    dispatch({
+      type: "UPDATE_GRID_ITEM",
+      pageId,
+      itemId: node.id,
+      updates,
+    });
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <Field label="Col Start">
+        <NumberInput
+          value={item.colStart}
+          onChange={v => updateGridItem({ colStart: Math.max(1, Math.min(v, grid.columns)) })}
+          min={1}
+          max={grid.columns}
+        />
+      </Field>
+      <Field label="Col Span">
+        <NumberInput
+          value={item.colSpan}
+          onChange={v => updateGridItem({ colSpan: Math.max(1, Math.min(v, grid.columns)) })}
+          min={1}
+          max={grid.columns}
+        />
+      </Field>
+      <Field label="Row Start">
+        <NumberInput
+          value={item.rowStart}
+          onChange={v => updateGridItem({ rowStart: Math.max(1, v) })}
+          min={1}
+          max={99}
+        />
+      </Field>
+      <Field label="Row Span">
+        <NumberInput
+          value={item.rowSpan}
+          onChange={v => updateGridItem({ rowSpan: Math.max(1, v) })}
+          min={1}
+          max={12}
+        />
+      </Field>
     </div>
   );
 }

@@ -3,12 +3,13 @@
 // ============================================================================
 
 import React, { useState, type CSSProperties } from "react";
-import { NODE_CATALOG, CATEGORIES, type NodeTypeMeta } from "./nodeDefaults";
+import { NODE_CATALOG, CATEGORIES, type NodeTypeMeta, createDefaultNode } from "./nodeDefaults";
 import { usePageEditor } from "./PageEditorProvider";
+import { findNextEmptySlot } from "./gridHelpers";
 import { C } from "./styles";
 
 export function ElementPalette() {
-  const { startDragFromPalette, endDrag } = usePageEditor();
+  const { state, dispatch, startDragFromPalette, endDrag, currentContent } = usePageEditor();
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -33,6 +34,39 @@ export function ElementPalette() {
         ...cat,
         items: NODE_CATALOG.filter(n => n.category === cat.id),
       }));
+
+  const handleClick = (type: string) => {
+    const pageId = state.currentPageId;
+    if (!pageId) return;
+
+    const newNode = createDefaultNode(type);
+
+    if (state.viewMode === "grid") {
+      const grid = state.gridLayouts[pageId];
+      if (!grid) return;
+
+      const position = findNextEmptySlot(grid);
+      dispatch({ type: "ADD_NODE_TO_GRID", node: newNode, pageId, position });
+    } else {
+      // Tree mode: add to root or selected container
+      if (!currentContent) return;
+
+      if (state.selectedNodeId) {
+        const selectedNode = currentContent.children?.find((n: any) => n.id === state.selectedNodeId);
+        if (selectedNode?.children !== undefined) {
+          // Selected node is a container — add as last child
+          dispatch({ type: "ADD_NODE", parentId: selectedNode.id, index: selectedNode.children.length, node: newNode });
+        } else {
+          // Selected node is a leaf — add after it in root
+          const idx = currentContent.children?.findIndex((n: any) => n.id === state.selectedNodeId) ?? -1;
+          dispatch({ type: "ADD_NODE", parentId: currentContent.id, index: idx + 1, node: newNode });
+        }
+      } else {
+        // No selection — add at end of root
+        dispatch({ type: "ADD_NODE", parentId: currentContent.id, index: currentContent.children?.length || 0, node: newNode });
+      }
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, meta: NodeTypeMeta) => {
     e.dataTransfer.setData("application/orqui-node-type", meta.type);
@@ -79,6 +113,7 @@ export function ElementPalette() {
                   <div
                     key={meta.type}
                     draggable
+                    onClick={() => handleClick(meta.type)}
                     onDragStart={e => handleDragStart(e, meta)}
                     onDragEnd={endDrag}
                     title={meta.description}

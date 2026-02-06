@@ -35,6 +35,28 @@ export interface SeparatorConfig {
   style?: string;
   extend?: "full" | "inset" | "none";
 }
+export interface TableSeparatorConfig {
+  enabled?: boolean;
+  color?: string;
+  width?: string;
+  style?: string;
+  headerColor?: string;
+  headerWidth?: string;
+  headerStyle?: string;
+}
+export interface ScrollbarConfig {
+  enabled?: boolean;
+  width?: string;
+  thumbColor?: string;
+  thumbHoverColor?: string;
+  trackColor?: string;
+  borderRadius?: string;
+}
+export interface ToastConfig {
+  position?: "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center" | "bottom-center";
+  maxVisible?: number;
+  duration?: number;
+}
 export interface NavTypography {
   fontSize?: string;
   fontFamily?: string;
@@ -126,8 +148,24 @@ export interface PageHeaderConfig {
   showDivider?: boolean;
   padding?: { top?: string; right?: string; bottom?: string; left?: string };
   typography?: {
-    title?: { fontSize?: string; fontWeight?: string; letterSpacing?: string };
-    subtitle?: { fontSize?: string; color?: string };
+    titleTextStyle?: string;
+    subtitleTextStyle?: string;
+    title?: {
+      text?: string;
+      fontSize?: string;
+      fontWeight?: string;
+      fontFamily?: string;
+      color?: string;
+      letterSpacing?: string;
+    };
+    subtitle?: {
+      text?: string;
+      fontSize?: string;
+      fontWeight?: string;
+      fontFamily?: string;
+      color?: string;
+      letterSpacing?: string;
+    };
   };
 }
 export interface TextStyleDef {
@@ -297,11 +335,11 @@ export interface LayoutContract {
     pageHeader?: PageHeaderConfig;
     pages?: Record<string, PageConfig>;
     layoutMode?: "sidebar-first" | "header-first";
-    scrollbar?: Record<string, any>;
-    toast?: Record<string, any>;
+    scrollbar?: ScrollbarConfig;
+    toast?: ToastConfig;
     emptyState?: Record<string, any>;
     skeleton?: Record<string, any>;
-    tableSeparator?: Record<string, any>;
+    tableSeparator?: TableSeparatorConfig;
     appTitle?: string;
     alignmentGrid?: Record<string, any>;
     loginPage?: LoginPageConfig;
@@ -351,6 +389,7 @@ export interface ContractContextValue {
   layout: LayoutContract;
   registry: UIRegistryContract;
   tokens: Tokens;
+  updateContract: (updates: Partial<LayoutContract>) => void;
   resolveToken: (ref: string) => string | number | null;
   getTextStyle: (name: string) => CSSProperties;
   getComponentDef: (name: string) => ComponentRegistryEntry | null;

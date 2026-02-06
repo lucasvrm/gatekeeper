@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
+import { ZodError } from 'zod'
 
 interface AppError extends Error {
   statusCode?: number
@@ -6,12 +7,45 @@ interface AppError extends Error {
 }
 
 export function errorHandler(
-  err: AppError,
+  err: AppError & { status?: number; type?: string },
   req: Request,
   res: Response,
   _next: NextFunction
 ): void {
-  const statusCode = err.statusCode || 500
+  // Handle Zod validation errors
+  if (err instanceof ZodError) {
+    console.error('Zod validation error:', {
+      path: req.path,
+      method: req.method,
+      issues: err.issues,
+    })
+    res.status(400).json({
+      error: 'Validation Error',
+      message: 'Request validation failed',
+      details: err.issues,
+      path: req.path,
+      code: 'VALIDATION_ERROR',
+    })
+    return
+  }
+
+  // Handle 413 Payload Too Large
+  if (err.status === 413 || err.type === 'entity.too.large') {
+    console.error('Payload too large:', {
+      path: req.path,
+      method: req.method,
+      contentLength: req.headers['content-length'],
+    })
+    res.status(413).json({
+      error: 'Payload Too Large',
+      message: 'Request body exceeds maximum allowed size',
+      maxSize: '10MB',
+      code: 'PAYLOAD_TOO_LARGE',
+    })
+    return
+  }
+
+  const statusCode = err.statusCode || err.status || 500
   const message = err.message || 'Internal server error'
 
   console.error('Error:', {

@@ -7,6 +7,7 @@ import { RunDetailsPageV2 } from "@/components/run-details-page-v2"
 import { NewValidationPage } from "@/components/new-validation-page"
 import { GatesPage } from "@/components/gates-page"
 import { ConfigPage } from "@/components/config-page"
+import { PageEditorPage } from "@/components/page-editor-page"
 import { WorkspacesListPage } from "@/components/workspaces-list-page"
 import { WorkspaceDetailsPage } from "@/components/workspace-details-page"
 import { WorkspaceFormPage } from "@/components/workspace-form-page"
@@ -95,23 +96,23 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
       {collapsed && (
         <span className="orqui-nav-tooltip" style={{
           position: "absolute",
-          left: "calc(100% + 12px)",
+          left: `calc(100% + var(--orqui-tooltip-offset, 12px))`,
           top: "50%",
           transform: "translateY(-50%)",
-          background: "var(--surface-3, #1e1e28)",
+          background: "var(--orqui-tooltip-bg, var(--surface-3, #1e1e28))",
           color: "var(--destructive, #ef4444)",
-          border: "1px solid var(--border, #2a2a33)",
-          borderRadius: 4,
-          padding: "5px 10px",
-          fontSize: 12,
-          fontWeight: 500,
-          fontFamily: "var(--font-mono, monospace)",
+          border: `1px solid var(--orqui-tooltip-border, var(--border, #2a2a33))`,
+          borderRadius: "var(--orqui-tooltip-radius, 4px)",
+          padding: "var(--orqui-tooltip-padding, 5px 10px)",
+          fontSize: "var(--orqui-tooltip-font-size, 12px)",
+          fontWeight: "var(--orqui-tooltip-font-weight, 500)",
+          fontFamily: "var(--orqui-tooltip-font-family, var(--font-mono, monospace))",
           whiteSpace: "nowrap",
           pointerEvents: "none",
           opacity: 0,
           transition: "opacity 0.15s ease",
           zIndex: 1000,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          boxShadow: "var(--orqui-tooltip-shadow, 0 4px 12px rgba(0,0,0,0.4))",
         }}>Sair</span>
       )}
     </div>
@@ -202,6 +203,15 @@ function App() {
               {/* Public routes — no AppShell, no auth required */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              {/* Protected fullscreen routes — auth required, no AppShell */}
+              <Route
+                path="/page-editor"
+                element={
+                  <ProtectedRoute>
+                    <PageEditorPage />
+                  </ProtectedRoute>
+                }
+              />
               {/* All other routes — protected + AppShell */}
               <Route path="/*" element={<ProtectedApp />} />
             </Routes>

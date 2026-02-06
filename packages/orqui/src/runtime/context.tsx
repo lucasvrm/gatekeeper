@@ -1,7 +1,7 @@
 // ============================================================================
 // Orqui Runtime — Contract Context & Hooks
 // ============================================================================
-import React, { createContext, useContext, useMemo, useEffect } from "react";
+import React, { createContext, useContext, useMemo, useEffect, useState, useCallback } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { Tokens, LayoutContract, UIRegistryContract, ContractContextValue } from "./types.js";
 import { resolveTokenRef, tokenToCSS, resolveTextStyleCSS } from "./tokens.js";
@@ -30,12 +30,21 @@ interface ContractProviderProps {
 }
 
 export function ContractProvider({ layout, registry, children, injectCSS = true }: ContractProviderProps) {
+  const [layoutState, setLayoutState] = useState(layout);
+
+  const updateContract = useCallback((updates: Partial<LayoutContract>) => {
+    setLayoutState(prev => ({ ...prev, ...updates }));
+  }, []);
+
   const value = useMemo<ContractContextValue>(() => ({
-    layout, registry, tokens: layout.tokens,
-    resolveToken: (ref: string) => resolveTokenRef(ref, layout.tokens),
+    layout: layoutState,
+    registry,
+    tokens: layoutState.tokens,
+    updateContract,
+    resolveToken: (ref: string) => resolveTokenRef(ref, layoutState.tokens),
     getTextStyle: (name: string) => {
-      const style = (layout.textStyles as any)?.[name];
-      return style ? resolveTextStyleCSS(style, layout.tokens) : {};
+      const style = (layoutState.textStyles as any)?.[name];
+      return style ? resolveTextStyleCSS(style, layoutState.tokens) : {};
     },
     getComponentDef: (name: string) => registry?.components?.[name] ?? null,
     getComponentRenderer: (name: string) => {
@@ -43,15 +52,15 @@ export function ContractProvider({ layout, registry, children, injectCSS = true 
       return def?.renderer ?? null;
     },
     getTokenValue: (category: string, key: string) => {
-      const token = (layout.tokens as any)[category]?.[key];
+      const token = (layoutState.tokens as any)[category]?.[key];
       return token ? tokenToCSS(token) : "";
     },
-    color: (name: string) => (layout.tokens.colors as any)?.[name]?.value ?? "",
-  }), [layout, registry]);
+    color: (name: string) => (layoutState.tokens.colors as any)?.[name]?.value ?? "",
+  }), [layoutState, registry, updateContract]);
 
   const styleSheet = useMemo(
-    () => injectCSS ? buildStyleSheet(layout.tokens, layout) : "",
-    [layout.tokens, injectCSS]
+    () => injectCSS ? buildStyleSheet(layoutState.tokens, layoutState) : "",
+    [layoutState.tokens, injectCSS]
   );
 
   // Build component-specific CSS from registry styles
@@ -94,7 +103,7 @@ export function ContractProvider({ layout, registry, children, injectCSS = true 
 
   // Dynamically load Google Fonts for all referenced font families
   useEffect(() => {
-    const families = layout.tokens.fontFamilies ?? {};
+    const families = layoutState.tokens.fontFamilies ?? {};
     const toLoad = Object.values(families)
       .map((f: any) => f.family)
       .filter(Boolean);
@@ -112,7 +121,7 @@ export function ContractProvider({ layout, registry, children, injectCSS = true 
         document.head.appendChild(link);
       }
     });
-  }, [layout.tokens.fontFamilies]);
+  }, [layoutState.tokens.fontFamilies]);
 
   return (
     <ContractContext.Provider value={value}>
@@ -150,12 +159,24 @@ export function useSkeletonConfig() {
 
 export function useToastConfig() {
   const { layout } = useContract();
-  return layout.structure.toast ?? { position: "bottom-right" as const, maxVisible: 3, duration: 4000 };
+  const defaults = { position: "bottom-right" as const, maxVisible: 3, duration: 4000 };
+  return { ...defaults, ...(layout.structure.toast ?? {}) };
 }
 
 export function useScrollbarConfig() {
   const { layout } = useContract();
-  return layout.structure.scrollbar ?? { width: "6px", thumbColor: "rgba(255,255,255,0.08)", thumbHoverColor: "rgba(255,255,255,0.15)", trackColor: "transparent", borderRadius: "3px" };
+  const config = layout.structure.scrollbar ?? {};
+  const enabled = (config as any).enabled !== false;
+  if (!enabled) return { ...config, enabled: false };
+  return {
+    width: "6px",
+    thumbColor: "rgba(255,255,255,0.08)",
+    thumbHoverColor: "rgba(255,255,255,0.15)",
+    trackColor: "transparent",
+    borderRadius: "3px",
+    ...config,
+    enabled: true,
+  };
 }
 
 export function useLayoutMode(): "sidebar-first" | "header-first" {

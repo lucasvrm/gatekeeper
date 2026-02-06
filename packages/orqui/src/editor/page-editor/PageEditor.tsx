@@ -9,6 +9,7 @@ import { PageEditorProvider, usePageEditor } from "./PageEditorProvider";
 import { VariablesProvider, useVariables } from "./VariablesContext";
 import { LeftPanel } from "./LeftPanel";
 import { DndCanvas } from "./DndCanvas";
+import { GridCanvasWrapper } from "./GridCanvasWrapper";
 import { PropsEditor } from "./PropsEditor";
 import type { PageDef, NodeDef } from "./nodeDefaults";
 import { createDefaultPage, generateId } from "./nodeDefaults";
@@ -31,9 +32,11 @@ interface PageEditorProps {
   onVariablesChange?: (v: VariablesSection) => void;
   /** External variables provided by consumer (read-only in editor) */
   externalVariables?: VariablesSection;
+  /** Called when user wants to exit the editor */
+  onExitEditor?: () => void;
 }
 
-export function PageEditor({ pages, onPagesChange, tokens, variables, onVariablesChange, externalVariables }: PageEditorProps) {
+export function PageEditor({ pages, onPagesChange, tokens, variables, onVariablesChange, externalVariables, onExitEditor }: PageEditorProps) {
   const userVars = variables || EMPTY_VARIABLES;
   const handleVarsChange = onVariablesChange || (() => {});
 
@@ -44,7 +47,7 @@ export function PageEditor({ pages, onPagesChange, tokens, variables, onVariable
         externalVariables={externalVariables}
         onUserVariablesChange={handleVarsChange}
       >
-        <PageEditorInner onPagesChange={onPagesChange} />
+        <PageEditorInner onPagesChange={onPagesChange} onExitEditor={onExitEditor} />
       </VariablesProvider>
     </PageEditorProvider>
   );
@@ -54,14 +57,25 @@ export function PageEditor({ pages, onPagesChange, tokens, variables, onVariable
 // Inner layout
 // ============================================================================
 
-function PageEditorInner({ onPagesChange }: { onPagesChange: (pages: Record<string, PageDef>) => void }) {
+function PageEditorInner({ onPagesChange, onExitEditor }: { onPagesChange: (pages: Record<string, PageDef>) => void; onExitEditor?: () => void }) {
   const {
     state, dispatch, currentPage, currentContent, selectedNode,
     undo, redo, canUndo, canRedo,
     removeNode, duplicateNode, copyNode, pasteNode,
+    setViewMode: setEditorViewMode,
   } = usePageEditor();
   const { merged, userVariables, onUserVariablesChange } = useVariables();
   const [viewMode, setViewMode] = useState<"design" | "json">("design");
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Animated view mode transition
+  const handleViewModeChange = useCallback((mode: "tree" | "grid") => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setEditorViewMode(mode);
+      setTimeout(() => setIsTransitioning(false), 50);
+    }, 150);
+  }, [setEditorViewMode]);
 
   // Sync pages to parent on every change
   useEffect(() => {
@@ -159,8 +173,48 @@ function PageEditorInner({ onPagesChange }: { onPagesChange: (pages: Record<stri
 
   return (
     <div style={rootStyle}>
+      <style>{`
+        .page-tabs-container::-webkit-scrollbar {
+          height: 24px !important;
+          width: 24px !important;
+        }
+
+        .page-tabs-container::-webkit-scrollbar-track {
+          background: #2a2a33 !important;
+          border-radius: 12px !important;
+          margin: 0 12px !important;
+        }
+
+        .page-tabs-container::-webkit-scrollbar-thumb {
+          background: #d0d0d5 !important;
+          border-radius: 12px !important;
+          border: 4px solid #2a2a33 !important;
+          min-width: 80px !important;
+          min-height: 24px !important;
+        }
+
+        .page-tabs-container::-webkit-scrollbar-thumb:hover {
+          background: #e8e8eb !important;
+          cursor: pointer !important;
+        }
+
+        .page-tabs-container::-webkit-scrollbar-thumb:active {
+          background: #ffffff !important;
+        }
+
+        .page-tabs-container::-webkit-scrollbar-corner {
+          background: #2a2a33 !important;
+        }
+      `}</style>
+
       {/* Page selector + actions bar */}
-      <PageBar viewMode={viewMode} setViewMode={setViewMode} />
+      <PageBar
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        editorViewMode={state.viewMode}
+        setEditorViewMode={handleViewModeChange}
+        onExitEditor={onExitEditor}
+      />
 
       {/* Three-panel layout */}
       <div style={mainStyle}>
@@ -176,7 +230,23 @@ function PageEditorInner({ onPagesChange }: { onPagesChange: (pages: Record<stri
         {/* Center: canvas or JSON */}
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {currentContent && <CanvasInfoBar content={currentContent} />}
-          {viewMode === "design" ? <DndCanvas /> : <JsonView />}
+          {viewMode === "design" ? (
+            <div style={{
+              flex: 1,
+              overflow: "hidden",
+              opacity: isTransitioning ? 0.3 : 1,
+              transform: isTransitioning ? "scale(0.98)" : "scale(1)",
+              transition: "all 0.2s ease-out",
+            }}>
+              {state.viewMode === "tree" ? (
+                <DndCanvas />
+              ) : (
+                <GridCanvasWrapper />
+              )}
+            </div>
+          ) : (
+            <JsonView />
+          )}
         </div>
 
         {/* Right: props editor */}
@@ -192,7 +262,19 @@ function PageEditorInner({ onPagesChange }: { onPagesChange: (pages: Record<stri
 // Page selector bar
 // ============================================================================
 
-function PageBar({ viewMode, setViewMode }: { viewMode: string; setViewMode: (m: "design" | "json") => void }) {
+function PageBar({
+  viewMode,
+  setViewMode,
+  editorViewMode,
+  setEditorViewMode,
+  onExitEditor,
+}: {
+  viewMode: string;
+  setViewMode: (m: "design" | "json") => void;
+  editorViewMode: "tree" | "grid";
+  setEditorViewMode: (m: "tree" | "grid") => void;
+  onExitEditor?: () => void;
+}) {
   const { state, dispatch, currentPage, undo, redo, canUndo, canRedo, historySize } = usePageEditor();
   const pages = Object.values(state.pages);
   const [adding, setAdding] = useState(false);
@@ -224,7 +306,7 @@ function PageBar({ viewMode, setViewMode }: { viewMode: string; setViewMode: (m:
   return (
     <div style={pageBarStyle}>
       {/* Page tabs */}
-      <div style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
+      <div className="page-tabs-container" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
         {pages.map(page => (
           <div key={page.id} style={{ display: "flex", alignItems: "center" }}>
             {editingId === page.id ? (
@@ -311,7 +393,27 @@ function PageBar({ viewMode, setViewMode }: { viewMode: string; setViewMode: (m:
 
         <div style={{ width: 1, height: 16, background: C.border, margin: "0 4px" }} />
 
-        {/* View toggle */}
+        {/* Editor view toggle (Tree/Grid) */}
+        <div style={viewToggleContainerStyle}>
+          <button
+            onClick={() => setEditorViewMode("tree")}
+            style={viewToggleBtnStyle(editorViewMode === "tree")}
+            title="Tree View — Hierarquia e conteúdo"
+          >
+            🌳 Tree
+          </button>
+          <button
+            onClick={() => setEditorViewMode("grid")}
+            style={viewToggleBtnStyle(editorViewMode === "grid")}
+            title="Grid View — Layout visual preciso"
+          >
+            📐 Grid
+          </button>
+        </div>
+
+        <div style={{ width: 1, height: 16, background: C.border, margin: "0 4px" }} />
+
+        {/* View toggle (Design/JSON) */}
         <div style={{ display: "flex", gap: 1, background: C.surface2, padding: 2, borderRadius: 5 }}>
           <button
             onClick={() => setViewMode("design")}
@@ -331,6 +433,27 @@ function PageBar({ viewMode, setViewMode }: { viewMode: string; setViewMode: (m:
             <span style={nodeCountStyle}>
               {currentPage.content ? flattenTree(currentPage.content).length : 0} nodes
             </span>
+          </>
+        )}
+
+        {/* Save & Exit buttons (only in runtime integration) */}
+        {onExitEditor && (
+          <>
+            <div style={{ width: 1, height: 16, background: C.border, margin: "0 4px" }} />
+            <button
+              onClick={onExitEditor}
+              style={exitButtonStyle}
+              title="Sair do editor"
+            >
+              💾 Save & Exit
+            </button>
+            <button
+              onClick={onExitEditor}
+              style={cancelButtonStyle}
+              title="Cancelar e voltar"
+            >
+              ✕ Cancel
+            </button>
           </>
         )}
       </div>
@@ -459,12 +582,12 @@ const mainStyle: CSSProperties = {
 };
 
 const leftPanelStyle: CSSProperties = {
-  width: 220, minWidth: 220,
+  width: 264, minWidth: 264,
   height: "100%", overflow: "hidden",
 };
 
 const rightPanelStyle: CSSProperties = {
-  width: 270, minWidth: 270,
+  width: 324, minWidth: 324,
   height: "100%", overflow: "hidden",
 };
 
@@ -531,4 +654,53 @@ const nodeCountStyle: CSSProperties = {
   background: C.accent + "10", color: C.accent,
   border: `1px solid ${C.accent}25`,
   fontWeight: 600,
+};
+
+const viewToggleContainerStyle: CSSProperties = {
+  display: "flex",
+  gap: 1,
+  background: C.surface2,
+  padding: 2,
+  borderRadius: 5,
+};
+
+function viewToggleBtnStyle(active: boolean): CSSProperties {
+  return {
+    padding: "4px 12px",
+    borderRadius: 4,
+    background: active ? C.surface3 : "transparent",
+    color: active ? C.accent : C.textDim,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 600,
+    transition: "all 0.15s",
+    fontFamily: "'Inter', sans-serif",
+  };
+}
+
+const exitButtonStyle: CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 5,
+  background: C.success,
+  color: "#fff",
+  border: "none",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 600,
+  transition: "all 0.15s",
+  fontFamily: "'Inter', sans-serif",
+};
+
+const cancelButtonStyle: CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 5,
+  background: C.surface2,
+  color: C.textMuted,
+  border: `1px solid ${C.border}`,
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 600,
+  transition: "all 0.15s",
+  fontFamily: "'Inter', sans-serif",
 };
