@@ -136,7 +136,7 @@ router.get('/:outputId/logs/export', async (req, res, next) => {
 })
 
 // REST: Get aggregated metrics
-router.get('/:pipelineId/metrics', async (req, res, next) => {
+router.get('/:outputId/metrics', async (req, res, next) => {
   try {
     StatusParamsSchema.parse(req.params)
     await controller.getMetrics(req, res)

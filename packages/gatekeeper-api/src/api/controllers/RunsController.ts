@@ -436,22 +436,41 @@ export class RunsController {
           return
         }
 
-        const planPath = path.join(filesystemArtifactDir, 'plan.json')
+        // Check for microplans.json first, fallback to plan.json
+        const microplansExists = contents.includes('microplans.json')
         const planExists = contents.includes('plan.json')
+        const hasPlanArtifact = microplansExists || planExists
 
-        if (planExists) {
+        if (hasPlanArtifact) {
           try {
+            const planFilename = microplansExists ? 'microplans.json' : 'plan.json'
+            const planPath = path.join(filesystemArtifactDir, planFilename)
             const planRaw = await fs.readFile(planPath, 'utf-8')
             const planData = JSON.parse(planRaw)
-            uploadedFiles.push({ type: 'plan.json', path: planPath, size: Buffer.byteLength(planRaw) })
-            if (planData.contract) {
+            uploadedFiles.push({ type: planFilename, path: planPath, size: Buffer.byteLength(planRaw) })
+
+            // Extract contract (handle both formats)
+            let contractData: any = null
+            if ('microplans' in planData && Array.isArray(planData.microplans)) {
+              // Microplans format: extract files from all microplans
+              const allFiles = planData.microplans.flatMap((mp: any) => mp.files || [])
+              contractData = {
+                files: allFiles.map((f: any) => ({ path: f.path, action: f.action })),
+                testFile: allFiles.find((f: any) => /\.(spec|test)\.(ts|tsx|js|jsx)$/.test(f.path))?.path
+              }
+            } else if (planData.contract) {
+              // Legacy plan.json format
+              contractData = planData.contract
+            }
+
+            if (contractData) {
               await prisma.validationRun.update({
                 where: { id },
-                data: { contractJson: JSON.stringify(planData.contract) },
+                data: { contractJson: JSON.stringify(contractData) },
               })
             }
           } catch (error) {
-            console.error('[uploadFiles] Failed to parse plan.json from artifacts:', error)
+            console.error('[uploadFiles] Failed to parse plan artifact from filesystem:', error)
           }
         }
 
@@ -464,40 +483,61 @@ export class RunsController {
         })
       }
 
-      // Process plan.json
-      if (hasUploadedFiles && files && files['planJson'] && files['planJson'][0]) {
-        const planFile = files['planJson'][0]
+      // Process plan artifact (accept both microplans.json and plan.json)
+      if (hasUploadedFiles && files) {
+        // Prioritize microplans.json over plan.json
+        const microplansFile = files['microplansJson'] && files['microplansJson'][0]
+        const planFile = files['planJson'] && files['planJson'][0]
+        const planArtifactFile = microplansFile || planFile
+        const planArtifactFilename = microplansFile ? 'microplans.json' : 'plan.json'
 
-        // Validate file size (max 5MB)
-        if (planFile.size > 5 * 1024 * 1024) {
-          res.status(400).json({ error: 'plan.json exceeds maximum size of 5MB' })
-          return
-        }
-
-        try {
-          JSON.parse(planFile.buffer.toString('utf-8'))
-        } catch {
-          res.status(400).json({ error: 'plan.json is not valid JSON' })
-          return
-        }
-
-        const planPath = path.join(artifactDir, 'plan.json')
-        await fs.writeFile(planPath, planFile.buffer)
-        uploadedFiles.push({ type: 'plan.json', path: planPath, size: planFile.size })
-
-        // Extract contract from plan.json and update run
-        try {
-          const planData = JSON.parse(planFile.buffer.toString('utf-8'))
-          if (planData.contract) {
-            await prisma.validationRun.update({
-              where: { id },
-              data: {
-                contractJson: JSON.stringify(planData.contract),
-              },
-            })
+        if (planArtifactFile) {
+          // Validate file size (max 5MB)
+          if (planArtifactFile.size > 5 * 1024 * 1024) {
+            res.status(400).json({ error: `${planArtifactFilename} exceeds maximum size of 5MB` })
+            return
           }
-        } catch (error) {
-          console.error('Failed to extract contract from plan.json:', error)
+
+          // Validate JSON
+          try {
+            JSON.parse(planArtifactFile.buffer.toString('utf-8'))
+          } catch {
+            res.status(400).json({ error: `${planArtifactFilename} is not valid JSON` })
+            return
+          }
+
+          const planPath = path.join(artifactDir, planArtifactFilename)
+          await fs.writeFile(planPath, planArtifactFile.buffer)
+          uploadedFiles.push({ type: planArtifactFilename, path: planPath, size: planArtifactFile.size })
+
+          // Extract contract and update run (handle both formats)
+          try {
+            const planData = JSON.parse(planArtifactFile.buffer.toString('utf-8'))
+            let contractData: any = null
+
+            if ('microplans' in planData && Array.isArray(planData.microplans)) {
+              // Microplans format: extract files from all microplans
+              const allFiles = planData.microplans.flatMap((mp: any) => mp.files || [])
+              contractData = {
+                files: allFiles.map((f: any) => ({ path: f.path, action: f.action })),
+                testFile: allFiles.find((f: any) => /\.(spec|test)\.(ts|tsx|js|jsx)$/.test(f.path))?.path
+              }
+            } else if (planData.contract) {
+              // Legacy plan.json format
+              contractData = planData.contract
+            }
+
+            if (contractData) {
+              await prisma.validationRun.update({
+                where: { id },
+                data: {
+                  contractJson: JSON.stringify(contractData),
+                },
+              })
+            }
+          } catch (error) {
+            console.error('Failed to extract contract from plan artifact:', error)
+          }
         }
       }
 

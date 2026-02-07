@@ -163,8 +163,8 @@ export class AgentOrchestratorBridge {
 
     emit({ type: 'agent:bridge_start', step: 0, outputId } as AgentEvent)
 
-    // Resolve phase config (use step 1 for consistency with other phases)
-    const phase = await this.resolvePhaseConfig(1, input.provider, input.model)
+    // Resolve phase config for discovery (step 0)
+    const phase = await this.resolvePhaseConfig(0, input.provider, input.model)
 
     // Build system prompt from DB (discovery substep prompts)
     const sessionContext = await this.fetchSessionContext(input.profileId)
@@ -1616,6 +1616,7 @@ Example:
       outputId,
       testFileName,
       artifactBlocks,
+      microplanJson: artifacts['microplans.json'] || '', // ✅ FIX: Inject microplan content for template
     })
 
     if (template) return template
@@ -1674,6 +1675,7 @@ Example:
     const template = await this.assembler.assembleUserMessageForStep(4, {
       outputId,
       artifactBlocks,
+      microplanJson: artifacts['microplans.json'] || '', // ✅ FIX: Inject microplan content for template
     })
 
     if (template) return template
@@ -1722,8 +1724,10 @@ Example:
       outputId,
       failedValidators,
       rejectionReport,
+      gatekeeperError: rejectionReport, // ✅ FIX: Template expects gatekeeper_error
       taskPrompt,
       artifactBlocks,
+      microplanJson: artifacts['microplans.json'] || '', // ✅ FIX: Inject microplan content for template
     })
 
     if (template) return template
@@ -1763,10 +1767,12 @@ Example:
       outputDir,
       failedValidators,
       rejectionReport,
+      gatekeeperError: rejectionReport, // ✅ FIX: Template expects gatekeeper_error
       taskPrompt,
       artifactFiles,
       specFiles,
       isSpec: target === 'spec',
+      microplanJson: artifacts['microplans.json'] || '', // ✅ FIX: Inject microplan content for template
     }, 'cli')
 
     if (template) return template

@@ -320,17 +320,31 @@ export class AgentRunnerService {
 
       let response: LLMResponse
       try {
-        response = await llm.chat({
-          model: phase.model,
-          system: systemPrompt,
-          messages,
-          tools,
-          maxTokens: phase.maxTokens,
-          temperature: phase.temperature,
-          enableCache: true,
-          cwd: projectRoot,
-          onEvent: emit,
+        // Wrap LLM call with timeout (120s default)
+        const LLM_TIMEOUT_MS = 120_000
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(
+              `LLM call timeout after ${LLM_TIMEOUT_MS}ms on step ${phase.step}, iteration ${iteration}. ` +
+              `Provider: ${llm.name}/${phase.model}`
+            ))
+          }, LLM_TIMEOUT_MS)
         })
+
+        response = await Promise.race([
+          llm.chat({
+            model: phase.model,
+            system: systemPrompt,
+            messages,
+            tools,
+            maxTokens: phase.maxTokens,
+            temperature: phase.temperature,
+            enableCache: true,
+            cwd: projectRoot,
+            onEvent: emit,
+          }),
+          timeoutPromise,
+        ])
       } finally {
         clearInterval(heartbeat)
       }

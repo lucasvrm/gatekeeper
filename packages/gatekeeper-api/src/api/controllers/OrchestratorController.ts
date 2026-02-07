@@ -388,23 +388,23 @@ export class OrchestratorController {
   /**
    * Get aggregated metrics for a pipeline.
    *
-   * GET /api/orchestrator/:pipelineId/metrics
+   * GET /api/orchestrator/:outputId/metrics
    *
    * @returns LogMetrics JSON with aggregated event statistics
    */
   async getMetrics(req: Request, res: Response): Promise<void> {
-    const { pipelineId } = req.params
+    const { outputId } = req.params
 
     try {
-      log.debug({ pipelineId }, 'Getting pipeline metrics')
+      log.debug({ outputId }, 'Getting pipeline metrics')
 
-      const metrics = await OrchestratorEventService.getMetrics(pipelineId)
+      const metrics = await OrchestratorEventService.getMetrics(outputId)
 
-      log.info({ pipelineId, totalEvents: metrics.totalEvents }, 'Metrics retrieved')
+      log.info({ outputId, totalEvents: metrics.totalEvents }, 'Metrics retrieved')
 
       res.json(metrics)
     } catch (error) {
-      log.error({ pipelineId, error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to get metrics')
+      log.error({ outputId, error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to get metrics')
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Failed to get metrics',
         code: 'METRICS_FAILED',

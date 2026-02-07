@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import type { MicroplansDocument } from '../types/gates.types.js'
 
 export interface ArtifactFolderInfo {
   outputId: string
@@ -34,7 +35,7 @@ export class ArtifactsService {
     for (const folder of folders) {
       const folderPath = path.join(artifactsBasePath, folder.name)
       const contents = await fs.readdir(folderPath)
-      const hasPlan = contents.includes('plan.json')
+      const hasPlan = contents.includes('microplans.json') || contents.includes('plan.json')
       const specFileName = contents.find((file) => isSpecFile(file)) || null
       const hasSpec = Boolean(specFileName)
       const stat = await fs.stat(folderPath)
@@ -70,7 +71,7 @@ export class ArtifactsService {
     return {
       exists: true,
       hasSpec: Boolean(specFileName),
-      hasPlan: contents.includes('plan.json'),
+      hasPlan: contents.includes('microplans.json') || contents.includes('plan.json'),
       specFileName,
     }
   }
@@ -86,14 +87,44 @@ export class ArtifactsService {
     let planJson: Record<string, unknown> | null = null
     let specContent: string | null = null
 
+    // Try microplans.json first (new format), fallback to plan.json (backward compatibility)
     if (contents.hasPlan) {
+      const microplansPath = path.join(folderPath, 'microplans.json')
+      const planPath = path.join(folderPath, 'plan.json')
+
       try {
-        const planPath = path.join(folderPath, 'plan.json')
-        const planRaw = await fs.readFile(planPath, 'utf-8')
-        planJson = JSON.parse(planRaw) as Record<string, unknown>
-      } catch (err) {
-        console.debug('[ArtifactsService] Failed to read plan.json:', (err as Error).message)
-        planJson = null
+        const microplansContent = await fs.readFile(microplansPath, 'utf-8')
+        const microplans = JSON.parse(microplansContent) as MicroplansDocument | Record<string, unknown>
+
+        // Convert microplans format to legacy plan format if needed
+        if ('microplans' in microplans && Array.isArray(microplans.microplans)) {
+          // Already in microplans format - convert to legacy format for API compatibility
+          planJson = {
+            task: microplans.task,
+            approach: '',
+            files_to_create: [],
+            files_to_modify: [],
+            test_files: [],
+            steps: microplans.microplans.map((mp: any, idx: number) => ({
+              order: idx + 1,
+              action: mp.goal || mp.task || '',
+              files: mp.files || [],
+              details: mp.verify || ''
+            }))
+          }
+        } else {
+          // Unknown format - use as-is
+          planJson = microplans as Record<string, unknown>
+        }
+      } catch (microplansError) {
+        // Fallback to plan.json (backward compatibility)
+        try {
+          const planContent = await fs.readFile(planPath, 'utf-8')
+          planJson = JSON.parse(planContent) as Record<string, unknown>
+        } catch (planError) {
+          console.debug('[ArtifactsService] Failed to read microplans.json or plan.json:', { microplansError, planError })
+          planJson = null
+        }
       }
     }
 

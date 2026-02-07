@@ -11,7 +11,19 @@ const app = express()
 
 app.use(helmet())
 app.use(cors())
-app.use(compression())
+
+// Compression: skip SSE routes (text/event-stream)
+app.use(compression({
+  filter: (req, res) => {
+    // Disable compression for SSE endpoints
+    if (req.path.includes('/events/') && req.method === 'GET') {
+      return false
+    }
+    // Default: compress if response has no Content-Type or if compression.filter returns true
+    return compression.filter(req, res)
+  }
+}))
+
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ limit: '10mb', extended: true }))
 app.use(requestLogger)

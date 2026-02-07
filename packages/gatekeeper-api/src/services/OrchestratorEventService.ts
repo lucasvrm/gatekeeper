@@ -90,6 +90,20 @@ const TRANSITION_EVENTS: Record<string, { stage?: string; status?: string; progr
 }
 
 /**
+ * Eventos críticos que devem forçar flush imediato do batch (não esperar 100ms).
+ */
+const CRITICAL_EVENTS = new Set([
+  'agent:bridge_discovery_done',
+  'agent:bridge_plan_done',
+  'agent:bridge_spec_done',
+  'agent:bridge_execute_done',
+  'agent:complete',
+  'agent:error',
+  'agent:iteration_limit_exceeded',
+  'agent:budget_exceeded',
+])
+
+/**
  * Campos sensíveis que devem ser mascarados antes da persistência.
  */
 const SENSITIVE_FIELDS = new Set([
@@ -439,7 +453,15 @@ class OrchestratorEventServiceClass extends EventEmitter {
     // 6. Add to batch
     this.addToBatch(batchEvent)
 
-    // 7. Update PipelineState if transition event
+    // 7. Force flush for critical events (don't wait for batch timer)
+    if (CRITICAL_EVENTS.has(eventType)) {
+      log.debug({ eventType }, 'Critical event - forcing immediate flush')
+      this.flush().catch((err) => {
+        log.error({ err, eventType }, 'Critical event flush failed')
+      })
+    }
+
+    // 8. Update PipelineState if transition event
     if (this.isTransitionEvent(eventType)) {
       await this.updatePipelineState(outputId, eventType, data, options.agentRunId, seq)
     }
