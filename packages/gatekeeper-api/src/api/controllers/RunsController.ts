@@ -511,15 +511,41 @@ export class RunsController {
           return
         }
 
-        // Extract original filename to get the proper spec filename
-        const specFileName = specFile.originalname
-        const specBaseName = path.basename(specFileName)
+        // Get the spec filename from manifest (not from originalname which is generic "generated.spec.ts")
+        let specFileName: string
+        let specBaseName: string
+
+        // Parse manifest to get the correct testFile name
+        if (run.manifestJson) {
+          try {
+            const manifest = JSON.parse(run.manifestJson) as { testFile?: string }
+            if (manifest.testFile) {
+              specFileName = manifest.testFile
+              specBaseName = path.basename(manifest.testFile)
+            } else {
+              // Fallback to originalname
+              specFileName = specFile.originalname
+              specBaseName = path.basename(specFileName)
+            }
+          } catch (error) {
+            console.warn('[uploadFiles] Failed to parse manifest, using originalname')
+            specFileName = specFile.originalname
+            specBaseName = path.basename(specFileName)
+          }
+        } else {
+          // No manifest, use originalname
+          specFileName = specFile.originalname
+          specBaseName = path.basename(specFileName)
+        }
+
         const hasTestExt = specBaseName.endsWith('.spec.tsx') || specBaseName.endsWith('.spec.ts') ||
           specBaseName.endsWith('.test.tsx') || specBaseName.endsWith('.test.ts')
         if (!hasTestExt) {
           res.status(400).json({ error: 'Spec file must have .spec.tsx/.spec.ts/.test.tsx/.test.ts extension' })
           return
         }
+
+        console.log('[uploadFiles] Using spec filename from manifest:', specFileName)
 
         // Save to artifacts/ - will be copied to correct path by orchestrator
         // If filename has path separators (e.g. "src/__tests__/spec.tsx"), create parent dirs

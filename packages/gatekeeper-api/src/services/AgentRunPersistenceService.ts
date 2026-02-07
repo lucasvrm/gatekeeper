@@ -261,6 +261,7 @@ export class AgentRunPersistenceService {
     id: string
     taskDescription: string
     status: string
+    lastPhase: string | null
     provider: string
     model: string
     totalInputTokens: number
@@ -272,7 +273,7 @@ export class AgentRunPersistenceService {
     const where: Record<string, unknown> = {}
     if (params?.status) where.status = params.status
 
-    return this.prisma.agentRun.findMany({
+    const runs = await this.prisma.agentRun.findMany({
       where,
       orderBy: { startedAt: 'desc' },
       take: params?.limit ?? 20,
@@ -280,6 +281,7 @@ export class AgentRunPersistenceService {
         id: true,
         taskDescription: true,
         status: true,
+        lastCompletedStep: true,
         provider: true,
         model: true,
         totalInputTokens: true,
@@ -289,6 +291,24 @@ export class AgentRunPersistenceService {
         completedAt: true,
       },
     })
+
+    // Map lastCompletedStep to phase name
+    const mapStepToPhase = (step: number): string | null => {
+      switch (step) {
+        case 0: return null
+        case 1: return 'planning'
+        case 2: return 'spec'
+        case 3: return 'execute'
+        case 4: return 'complete'
+        default: return null
+      }
+    }
+
+    return runs.map(run => ({
+      ...run,
+      lastPhase: mapStepToPhase(run.lastCompletedStep),
+      lastCompletedStep: undefined as unknown as never, // Remove from result
+    }))
   }
 
 

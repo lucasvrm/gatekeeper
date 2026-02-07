@@ -447,6 +447,8 @@ export class AgentOrchestratorBridge {
     }
 
     console.log('[Bridge:Execute] provider type:', this.isCliProvider(phase) ? 'CLI' : 'API')
+    console.log('[Bridge:Execute] ⚠️  DEBUG projectRoot:', input.projectPath)
+    console.log('[Bridge:Execute] ⚠️  DEBUG outputId:', input.outputId)
 
     const result = await runner.run({
       phase,

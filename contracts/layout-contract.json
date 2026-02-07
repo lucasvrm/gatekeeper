@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:e1cf791c8eec8fa7e893c24f5c2d5b7dd28160cdad2746ece046b018d2ec1798",
-    "generatedAt": "2026-02-07T02:43:05.417Z",
+    "hash": "sha256:b3020f3a81c563e777093b0de71fd9c5ea68bcc9958cf997785c28488abbe54e",
+    "generatedAt": "2026-02-07T03:08:52.041Z",
     "pageCount": 2
   },
   "structure": {
@@ -67,21 +67,20 @@
         },
         "navigation": {
           "icons": {
-            "enabled": true,
+            "enabled": false,
             "size": "$tokens.sizing.icon-sm",
             "gap": "$tokens.spacing.sm"
           },
           "typography": {
             "fontSize": "$tokens.fontSizes.sm",
             "activeFontWeight": "$tokens.fontWeights.medium",
-            "activeColor": "$tokens.colors.accent",
+            "activeColor": "$tokens.colors.bg",
             "fontFamily": "$tokens.fontFamilies.mono",
             "hoverColor": "$tokens.colors.accent",
             "cardEnabled": true,
             "activeBackground": "$tokens.colors.card-border",
             "cardBackground": "",
-            "cardBorderColor": "",
-            "cardBorderWidth": "1",
+            "cardBorderWidth": "0",
             "cardBorderRadius": "$tokens.borderRadius.sm",
             "cardPadding": "$tokens.spacing.sm",
             "activeCardBorder": "$tokens.colors.accent",
@@ -101,6 +100,12 @@
               "label": "Orchestrator",
               "icon": "lucide:Terminal",
               "route": "/orchestrator"
+            },
+            {
+              "id": "logs",
+              "label": "Logs",
+              "icon": "lucide:Server",
+              "route": "/logs"
             },
             {
               "id": "runs",
@@ -346,7 +351,7 @@
       "search": {
         "enabled": true,
         "placeholder": "Buscar...",
-        "icon": "ph:magnifying-glass"
+        "icon": "lucide:Search"
       },
       "cta": {
         "enabled": false,

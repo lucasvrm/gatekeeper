@@ -404,15 +404,34 @@ export function LucideIconSelect({ value, onChange, allowEmpty = false, placehol
   // Position popover relative to trigger, rendered via portal
   useEffect(() => {
     if (!open || !triggerRef.current) return;
+
     const rect = triggerRef.current.getBoundingClientRect();
-    const popW = 300, popH = 400;
+    const margin = 8; // Safety margin from viewport edges
+    const maxPopW = Math.min(300, window.innerWidth - margin * 2);
+
+    // Get actual popover height or fallback to maxHeight
+    const popH = popoverRef.current?.offsetHeight || 400;
+
     let top = rect.bottom + 4;
     let left = rect.left;
+
     // Flip up if not enough space below
-    if (top + popH > window.innerHeight) top = rect.top - popH - 4;
-    // Clamp left
-    if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
-    if (left < 4) left = 4;
+    if (top + popH > window.innerHeight - margin) {
+      const spaceAbove = rect.top - margin;
+      if (spaceAbove >= popH) {
+        top = rect.top - popH - 4;
+      } else {
+        // Not enough space above or below - stick to top with margin
+        top = margin;
+      }
+    }
+
+    // Clamp horizontal with dynamic width
+    if (left + maxPopW > window.innerWidth - margin) {
+      left = window.innerWidth - maxPopW - margin;
+    }
+    if (left < margin) left = margin;
+
     setPos({ top, left });
   }, [open]);
 
@@ -455,7 +474,10 @@ export function LucideIconSelect({ value, onChange, allowEmpty = false, placehol
   const popover = open ? ReactDOM.createPortal(
     <div ref={popoverRef} style={{
       position: "fixed", top: pos.top, left: pos.left, zIndex: 99999,
-      width: 300, maxHeight: 400, overflowY: "auto",
+      width: Math.min(300, window.innerWidth - 16),
+      maxWidth: "calc(100vw - 16px)",
+      maxHeight: Math.min(400, window.innerHeight - 16),
+      overflowY: "auto",
       background: COLORS.surface, border: `1px solid ${COLORS.border}`,
       borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.55)",
       padding: 8,

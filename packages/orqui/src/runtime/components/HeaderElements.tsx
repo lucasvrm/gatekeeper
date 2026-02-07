@@ -13,6 +13,22 @@ export const HEADER_ICON_TO_PHOSPHOR: Record<string, string> = {
   download: "arrow-square-down", share: "share-network", server: "hard-drives",
 };
 
+export const HEADER_ICON_TO_LUCIDE: Record<string, string> = {
+  bell: "Bell",
+  settings: "Settings",
+  user: "User",
+  mail: "Mail",
+  help: "HelpCircle",
+  moon: "Moon",
+  sun: "Sun",
+  menu: "Menu",
+  search: "Search",
+  grid: "LayoutGrid",
+  download: "Download",
+  share: "Share2",
+  server: "Server",
+};
+
 export const CTA_VARIANT_CSS: Record<string, any> = {
   default:     { background: "var(--primary, #6d9cff)", color: "var(--primary-foreground, #fff)", border: "none" },
   destructive: { background: "var(--destructive, #ef4444)", color: "var(--destructive-foreground, #fff)", border: "none" },
@@ -50,10 +66,35 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
     return HEADER_ICON_TO_PHOSPHOR[iconId] || iconId;
   };
 
+  // Resolve Lucide icon for header elements
+  const resolveLucideIcon = (iconId: string, iconOverride?: string) => {
+    // If override provided, use it
+    if (iconOverride) {
+      // Add lucide: prefix if not present
+      if (!iconOverride.startsWith("lucide:") && !iconOverride.startsWith("ph:")) {
+        return `lucide:${iconOverride}`;
+      }
+      return iconOverride;
+    }
+
+    // Map known header icon IDs to Lucide icons
+    const lucideName = HEADER_ICON_TO_LUCIDE[iconId] || iconId;
+    return `lucide:${lucideName}`;
+  };
+
   const renderSearch = () => {
     if (!config.search?.enabled) return null;
-    const searchIcon = config.search.icon?.startsWith("ph:") ? config.search.icon.slice(3) : "magnifying-glass";
+
+    // Resolve icon: support both lucide: and ph: prefixes, fallback to lucide:search
+    let searchIcon = config.search.icon || "lucide:search";
+
+    // If no prefix, assume it's a lucide icon and add prefix
+    if (!searchIcon.startsWith("lucide:") && !searchIcon.startsWith("ph:")) {
+      searchIcon = `lucide:${searchIcon}`;
+    }
+
     const searchIconColor = textStyleColor || "var(--muted-foreground, #888)";
+
     return (
       <div key="search" style={{
         display: "flex", alignItems: "center", gap: 6,
@@ -61,7 +102,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
         padding: "4px 10px", border: "1px solid var(--border)",
       }}>
         {(config.search.showIcon !== false) && (
-          <PhosphorIcon name={searchIcon} size={14} color={searchIconColor} />
+          <IconValue icon={searchIcon} size={14} color={searchIconColor} />
         )}
         <input
           type="text"
@@ -82,7 +123,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
     if (!config.icons?.enabled) return null;
     return (config.icons.items || []).map(raw => {
       const ic = normalizeIcon(raw);
-      const phName = resolvePhosphorIcon(ic.id, ic.icon);
+      const iconValue = resolveLucideIcon(ic.id, ic.icon);
       return (
         <button key={`icon-${ic.id}`} onClick={() => {
           if (onIconClick) onIconClick(ic.id, ic.route);
@@ -92,7 +133,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
           padding: 4, opacity: 0.7, color: "var(--foreground)", display: "flex", alignItems: "center",
           ...textStyleCSS,
         }} title={ic.route || ic.id}>
-          <PhosphorIcon name={phName} size={18} />
+          <IconValue icon={iconValue} size={18} color="var(--foreground)" />
         </button>
       );
     });

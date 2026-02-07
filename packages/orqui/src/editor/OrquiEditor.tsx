@@ -300,6 +300,73 @@ export function OrquiEditor() {
           }}>⌘K</kbd>
         </button>
 
+        {/* External Links */}
+        <a
+          href="http://localhost:5173"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 12px",
+            borderRadius: 7,
+            fontSize: 12,
+            fontWeight: 500,
+            border: `1px solid ${COLORS.border}`,
+            cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+            background: COLORS.surface2,
+            color: COLORS.text,
+            textDecoration: "none",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = COLORS.surface3;
+            e.currentTarget.style.borderColor = COLORS.accent;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = COLORS.surface2;
+            e.currentTarget.style.borderColor = COLORS.border;
+          }}
+        >
+          <span style={{ fontSize: 14 }}>🚪</span>
+          <span>Gatekeeper</span>
+        </a>
+
+        <a
+          href="http://localhost:5173/editor"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 12px",
+            borderRadius: 7,
+            fontSize: 12,
+            fontWeight: 500,
+            border: `1px solid ${COLORS.border}`,
+            cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+            background: COLORS.surface2,
+            color: COLORS.text,
+            textDecoration: "none",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = COLORS.surface3;
+            e.currentTarget.style.borderColor = COLORS.accent;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = COLORS.surface2;
+            e.currentTarget.style.borderColor = COLORS.border;
+          }}
+        >
+          <span style={{ fontSize: 14 }}>✏️</span>
+          <span>Page Editor</span>
+        </a>
+
         <div style={{ flex: 1 }} />
 
         {/* Status badges */}

@@ -19,6 +19,7 @@ import { OrchestratorPage } from "@/components/orchestrator-page"
 import { AgentRunsPage } from "@/components/agent-runs-page"
 import { AgentRunDetailsPage } from "@/components/agent-run-details-page"
 import { LogsMetricsPage } from "@/components/logs-metrics-page"
+import { AnalyticsPage } from "@/components/analytics-page"
 import { CommandPalette } from "@/components/command-palette"
 import { useCommandPalette } from "@/hooks/use-command-palette"
 import { PageShellProvider, usePageShellState } from "@/hooks/use-page-shell"
@@ -81,6 +82,7 @@ function ProtectedApp() {
           <Route path="/agent-runs/:id" element={<AgentRunDetailsPage />} />
           <Route path="/gates" element={<GatesPage />} />
           <Route path="/logs" element={<LogsMetricsPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/mcp" element={<MCPSessionPage />} />
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/workspaces" element={<WorkspacesListPage />} />

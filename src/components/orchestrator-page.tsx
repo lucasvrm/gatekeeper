@@ -626,7 +626,8 @@ export function OrchestratorPage() {
           setPlanArtifacts(artifacts)
           markComplete(0)
           markComplete(1)
-          setStep(2)
+          // Only advance to step 2 if we're currently before it (prevent reverting from later steps during reconciliation)
+          setStep((prev) => (prev < 2 ? 2 : prev))
           setLoading(false)
           pipelineStageRef.current = "spec"
           pipelineProgressRef.current = 25
@@ -837,6 +838,8 @@ export function OrchestratorPage() {
           
           if (isExecutionRun) {
             markComplete(4)
+            // Ensure we're on step 4 (don't regress if we're already ahead)
+            setStep((prev) => prev < 4 ? 4 : prev)
             addLog("success", "✅ Gates 2-3 aprovados — implementação validada!")
             toast.success("Validação de execução aprovada!")
           } else {
@@ -863,6 +866,28 @@ export function OrchestratorPage() {
       console.error("Failed to refresh run:", err)
     }
   }, [runId, addLog]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load run data on mount if runId exists (e.g., after navigating back from logs page)
+  useEffect(() => {
+    if (!runId || runResults) return // Already loaded
+
+    const loadRunData = async () => {
+      try {
+        const results = await api.runs.getWithResults(runId)
+        setRunResults(results)
+        setValidationStatus(results.status)
+
+        // If run is still running, let SSE handle updates
+        if (results.status === "RUNNING") {
+          setLoading(true)
+        }
+      } catch (err) {
+        console.error("[orchestrator-page] Failed to load run data:", err)
+      }
+    }
+
+    loadRunData()
+  }, [runId]) // Only run when runId changes
 
   const shouldConnectRunEvents = validationStatus === "RUNNING" && !!runId
   useRunEvents(shouldConnectRunEvents ? runId ?? undefined : undefined, handleRunEvent)

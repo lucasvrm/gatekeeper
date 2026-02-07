@@ -150,37 +150,61 @@ export class BridgeController {
    * POST /agent/bridge/spec
    *
    * Body: { outputId, projectPath, profileId?, provider?, model? }
+   * Returns: 202 + { outputId, eventsUrl }
+   * Background: runs agent → emits SSE events → completes with agent:bridge_spec_done
    */
   async generateSpec(req: Request, res: Response): Promise<void> {
     const { outputId, projectPath, profileId, model } = req.body
     const provider = asProvider(req.body.provider)
 
-    if (!outputId || !projectPath) {
-      res.status(400).json({ error: 'outputId and projectPath are required' })
+    if (!outputId) {
+      res.status(400).json({ error: 'outputId is required' })
+      return
+    }
+
+    if (!projectPath) {
+      res.status(400).json({ error: 'projectPath is required' })
       return
     }
 
     const bridge = getBridge()
+    const emit = makeEmitter(outputId)
 
-    try {
-      const result = await bridge.generateSpec(
-        { outputId, projectPath, profileId, provider, model },
-      )
+    // Return immediately so the client can connect SSE
+    res.status(202).json({
+      outputId,
+      eventsUrl: `/api/orchestrator/events/${outputId}`,
+    })
 
-      res.status(201).json({
-        outputId,
-        artifacts: result.artifacts.map((a) => ({
-          filename: a.filename,
-          content: a.content,
-        })),
-        tokensUsed: result.tokensUsed,
-      })
-    } catch (err) {
-      console.error('[Bridge] Spec failed:', err)
-      const errObj = err as Error
-      const status = (err as any)?.code === 'MISSING_ARTIFACTS' ? 400 : 500
-      res.status(status).json({ error: errObj.message })
-    }
+    // Run in background
+    setImmediate(async () => {
+      try {
+        const result = await bridge.generateSpec(
+          { outputId, projectPath, profileId, provider, model },
+          { onEvent: emit },
+        )
+
+        // Emit completion with full result
+        OrchestratorEventService.emitOrchestratorEvent(outputId, {
+          type: 'agent:bridge_spec_done',
+          outputId,
+          artifacts: result.artifacts.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+          })),
+          tokensUsed: result.tokensUsed,
+        })
+      } catch (err) {
+        console.error('[Bridge] Spec failed:', err)
+        // Only emit if AgentRunnerService didn't already emit via SSE
+        if (!(err as any)?._sseEmitted) {
+          OrchestratorEventService.emitOrchestratorEvent(outputId, {
+            type: 'agent:error',
+            error: (err as Error).message,
+          })
+        }
+      }
+    })
   }
 
   /**

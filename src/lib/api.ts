@@ -49,6 +49,7 @@ const AGENT_BASE = `${API_BASE}/agent`
 // Helper to get auth headers
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token')
+  console.log('🔑 [Auth] Token presente:', token ? `${token.substring(0, 20)}...` : 'NENHUM')
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
@@ -58,20 +59,27 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
     ...getAuthHeaders(),
     ...options.headers,
   }
+  console.log('📡 [Fetch] URL:', url)
+  console.log('📡 [Fetch] Headers:', headers)
+
   const response = await fetch(url, { ...options, headers })
+  console.log('📥 [Fetch] Status:', response.status)
 
   // Pick up renewed token from grace period
   const renewedToken = response.headers.get('X-Renewed-Token')
   if (renewedToken) {
+    console.log('🔄 [Auth] Token renovado')
     localStorage.setItem('token', renewedToken)
   }
 
-  // Intercept 401 TOKEN_EXPIRED and redirect to login
+  // Intercept 401 and redirect to login
   if (response.status === 401) {
     const clonedResponse = response.clone()
     try {
       const body = await clonedResponse.json()
-      if (body?.error === 'TOKEN_EXPIRED' || body?.error === 'INVALID_TOKEN') {
+      console.error('❌ [Auth] Erro 401:', body)
+      if (body?.error === 'TOKEN_EXPIRED' || body?.error === 'INVALID_TOKEN' || body?.error === 'UNAUTHORIZED') {
+        console.log('🚪 [Auth] Redirecionando para login...')
         localStorage.removeItem('token')
         window.location.href = '/login'
       }
@@ -90,6 +98,7 @@ export interface AgentRunSummary {
   id: string
   taskDescription: string
   status: string
+  lastPhase: string | null
   provider: string
   model: string
   totalInputTokens: number

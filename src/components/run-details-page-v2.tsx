@@ -24,7 +24,7 @@ import { GitCommitButton } from "@/components/git-commit-button"
 import { cn } from "@/lib/utils"
 import { buildValidatorClipboardText, getClipboardWriteText, getDiffScopeViolations } from "@/lib/validator-clipboard"
 import {
-  ArrowClockwise,
+  RotateCcw,
   ArrowLeft,
   Copy,
   Play,
@@ -678,7 +678,7 @@ export function RunDetailsPageV2() {
                     className="flex-1 h-6 text-[10px] justify-center"
                     data-testid={`kanban-rerun-g${gate.gateNumber}`}
                   >
-                    <ArrowClockwise className="w-3 h-3 mr-1" />
+                    <RotateCcw className="w-3 h-3 mr-1" />
                     Rerun
                   </Button>
                   <Button

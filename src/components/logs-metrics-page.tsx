@@ -138,13 +138,13 @@ export function LogsMetricsPage() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {/* Export dropdown (apenas visível na tab logs) */}
+          {/* Export dropdown (apenas visível na tab logs) - Icon only on mobile */}
           {activeTab === "logs" && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" disabled={exporting}>
-                  <Download className="size-4 mr-2" />
-                  {exporting ? "Exportando..." : "Exportar"}
+                  <Download className="size-4 md:mr-2" />
+                  <span className="hidden md:inline">{exporting ? "Exportando..." : "Exportar"}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -160,10 +160,10 @@ export function LogsMetricsPage() {
             </DropdownMenu>
           )}
 
-          {/* Refresh button */}
+          {/* Refresh button - Icon only on mobile */}
           <Button variant="outline" size="sm" onClick={handleRefresh}>
-            <RefreshCw className="size-4 mr-2" />
-            Atualizar
+            <RefreshCw className="size-4 md:mr-2" />
+            <span className="hidden md:inline">Atualizar</span>
           </Button>
         </div>
       </div>

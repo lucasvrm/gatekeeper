@@ -22,7 +22,7 @@ import {
   Play,
   Square,
   Trash2,
-  ArrowClockwise,
+  RotateCcw,
   Upload,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -394,7 +394,7 @@ export function RunPanelLegacy({
                               aria-label={`Reexecutar gate ${gate.gateNumber}`}
                               className="h-7 hover:bg-status-running hover:text-white hover:border-status-running"
                             >
-                              <ArrowClockwise className="w-3 h-3" />
+                              <RotateCcw className="w-3 h-3" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>Reexecutar gate {gate.gateNumber}</TooltipContent>
@@ -667,4 +667,3 @@ export function RunPanelLegacy({
     </div>
   )
 }
-

@@ -149,7 +149,18 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
             })
           }
         } else {
-          const packageJsonPath = resolve(ctx.projectPath, 'package.json')
+          // For monorepo projects, check workspace-specific package.json first
+          let packageJsonPath = resolve(ctx.projectPath, 'package.json')
+
+          // If test is in a workspace directory, try workspace package.json first
+          const workspaceMatch = absoluteTestPath.match(/[\/\\](packages[\/\\][^\/\\]+)[\/\\]/)
+          if (workspaceMatch) {
+            const workspacePackageJson = resolve(ctx.projectPath, workspaceMatch[1], 'package.json')
+            if (existsSync(workspacePackageJson)) {
+              packageJsonPath = workspacePackageJson
+            }
+          }
+
           if (existsSync(packageJsonPath)) {
             try {
               const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))

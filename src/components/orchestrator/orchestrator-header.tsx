@@ -1,6 +1,8 @@
 import type { WizardStep } from "./types"
 import { Button } from "@/components/ui/button"
 import { StepIndicator } from "./step-indicator"
+import { ExternalLink } from "lucide-react"
+import { Link } from "react-router-dom"
 
 interface OrchestratorHeaderProps {
   step: WizardStep
@@ -35,9 +37,17 @@ export function OrchestratorHeader({
       )}
 
       {outputId && !loading && (
-        <Button variant="ghost" size="sm" onClick={onReset}>
-          Reset
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/logs?pipelineId=${outputId}`}>
+              <ExternalLink className="size-4 mr-2" />
+              Ver Logs Completos
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onReset}>
+            Reset
+          </Button>
+        </div>
       )}
     </div>
   )

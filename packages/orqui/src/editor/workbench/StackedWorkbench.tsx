@@ -390,6 +390,7 @@ function SectionEditorContent({
             config={layout.structure?.loginPage || {}}
             onChange={(c) => onChange({ ...layout, structure: { ...layout.structure, loginPage: c } })}
             globalLogo={layout.structure?.logo || {}}
+            tokens={layout.tokens}
           />
         );
 

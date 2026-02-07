@@ -173,9 +173,10 @@ interface LoginPageEditorProps {
   config: any;
   onChange: (config: any) => void;
   globalLogo?: any;
+  tokens?: any;
 }
 
-export function LoginPageEditor({ config, onChange, globalLogo }: LoginPageEditorProps) {
+export function LoginPageEditor({ config, onChange, globalLogo, tokens = {} }: LoginPageEditorProps) {
   const cfg = config || {};
   const update = (section: string, field: string, val: any) => {
     onChange({ ...cfg, [section]: { ...(cfg[section] || {}), [field]: val } });
