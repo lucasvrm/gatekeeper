@@ -4,7 +4,7 @@ import type { Gate, Validator } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { CaretDown, CaretRight, ShieldCheck } from "@phosphor-icons/react"
+import { ChevronDown, ChevronRight, ShieldCheck } from "lucide-react"
 
 export function GatesPage() {
   const [gates, setGates] = useState<Gate[]>([])
@@ -112,9 +112,9 @@ export function GatesPage() {
                     </div>
                   </div>
                   {isExpanded ? (
-                    <CaretDown className="w-5 h-5 text-muted-foreground flex-shrink-0 ml-2" />
+                    <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0 ml-2" />
                   ) : (
-                    <CaretRight className="w-5 h-5 text-muted-foreground flex-shrink-0 ml-2" />
+                    <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 ml-2" />
                   )}
                 </div>
               </button>
@@ -148,7 +148,7 @@ export function GatesPage() {
                                       ? "text-destructive"
                                       : "text-status-warning"
                                   }`}
-                                  weight="fill"
+                                  fill="currentColor" strokeWidth={2}
                                 />
                                 <h3 className="font-semibold">{validator.name}</h3>
                               </div>

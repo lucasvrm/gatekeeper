@@ -39,7 +39,7 @@ const ELEMENT_CATALOG: ElementCategory[] = [
       { type: "text", label: "Texto", icon: "T", description: "Texto com templates {{}}" },
       { type: "badge", label: "Badge", icon: "●", description: "Badge/tag colorido" },
       { type: "button", label: "Botão", icon: "▣", description: "Botão com variantes" },
-      { type: "icon", label: "Ícone", icon: "★", description: "Ícone Phosphor" },
+      { type: "icon", label: "Ícone", icon: "★", description: "Ícone Lucide" },
       { type: "image", label: "Imagem", icon: "◻", description: "Imagem/avatar" },
       { type: "divider", label: "Divisor", icon: "—", description: "Linha separadora" },
       { type: "spacer", label: "Espaço", icon: "↕", description: "Espaçamento vertical" },

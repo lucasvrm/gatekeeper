@@ -3,7 +3,7 @@ import type { LLMPlanOutput } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CaretDown, CaretRight, FileText } from "@phosphor-icons/react"
+import { ChevronDown, ChevronRight, FileText } from "lucide-react"
 
 export interface JsonPreviewProps {
   data: LLMPlanOutput | null
@@ -121,11 +121,11 @@ export function JsonPreview({ data }: JsonPreviewProps) {
               >
                 {isFilesCollapsed ? (
                   <>
-                    <CaretRight className="h-3 w-3" /> Ver mais
+                    <ChevronRight className="h-3 w-3" /> Ver mais
                   </>
                 ) : (
                   <>
-                    <CaretDown className="h-3 w-3" /> Ver menos
+                    <ChevronDown className="h-3 w-3" /> Ver menos
                   </>
                 )}
               </button>

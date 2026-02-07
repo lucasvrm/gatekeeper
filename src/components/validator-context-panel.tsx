@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { ValidatorContext, ValidatorContextFinding } from "@/lib/types"
-import { CaretDown, CaretRight, CheckCircle, Info, Warning, XCircle } from "@phosphor-icons/react"
+import { ChevronDown, ChevronRight, CheckCircle, Info, AlertTriangle, XCircle } from "lucide-react"
 
 interface ValidatorContextPanelProps {
   context: ValidatorContext
@@ -9,13 +9,13 @@ interface ValidatorContextPanelProps {
 const getFindingIcon = (type: ValidatorContextFinding["type"]) => {
   switch (type) {
     case "pass":
-      return <CheckCircle className="w-3 h-3 text-status-passed" weight="fill" />
+      return <CheckCircle className="w-3 h-3 text-status-passed" fill="currentColor" strokeWidth={2} />
     case "fail":
-      return <XCircle className="w-3 h-3 text-status-failed" weight="fill" />
+      return <XCircle className="w-3 h-3 text-status-failed" fill="currentColor" strokeWidth={2} />
     case "warning":
-      return <Warning className="w-3 h-3 text-status-warning" weight="fill" />
+      return <AlertTriangle className="w-3 h-3 text-status-warning" fill="currentColor" strokeWidth={2} />
     case "info":
-      return <Info className="w-3 h-3 text-muted-foreground" weight="fill" />
+      return <Info className="w-3 h-3 text-muted-foreground" fill="currentColor" strokeWidth={2} />
     default:
       return <span className="w-3 h-3 inline-block text-muted-foreground">.</span>
   }
@@ -33,7 +33,7 @@ export function ValidatorContextPanel({ context }: ValidatorContextPanelProps) {
         aria-expanded={isExpanded}
       >
         <span>Detalhes do Contexto</span>
-        {isExpanded ? <CaretDown className="w-4 h-4" /> : <CaretRight className="w-4 h-4" />}
+        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
       </button>
 
       {isExpanded && (

@@ -489,7 +489,7 @@ function SectionEditorContent({
         return (
           <>
             <div style={s.grid2}>
-              <Field label="Ícone (Phosphor ID)" compact>
+              <Field label="Ícone (Lucide ID)" compact>
                 <input type="text" value={es.icon || "ph:magnifying-glass"} onChange={(e) => updateEs({ icon: e.target.value })} style={s.input} />
               </Field>
               <Field label="Título" compact>

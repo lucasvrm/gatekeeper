@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CaretLeft, CaretRight, FunnelSimple, Stop, Trash } from "@phosphor-icons/react"
+import { ChevronLeft, ChevronRight, Filter, Square, Trash2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import {
@@ -257,7 +257,7 @@ export function RunsListPage() {
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
-              <FunnelSimple className="w-4 h-4 text-muted-foreground" />
+              <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Filtros:</span>
             </div>
             <Select value={workspaceFilter} onValueChange={setWorkspaceFilter}>
@@ -306,7 +306,7 @@ export function RunsListPage() {
             onClick={() => setShowBulkDeleteDialog(true)}
             disabled={selectedCount === 0 || actionLoading}
           >
-            <Trash className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" />
             Excluir Selecionados ({selectedCount})
           </Button>
         </div>
@@ -452,7 +452,7 @@ export function RunsListPage() {
                             aria-label={`Abortar run ${run.id}`}
                             className="hover:bg-white hover:text-white hover:border-white"
                           >
-                            <Stop className="w-4 h-4" />
+                            <Square className="w-4 h-4" />
                           </Button>
                         )}
                         <Button
@@ -463,7 +463,7 @@ export function RunsListPage() {
                           aria-label={`Excluir run ${run.id}`}
                           className="hover:bg-white hover:text-white hover:border-white"
                         >
-                          <Trash className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -483,7 +483,7 @@ export function RunsListPage() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
-                  <CaretLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -491,7 +491,7 @@ export function RunsListPage() {
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
-                  <CaretRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, PencilSimple } from "@phosphor-icons/react"
+import { ArrowLeft, Plus, Edit } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -102,7 +102,7 @@ export function ProjectDetailsPage() {
           )}
         </div>
         <Button onClick={() => navigate(`/projects/${id}/edit`)}>
-          <PencilSimple className="w-4 h-4 mr-2" />
+          <Edit className="w-4 h-4 mr-2" />
           Editar
         </Button>
       </div>

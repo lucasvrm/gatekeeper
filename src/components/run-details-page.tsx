@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft } from "@phosphor-icons/react"
+import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import { GitCommitButton } from "@/components/git-commit-button"
 import { getRepoNameFromPath } from "@/lib/utils"

@@ -1,16 +1,16 @@
 import { useLocation, useNavigate, Link } from "react-router-dom"
-import { List, ShieldCheck, Gear, SquaresFour, FolderOpen, Folders, Robot } from "@phosphor-icons/react"
+import { List, ShieldCheck, Settings, Grid, FolderOpen, Folder, Bot } from "lucide-react"
 import { AppShell } from "@orqui/runtime"
 import { cn } from "@/lib/utils"
 
 const navigation = [
-  { name: "Dashboard", path: "/", icon: SquaresFour },
+  { name: "Dashboard", path: "/", icon: Grid },
   { name: "Runs", path: "/runs", icon: List },
   { name: "Gates", path: "/gates", icon: ShieldCheck },
-  { name: "Workspaces", path: "/workspaces", icon: Folders },
+  { name: "Workspaces", path: "/workspaces", icon: Folder },
   { name: "Projects", path: "/projects", icon: FolderOpen },
-  { name: "MCP", path: "/mcp", icon: Robot },
-  { name: "Config", path: "/config", icon: Gear },
+  { name: "MCP", path: "/mcp", icon: Bot },
+  { name: "Config", path: "/config", icon: Settings },
 ]
 
 interface AppLayoutProps {
@@ -44,7 +44,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <Icon className="w-5 h-5" weight={isActive ? "fill" : "regular"} />
+              <Icon className="w-5 h-5" fill={isActive ? "currentColor" : "none"} strokeWidth={2} />
               <span>{item.name}</span>
             </Link>
           </li>

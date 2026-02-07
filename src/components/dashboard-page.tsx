@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card } from "@/components/ui/card"
-import { ShieldCheck, List, CheckCircle, XCircle, Folders, FolderOpen } from "@phosphor-icons/react"
+import { ShieldCheck, List, CheckCircle, XCircle, Folder, FolderOpen } from "lucide-react"
 import { api } from "@/lib/api"
 import type { Run, Workspace, Project } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -133,7 +133,7 @@ export function DashboardPage() {
         <Card className="p-6 bg-card border-border">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <Folders className="w-6 h-6 text-purple-500" weight="bold" />
+              <Folder className="w-6 h-6 text-purple-500" strokeWidth={2.5} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
@@ -147,7 +147,7 @@ export function DashboardPage() {
         <Card className="p-6 bg-card border-border">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <FolderOpen className="w-6 h-6 text-blue-500" weight="bold" />
+              <FolderOpen className="w-6 h-6 text-blue-500" strokeWidth={2.5} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
@@ -161,7 +161,7 @@ export function DashboardPage() {
         <Card className="p-6 bg-card border-border">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-              <List className="w-6 h-6 text-primary" weight="bold" />
+              <List className="w-6 h-6 text-primary" strokeWidth={2.5} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
@@ -175,7 +175,7 @@ export function DashboardPage() {
         <Card className="p-6 bg-card border-border">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-status-passed/10 flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-status-passed" weight="fill" />
+              <CheckCircle className="w-6 h-6 text-status-passed" fill="currentColor" strokeWidth={2} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
@@ -189,7 +189,7 @@ export function DashboardPage() {
         <Card className="p-6 bg-card border-border">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-status-failed/10 flex items-center justify-center">
-              <XCircle className="w-6 h-6 text-status-failed" weight="fill" />
+              <XCircle className="w-6 h-6 text-status-failed" fill="currentColor" strokeWidth={2} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
@@ -203,7 +203,7 @@ export function DashboardPage() {
         <Card className="p-6 bg-card border-border">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-status-running/10 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-status-running" weight="fill" />
+              <ShieldCheck className="w-6 h-6 text-status-running" fill="currentColor" strokeWidth={2} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">

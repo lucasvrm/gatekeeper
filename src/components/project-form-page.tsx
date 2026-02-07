@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft } from "@phosphor-icons/react"
+import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import {
   Select,

@@ -332,7 +332,7 @@ export function LayoutSections({ layout, registry, setLayout, setRegistry }: { l
             return (
               <>
                 <Row>
-                  <Field label="Ícone (Phosphor ID)">
+                  <Field label="Ícone (Lucide ID)">
                     <input type="text" value={es.icon || "ph:magnifying-glass"} onChange={(e) => updateEs({ icon: e.target.value })}
                       style={{ width: "100%", background: COLORS.surface2, color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
                   </Field>

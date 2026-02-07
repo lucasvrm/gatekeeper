@@ -28,9 +28,9 @@ import {
   ArrowLeft,
   Copy,
   Play,
-  Trash,
+  Trash2,
   Upload,
-} from "@phosphor-icons/react"
+} from "lucide-react"
 import { usePageShell } from "@/hooks/use-page-shell"
 
 type StatusFilter = "ALL" | "PASSED" | "FAILED" | "WARNING" | "SKIPPED"
@@ -451,7 +451,7 @@ export function RunDetailsPageV2() {
                   }}
                   className="h-7 px-1.5 cursor-pointer hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <Trash className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </Badge>
               </>
             )}

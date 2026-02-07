@@ -53,7 +53,7 @@ export const NODE_CATALOG: NodeTypeMeta[] = [
   { type: "text", label: "Texto", icon: "T", description: "Parágrafo de texto", category: "content", isContainer: false },
   { type: "button", label: "Botão", icon: "▣", description: "Botão clicável", category: "content", isContainer: false },
   { type: "badge", label: "Badge", icon: "●", description: "Tag/status", category: "content", isContainer: false },
-  { type: "icon", label: "Ícone", icon: "★", description: "Ícone Phosphor", category: "content", isContainer: false },
+  { type: "icon", label: "Ícone", icon: "★", description: "Ícone Lucide", category: "content", isContainer: false },
   { type: "image", label: "Imagem", icon: "◻", description: "Imagem/avatar", category: "content", isContainer: false },
   { type: "divider", label: "Divisor", icon: "—", description: "Linha separadora", category: "content", isContainer: false },
   { type: "spacer", label: "Espaço", icon: "↕", description: "Espaçamento vazio", category: "content", isContainer: false },

@@ -6,7 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { GitCommit } from '@phosphor-icons/react'
+import { GitCommit } from 'lucide-react'
 import { GitCommitModal } from './git-commit-modal'
 import { PushConfirmModal } from './push-confirm-modal'
 import { GitErrorModal } from './git-error-modal'

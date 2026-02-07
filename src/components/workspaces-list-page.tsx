@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, PencilSimple, Trash, FunnelSimple } from "@phosphor-icons/react"
+import { Plus, Edit, Trash2, Filter } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
@@ -165,7 +165,7 @@ export function WorkspacesListPage() {
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <FunnelSimple className="w-4 h-4 text-muted-foreground" />
+              <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Filtrar por Status:</span>
             </div>
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "ALL" | "ACTIVE" | "INACTIVE")}>
@@ -185,7 +185,7 @@ export function WorkspacesListPage() {
             onClick={() => setShowBulkDeleteDialog(true)}
             disabled={selectedCount === 0 || deleting}
           >
-            <Trash className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" />
             Deletar Selecionados ({selectedCount})
           </Button>
         </div>
@@ -253,14 +253,14 @@ export function WorkspacesListPage() {
                         size="sm"
                         onClick={(e) => handleEditClick(workspace.id, e)}
                       >
-                        <PencilSimple className="w-4 h-4" />
+                        <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={(e) => handleDeleteClick(workspace, e)}
                       >
-                        <Trash className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </TableCell>

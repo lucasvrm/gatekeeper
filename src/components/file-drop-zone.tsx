@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { ChangeEvent, DragEvent, KeyboardEvent } from "react"
-import { UploadSimple } from "@phosphor-icons/react"
+import { Upload } from "lucide-react"
 
 export interface FileDropZoneProps {
   accept: string
@@ -200,7 +200,7 @@ export function FileDropZone({
           onChange={handleInputChange}
         />
         <div className="flex flex-col items-center gap-2 text-sm">
-          <UploadSimple className="h-6 w-6 text-muted-foreground" />
+          <Upload className="h-6 w-6 text-muted-foreground" />
           <div className="text-sm font-medium">{label}</div>
           <div className="text-xs text-muted-foreground">{placeholder}</div>
           {fileName && (

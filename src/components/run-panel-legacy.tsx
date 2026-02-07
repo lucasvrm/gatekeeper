@@ -12,19 +12,19 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner"
 import { buildValidatorClipboardText, getClipboardWriteText, getDiffScopeViolations } from "@/lib/validator-clipboard"
 import {
-  CaretDown,
-  CaretRight,
+  ChevronDown,
+  ChevronRight,
   CheckCircle,
   Copy,
   XCircle,
-  Warning,
+  AlertTriangle,
   Minus,
   Play,
-  Stop,
-  Trash,
+  Square,
+  Trash2,
   ArrowClockwise,
   Upload,
-} from "@phosphor-icons/react"
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DiffViewerModal, DiffFile } from "@/components/diff-viewer-modal"
 import { ValidatorContextPanel } from "@/components/validator-context-panel"
@@ -84,15 +84,15 @@ export function RunPanelLegacy({
   const getStatusIcon = (status: string, size = "w-5 h-5") => {
     switch (status) {
       case "PASSED":
-        return <CheckCircle className={`${size} text-status-passed`} weight="fill" />
+        return <CheckCircle className={`${size} text-status-passed`} fill="currentColor" strokeWidth={2} />
       case "FAILED":
-        return <XCircle className={`${size} text-status-failed`} weight="fill" />
+        return <XCircle className={`${size} text-status-failed`} fill="currentColor" strokeWidth={2} />
       case "WARNING":
-        return <Warning className={`${size} text-status-warning`} weight="fill" />
+        return <AlertTriangle className={`${size} text-status-warning`} fill="currentColor" strokeWidth={2} />
       case "SKIPPED":
-        return <Minus className={`${size} text-status-skipped`} weight="fill" />
+        return <Minus className={`${size} text-status-skipped`} fill="currentColor" strokeWidth={2} />
       default:
-        return <CheckCircle className={`${size} text-muted-foreground`} weight="regular" />
+        return <CheckCircle className={`${size} text-muted-foreground`} />
     }
   }
 
@@ -214,7 +214,7 @@ export function RunPanelLegacy({
                   data-testid="btn-abort-run"
                   className="hover:bg-destructive hover:text-white hover:border-destructive"
                 >
-                  <Stop className="w-4 h-4" />
+                  <Square className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Abortar execução</TooltipContent>
@@ -231,7 +231,7 @@ export function RunPanelLegacy({
                   data-testid="btn-delete-run"
                   className="hover:bg-destructive hover:text-white hover:border-destructive"
                 >
-                  <Trash className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Excluir run</TooltipContent>
@@ -246,9 +246,9 @@ export function RunPanelLegacy({
             <CollapsibleTrigger className="flex items-center justify-between w-full">
               <h3 className="text-sm font-semibold">Prompt da Tarefa</h3>
               {taskPromptOpen ? (
-                <CaretDown className="w-4 h-4" />
+                <ChevronDown className="w-4 h-4" />
               ) : (
-                <CaretRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4" />
               )}
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3">
@@ -378,7 +378,7 @@ export function RunPanelLegacy({
                         <span className="text-status-passed">{gate.passedCount} Aprovados</span>
                         <span className="text-status-failed">{gate.failedCount} Reprovados</span>
                         {gate.warningCount > 0 && (
-                          <span className="text-status-warning">{gate.warningCount} Warning</span>
+                          <span className="text-status-warning">{gate.warningCount} AlertTriangle</span>
                         )}
                       </div>
                     </div>
@@ -451,7 +451,7 @@ export function RunPanelLegacy({
                                       data-testid="warning-badge"
                                       className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-medium"
                                     >
-                                      Warning
+                                      AlertTriangle
                                     </span>
                                   )}
                                 </div>
