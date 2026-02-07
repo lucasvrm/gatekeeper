@@ -17,7 +17,7 @@ interface LogListProps {
   loadingMore?: boolean
 }
 
-const CONTAINER_HEIGHT = 600 // Fixed height for virtualized list
+const CONTAINER_HEIGHT = 600 // Height in pixels for virtualized list
 
 export function LogList({
   events,
@@ -183,7 +183,7 @@ export function LogList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col space-y-4">
       {/* Virtualized list */}
       <List
         ref={listRef}
@@ -191,7 +191,7 @@ export function LogList({
         itemCount={events.length}
         itemSize={getItemSize}
         width="100%"
-        className="scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
+        className="log-scrollbar flex-1"
       >
         {Row}
       </List>

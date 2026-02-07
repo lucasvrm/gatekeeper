@@ -170,8 +170,8 @@ export function LogViewer({ pipelineId, onFiltersChange }: LogViewerProps) {
         </div>
       )}
 
-      {/* Log List - RF-04: overflow-hidden instead of overflow-y-auto (scroll managed by react-window) */}
-      <div ref={scrollContainerRef} data-testid="log-list-container" className="flex-1 overflow-hidden" style={{ overflow: 'hidden' }}>
+      {/* Log List - Container permite scroll do react-window */}
+      <div ref={scrollContainerRef} data-testid="log-list-container" className="flex-1 min-h-0">
         <LogList
           events={displayEvents}
           loading={loading && page === 1}

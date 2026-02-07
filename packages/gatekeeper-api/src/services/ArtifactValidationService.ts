@@ -275,4 +275,64 @@ export class ArtifactValidationService {
     const valid = results.every(r => r.valid)
     return { valid, results }
   }
+
+  /**
+   * Valida artifacts da fase Discovery (substep do Step 1).
+   * Espera apenas discovery_report.md como obrigatório.
+   *
+   * @param artifacts - Map de filename → content
+   * @returns Resultado agregado de validação
+   */
+  validateDiscoveryArtifacts(
+    artifacts: Map<string, string>
+  ): { valid: boolean; results: ArtifactValidationResult[] } {
+    const results: ArtifactValidationResult[] = []
+
+    const discoveryReport = artifacts.get('discovery_report.md')
+
+    if (!discoveryReport) {
+      results.push({
+        valid: false,
+        severity: 'error',
+        message: 'Artefato obrigatório ausente: discovery_report.md',
+        details: {
+          filename: 'discovery_report.md',
+          issues: [{
+            field: 'existence',
+            expected: 'File exists',
+            actual: 'File missing',
+            severity: 'error'
+          }]
+        }
+      })
+    } else {
+      // Validação básica: não pode estar vazio, deve ter conteúdo mínimo
+      if (discoveryReport.trim().length < 100) {
+        results.push({
+          valid: false,
+          severity: 'error',
+          message: 'discovery_report.md muito curto (< 100 chars)',
+          details: {
+            filename: 'discovery_report.md',
+            issues: [{
+              field: 'content',
+              expected: 'At least 100 characters',
+              actual: `${discoveryReport.length} characters`,
+              severity: 'error'
+            }]
+          }
+        })
+      } else {
+        results.push({
+          valid: true,
+          severity: 'success',
+          message: 'discovery_report.md válido',
+          details: { filename: 'discovery_report.md', issues: [] }
+        })
+      }
+    }
+
+    const valid = results.every(r => r.valid)
+    return { valid, results }
+  }
 }

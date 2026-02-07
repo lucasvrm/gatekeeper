@@ -8,6 +8,168 @@
  * Segments: create_plan/ generate_spec/ implement_code/
  */
 
+// ─── Step 0: Discovery (Substep interno do Step 1) ──────────────────────────
+
+export const DISCOVERY_PLAYBOOK_CONTENT = `# DISCOVERY_PLAYBOOK.md (v1 — Codebase Explorer)
+
+> Função: mapear o codebase gerando discovery_report.md com evidências reais,
+> que será injetado no Planner para produzir microplans mais precisos.
+
+---
+
+## Objetivo
+
+Explorar o codebase e gerar um relatório estruturado com:
+- Arquivos relevantes para a tarefa (com snippets de evidência)
+- Dependências e imports
+- Padrões e convenções do projeto
+- Estado atual vs. desejado
+- Riscos e trade-offs
+- Arquivos/abordagens descartadas (com justificativa)
+
+---
+
+## Ferramentas disponíveis
+
+- \`read_file(path)\`: Ler conteúdo completo de um arquivo
+- \`glob_pattern(pattern)\`: Buscar arquivos por padrão glob (ex: "src/**/*.ts")
+- \`grep_pattern(pattern, path?)\`: Buscar texto em arquivos
+
+---
+
+## Regras de execução
+
+1. **Máximo 30 iterações** — seja eficiente nas buscas
+2. **Cada afirmação precisa de evidência** — snippet real de código (5-10 linhas)
+3. **Não inventar** — se não encontrou, documente explicitamente
+4. **Exploração focada** — começar por arquivos mencionados na task
+5. **Priorizar código sobre configs** — entender comportamento antes de build
+
+---
+
+## Formato de output: discovery_report.md
+
+\`\`\`markdown
+# Discovery Report
+
+**Task**: [descrição da tarefa]
+**Generated**: [timestamp]
+
+---
+
+## 1. Resumo Executivo
+
+[1-3 parágrafos sumarizando o que foi encontrado]
+
+---
+
+## 2. Arquivos Relevantes
+
+### 2.1 [Arquivo 1]
+**Path**: \`path/to/file.ts\`
+**Relevância**: [por que é importante para a task]
+**Evidência**:
+\`\`\`typescript
+// linhas X-Y
+[snippet real de 5-10 linhas]
+\`\`\`
+
+### 2.2 [Arquivo 2]
+[mesma estrutura]
+
+---
+
+## 3. Dependências e Imports
+
+**Bibliotecas externas**:
+- \`react\` (v18.2.0) — usado em componentes UI
+- \`express\` (v4.18.0) — servidor HTTP backend
+
+**Alias de import**:
+- \`@/\` → \`src/\` (configurado em tsconfig.json)
+
+**Padrões de estrutura**:
+- Services em \`src/services/\`
+- Controllers em \`src/api/controllers/\`
+
+---
+
+## 4. Padrões e Convenções
+
+**Naming**:
+- Componentes: PascalCase (\`Button.tsx\`)
+- Services: PascalCase (\`AgentRunner.ts\`)
+- Utils: camelCase (\`formatDate.ts\`)
+
+**Testes**:
+- Unitários: \`test/unit/*.spec.ts\`
+- Integração: \`test/integration/*.spec.ts\`
+- Framework: Vitest
+
+**Error handling**:
+- Backend: erro com \`{ error: string, code?: string }\`
+- Frontend: throw Error com mensagem descritiva
+
+---
+
+## 5. Estado Atual vs. Desejado
+
+**Atual**:
+- [descrever comportamento/estrutura atual com evidência]
+
+**Desejado** (conforme task):
+- [descrever mudança necessária]
+
+**Gap**:
+- [o que precisa ser criado/modificado/deletado]
+
+---
+
+## 6. Riscos e Trade-offs
+
+**Riscos identificados**:
+- [risco 1: ex.: "Breaking change em API pública"]
+- [risco 2: ex.: "Alteração em schema de DB sem migration"]
+
+**Trade-offs**:
+- [trade-off 1: ex.: "Adicionar campo vs. criar nova tabela"]
+
+---
+
+## 7. Descartados
+
+**Abordagens/arquivos considerados mas descartados**:
+- \`src/legacy/old-service.ts\`: deprecated, não usar (comentário na linha 1 confirma)
+- Padrão X: descartado porque [motivo com evidência]
+
+---
+
+## 8. Recomendações para o Planner
+
+[1-3 bullets de orientações para o Planner gerar microplans]
+- ex.: "Começar por criar tipos em \`types.ts\`, depois implementar service"
+- ex.: "Evitar tocar em \`config/\` (fora do escopo da task)"
+
+---
+
+## Metadata
+
+- **Arquivos lidos**: [N]
+- **Arquivos relevantes**: [M]
+- **Iterações usadas**: [X/30]
+\`\`\`
+
+---
+
+## Checklist final
+
+- [ ] Cada afirmação tem snippet de evidência
+- [ ] Riscos identificados (se houver)
+- [ ] Abordagens descartadas documentadas
+- [ ] Recomendações concretas para o Planner
+- [ ] Relatório salvo como \`discovery_report.md\`
+`
+
 // ─── Step 1: Planner ─────────────────────────────────────────────────────────
 
 export const PLANNER_PLAYBOOK_CONTENT = `# PLANNER_PLAYBOOK.md (v2 — CreateRun payload)

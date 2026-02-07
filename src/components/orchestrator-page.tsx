@@ -31,6 +31,7 @@ import type {
   PageTab,
   StepLLMConfig,
   OrchestratorSession,
+  PlannerSubstep,
 } from "./orchestrator/types"
 import {
   SESSION_TTL_MS,
@@ -338,6 +339,11 @@ export function OrchestratorPage() {
   const [runResults, setRunResults] = useState<RunWithResults | null>(null)
   const [schemaError, setSchemaError] = useState<string | null>(null)
 
+  // Discovery substep state
+  const [plannerSubstep, setPlannerSubstep] = useState<PlannerSubstep>(saved?.plannerSubstep ?? null)
+  const [discoveryReportContent, setDiscoveryReportContent] = useState<string | null>(saved?.discoveryReportContent ?? null)
+  const [discoveryArtifacts, setDiscoveryArtifacts] = useState<ParsedArtifact[]>(saved?.discoveryArtifacts ?? [])
+
   // Fix instructions dialog
   const [fixDialogOpen, setFixDialogOpen] = useState(false)
   const [fixDialogTarget, setFixDialogTarget] = useState<"plan" | "spec">("plan")
@@ -444,8 +450,11 @@ export function OrchestratorPage() {
       pipelineStatus: pipelineStatusRef.current,
       pipelineStage: pipelineStageRef.current,
       pipelineProgress: pipelineProgressRef.current,
+      plannerSubstep,
+      discoveryReportContent,
+      discoveryArtifacts,
     })
-  }, [outputId, step, completedSteps, taskDescription, taskType, selectedProjectId, provider, model, stepLLMs, planArtifacts, specArtifacts, runId])
+  }, [outputId, step, completedSteps, taskDescription, taskType, selectedProjectId, provider, model, stepLLMs, planArtifacts, specArtifacts, runId, plannerSubstep, discoveryReportContent, discoveryArtifacts])
 
   // ── Load available artifact folders from disk ──────────────────────────
   useEffect(() => {
@@ -466,7 +475,7 @@ export function OrchestratorPage() {
 
     api.bridgeArtifacts.readAll(resumeOutputId, projectPath).then((artifacts) => {
       const plan = artifacts.filter((a) =>
-        ["plan.json", "contract.md", "task.spec.md", "task_spec.md"].includes(a.filename)
+        ["microplans.json", "task_prompt.md"].includes(a.filename)
       )
       const specs = artifacts.filter((a) =>
         a.filename.endsWith(".spec.ts") || a.filename.endsWith(".spec.tsx") || a.filename.endsWith(".test.ts") || a.filename.endsWith(".test.tsx")
@@ -474,13 +483,12 @@ export function OrchestratorPage() {
 
       if (plan.length > 0) {
         setPlanArtifacts(plan)
-        // Restore taskDescription from plan.json if available
-        const planJsonArtifact = plan.find((a) => a.filename === "plan.json")
-        if (planJsonArtifact) {
-          try {
-            const parsed = JSON.parse(planJsonArtifact.content)
-            if (parsed.taskPrompt) setTaskDescription(parsed.taskPrompt)
-          } catch { /* plan.json parse failed — keep current taskDescription */ }
+        // Restore taskDescription from task_prompt.md if available
+        const taskPromptArtifact = plan.find((a) => a.filename === "task_prompt.md")
+        if (taskPromptArtifact) {
+          // task_prompt.md format: "# Task Prompt\n\n<description>"
+          const content = taskPromptArtifact.content.replace(/^# Task Prompt\n\n/, '')
+          if (content) setTaskDescription(content)
         }
       }
       if (specs.length > 0) setSpecArtifacts(specs)
@@ -691,6 +699,23 @@ export function OrchestratorPage() {
           } else {
             addLog("info", `LLM finalizado`)
           }
+          break
+        }
+        case "agent:bridge_discovery_done": {
+          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          const reportArtifact = artifacts.find(a => a.filename === 'discovery_report.md')
+
+          if (reportArtifact) {
+            setDiscoveryReportContent(reportArtifact.content)
+            setDiscoveryArtifacts(artifacts)
+            // Mantém plannerSubstep como 'discovery' para mostrar card de revisão
+            addLog("success", "Discovery report gerado com sucesso")
+            toast.success("Discovery concluído - revise o report e continue para o plano")
+          } else {
+            setError("Discovery não gerou discovery_report.md")
+            addLog("error", "Discovery report não encontrado nos artifacts")
+          }
+          setLoading(false)
           break
         }
         case "agent:bridge_plan_done": {
@@ -1018,7 +1043,8 @@ export function OrchestratorPage() {
     // 5. We don't have resumeOutputId (that's handled by the useEffect above)
     // 6. We haven't already tried auto-reload (prevents infinite loop on failure)
     // 7. We're not actively generating/executing (loading=false)
-    if (!outputId || reconciliation.isLoading || planArtifacts.length > 0 || resuming || resumeOutputId || autoReloadTriedRef.current || loading) {
+    // 8. We're not in Discovery substep (discoveryArtifacts handles that separately)
+    if (!outputId || reconciliation.isLoading || planArtifacts.length > 0 || discoveryArtifacts.length > 0 || resuming || resumeOutputId || autoReloadTriedRef.current || loading) {
       return
     }
 
@@ -1039,7 +1065,7 @@ export function OrchestratorPage() {
       console.log('[Auto-reload] Loaded', artifacts.length, 'artifacts from disk')
 
       const plan = artifacts.filter((a) =>
-        ["plan.json", "contract.md", "task.spec.md", "task_spec.md", "task_prompt.md"].includes(a.filename)
+        ["microplans.json", "task_prompt.md"].includes(a.filename)
       )
       const specs = artifacts.filter((a) =>
         a.filename.endsWith(".spec.ts") || a.filename.endsWith(".spec.tsx") || a.filename.endsWith(".test.ts") || a.filename.endsWith(".test.tsx")
@@ -1066,10 +1092,10 @@ export function OrchestratorPage() {
         console.log('[Auto-reload] Restored specArtifacts:', specs.map(a => a.filename))
       }
 
-      // Only show success if artifacts were actually found
+      // Log silently (no toast to avoid interference with SSE event toasts)
       if (artifacts.length > 0) {
         addLog("info", `Artefatos recuperados automaticamente: ${artifacts.length} arquivo(s)`)
-        toast.success("Artefatos recuperados do disco")
+        console.log('[Auto-reload] Successfully restored artifacts from disk')
       } else {
         console.log('[Auto-reload] No artifacts found on disk (expected during initial generation)')
       }
@@ -1332,6 +1358,12 @@ export function OrchestratorPage() {
         projectPath: getProjectPath(),
       }
 
+      // Include outputId if already exists (from Discovery)
+      if (outputId) {
+        payload.outputId = outputId
+        addLog("info", `Reutilizando outputId do Discovery: ${outputId}`)
+      }
+
       // Include attachments as context
       if (attachments.length > 0) {
         payload.attachments = attachments.map((a) => ({
@@ -1340,6 +1372,12 @@ export function OrchestratorPage() {
           content: a.content,
         }))
         addLog("info", `${attachments.length} anexo(s) incluído(s)`)
+      }
+
+      // Include discovery report if available
+      if (discoveryReportContent) {
+        payload.discoveryReportContent = discoveryReportContent
+        addLog("info", "Discovery report incluído no contexto")
       }
 
       const result = await apiPost("plan", payload)
@@ -1357,6 +1395,41 @@ export function OrchestratorPage() {
       toast.error(msg)
       setLoading(false)
     }
+  }
+
+  // ── Discovery Substep ───────────────────────────────────────────────────
+  const handleGenerateDiscovery = async () => {
+    setError(null)
+    setLoading(true)
+    setPlannerSubstep('discovery')
+    addLog("info", "Gerando discovery report...")
+
+    try {
+      const payload: Record<string, unknown> = {
+        taskDescription,
+        provider: stepLLMs[1]?.provider ?? getDefault(1).provider,
+        model: stepLLMs[1]?.model ?? getDefault(1).model,
+        projectPath: getProjectPath(),
+      }
+
+      const result = await apiPost("discovery", payload)
+      setOutputId(result.outputId)
+      addLog("info", `Discovery iniciado: ${result.outputId}`)
+
+      // Completion is handled by handleSSE when it receives 'agent:bridge_discovery_done'
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao gerar discovery"
+      setError(msg)
+      addLog("error", msg)
+      toast.error(msg)
+      setLoading(false)
+      setPlannerSubstep(null)
+    }
+  }
+
+  const handleSkipDiscovery = () => {
+    setPlannerSubstep('planner')
+    handleGeneratePlan()
   }
 
   // ── Step 2: Generate Spec ──────────────────────────────────────────────
@@ -1913,6 +1986,7 @@ export function OrchestratorPage() {
         outputId={outputId}
         onReset={handleReset}
         loading={loading}
+        plannerSubstep={plannerSubstep}
       />
 
       {/* Session controls (resume only — reset moved to header) */}
@@ -2193,14 +2267,100 @@ export function OrchestratorPage() {
                 </div>
 
                 <Button
-                  onClick={handleGeneratePlan}
+                  onClick={() => {
+                    setPlannerSubstep(null)
+                    setStep(1)
+                  }}
                   disabled={loading || taskDescription.length < 10 || !selectedProjectId}
                   className="w-full"
                 >
-                  {loading ? "Gerando..." : "Gerar Plano →"}
+                  Prosseguir →
                 </Button>
               </CardContent>
             </Card>
+                </div>
+              )}
+
+              {/* ─── Step 1: Discovery/Planner substeps ──────────────────── */}
+              {step === 1 && (
+                <div className="space-y-4">
+                  {plannerSubstep === null && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Escolha o Modo de Planejamento</CardTitle>
+                        <CardDescription>
+                          Discovery explora o codebase primeiro para gerar microplans mais precisos.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <Button
+                          onClick={handleGenerateDiscovery}
+                          disabled={loading}
+                          className="w-full"
+                          variant="default"
+                        >
+                          🔍 Gerar Discovery (Recomendado)
+                        </Button>
+                        <Button
+                          onClick={handleSkipDiscovery}
+                          disabled={loading}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          Ir Direto ao Plano →
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {plannerSubstep === 'discovery' && discoveryReportContent && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Discovery Report</CardTitle>
+                        <CardDescription>
+                          Análise do codebase concluída. Revise o report e continue para o plano.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <ArtifactViewer
+                          artifacts={discoveryArtifacts}
+                          defaultOpen="discovery_report.md"
+                        />
+                        <Button
+                          onClick={() => {
+                            setPlannerSubstep('planner')
+                            handleGeneratePlan()
+                          }}
+                          disabled={loading}
+                          className="w-full"
+                        >
+                          {loading ? "Gerando plano..." : "Continuar para Plano →"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {plannerSubstep === 'discovery' && !discoveryReportContent && loading && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Gerando Discovery Report...</CardTitle>
+                        <CardDescription>
+                          O agente está explorando o codebase. Aguarde...
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  )}
+
+                  {plannerSubstep === 'planner' && loading && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Gerando Plano...</CardTitle>
+                        <CardDescription>
+                          O agente está gerando microplans. Aguarde...
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  )}
                 </div>
               )}
 
@@ -2211,7 +2371,7 @@ export function OrchestratorPage() {
                     <CardHeader>
                   <CardTitle>Artefatos do Plano</CardTitle>
                   <CardDescription>
-                    plan.json, contract.md e task.spec.md gerados pelo LLM. Revise antes de prosseguir.
+                    microplans.json gerado pelo LLM. Revise antes de prosseguir.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

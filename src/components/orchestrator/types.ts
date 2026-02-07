@@ -22,6 +22,8 @@ export interface LogEntry {
   text: string
 }
 
+export type PlannerSubstep = 'discovery' | 'planner' | null
+
 export type WizardStep = 0 | 1 | 2 | 3 | 4
 export type PageTab = "pipeline"
 
@@ -52,6 +54,10 @@ export interface OrchestratorSession {
   pipelineProgress: number         // 0-100
   microplansArtifact?: ParsedArtifact
   hasMicroplans?: boolean
+  // Discovery substep fields
+  plannerSubstep: PlannerSubstep
+  discoveryReportContent: string | null
+  discoveryArtifacts: ParsedArtifact[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -8,37 +8,40 @@ Abordagem: usar name prefix pattern (discovery-*, planner-*) sem migration de sc
 
 <files_to_modify>
 <file path="packages/gatekeeper-api/src/services/AgentPromptAssembler.ts" status="existing">
-  <current_state>130 linhas, assembleForStep() concatena prompts do DB, assembleAll() retorna Map</current_state>
+  <current_state>345 linhas, assembleForStep() concatena prompts do DB, assembleAll() retorna Map</current_state>
   <reason>Adicionar método assembleForSubstep(step, prefix) que filtra por name.startsWith()</reason>
   <evidence>
     - Linha 54-76: assembleForStep() query com where: { step, role: 'system', isActive: true }
-    - Linha 83-92: assembleAll() itera steps [1, 2, 4]
+    - Linha 84: assembleAll() const steps = [1, 2, 4] (ignora step 3)
   </evidence>
 </file>
 
 <file path="packages/gatekeeper-api/src/services/AgentOrchestratorBridge.ts" status="existing">
-  <current_state>850 linhas, generatePlan/Spec/Fix/Execute métodos, usa AgentRunnerService</current_state>
+  <current_state>2237 linhas, generatePlan/Spec/Fix/Execute métodos, usa AgentRunnerService</current_state>
   <reason>Adicionar generateDiscovery() e modificar generatePlan() para aceitar discoveryReportContent</reason>
   <evidence>
-    - Linha 137-297: generatePlan() atual usa assembleForStep(1), READ_TOOLS + SAVE_ARTIFACT_TOOL
-    - Linha 299-400: generateSpec() similar pattern, step 2
+    - Método generatePlan() existe (lido parcialmente, usa assembleForStep, READ_TOOLS + SAVE_ARTIFACT_TOOL)
+    - Método generateSpec() existe (similar pattern)
   </evidence>
 </file>
 
 <file path="packages/gatekeeper-api/src/api/controllers/BridgeController.ts" status="existing">
-  <current_state>450 linhas, endpoints /plan, /spec, /fix, /execute, retorna 202 + SSE</current_state>
+  <current_state>798 linhas, endpoints /plan, /spec, /fix, /execute, retorna 202 + SSE</current_state>
   <reason>Adicionar endpoint generateDiscovery() e modificar generatePlan() para aceitar discoveryReportContent</reason>
   <evidence>
-    - Linha 96-146: generatePlan() retorna 202, roda bridge.generatePlan() em background
-    - Linha 62-66: makeEmitter() helper para SSE events
+    - Método generatePlan() existe (lido parcialmente, retorna 202, roda bridge.generatePlan() em background)
+    - makeEmitter() helper existe para SSE events
   </evidence>
 </file>
 
 <file path="packages/gatekeeper-api/src/api/routes/agent.routes.ts" status="existing">
-  <current_state>30 linhas, define rotas POST /bridge/plan, /spec, /fix, /execute</current_state>
+  <current_state>438 linhas, define rotas POST /bridge/plan, /spec, /fix, /execute, /pipeline, GET /artifacts</current_state>
   <reason>Adicionar rota POST /bridge/discovery</reason>
   <evidence>
-    - Linha 15: router.post('/bridge/plan', (req, res) => controller.generatePlan(req, res))
+    - Linha 261-267: router.post('/bridge/plan', async (req, res, next) => { await bridgeCtrl.generatePlan(req, res) })
+    - Linha 269-275: router.post('/bridge/spec', ...)
+    - Linha 277-283: router.post('/bridge/fix', ...)
+    - Linha 285-291: router.post('/bridge/execute', ...)
   </evidence>
 </file>
 
@@ -60,29 +63,31 @@ Abordagem: usar name prefix pattern (discovery-*, planner-*) sem migration de sc
 </file>
 
 <file path="packages/gatekeeper-api/prisma/seed.ts" status="existing">
-  <current_state>200 linhas, seed de PromptInstruction, AgentPhaseConfig, etc</current_state>
+  <current_state>Arquivo muito grande (não consegui ler completo), seed de workspace, sensitiveFileRules, ambiguousTerms, validationConfigs, etc</current_state>
   <reason>Renomear prompts existentes (adicionar prefixo planner-) e seed novos prompts Discovery</reason>
   <evidence>
-    - Linha 50-80: await prisma.promptInstruction.createMany() pattern
+    - Linha 1-150: seed de workspace, project, sensitiveFileRules, ambiguousTerms, validationConfigs
+    - Pattern: await prisma.[model].upsert() com where unique keys
   </evidence>
 </file>
 
 <file path="src/components/orchestrator/types.ts" status="existing">
-  <current_state>150 linhas, define WizardStep, OrchestratorSession, PageTab, etc</current_state>
+  <current_state>72 linhas, define WizardStep, OrchestratorSession, ParsedArtifact, LogEntry, StepLLMConfig, constants STEPS</current_state>
   <reason>Adicionar PlannerSubstep type e campos em OrchestratorSession</reason>
   <evidence>
-    - Linha 20-30: export type WizardStep = 0 | 1 | 2 | 3 | 4
-    - Linha 40-60: export interface OrchestratorSession
+    - Linha 25: export type WizardStep = 0 | 1 | 2 | 3 | 4
+    - Linha 33-55: export interface OrchestratorSession (com 17 campos)
+    - Linha 65-71: export const STEPS array com labels: Tarefa, Plano, Testes, Validação, Execução
   </evidence>
 </file>
 
 <file path="src/components/orchestrator-page.tsx" status="existing">
-  <current_state>2500 linhas, main orchestrator UI, handleGeneratePlan, useOrchestratorEvents, etc</current_state>
+  <current_state>2926 linhas, main orchestrator UI, handleGeneratePlan, useOrchestratorEvents, SSE, session persistence</current_state>
   <reason>Adicionar substeps (discovery/planner/null), handlers (handleGenerateDiscovery, handleSkipDiscovery, handleUploadDiscovery), UI condicional</reason>
   <evidence>
-    - Linha 400-420: handleGeneratePlan() atual
-    - Linha 600-650: useOrchestratorEvents hook com handleSSE callback
-    - Linha 1000-1200: UI condicional por step
+    - Linha 1310-1330: handleGeneratePlan() - clearSession, reset states, POST /bridge/plan com taskDescription + stepLLMs
+    - useOrchestratorEvents hook existe (não localizei linha exata)
+    - UI condicional por step existe (não localizei linhas exatas - arquivo muito grande)
   </evidence>
 </file>
 
@@ -95,19 +100,17 @@ Abordagem: usar name prefix pattern (discovery-*, planner-*) sem migration de sc
 </file>
 
 <file path="src/components/orchestrator/step-indicator.tsx" status="existing">
-  <current_state>80 linhas, visual indicator de steps 0-4 com badges</current_state>
+  <current_state>40 linhas, visual indicator de steps 0-4 com badges, click handler, completed state</current_state>
   <reason>Opcional: adicionar indicador de substep (Discovery → Planner)</reason>
   <evidence>
-    - Linha 20-40: STEPS array com labels
+    - Linha 1: import STEPS from types.ts
+    - Linha 12: STEPS.map(({ num, label }) - itera steps e renderiza badges com current/completed states
   </evidence>
 </file>
 </files_to_modify>
 
 <files_to_create>
-<file path="packages/gatekeeper-api/src/utils/discoveryParser.ts" status="new">
-  <reason>Opcional: parser XML → objeto para discovery_report.md (cheerio ou fast-xml-parser)</reason>
-  <pattern>Similar a ArtifactValidationService pattern (parsing + validation)</pattern>
-</file>
+<none>Nenhum arquivo novo será criado no MVP (H9: discovery report como string, sem parser)</none>
 </files_to_create>
 
 <code_snippets>
@@ -191,42 +194,79 @@ async generatePlan(req: Request, res: Response): Promise<void> {
 ```
 </snippet>
 
-<snippet file="src/components/orchestrator-page.tsx" lines="400-420">
+<snippet file="src/components/orchestrator-page.tsx" lines="1310-1330">
 ```typescript
 const handleGeneratePlan = async () => {
-  setIsWorking(true)
+  // Fix Bug #2: Clear any previous session before creating new one
+  clearSession(outputId)
+
+  // Reset all React states to prevent stale data
+  setPlanArtifacts([])
+  setSpecArtifacts([])
+  setRunId(null)
+  setRunResults(null)
+  setValidationStatus(null)
+  setError(null)
+  setRetryState(null)
+  setLoading(true)
+  addLog("info", "Gerando plano...")
+
   try {
-    const res = await api.post('/agent/bridge/plan', {
+    // POST returns 202 immediately with outputId — plan runs in background
+    const payload: Record<string, unknown> = {
       taskDescription,
-      projectPath: selectedProject.rootPath,
-      provider: stepLLMs[1].provider,
-      model: stepLLMs[1].model,
-    })
-    setOutputId(res.outputId)
-    setStep(1) // Mostra loading do planner
-  } catch (err) {
-    toast.error('Falha ao iniciar planner')
-  }
-}
+      taskType,
+      provider: stepLLMs[1]?.provider ?? getDefault(1).provider,
+      // ... resto do payload
+    }
 ```
 </snippet>
 
-<snippet file="src/components/orchestrator/types.ts" lines="20-30">
+<snippet file="src/components/orchestrator/types.ts" lines="25-71">
 ```typescript
 export type WizardStep = 0 | 1 | 2 | 3 | 4
-//  0 = input
-//  1 = planner
-//  2 = spec
-//  3 = validation/fix
-//  4 = execution
+export type PageTab = "pipeline"
 
-export const STEPS: Record<WizardStep, string> = {
-  0: 'Input',
-  1: 'Planner',
-  2: 'Spec',
-  3: 'Validation',
-  4: 'Execution',
+export interface StepLLMConfig {
+  provider: string
+  model: string
 }
+
+export interface OrchestratorSession {
+  outputId?: string
+  step: number
+  completedSteps: number[]
+  taskDescription: string
+  taskType?: string
+  selectedProjectId: string | null
+  provider: string
+  model: string
+  stepLLMs?: Record<number, StepLLMConfig>
+  planArtifacts: ParsedArtifact[]
+  specArtifacts: ParsedArtifact[]
+  runId: string | null
+  savedAt: number
+  lastEventId: number
+  lastSeq: number
+  pipelineStatus: string | null
+  pipelineStage: string | null
+  pipelineProgress: number
+  microplansArtifact?: ParsedArtifact
+  hasMicroplans?: boolean
+}
+
+// Constants
+export const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+export const SESSION_KEY_PREFIX = "gk-pipeline-"
+export const ACTIVE_KEY = "gk-active-pipeline"
+
+export const STEPS = [
+  { num: 0, label: "Tarefa" },
+  { num: 1, label: "Plano" },
+  { num: 2, label: "Testes" },
+  { num: 3, label: "Validação" },
+  { num: 4, label: "Execução" },
+] as const
 ```
 </snippet>
 
@@ -311,44 +351,30 @@ model PromptInstruction {
     - Fluxo: Planner → microplans.json → Orquestrador extrai MP-1 → Spec Writer
   </evidence>
 </hypothesis>
+
+<hypothesis id="H7" status="confirmed">
+  <statement>Discovery maxIterations = 30 (mesmo que Planner)</statement>
+  <evidence>User decision: H7: b) - 30 iterations</evidence>
+</hypothesis>
+
+<hypothesis id="H8" status="confirmed">
+  <statement>Discovery provider/model configurável via AgentPhaseConfig (usuário decide depois)</statement>
+  <evidence>User decision: H8: c) - configurável</evidence>
+</hypothesis>
+
+<hypothesis id="H9" status="confirmed">
+  <statement>Discovery report como string (sem parser XML→objeto no MVP)</statement>
+  <evidence>User decision: H9: b) - Planner processa string direto</evidence>
+</hypothesis>
+
+<hypothesis id="H10" status="confirmed">
+  <statement>UI mostra preview completo do discovery_report.md com ArtifactViewer</statement>
+  <evidence>User decision: H10: a) - preview completo antes de continuar</evidence>
+</hypothesis>
 </confirmed_hypotheses>
 
 <unconfirmed_hypotheses>
-<hypothesis id="H7" status="unconfirmed">
-  <question>Discovery deve ter maxIterations menor que Planner (20 vs 30)?</question>
-  <option id="A">Sim, 20 iterações (Discovery é mais focado, menos complexo)</option>
-  <option id="B">Não, 30 iterações (Discovery pode precisar explorar muito)</option>
-  <option id="C">Configurável via AgentPhaseConfig (usuário decide)</option>
-  <recommendation>A</recommendation>
-  <reasoning>Discovery faz read-only operations (glob, grep, read_file), menos iterações que Planner que gera microplans complexos</reasoning>
-</hypothesis>
-
-<hypothesis id="H8" status="unconfirmed">
-  <question>Discovery deve usar modelo mais barato (haiku) ou mesmo modelo (sonnet)?</question>
-  <option id="A">Modelo mais barato (haiku ou gpt-4o-mini) - Discovery é task simples</option>
-  <option id="B">Mesmo modelo (sonnet) - manter consistência de qualidade</option>
-  <option id="C">Configurável via AgentPhaseConfig (usuário decide)</option>
-  <recommendation>C</recommendation>
-  <reasoning>AgentPhaseConfig já permite step 1 ter provider/model diferentes, usuário escolhe trade-off custo vs qualidade</reasoning>
-</hypothesis>
-
-<hypothesis id="H9" status="unconfirmed">
-  <question>Parsing XML do discovery_report.md deve ser implementado ou deixar como string?</question>
-  <option id="A">Implementar parser (cheerio ou fast-xml-parser) com validação</option>
-  <option id="B">Deixar como string, Planner processa direto</option>
-  <option id="C">Parser opcional, default string (simplificar MVP)</option>
-  <recommendation>C</recommendation>
-  <reasoning>MVP pode passar discovery_report.md como string no prompt do Planner, parser pode vir depois se necessário</reasoning>
-</hypothesis>
-
-<hypothesis id="H10" status="unconfirmed">
-  <question>UI deve mostrar preview do discovery_report.md ou apenas botão "Continuar"?</question>
-  <option id="A">Preview completo com ArtifactViewer (usuário revisa antes de continuar)</option>
-  <option id="B">Apenas botão "Continuar" (auto-avança, mais rápido)</option>
-  <option id="C">Preview colapsável (default collapsed, usuário expande se quiser)</option>
-  <recommendation>A</recommendation>
-  <reasoning>Transparência é key benefit do Discovery, usuário deve poder revisar mapeamento antes do Planner</reasoning>
-</hypothesis>
+<none>Todas as decisões de design foram confirmadas pelo usuário (ver confirmed_hypotheses H7-H10)</none>
 </unconfirmed_hypotheses>
 
 <dependencies>
@@ -361,8 +387,7 @@ model PromptInstruction {
   <dep>lucide-react (icons)</dep>
 </existing>
 <new>
-  <dep name="cheerio" optional="true">Parser XML para discovery_report.md (se implementar parsing estruturado)</dep>
-  <dep name="fast-xml-parser" optional="true">Alternativa ao cheerio para parsing XML (mais leve)</dep>
+  <none>Nenhuma dependência nova (H9: sem parser XML no MVP)</none>
 </new>
 </dependencies>
 
@@ -376,7 +401,6 @@ model PromptInstruction {
   <detail>MP-5: Types e substeps no frontend (frontend - core)</detail>
   <detail>MP-6: UI substeps + bypass no orchestrator-page (frontend - core)</detail>
   <detail>MP-7: Testes unitários + integration (backend)</detail>
-  <detail>MP-8: Parser XML opcional (backend - nice-to-have)</detail>
 </step>
 
 <step n="2">
@@ -388,7 +412,6 @@ model PromptInstruction {
   <detail>MP-5: orchestrator/types.ts</detail>
   <detail>MP-6: orchestrator-page.tsx, lib/types.ts</detail>
   <detail>MP-7: test files (*.spec.ts)</detail>
-  <detail>MP-8: utils/discoveryParser.ts</detail>
 </step>
 
 <step n="3">
@@ -399,7 +422,6 @@ model PromptInstruction {
   <detail>MP-4 → MP-5 (Backend API pronto antes de frontend consumir)</detail>
   <detail>MP-5 → MP-6 (Types definidos antes de UI usar)</detail>
   <detail>MP-7 independente (pode rodar em paralelo após MP-4)</detail>
-  <detail>MP-8 independente (nice-to-have, não bloqueia outros)</detail>
 </step>
 
 <step n="4">
@@ -413,11 +435,11 @@ model PromptInstruction {
 </step>
 
 <step n="5">
-  <title>User questions to resolve before implementation</title>
-  <detail>H7: maxIterations Discovery = 20 ou 30? (Recomendação: 20)</detail>
-  <detail>H8: Modelo Discovery = haiku ou sonnet? (Recomendação: configurável)</detail>
-  <detail>H9: Parser XML ou string raw? (Recomendação: string no MVP, parser opcional depois)</detail>
-  <detail>H10: Preview discovery_report.md ou auto-avança? (Recomendação: preview)</detail>
+  <title>Implementation decisions (confirmed)</title>
+  <detail>H7: maxIterations = 30 (mesmo que Planner) ✅</detail>
+  <detail>H8: provider/model configurável via AgentPhaseConfig ✅</detail>
+  <detail>H9: discovery_report.md como string (sem parser XML no MVP) ✅</detail>
+  <detail>H10: preview completo com ArtifactViewer ✅</detail>
 </step>
 
 <step n="6">

@@ -138,7 +138,7 @@ export function LogsDrawer({
                     {exporting ? "Exportando..." : "Exportar"}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="z-[120]">
                   <DropdownMenuItem onClick={() => handleExport("json")} className="gap-2">
                     <FileJson className="size-4" />
                     Exportar como JSON

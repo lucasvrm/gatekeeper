@@ -402,24 +402,45 @@ export class GatekeeperValidationBridge {
       testFilePath?: string
     } = {}
 
-    // ── Read plan.json for manifest ─────────────────────────────────────
-    const planPath = join(artifactDir, 'plan.json')
-    if (existsSync(planPath)) {
+    // ── Try reading microplans.json first (new format) ──────────────────
+    const microplansPath = join(artifactDir, 'microplans.json')
+    if (existsSync(microplansPath)) {
       try {
-        const planRaw = readFileSync(planPath, 'utf-8')
-        const plan = JSON.parse(planRaw)
+        const microplansRaw = readFileSync(microplansPath, 'utf-8')
+        const microplans = JSON.parse(microplansRaw)
 
-        // plan.json may have manifest at top level or nested
-        if (plan.manifest && plan.manifest.files && plan.manifest.testFile) {
-          result.manifestJson = JSON.stringify(plan.manifest)
-          result.testFilePath = join(projectPath, plan.manifest.testFile).replace(/\\/g, '/')
-        } else if (plan.files && plan.testFile) {
-          // plan.json might itself be the manifest
-          result.manifestJson = JSON.stringify({ files: plan.files, testFile: plan.testFile })
-          result.testFilePath = join(projectPath, plan.testFile).replace(/\\/g, '/')
+        // Convert microplans to manifest equivalent
+        const manifest = this.convertMicroplansToManifest(microplans)
+        if (manifest) {
+          result.manifestJson = JSON.stringify(manifest)
+          if (manifest.testFile) {
+            result.testFilePath = join(projectPath, manifest.testFile).replace(/\\/g, '/')
+          }
         }
       } catch (err) {
-        console.warn(`[GatekeeperValidationBridge] Failed to parse plan.json:`, err)
+        console.warn(`[GatekeeperValidationBridge] Failed to parse microplans.json:`, err)
+      }
+    }
+    // ── Fallback: Read plan.json (old format, for backwards compat) ─────
+    else {
+      const planPath = join(artifactDir, 'plan.json')
+      if (existsSync(planPath)) {
+        try {
+          const planRaw = readFileSync(planPath, 'utf-8')
+          const plan = JSON.parse(planRaw)
+
+          // plan.json may have manifest at top level or nested
+          if (plan.manifest && plan.manifest.files && plan.manifest.testFile) {
+            result.manifestJson = JSON.stringify(plan.manifest)
+            result.testFilePath = join(projectPath, plan.manifest.testFile).replace(/\\/g, '/')
+          } else if (plan.files && plan.testFile) {
+            // plan.json might itself be the manifest
+            result.manifestJson = JSON.stringify({ files: plan.files, testFile: plan.testFile })
+            result.testFilePath = join(projectPath, plan.testFile).replace(/\\/g, '/')
+          }
+        } catch (err) {
+          console.warn(`[GatekeeperValidationBridge] Failed to parse plan.json:`, err)
+        }
       }
     }
 
@@ -434,6 +455,36 @@ export class GatekeeperValidationBridge {
     }
 
     return result
+  }
+
+  /**
+   * Convert microplans.json structure to manifest-compatible format.
+   * Extracts all files from all microplans and finds the test file.
+   */
+  private convertMicroplansToManifest(microplans: any): { files: any[]; testFile?: string } | null {
+    if (!microplans.microplans || !Array.isArray(microplans.microplans)) {
+      return null
+    }
+
+    const allFiles: any[] = []
+    let testFile: string | undefined
+
+    for (const mp of microplans.microplans) {
+      if (mp.files && Array.isArray(mp.files)) {
+        for (const file of mp.files) {
+          allFiles.push(file)
+          // Find first test file
+          if (!testFile && /\.(spec|test)\.(ts|tsx|js|jsx)$/.test(file.path)) {
+            testFile = file.path
+          }
+        }
+      }
+    }
+
+    return {
+      files: allFiles,
+      testFile,
+    }
   }
 
   // ─── Fallback ─────────────────────────────────────────────────────────────

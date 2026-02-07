@@ -45,6 +45,8 @@ export interface BridgePlanInput {
   model?: string
   /** Pre-generated outputId (allows the caller to know the ID before the plan starts) */
   outputId?: string
+  /** Discovery report content to inject into planner context */
+  discoveryReportContent?: string
   /** Ad-hoc file attachments for additional context (not persistent config) */
   attachments?: Array<{ name: string; type: string; content: string }>
 }
@@ -111,6 +113,24 @@ export interface BridgeFixOutput {
   correctedTaskPrompt?: string
 }
 
+/** Discovery step input (substep before planning) */
+export interface BridgeDiscoveryInput {
+  taskDescription: string
+  projectPath: string
+  profileId?: string
+  provider?: ProviderName
+  model?: string
+  /** Pre-generated outputId (allows the caller to know the ID before discovery starts) */
+  outputId?: string
+}
+
+export interface BridgeDiscoveryOutput {
+  outputId: string
+  artifacts: Array<{ filename: string; content: string }>
+  tokensUsed: TokenUsage
+  agentResult: AgentResult
+}
+
 export interface SessionContext {
   gitStrategy: string
   customInstructions: string
@@ -130,6 +150,118 @@ export class AgentOrchestratorBridge {
     this.registry = LLMProviderRegistry.fromEnv()
     this.assembler = new AgentPromptAssembler(prisma)
     this.validator = new ArtifactValidationService()
+  }
+
+  // ─── Step 0: Discovery (substep before planning) ─────────────────────
+
+  async generateDiscovery(
+    input: BridgeDiscoveryInput,
+    callbacks: BridgeCallbacks = {},
+  ): Promise<BridgeDiscoveryOutput> {
+    const outputId = input.outputId || this.generateOutputId(input.taskDescription)
+    const emit = callbacks.onEvent ?? (() => {})
+
+    emit({ type: 'agent:bridge_start', step: 0, outputId } as AgentEvent)
+
+    // Resolve phase config (use step 1 for consistency with other phases)
+    const phase = await this.resolvePhaseConfig(1, input.provider, input.model)
+
+    // Build system prompt from DB (discovery substep prompts)
+    const sessionContext = await this.fetchSessionContext(input.profileId)
+    const basePrompt = await this.assembler.assembleForSubstep(1, 'discovery-')
+    let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
+
+    // Run agent
+    const toolExecutor = new AgentToolExecutor()
+    await toolExecutor.loadSafetyConfig()
+    const runner = new AgentRunnerService(this.registry, toolExecutor)
+
+    let userMessage: string
+    let tools = [...READ_TOOLS, SAVE_ARTIFACT_TOOL]
+    let outputDir: string | undefined
+
+    if (this.isCliProvider(phase)) {
+      // Claude Code: write files directly via its Write tool
+      outputDir = await this.resolveOutputDir(outputId, input.projectPath)
+      systemPrompt += `\n\nIMPORTANT: You must write discovery_report.md to: ${outputDir}/`
+      userMessage = `## Task\n\n**Description:** ${input.taskDescription}\n\n**Output ID:** ${outputId}\n\n**Instructions:** Explore the codebase and generate a discovery_report.md with your findings. Use read_file, glob_pattern, and grep_pattern tools to gather evidence. Write the report to ${outputDir}/discovery_report.md`
+      tools = [...READ_TOOLS] // no save_artifact for claude-code
+    } else {
+      userMessage = `## Task\n\n**Description:** ${input.taskDescription}\n\n**Output ID:** ${outputId}\n\n**Instructions:** Explore the codebase and generate a discovery_report.md with your findings. Use read_file, glob_pattern, and grep_pattern tools to gather evidence. Save the report using save_artifact("discovery_report.md", content).`
+    }
+
+    const result = await runner.run({
+      phase,
+      systemPrompt,
+      userMessage,
+      tools,
+      projectRoot: input.projectPath,
+      onEvent: emit,
+    })
+
+    // Collect artifacts from tool executor
+    let memoryArtifacts = toolExecutor.getArtifacts()
+
+    if (memoryArtifacts.size === 0 && this.isCliProvider(phase) && outputDir) {
+      // Claude Code wrote files directly — read them from disk
+      console.log(`[Bridge] Claude Code: scanning ${outputDir} for artifacts...`)
+      memoryArtifacts = this.readArtifactsFromDir(outputDir)
+      console.log(`[Bridge] Found ${memoryArtifacts.size} file(s) on disk`)
+    }
+
+    if (memoryArtifacts.size === 0 && result.text) {
+      // Fallback: try parsing artifacts from text response
+      console.log('[Bridge:generateDiscovery] No artifacts found, trying text parse fallback...')
+      const parsed = this.parseArtifactsFromText(result.text)
+      for (const [filename, content] of parsed.entries()) {
+        memoryArtifacts.set(filename, content)
+      }
+    }
+
+    // ✅ VALIDATE discovery artifacts (NÃO exige microplans.json)
+    const validation = this.validator.validateDiscoveryArtifacts(memoryArtifacts)
+    if (!validation.valid) {
+      const errorDetails = validation.results
+        .filter(r => r.severity === 'error')
+        .map(r => `${r.details.filename}: ${r.message}`)
+        .join('; ')
+
+      console.error('[Bridge:generateDiscovery] ❌ Artifact validation failed:', {
+        errorCount: validation.results.filter(r => r.severity === 'error').length,
+        errors: validation.results.filter(r => r.severity === 'error').map(r => ({
+          file: r.details.filename,
+          issues: r.details.issues
+        }))
+      })
+
+      throw new BridgeError(
+        `Discovery artifacts validation failed: ${errorDetails}`,
+        'INVALID_ARTIFACTS',
+      )
+    }
+
+    // Persist artifacts to disk
+    await this.persistArtifacts(memoryArtifacts, outputId, input.projectPath)
+
+    // Convert to array format
+    const artifacts: Array<{ filename: string; content: string }> = []
+    for (const [filename, content] of memoryArtifacts.entries()) {
+      artifacts.push({ filename, content })
+    }
+
+    emit({
+      type: 'agent:bridge_complete',
+      step: 0,
+      outputId,
+      artifactNames: artifacts.map((a) => a.filename),
+    } as AgentEvent)
+
+    return {
+      outputId,
+      artifacts,
+      tokensUsed: result.tokensUsed,
+      agentResult: result,
+    }
   }
 
   // ─── Step 1: Generate Plan ───────────────────────────────────────────
@@ -167,7 +299,7 @@ export class AgentOrchestratorBridge {
       const cliAppend = await this.assembler.getCliSystemAppend(1, { outputDir })
       systemPrompt += cliAppend
         ? `\n\n${cliAppend}`
-        : `\n\nIMPORTANT: You must write each artifact as a file using your Write tool.\nWrite artifacts to this directory: ${outputDir}/\nRequired files: plan.json, contract.md, task.spec.md`
+        : `\n\nIMPORTANT: You must write the microplans.json file using your Write tool.\nWrite artifact to this directory: ${outputDir}/\nRequired file: microplans.json`
       userMessage = await this.buildPlanUserMessageAsync(input.taskDescription, outputId, input.taskType)
       // Try to get CLI replacement from templates
       const cliReplace = await this.assembler.getCliReplacement(1, 'save-artifact-plan', { outputDir })
@@ -208,6 +340,11 @@ export class AgentOrchestratorBridge {
         }
         userMessage += attachParts.join('\n')
       }
+    }
+
+    // Inject discovery report if present (before task description)
+    if (input.discoveryReportContent) {
+      userMessage = `## Discovery Report\n\n${input.discoveryReportContent}\n\n${userMessage}`
     }
 
     const result = await runner.run({
@@ -309,15 +446,12 @@ export class AgentOrchestratorBridge {
     // Read existing artifacts from disk
     const existingArtifacts = await this.readArtifactsFromDisk(input.outputId, input.projectPath)
 
-    // Accept both task.spec.md and task_spec.md
-    const hasTaskSpec = existingArtifacts['task.spec.md'] || existingArtifacts['task_spec.md']
-    if (!existingArtifacts['plan.json'] || !existingArtifacts['contract.md'] || !hasTaskSpec) {
-      const missing = ['plan.json', 'contract.md', 'task.spec.md (or task_spec.md)']
-        .filter((f, i) => i === 2 ? !hasTaskSpec : !existingArtifacts[f])
+    // Validate that microplans.json exists
+    if (!existingArtifacts['microplans.json']) {
       throw new BridgeError(
-        `Missing step 1 artifacts: ${missing.join(', ')}`,
+        `Missing step 1 artifacts: microplans.json`,
         'MISSING_ARTIFACTS',
-        { missing, outputId: input.outputId },
+        { missing: ['microplans.json'], outputId: input.outputId },
       )
     }
 
@@ -337,8 +471,22 @@ export class AgentOrchestratorBridge {
     if (this.isCliProvider(phase)) {
       outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
       // Debug: Log outputDir and expected test file
-      const planData = JSON.parse(existingArtifacts['plan.json'])
-      const testFilePath = planData.manifest?.testFile || 'spec.ts'
+      const microplansData = JSON.parse(existingArtifacts['microplans.json'])
+      // Find test file path from first microplan with a test file (*.spec.ts, *.test.ts, etc)
+      let testFilePath = 'spec.ts'
+      if (microplansData.microplans && Array.isArray(microplansData.microplans)) {
+        for (const mp of microplansData.microplans) {
+          if (mp.files && Array.isArray(mp.files)) {
+            const testFile = mp.files.find((f: any) =>
+              /\.(spec|test)\.(ts|tsx|js|jsx)$/.test(f.path)
+            )
+            if (testFile) {
+              testFilePath = testFile.path
+              break
+            }
+          }
+        }
+      }
       console.log('[Bridge:generateSpec] 🔍 OutputDir:', outputDir)
       console.log('[Bridge:generateSpec] 🔍 Expected testFile basename:', path.basename(testFilePath))
       // Try to get CLI append from templates, fallback to hardcoded
@@ -349,14 +497,14 @@ export class AgentOrchestratorBridge {
 IMPORTANT: Write test file(s) using your Write tool to: ${outputDir}/
 
 CRITICAL PATH INSTRUCTION:
-- When you read plan.json, the testFile field contains the FULL PROJECT PATH (e.g., "packages/gatekeeper-api/test/unit/defaults.spec.ts")
+- When you read microplans.json, the test file path contains the FULL PROJECT PATH (e.g., "packages/gatekeeper-api/test/unit/defaults.spec.ts")
 - You MUST extract ONLY THE FILENAME (e.g., "defaults.spec.ts") from this path
 - Write the spec file with ONLY the filename: Write(path="${outputDir}/defaults.spec.ts")
-- Do NOT preserve the directory structure from the testFile path
+- Do NOT preserve the directory structure from the file path
 - Do NOT write to: ${outputDir}/packages/... (this is WRONG)
 
 Example:
-  plan.json testFile: "packages/gatekeeper-api/test/unit/defaults.spec.ts"
+  microplans.json file path: "packages/gatekeeper-api/test/unit/defaults.spec.ts"
   Correct Write path: "${outputDir}/defaults.spec.ts"
   Wrong Write path: "${outputDir}/packages/gatekeeper-api/test/unit/defaults.spec.ts"
 `
@@ -423,7 +571,7 @@ Example:
       memoryArtifacts = this.readArtifactsFromDir(outputDir)
       // Filter to only spec files (exclude plan artifacts from step 1)
       // Use a fixed list instead of existingArtifacts to avoid filtering out spec files on re-generation
-      const PLAN_ARTIFACTS = new Set(['plan.json', 'contract.md', 'task.spec.md', 'task_spec.md'])
+      const PLAN_ARTIFACTS = new Set(['microplans.json', 'task_prompt.md'])
       const specOnly = new Map<string, string>()
       for (const [name, content] of memoryArtifacts) {
         // Keep everything EXCEPT plan artifacts
@@ -440,7 +588,7 @@ Example:
       console.log('[Bridge] API provider returned no artifacts, trying disk fallback...')
       const outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
       const diskArtifacts = this.readArtifactsFromDir(outputDir)
-      const PLAN_ARTIFACTS = new Set(['plan.json', 'contract.md', 'task.spec.md', 'task_spec.md'])
+      const PLAN_ARTIFACTS = new Set(['microplans.json', 'task_prompt.md'])
       const specOnly = new Map<string, string>()
       for (const [name, content] of diskArtifacts) {
         if (!PLAN_ARTIFACTS.has(name)) {
@@ -1239,15 +1387,23 @@ Example:
   }
 
   /**
-   * Extract the expected test file name from plan.json manifest.
+   * Extract the expected test file name from microplans.json.
    * Returns just the filename (no path), e.g. "orchestrator-enhancements.spec.tsx"
    */
   private extractTestFileNameFromPlan(artifacts: Record<string, string>): string | null {
     try {
-      const planJson = JSON.parse(artifacts['plan.json'] || '{}')
-      const testFile = planJson.manifest?.testFile || planJson.testFile
-      if (testFile) {
-        return testFile.split('/').pop() || null
+      const microplansJson = JSON.parse(artifacts['microplans.json'] || '{}')
+      if (microplansJson.microplans && Array.isArray(microplansJson.microplans)) {
+        for (const mp of microplansJson.microplans) {
+          if (mp.files && Array.isArray(mp.files)) {
+            const testFile = mp.files.find((f: any) =>
+              /\.(spec|test)\.(ts|tsx|js|jsx)$/.test(f.path)
+            )
+            if (testFile) {
+              return testFile.path.split('/').pop() || null
+            }
+          }
+        }
       }
     } catch { /* ignore parse errors */ }
     return null
@@ -1430,8 +1586,8 @@ Example:
       taskType ? `**Type:** ${taskType}` : '',
       `**Output ID:** ${outputId}`,
       ``,
-      `Analyze the codebase and produce the plan artifacts: plan.json, contract.md, task.spec.md.`,
-      `Use the save_artifact tool for each one.`,
+      `Analyze the codebase and produce the microplans.json file.`,
+      `Use the save_artifact tool to save it.`,
     ]
     return parts.filter(Boolean).join('\n')
   }
@@ -1448,14 +1604,12 @@ Example:
       .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
       .join('\n\n')
 
-    // Extract expected test filename from plan.json manifest
+    // Extract expected test filename from microplans.json
     let testFileName = 'generated.spec.tsx'
-    try {
-      const planJson = JSON.parse(artifacts['plan.json'] || '{}')
-      if (planJson.manifest?.testFile) {
-        testFileName = planJson.manifest.testFile.split('/').pop() || testFileName
-      }
-    } catch { /* ignore parse errors */ }
+    const extractedName = this.extractTestFileNameFromPlan(artifacts)
+    if (extractedName) {
+      testFileName = extractedName
+    }
 
     // Try DB template first
     const template = await this.assembler.assembleUserMessageForStep(2, {
@@ -1478,14 +1632,12 @@ Example:
       .map(([name, content]) => `### ${name}\n\`\`\`\n${content}\n\`\`\``)
       .join('\n\n')
 
-    // Extract expected test filename from plan.json manifest
+    // Extract expected test filename from microplans.json
     let testFileName = 'generated.spec.tsx'
-    try {
-      const planJson = JSON.parse(artifacts['plan.json'] || '{}')
-      if (planJson.manifest?.testFile) {
-        testFileName = planJson.manifest.testFile.split('/').pop() || testFileName
-      }
-    } catch { /* ignore parse errors */ }
+    const extractedName = this.extractTestFileNameFromPlan(artifacts)
+    if (extractedName) {
+      testFileName = extractedName
+    }
 
     return [
       `## ⚠️ CRITICAL: You MUST call save_artifact`,

@@ -1,4 +1,4 @@
-import type { WizardStep } from "./types"
+import type { WizardStep, PlannerSubstep } from "./types"
 import { Button } from "@/components/ui/button"
 import { StepIndicator } from "./step-indicator"
 import { ExternalLink } from "lucide-react"
@@ -12,6 +12,7 @@ interface OrchestratorHeaderProps {
   outputId?: string
   onReset: () => void
   loading: boolean
+  plannerSubstep?: PlannerSubstep
 }
 
 export function OrchestratorHeader({
@@ -22,10 +23,11 @@ export function OrchestratorHeader({
   outputId,
   onReset,
   loading,
+  plannerSubstep,
 }: OrchestratorHeaderProps) {
   return (
     <div className="rounded-lg border p-3 mb-4 flex items-center justify-between gap-4 bg-sidebar w-full">
-      <StepIndicator current={step} completed={completedSteps} onStepClick={onStepClick} />
+      <StepIndicator current={step} completed={completedSteps} onStepClick={onStepClick} plannerSubstep={plannerSubstep} />
 
       {outputId && (
         <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">

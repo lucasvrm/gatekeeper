@@ -667,6 +667,17 @@ async function main() {
 
   const agentPhaseConfigs = [
     {
+      step: 0,  // Discovery (substep interno do Step 1 Planner)
+      provider: 'claude-code',
+      model: 'sonnet',
+      maxTokens: 16384,
+      maxIterations: 30,
+      maxInputTokensBudget: 200_000,
+      temperature: 0.3,
+      fallbackProvider: 'anthropic',
+      fallbackModel: 'claude-sonnet-4-5-20241022',
+    },
+    {
       step: 1,  // Planner
       provider: 'claude-code',
       model: 'opus',
@@ -812,6 +823,14 @@ async function main() {
 
   const pipelinePrompts = [
     {
+        "name": "discovery-core",
+        "step": 1,
+        "kind": "instruction",
+        "role": "system",
+        "order": 0,
+        "content": "# DISCOVERY_PLAYBOOK.md (v1 — Codebase Explorer)\n\n> Função: mapear o codebase gerando discovery_report.md com evidências reais,\n> que será injetado no Planner para produzir microplans mais precisos.\n\n---\n\n## Objetivo\n\nExplorar o codebase e gerar um relatório estruturado com:\n- Arquivos relevantes para a tarefa (com snippets de evidência)\n- Dependências e imports\n- Padrões e convenções do projeto\n- Estado atual vs. desejado\n- Riscos e trade-offs\n- Arquivos/abordagens descartadas (com justificativa)\n\n---\n\n## Ferramentas disponíveis\n\n- `read_file(path)`: Ler conteúdo completo de um arquivo\n- `glob_pattern(pattern)`: Buscar arquivos por padrão glob (ex: \"src/**/*.ts\")\n- `grep_pattern(pattern, path?)`: Buscar texto em arquivos\n\n---\n\n## Regras de execução\n\n1. **Máximo 30 iterações** — seja eficiente nas buscas\n2. **Cada afirmação precisa de evidência** — snippet real de código (5-10 linhas)\n3. **Não inventar** — se não encontrou, documente explicitamente\n4. **Exploração focada** — começar por arquivos mencionados na task\n5. **Priorizar código sobre configs** — entender comportamento antes de build\n\n---\n\n## Formato de output: discovery_report.md\n\n```markdown\n# Discovery Report\n\n**Task**: [descrição da tarefa]\n**Generated**: [timestamp]\n\n---\n\n## 1. Resumo Executivo\n\n[1-3 parágrafos sumarizando o que foi encontrado]\n\n---\n\n## 2. Arquivos Relevantes\n\n### 2.1 [Arquivo 1]\n**Path**: `path/to/file.ts`\n**Relevância**: [por que é importante para a task]\n**Evidência**:\n```typescript\n// linhas X-Y\n[snippet real de 5-10 linhas]\n```\n\n### 2.2 [Arquivo 2]\n[mesma estrutura]\n\n---\n\n## 3. Dependências e Imports\n\n**Bibliotecas externas**:\n- `react` (v18.2.0) — usado em componentes UI\n- `express` (v4.18.0) — servidor HTTP backend\n\n**Alias de import**:\n- `@/` → `src/` (configurado em tsconfig.json)\n\n**Padrões de estrutura**:\n- Services em `src/services/`\n- Controllers em `src/api/controllers/`\n\n---\n\n## 4. Padrões e Convenções\n\n**Naming**:\n- Componentes: PascalCase (`Button.tsx`)\n- Services: PascalCase (`AgentRunner.ts`)\n- Utils: camelCase (`formatDate.ts`)\n\n**Testes**:\n- Unitários: `test/unit/*.spec.ts`\n- Integração: `test/integration/*.spec.ts`\n- Framework: Vitest\n\n**Error handling**:\n- Backend: erro com `{ error: string, code?: string }`\n- Frontend: throw Error com mensagem descritiva\n\n---\n\n## 5. Estado Atual vs. Desejado\n\n**Atual**:\n- [descrever comportamento/estrutura atual com evidência]\n\n**Desejado** (conforme task):\n- [descrever mudança necessária]\n\n**Gap**:\n- [o que precisa ser criado/modificado/deletado]\n\n---\n\n## 6. Riscos e Trade-offs\n\n**Riscos identificados**:\n- [risco 1: ex.: \"Breaking change em API pública\"]\n- [risco 2: ex.: \"Alteração em schema de DB sem migration\"]\n\n**Trade-offs**:\n- [trade-off 1: ex.: \"Adicionar campo vs. criar nova tabela\"]\n\n---\n\n## 7. Descartados\n\n**Abordagens/arquivos considerados mas descartados**:\n- `src/legacy/old-service.ts`: deprecated, não usar (comentário na linha 1 confirma)\n- Padrão X: descartado porque [motivo com evidência]\n\n---\n\n## 8. Recomendações para o Planner\n\n[1-3 bullets de orientações para o Planner gerar microplans]\n- ex.: \"Começar por criar tipos em `types.ts`, depois implementar service\"\n- ex.: \"Evitar tocar em `config/` (fora do escopo da task)\"\n\n---\n\n## Metadata\n\n- **Arquivos lidos**: [N]\n- **Arquivos relevantes**: [M]\n- **Iterações usadas**: [X/30]\n```\n\n---\n\n## Checklist final\n\n- [ ] Cada afirmação tem snippet de evidência\n- [ ] Riscos identificados (se houver)\n- [ ] Abordagens descartadas documentadas\n- [ ] Recomendações concretas para o Planner\n- [ ] Relatório salvo como `discovery_report.md`"
+      },
+    {
         "name": "planner-examples",
         "step": 1,
         "kind": "doc",
@@ -905,7 +924,7 @@ async function main() {
         "kind": "doc",
         "role": "user",
         "order": 3,
-        "content": "# Discovery Report Template\n\n> Preenchido automaticamente pelo agente Discovery (Sonnet).\n> Cada afirmação DEVE ser sustentada por snippet real do código.\n\n---\n\n## Resumo\n\n<!-- 1-3 frases: o que foi encontrado e o estado atual do código em relação à tarefa -->\n\n---\n\n## Arquivos Relevantes\n\n<!-- Repetir bloco abaixo para cada arquivo (max 15) -->\n\n### `{{path relativo}}`\n\n**Contexto:** <!-- O que este arquivo faz e por que é relevante -->\n\n**Evidência:**\n```typescript\n// trecho real do código\n```\n\n**Observação:** <!-- O que este trecho revela sobre o problema ou mudança necessária -->\n\n---\n\n## Estrutura de Dependências\n\n<!-- Quais arquivos importam dos listados acima. Formato: -->\n\n```\narquivo.ts\n  ← importado por: consumer1.ts, consumer2.tsx\n  → importa de: dependency1.ts, dependency2.ts\n```\n\n---\n\n## Padrões Identificados\n\n<!-- Convenções do código existente que o executor deve seguir -->\n\n- **Naming:** <!-- ex: camelCase para funções, PascalCase para componentes -->\n- **Imports:** <!-- ex: @/ alias para src/, imports absolutos vs relativos -->\n- **Testes:** <!-- ex: vitest, RTL, arquivos em __tests__/, naming .spec.tsx -->\n- **Estilo:** <!-- ex: tailwind, shadcn/ui, CSS modules -->\n\n---\n\n## Estado Atual vs Desejado\n\n| Aspecto | Atual | Desejado |\n|---------|-------|----------|\n| <!-- ex: ITEM_HEIGHT --> | <!-- ex: 24px --> | <!-- ex: 48px --> |\n| <!-- ex: filtros layout --> | <!-- ex: flex-col (5 linhas) --> | <!-- ex: grid 2x2 --> |\n\n---\n\n## Riscos\n\n<!-- Pontos que podem complicar a execução -->\n\n- <!-- ex: arquivo muito grande (2000+ linhas), difícil fazer str_replace único -->\n- <!-- ex: tipo compartilhado com 12 consumidores, mudança cascateia -->\n- <!-- ex: sem testes existentes, não tem baseline para regressão -->\n\n---\n\n## Arquivos NÃO Relevantes (descartados)\n\n<!-- Arquivos que apareceram na busca mas foram descartados após leitura. \n     Listar brevemente para evitar que o Planner os inclua por engano. -->\n\n- `{{path}}` — <!-- motivo do descarte -->"
+        "content": "# Discovery Report Template\n\n> Preenchido automaticamente pelo agente Discovery (Sonnet).\n> Cada afirmação DEVE ser sustentada por snippet real do código.\n\n---\n\n## Resumo\n\n<!-- 1-3 frases: o que foi encontrado e o estado atual do código em relação à tarefa -->\n\n---\n\n## Arquivos Relevantes\n\n<!-- Repetir bloco abaixo para cada arquivo (max 15) -->\n\n### `\\{{path relativo}}`\n\n**Contexto:** <!-- O que este arquivo faz e por que é relevante -->\n\n**Evidência:**\n```typescript\n// trecho real do código\n```\n\n**Observação:** <!-- O que este trecho revela sobre o problema ou mudança necessária -->\n\n---\n\n## Estrutura de Dependências\n\n<!-- Quais arquivos importam dos listados acima. Formato: -->\n\n```\narquivo.ts\n  ← importado por: consumer1.ts, consumer2.tsx\n  → importa de: dependency1.ts, dependency2.ts\n```\n\n---\n\n## Padrões Identificados\n\n<!-- Convenções do código existente que o executor deve seguir -->\n\n- **Naming:** <!-- ex: camelCase para funções, PascalCase para componentes -->\n- **Imports:** <!-- ex: @/ alias para src/, imports absolutos vs relativos -->\n- **Testes:** <!-- ex: vitest, RTL, arquivos em __tests__/, naming .spec.tsx -->\n- **Estilo:** <!-- ex: tailwind, shadcn/ui, CSS modules -->\n\n---\n\n## Estado Atual vs Desejado\n\n| Aspecto | Atual | Desejado |\n|---------|-------|----------|\n| <!-- ex: ITEM_HEIGHT --> | <!-- ex: 24px --> | <!-- ex: 48px --> |\n| <!-- ex: filtros layout --> | <!-- ex: flex-col (5 linhas) --> | <!-- ex: grid 2x2 --> |\n\n---\n\n## Riscos\n\n<!-- Pontos que podem complicar a execução -->\n\n- <!-- ex: arquivo muito grande (2000+ linhas), difícil fazer str_replace único -->\n- <!-- ex: tipo compartilhado com 12 consumidores, mudança cascateia -->\n- <!-- ex: sem testes existentes, não tem baseline para regressão -->\n\n---\n\n## Arquivos NÃO Relevantes (descartados)\n\n<!-- Arquivos que apareceram na busca mas foram descartados após leitura. \n     Listar brevemente para evitar que o Planner os inclua por engano. -->\n\n- `\\{{path}}` — <!-- motivo do descarte -->"
       },
     {
         "name": "plan-user-message",
@@ -1121,8 +1140,8 @@ async function main() {
         "step": 1,
         "kind": "system-append-cli",
         "order": 1,
-        "isActive": false,
-        "content": "IMPORTANT: You must write each artifact as a file using your Write tool.\nWrite artifacts to this directory: {{outputDir}}/\nRequired files: plan.json, contract.md, task.spec.md"
+        "isActive": true,
+        "content": "IMPORTANT: You must write the microplans.json file using your Write tool.\nWrite artifact to this directory: {{outputDir}}/\nRequired file: microplans.json"
       },
     {
         "name": "cli-replace-save-artifact-plan",

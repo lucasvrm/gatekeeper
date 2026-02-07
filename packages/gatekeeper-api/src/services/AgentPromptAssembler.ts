@@ -35,10 +35,19 @@ interface AssembledPrompt {
 /**
  * Render a Handlebars template with variables.
  * Uses noEscape to preserve any HTML/markdown in the template.
+ * Auto-normalizes camelCase keys to snake_case for backwards compatibility.
  */
 function renderTemplate(template: string, vars: Record<string, unknown>): string {
+  // Normaliza camelCase → snake_case
+  const normalizedVars: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(vars)) {
+    const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase()
+    normalizedVars[snakeKey] = value
+  }
+
   const compiled = Handlebars.compile(template, { noEscape: true })
-  return compiled(vars)
+  // Passa ambas as versões: original (camelCase) e normalizada (snake_case)
+  return compiled({ ...vars, ...normalizedVars })
 }
 
 export class AgentPromptAssembler {
@@ -69,6 +78,48 @@ export class AgentPromptAssembler {
     if (!assembled) {
       throw new Error(
         `Prompt content for step ${step} exists but assembled to empty string. ` +
+          `Check that entries have non-empty 'content' fields.`,
+      )
+    }
+
+    return assembled
+  }
+
+  /**
+   * Assemble the system prompt for a given pipeline substep.
+   *
+   * Queries PromptInstruction entries where step is set, role='system',
+   * and name starts with the given prefix (e.g., "discovery-" or "planner-").
+   * This enables substep-level prompt assembly within a pipeline step.
+   *
+   * @param step - Pipeline step (1-4)
+   * @param prefix - Name prefix to filter prompts (e.g., "discovery-", "planner-")
+   * @returns Assembled system prompt for the substep
+   * @throws Error if no prompts found for step+prefix or if assembled to empty string
+   */
+  async assembleForSubstep(step: number, prefix: string): Promise<string> {
+    const contents = await this.prisma.promptInstruction.findMany({
+      where: {
+        step,
+        role: 'system',
+        isActive: true,
+        name: { startsWith: prefix },
+      },
+      orderBy: [{ order: 'asc' }, { name: 'asc' }],
+    })
+
+    if (!contents || contents.length === 0) {
+      throw new Error(
+        `No prompt content configured for step ${step} with prefix "${prefix}". ` +
+          `Run 'npm run db:seed' or create entries via the /api/agent/content CRUD API.`,
+      )
+    }
+
+    const assembled = contents.map((c) => c.content).join('\n\n')
+
+    if (!assembled) {
+      throw new Error(
+        `Prompt content for step ${step} with prefix "${prefix}" exists but assembled to empty string. ` +
           `Check that entries have non-empty 'content' fields.`,
       )
     }

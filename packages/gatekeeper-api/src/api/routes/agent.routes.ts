@@ -258,6 +258,14 @@ router.post('/run/phase', async (req, res, next) => {
 
 // ─── Bridge: Pipeline with Artifact Persistence ──────────────────────────
 
+router.post('/bridge/discovery', async (req, res, next) => {
+  try {
+    await bridgeCtrl.generateDiscovery(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
 router.post('/bridge/plan', async (req, res, next) => {
   try {
     await bridgeCtrl.generatePlan(req, res)

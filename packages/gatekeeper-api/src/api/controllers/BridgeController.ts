@@ -86,15 +86,76 @@ function generateOutputId(taskDescription: string): string {
 
 export class BridgeController {
   /**
+   * POST /agent/bridge/discovery
+   *
+   * Body: { taskDescription, projectPath, profileId?, provider?, model? }
+   * Returns: 202 + { outputId, eventsUrl }
+   * Background: runs discovery agent → generates discovery_report.md
+   * SSE events: agent:bridge_start, agent:iteration, agent:tool_call, agent:complete, agent:bridge_complete
+   */
+  async generateDiscovery(req: Request, res: Response): Promise<void> {
+    const { taskDescription, projectPath, profileId, model } = req.body
+    const provider = asProvider(req.body.provider)
+
+    if (!taskDescription || !projectPath) {
+      res.status(400).json({ error: 'taskDescription and projectPath are required' })
+      return
+    }
+
+    const bridge = getBridge()
+
+    // Generate outputId early so the client can connect SSE before work starts
+    const outputId = generateOutputId(taskDescription)
+
+    const emit = makeEmitter(outputId)
+
+    // Return immediately so the client can connect SSE
+    res.status(202).json({
+      outputId,
+      eventsUrl: `/api/orchestrator/events/${outputId}`,
+    })
+
+    // Run in background
+    setImmediate(async () => {
+      try {
+        const result = await bridge.generateDiscovery(
+          { taskDescription, projectPath, profileId, provider, model, outputId },
+          { onEvent: emit },
+        )
+
+        // Emit completion with full result
+        OrchestratorEventService.emitOrchestratorEvent(outputId, {
+          type: 'agent:bridge_discovery_done',
+          outputId: result.outputId,
+          artifacts: result.artifacts.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+          })),
+          tokensUsed: result.tokensUsed,
+        })
+      } catch (err) {
+        console.error('[Bridge] Discovery failed:', err)
+        // Only emit if AgentRunnerService didn't already emit via SSE
+        if (!(err as any)?._sseEmitted) {
+          OrchestratorEventService.emitOrchestratorEvent(outputId, {
+            type: 'agent:error',
+            error: (err as Error).message,
+          })
+        }
+      }
+    })
+  }
+
+  /**
    * POST /agent/bridge/plan
    *
-   * Body: { taskDescription, projectPath, taskType?, profileId?, provider?, model? }
+   * Body: { taskDescription, projectPath, taskType?, profileId?, provider?, model?, discoveryReportContent? }
    * Returns: 202 + { runId, outputId, eventsUrl }
    * Background: runs agent → saves artifacts to disk
    * SSE events: agent:bridge_start, agent:iteration, agent:tool_call, agent:complete, agent:bridge_complete
    */
   async generatePlan(req: Request, res: Response): Promise<void> {
-    const { taskDescription, projectPath, taskType, profileId, model, attachments } = req.body
+    const { taskDescription, projectPath, taskType, profileId, model, attachments, discoveryReportContent } = req.body
     const provider = asProvider(req.body.provider)
 
     if (!taskDescription || !projectPath) {
@@ -119,7 +180,7 @@ export class BridgeController {
     setImmediate(async () => {
       try {
         const result = await bridge.generatePlan(
-          { taskDescription, projectPath, taskType, profileId, provider, model, outputId, attachments },
+          { taskDescription, projectPath, taskType, profileId, provider, model, outputId, attachments, discoveryReportContent },
           { onEvent: emit },
         )
 

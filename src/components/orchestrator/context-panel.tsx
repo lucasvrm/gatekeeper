@@ -126,6 +126,7 @@ function PanelContent(props: ContextPanelProps) {
 
         <div className="space-y-3">
           {([
+            { step: 0, label: "Discovery", desc: "codebase exploration" },
             { step: 1, label: "Planejamento", desc: "plan + contract" },
             { step: 2, label: "Testes", desc: "spec file" },
             { step: 4, label: "Execução", desc: "implementation" },
