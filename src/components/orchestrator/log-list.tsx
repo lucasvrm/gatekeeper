@@ -1,5 +1,5 @@
 import { useMemo, useRef, useEffect, useState } from "react"
-import { FixedSizeList as List } from "react-window"
+import { VariableSizeList as List } from "react-window"
 import { LogItem } from "./log-item"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -17,8 +17,6 @@ interface LogListProps {
   loadingMore?: boolean
 }
 
-// RF-03: Increased from 24px to 32px (30% increase) to prevent card overlap
-const ITEM_HEIGHT = 32 // Base height for collapsed items
 const CONTAINER_HEIGHT = 600 // Fixed height for virtualized list
 
 export function LogList({
@@ -41,6 +39,19 @@ export function LogList({
     }
   }, [events.length])
 
+  /**
+   * Toggles the expanded state of a log item.
+   *
+   * **Height calculation logic:**
+   * - Base height (~80px): collapsed item with header (timestamp, badges, message)
+   * - Expanded height: base + metadata height (lines * line-height + padding)
+   * - Metadata height calculation: ~24px per JSON line + 12px padding top/bottom
+   *
+   * **Cache invalidation:**
+   * - When an item is expanded/collapsed, we must call `listRef.current?.resetAfterIndex(index)`
+   * - This forces VariableSizeList to recalculate heights from the given index onwards
+   * - Without this, items will overlap or have incorrect spacing
+   */
   const toggleExpanded = (index: number) => {
     setExpandedItems((prev) => {
       const next = new Set(prev)
@@ -51,6 +62,12 @@ export function LogList({
       }
       return next
     })
+
+    // Reset cache after state update to recalculate heights
+    // Use setTimeout to ensure state update has completed
+    setTimeout(() => {
+      listRef.current?.resetAfterIndex(index)
+    }, 0)
   }
 
   // Loading skeleton
@@ -102,6 +119,52 @@ export function LogList({
     )
   }
 
+  /**
+   * Calculates the dynamic height of each log item.
+   *
+   * Base height (~80px) includes:
+   * - Container padding (12px × 2)
+   * - Header row with timestamp/badges (~16px)
+   * - Message text (~20px)
+   * - Internal gaps (~8px)
+   *
+   * Expanded height adds metadata:
+   * - Gap before metadata (~8px)
+   * - Metadata container border + padding (~26px)
+   * - JSON lines (number of lines × ~24px per line)
+   */
+  const getItemSize = (index: number): number => {
+    const BASE_HEIGHT = 80
+    const METADATA_PADDING = 36 // Container padding + border + gap
+    const LINE_HEIGHT = 24
+
+    if (!expandedItems.has(index)) {
+      return BASE_HEIGHT
+    }
+
+    // Calculate metadata height for expanded items
+    const event = events[index]
+    const metadata = { ...event }
+    delete metadata.type
+    delete metadata.level
+    delete metadata.stage
+    delete metadata.timestamp
+    delete metadata.message
+    delete metadata.id
+    delete metadata.seq
+
+    const hasMetadata = Object.keys(metadata).length > 0
+    if (!hasMetadata) {
+      return BASE_HEIGHT
+    }
+
+    // Count lines in JSON.stringify
+    const jsonString = JSON.stringify(metadata, null, 2)
+    const lineCount = jsonString.split("\n").length
+
+    return BASE_HEIGHT + METADATA_PADDING + lineCount * LINE_HEIGHT
+  }
+
   // Virtualized row renderer
   const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
     const event = events[index]
@@ -126,7 +189,7 @@ export function LogList({
         ref={listRef}
         height={CONTAINER_HEIGHT}
         itemCount={events.length}
-        itemSize={ITEM_HEIGHT}
+        itemSize={getItemSize}
         width="100%"
         className="scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
       >

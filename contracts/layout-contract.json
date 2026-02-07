@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:6d0b2aba0db181d2fc84d781d8127edb20fc240da4003c4aed6f4c712d21c58d",
-    "generatedAt": "2026-02-07T10:12:54.034Z",
+    "hash": "sha256:e0d1e9aff631685ffbc07b03a491dc081203158a1d2fc3bb6f9e3a5396291242",
+    "generatedAt": "2026-02-07T10:16:29.013Z",
     "pageCount": 2
   },
   "structure": {
@@ -296,15 +296,15 @@
       "enabled": true,
       "position": "header",
       "alignment": "left",
-      "separator": "›",
+      "separator": ">",
       "clickable": true,
       "padding": {
         "left": "0"
       },
       "typography": {
-        "fontSize": "$tokens.fontSizes.xs",
-        "fontWeight": "$tokens.fontWeights.medium",
-        "fontFamily": "$tokens.fontFamilies.mono",
+        "fontSize": "$tokens.fontSizes.md",
+        "fontWeight": "$tokens.fontWeights.regular",
+        "fontFamily": "$tokens.fontFamilies.primary",
         "activeColor": "$tokens.colors.accent"
       },
       "homeRoute": "/",

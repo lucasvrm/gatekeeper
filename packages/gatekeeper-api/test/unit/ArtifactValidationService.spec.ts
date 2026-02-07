@@ -4,134 +4,6 @@ import { ArtifactValidationService } from '../../src/services/ArtifactValidation
 describe('ArtifactValidationService', () => {
   const validator = new ArtifactValidationService()
 
-  describe('validatePlanJson', () => {
-    it('should reject non-parseable JSON', () => {
-      const result = validator.validatePlanJson('{ invalid json }')
-      expect(result.valid).toBe(false)
-      expect(result.severity).toBe('error')
-      expect(result.message).toContain('JSON não parseável')
-    })
-
-    it('should reject plan without manifest', () => {
-      const result = validator.validatePlanJson('{}')
-      expect(result.valid).toBe(false)
-      expect(result.details.issues).toContainEqual(
-        expect.objectContaining({ field: 'manifest', severity: 'error' })
-      )
-    })
-
-    it('should reject plan without manifest.testFile', () => {
-      const result = validator.validatePlanJson('{"manifest":{}}')
-      expect(result.valid).toBe(false)
-      expect(result.details.issues).toContainEqual(
-        expect.objectContaining({ field: 'manifest.testFile', severity: 'error' })
-      )
-    })
-
-    it('should warn if manifest.files is empty', () => {
-      const result = validator.validatePlanJson(
-        '{"manifest":{"testFile":"test.ts","files":[]}}'
-      )
-      expect(result.valid).toBe(true)
-      expect(result.severity).toBe('warning')
-      expect(result.details.issues).toContainEqual(
-        expect.objectContaining({ field: 'manifest.files', severity: 'warning' })
-      )
-    })
-
-    it('should pass valid plan.json', () => {
-      const result = validator.validatePlanJson(
-        '{"manifest":{"testFile":"test.ts","files":[{"path":"file.ts","action":"CREATE"}]}}'
-      )
-      expect(result.valid).toBe(true)
-      expect(result.severity).toBe('success')
-    })
-
-    it('should reject plan with empty testFile', () => {
-      const result = validator.validatePlanJson(
-        '{"manifest":{"testFile":"","files":[]}}'
-      )
-      expect(result.valid).toBe(false)
-      expect(result.details.issues).toContainEqual(
-        expect.objectContaining({ field: 'manifest.testFile', severity: 'error' })
-      )
-    })
-
-    it('should reject plan with whitespace-only testFile', () => {
-      const result = validator.validatePlanJson(
-        '{"manifest":{"testFile":"   ","files":[]}}'
-      )
-      expect(result.valid).toBe(false)
-    })
-  })
-
-  describe('validateContractMd', () => {
-    it('should reject empty content', () => {
-      const result = validator.validateContractMd('')
-      expect(result.valid).toBe(false)
-      expect(result.severity).toBe('error')
-    })
-
-    it('should reject very short content', () => {
-      const result = validator.validateContractMd('short')
-      expect(result.valid).toBe(false)
-      expect(result.message).toContain('vazio ou muito curto')
-    })
-
-    it('should warn if no Markdown header', () => {
-      const result = validator.validateContractMd('This is a long contract but without headers')
-      expect(result.valid).toBe(true)
-      expect(result.severity).toBe('warning')
-      expect(result.details.issues).toContainEqual(
-        expect.objectContaining({ field: 'content', severity: 'warning' })
-      )
-    })
-
-    it('should pass valid contract.md with header', () => {
-      const result = validator.validateContractMd('# Contract\n\nThis is a valid contract.')
-      expect(result.valid).toBe(true)
-      expect(result.severity).toBe('success')
-    })
-
-    it('should pass contract with ## header', () => {
-      const result = validator.validateContractMd('## Contract Details\n\nContent here.')
-      expect(result.valid).toBe(true)
-      expect(result.severity).toBe('success')
-    })
-  })
-
-  describe('validateTaskSpecMd', () => {
-    it('should reject empty content', () => {
-      const result = validator.validateTaskSpecMd('')
-      expect(result.valid).toBe(false)
-      expect(result.severity).toBe('error')
-    })
-
-    it('should reject short content', () => {
-      const result = validator.validateTaskSpecMd('abc')
-      expect(result.valid).toBe(false)
-    })
-
-    it('should warn if no Markdown header', () => {
-      const result = validator.validateTaskSpecMd('Long task spec without headers')
-      expect(result.valid).toBe(true)
-      expect(result.severity).toBe('warning')
-    })
-
-    it('should pass valid task.spec.md', () => {
-      const result = validator.validateTaskSpecMd('# Task Spec\n\nDetails here.', 'task.spec.md')
-      expect(result.valid).toBe(true)
-      expect(result.severity).toBe('success')
-      expect(result.details.filename).toBe('task.spec.md')
-    })
-
-    it('should pass valid task_spec.md (backward compatibility)', () => {
-      const result = validator.validateTaskSpecMd('# Task Spec\n\nDetails here.', 'task_spec.md')
-      expect(result.valid).toBe(true)
-      expect(result.details.filename).toBe('task_spec.md')
-    })
-  })
-
   describe('validateTestFile', () => {
     it('should reject invalid filename pattern', () => {
       const result = validator.validateTestFile('notATest.ts', 'test content')
@@ -205,87 +77,155 @@ describe('ArtifactValidationService', () => {
     })
   })
 
+  describe('validateMicroplansJson', () => {
+    it('should reject non-parseable JSON', () => {
+      const result = validator.validateMicroplansJson('{ invalid json }')
+      expect(result.valid).toBe(false)
+      expect(result.severity).toBe('error')
+      expect(result.message).toContain('JSON não parseável')
+    })
+
+    it('should reject without task field', () => {
+      const result = validator.validateMicroplansJson('{"microplans":[]}')
+      expect(result.valid).toBe(false)
+      expect(result.details.issues).toContainEqual(
+        expect.objectContaining({ field: 'task', severity: 'error' })
+      )
+    })
+
+    it('should reject empty task', () => {
+      const result = validator.validateMicroplansJson('{"task":"","microplans":[]}')
+      expect(result.valid).toBe(false)
+      expect(result.details.issues).toContainEqual(
+        expect.objectContaining({ field: 'task', severity: 'error' })
+      )
+    })
+
+    it('should reject without microplans field', () => {
+      const result = validator.validateMicroplansJson('{"task":"Some task"}')
+      expect(result.valid).toBe(false)
+      expect(result.details.issues).toContainEqual(
+        expect.objectContaining({ field: 'microplans', severity: 'error' })
+      )
+    })
+
+    it('should reject empty microplans array', () => {
+      const result = validator.validateMicroplansJson('{"task":"Some task","microplans":[]}')
+      expect(result.valid).toBe(false)
+      expect(result.details.issues).toContainEqual(
+        expect.objectContaining({ field: 'microplans', severity: 'error' })
+      )
+    })
+
+    it('should reject microplan without id', () => {
+      const result = validator.validateMicroplansJson(
+        '{"task":"Task","microplans":[{"goal":"Goal","files":[]}]}'
+      )
+      expect(result.valid).toBe(true)
+      expect(result.severity).toBe('warning')
+      expect(result.details.issues).toContainEqual(
+        expect.objectContaining({ field: expect.stringContaining('id'), severity: 'warning' })
+      )
+    })
+
+    it('should reject microplan without files array', () => {
+      const result = validator.validateMicroplansJson(
+        '{"task":"Task","microplans":[{"id":"MP-1","goal":"Goal"}]}'
+      )
+      expect(result.valid).toBe(true)
+      expect(result.severity).toBe('warning')
+      expect(result.details.issues).toContainEqual(
+        expect.objectContaining({ field: expect.stringContaining('files'), severity: 'warning' })
+      )
+    })
+
+    it('should accept valid microplans document', () => {
+      const result = validator.validateMicroplansJson(
+        '{"task":"Implement feature","microplans":[{"id":"MP-1","goal":"Create component","files":[{"path":"src/component.ts","action":"CREATE"}]}]}'
+      )
+      expect(result.valid).toBe(true)
+      expect(result.severity).toBe('success')
+    })
+  })
+
   describe('validateStepArtifacts', () => {
     describe('Step 1 (Plan)', () => {
-      it('should reject if plan.json missing', () => {
+      it('should reject if microplans.json missing', () => {
         const artifacts = new Map([
-          ['contract.md', '# Contract'],
-          ['task.spec.md', '# Spec'],
+          ['other-file.md', '# Some content'],
         ])
         const result = validator.validateStepArtifacts(1, artifacts)
         expect(result.valid).toBe(false)
         expect(result.results).toContainEqual(
           expect.objectContaining({
             valid: false,
-            details: expect.objectContaining({ filename: 'plan.json' })
+            details: expect.objectContaining({ filename: 'microplans.json' })
           })
         )
       })
 
-      it('should reject if contract.md missing', () => {
+      it('should reject if microplans.json is invalid JSON', () => {
         const artifacts = new Map([
-          ['plan.json', '{"manifest":{"testFile":"test.ts","files":[]}}'],
-          ['task.spec.md', '# Spec'],
+          ['microplans.json', '{ invalid json }'],
         ])
         const result = validator.validateStepArtifacts(1, artifacts)
         expect(result.valid).toBe(false)
         expect(result.results).toContainEqual(
           expect.objectContaining({
             valid: false,
-            details: expect.objectContaining({ filename: 'contract.md' })
+            details: expect.objectContaining({ filename: 'microplans.json' })
           })
         )
       })
 
-      it('should reject if task.spec.md and task_spec.md both missing', () => {
+      it('should reject if microplans.json missing task field', () => {
         const artifacts = new Map([
-          ['plan.json', '{"manifest":{"testFile":"test.ts","files":[]}}'],
-          ['contract.md', '# Contract'],
+          ['microplans.json', '{"microplans":[]}'],
         ])
         const result = validator.validateStepArtifacts(1, artifacts)
         expect(result.valid).toBe(false)
         expect(result.results).toContainEqual(
           expect.objectContaining({
             valid: false,
-            message: expect.stringContaining('task.spec.md ou task_spec.md')
+            details: expect.objectContaining({ filename: 'microplans.json' })
           })
         )
       })
 
-      it('should accept task.spec.md', () => {
+      it('should reject if microplans.json missing microplans array', () => {
         const artifacts = new Map([
-          ['plan.json', '{"manifest":{"testFile":"test.ts","files":[{"path":"f.ts","action":"CREATE"}]}}'],
-          ['contract.md', '# Contract\n\nDetails here.'],
-          ['task.spec.md', '# Task Spec\n\nDetails here.'],
+          ['microplans.json', '{"task":"Some task"}'],
+        ])
+        const result = validator.validateStepArtifacts(1, artifacts)
+        expect(result.valid).toBe(false)
+        expect(result.results).toContainEqual(
+          expect.objectContaining({
+            valid: false,
+            details: expect.objectContaining({ filename: 'microplans.json' })
+          })
+        )
+      })
+
+      it('should reject if microplans.json has empty microplans array', () => {
+        const artifacts = new Map([
+          ['microplans.json', '{"task":"Some task","microplans":[]}'],
+        ])
+        const result = validator.validateStepArtifacts(1, artifacts)
+        expect(result.valid).toBe(false)
+        expect(result.results).toContainEqual(
+          expect.objectContaining({
+            valid: false,
+            details: expect.objectContaining({ filename: 'microplans.json' })
+          })
+        )
+      })
+
+      it('should accept valid microplans.json', () => {
+        const artifacts = new Map([
+          ['microplans.json', '{"task":"Implement feature","microplans":[{"id":"MP-1","goal":"Create component","files":[{"path":"src/component.ts","action":"CREATE"}]}]}'],
         ])
         const result = validator.validateStepArtifacts(1, artifacts)
         expect(result.valid).toBe(true)
-      })
-
-      it('should accept task_spec.md (backward compatibility)', () => {
-        const artifacts = new Map([
-          ['plan.json', '{"manifest":{"testFile":"test.ts","files":[{"path":"f.ts","action":"CREATE"}]}}'],
-          ['contract.md', '# Contract\n\nDetails here.'],
-          ['task_spec.md', '# Task Spec\n\nDetails here.'],
-        ])
-        const result = validator.validateStepArtifacts(1, artifacts)
-        expect(result.valid).toBe(true)
-      })
-
-      it('should reject if plan.json is invalid', () => {
-        const artifacts = new Map([
-          ['plan.json', '{"manifest":{}}'], // missing testFile
-          ['contract.md', '# Contract\n\nDetails here.'],
-          ['task.spec.md', '# Task Spec\n\nDetails here.'],
-        ])
-        const result = validator.validateStepArtifacts(1, artifacts)
-        expect(result.valid).toBe(false)
-        expect(result.results).toContainEqual(
-          expect.objectContaining({
-            valid: false,
-            details: expect.objectContaining({ filename: 'plan.json' })
-          })
-        )
       })
     })
 

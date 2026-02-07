@@ -139,21 +139,22 @@ function validateStepArtifacts(
     if (artifacts.length === 0) {
       return { valid: false, message: 'Nenhum artefato gerado no step 1' }
     }
-    const hasPlan = artifacts.some(a => a.filename === 'plan.json')
-    const hasContract = artifacts.some(a => a.filename === 'contract.md')
-    const hasTaskSpec = artifacts.some(a => a.filename === 'task.spec.md' || a.filename === 'task_spec.md')
-    if (!hasPlan) return { valid: false, message: 'Artefato crítico ausente: plan.json' }
-    if (!hasContract) return { valid: false, message: 'Artefato crítico ausente: contract.md' }
-    if (!hasTaskSpec) return { valid: false, message: 'Artefato crítico ausente: task.spec.md' }
-    const planArtifact = artifacts.find(a => a.filename === 'plan.json')
-    if (planArtifact) {
+    const hasMicroplans = artifacts.some(a => a.filename === 'microplans.json')
+    if (!hasMicroplans) {
+      return { valid: false, message: 'Artefato crítico ausente: microplans.json' }
+    }
+    const microplansArtifact = artifacts.find(a => a.filename === 'microplans.json')
+    if (microplansArtifact) {
       try {
-        const parsed = JSON.parse(planArtifact.content)
-        if (!parsed.manifest || !parsed.manifest.testFile) {
-          return { valid: false, message: 'plan.json malformado: falta manifest.testFile' }
+        const parsed = JSON.parse(microplansArtifact.content)
+        if (!parsed.task || typeof parsed.task !== 'string' || parsed.task.trim() === '') {
+          return { valid: false, message: 'microplans.json malformado: campo task ausente ou vazio' }
+        }
+        if (!Array.isArray(parsed.microplans) || parsed.microplans.length === 0) {
+          return { valid: false, message: 'microplans.json malformado: campo microplans ausente ou vazio' }
         }
       } catch {
-        return { valid: false, message: 'plan.json inválido: JSON não parseável' }
+        return { valid: false, message: 'microplans.json inválido: JSON não parseável' }
       }
     }
     return { valid: true, message: 'Artefatos do step 1 válidos' }
@@ -1016,7 +1017,8 @@ export function OrchestratorPage() {
     // 4. We're not already resuming
     // 5. We don't have resumeOutputId (that's handled by the useEffect above)
     // 6. We haven't already tried auto-reload (prevents infinite loop on failure)
-    if (!outputId || reconciliation.isLoading || planArtifacts.length > 0 || resuming || resumeOutputId || autoReloadTriedRef.current) {
+    // 7. We're not actively generating/executing (loading=false)
+    if (!outputId || reconciliation.isLoading || planArtifacts.length > 0 || resuming || resumeOutputId || autoReloadTriedRef.current || loading) {
       return
     }
 
@@ -1064,8 +1066,13 @@ export function OrchestratorPage() {
         console.log('[Auto-reload] Restored specArtifacts:', specs.map(a => a.filename))
       }
 
-      addLog("info", `Artefatos recuperados automaticamente: ${artifacts.length} arquivo(s)`)
-      toast.success("Artefatos recuperados do disco")
+      // Only show success if artifacts were actually found
+      if (artifacts.length > 0) {
+        addLog("info", `Artefatos recuperados automaticamente: ${artifacts.length} arquivo(s)`)
+        toast.success("Artefatos recuperados do disco")
+      } else {
+        console.log('[Auto-reload] No artifacts found on disk (expected during initial generation)')
+      }
     }).catch((err) => {
       console.error('[Auto-reload] Failed to reload artifacts:', err)
       addLog("error", `Falha ao recarregar artefatos: ${err.message}`)
@@ -1073,7 +1080,7 @@ export function OrchestratorPage() {
     }).finally(() => {
       setResuming(false)
     })
-  }, [outputId, reconciliation.isLoading, planArtifacts.length, resuming, resumeOutputId, projects, selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [outputId, reconciliation.isLoading, planArtifacts.length, resuming, resumeOutputId, projects, selectedProjectId, loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Run validation SSE — polls run status inline ──────────────────────
   const validationResolvedRef = useRef(false)
@@ -1304,6 +1311,12 @@ export function OrchestratorPage() {
     // Fix Bug #2: Clear any previous session before creating new one
     clearSession(outputId)
 
+    // Reset all React states to prevent stale data
+    setPlanArtifacts([])
+    setSpecArtifacts([])
+    setRunId(null)
+    setRunResults(null)
+    setValidationStatus(null)
     setError(null)
     setRetryState(null)
     setLoading(true)

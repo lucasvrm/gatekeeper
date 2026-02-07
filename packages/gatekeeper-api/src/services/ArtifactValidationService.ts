@@ -5,6 +5,8 @@
  * prevenindo transições prematuras de steps.
  */
 
+import type { MicroplansDocument } from '../types/gates.types.js'
+
 export interface ArtifactValidationIssue {
   field: string
   expected: string
@@ -24,18 +26,19 @@ export interface ArtifactValidationResult {
 
 export class ArtifactValidationService {
   /**
-   * Valida plan.json
+   * Valida microplans.json
    *
    * HARD requirements:
    * - JSON parseável
-   * - Campo manifest.testFile existe e é string não-vazia
+   * - Campo task existe e é string não-vazia
+   * - Campo microplans existe e é array não-vazio
    *
    * SOFT requirements (warnings):
-   * - manifest.files não está vazio
+   * - Cada microplan tem id, goal, files válidos
    */
-  validatePlanJson(content: string): ArtifactValidationResult {
+  validateMicroplansJson(content: string): ArtifactValidationResult {
     const issues: ArtifactValidationIssue[] = []
-    const filename = 'plan.json'
+    const filename = 'microplans.json'
 
     // HARD: JSON must be parseable
     let parsed: any
@@ -58,81 +61,60 @@ export class ArtifactValidationService {
       }
     }
 
-    // HARD: manifest must exist
-    if (!parsed.manifest || typeof parsed.manifest !== 'object') {
+    // HARD: task must exist and be non-empty string
+    if (!parsed.task || typeof parsed.task !== 'string' || parsed.task.trim() === '') {
       issues.push({
-        field: 'manifest',
-        expected: 'Object with testFile and files',
-        actual: String(parsed.manifest),
+        field: 'task',
+        expected: 'Non-empty string',
+        actual: String(parsed.task),
+        severity: 'error'
+      })
+    }
+
+    // HARD: microplans must exist and be non-empty array
+    if (!Array.isArray(parsed.microplans)) {
+      issues.push({
+        field: 'microplans',
+        expected: 'Array',
+        actual: typeof parsed.microplans,
+        severity: 'error'
+      })
+    } else if (parsed.microplans.length === 0) {
+      issues.push({
+        field: 'microplans',
+        expected: 'Non-empty array',
+        actual: 'Empty array',
         severity: 'error'
       })
     } else {
-      // HARD: manifest.testFile must exist and be non-empty string
-      if (!parsed.manifest.testFile || typeof parsed.manifest.testFile !== 'string' || parsed.manifest.testFile.trim() === '') {
-        issues.push({
-          field: 'manifest.testFile',
-          expected: 'Non-empty string',
-          actual: String(parsed.manifest.testFile),
-          severity: 'error'
-        })
-      }
+      // SOFT: Each microplan should have id, goal, files
+      parsed.microplans.forEach((mp: any, idx: number) => {
+        if (!mp.id || typeof mp.id !== 'string' || mp.id.trim() === '') {
+          issues.push({
+            field: `microplans[${idx}].id`,
+            expected: 'Non-empty string',
+            actual: String(mp.id),
+            severity: 'warning'
+          })
+        }
 
-      // SOFT: manifest.files should not be empty
-      if (!Array.isArray(parsed.manifest.files) || parsed.manifest.files.length === 0) {
-        issues.push({
-          field: 'manifest.files',
-          expected: 'Non-empty array',
-          actual: parsed.manifest.files ? `Array(${parsed.manifest.files.length})` : String(parsed.manifest.files),
-          severity: 'warning'
-        })
-      }
-    }
+        if (!mp.goal || typeof mp.goal !== 'string' || mp.goal.trim() === '') {
+          issues.push({
+            field: `microplans[${idx}].goal`,
+            expected: 'Non-empty string',
+            actual: String(mp.goal),
+            severity: 'warning'
+          })
+        }
 
-    const hasErrors = issues.some(i => i.severity === 'error')
-    const hasWarnings = issues.some(i => i.severity === 'warning')
-
-    return {
-      valid: !hasErrors,
-      severity: hasErrors ? 'error' : hasWarnings ? 'warning' : 'success',
-      message: hasErrors
-        ? `plan.json inválido: ${issues.filter(i => i.severity === 'error').map(i => i.field).join(', ')}`
-        : hasWarnings
-          ? `plan.json válido com warnings: ${issues.filter(i => i.severity === 'warning').map(i => i.field).join(', ')}`
-          : 'plan.json válido',
-      details: { filename, issues }
-    }
-  }
-
-  /**
-   * Valida contract.md
-   *
-   * HARD requirements:
-   * - Content não-vazio (> 10 chars)
-   *
-   * SOFT requirements (warnings):
-   * - Contém Markdown header (## ou #)
-   */
-  validateContractMd(content: string): ArtifactValidationResult {
-    const issues: ArtifactValidationIssue[] = []
-    const filename = 'contract.md'
-
-    // HARD: Content must not be empty
-    if (!content || content.trim().length < 10) {
-      issues.push({
-        field: 'content',
-        expected: 'At least 10 characters',
-        actual: `${content?.length || 0} chars`,
-        severity: 'error'
-      })
-    }
-
-    // SOFT: Should contain Markdown header
-    if (content && !/^#{1,6}\s+/m.test(content)) {
-      issues.push({
-        field: 'content',
-        expected: 'Contains Markdown header (# or ##)',
-        actual: 'No header found',
-        severity: 'warning'
+        if (!Array.isArray(mp.files)) {
+          issues.push({
+            field: `microplans[${idx}].files`,
+            expected: 'Array',
+            actual: typeof mp.files,
+            severity: 'warning'
+          })
+        }
       })
     }
 
@@ -143,59 +125,10 @@ export class ArtifactValidationService {
       valid: !hasErrors,
       severity: hasErrors ? 'error' : hasWarnings ? 'warning' : 'success',
       message: hasErrors
-        ? 'contract.md vazio ou muito curto'
+        ? `microplans.json inválido: ${issues.filter(i => i.severity === 'error').map(i => i.field).join(', ')}`
         : hasWarnings
-          ? 'contract.md válido mas sem header Markdown'
-          : 'contract.md válido',
-      details: { filename, issues }
-    }
-  }
-
-  /**
-   * Valida task.spec.md ou task_spec.md
-   *
-   * HARD requirements:
-   * - Content não-vazio (> 10 chars)
-   *
-   * SOFT requirements (warnings):
-   * - Contém Markdown header
-   *
-   * Aceita tanto task.spec.md quanto task_spec.md (backward compatibility)
-   */
-  validateTaskSpecMd(content: string, filename: 'task.spec.md' | 'task_spec.md' = 'task.spec.md'): ArtifactValidationResult {
-    const issues: ArtifactValidationIssue[] = []
-
-    // HARD: Content must not be empty
-    if (!content || content.trim().length < 10) {
-      issues.push({
-        field: 'content',
-        expected: 'At least 10 characters',
-        actual: `${content?.length || 0} chars`,
-        severity: 'error'
-      })
-    }
-
-    // SOFT: Should contain Markdown header
-    if (content && !/^#{1,6}\s+/m.test(content)) {
-      issues.push({
-        field: 'content',
-        expected: 'Contains Markdown header (# or ##)',
-        actual: 'No header found',
-        severity: 'warning'
-      })
-    }
-
-    const hasErrors = issues.some(i => i.severity === 'error')
-    const hasWarnings = issues.some(i => i.severity === 'warning')
-
-    return {
-      valid: !hasErrors,
-      severity: hasErrors ? 'error' : hasWarnings ? 'warning' : 'success',
-      message: hasErrors
-        ? `${filename} vazio ou muito curto`
-        : hasWarnings
-          ? `${filename} válido mas sem header Markdown`
-          : `${filename} válido`,
+          ? `microplans.json válido com warnings: ${issues.filter(i => i.severity === 'warning').map(i => i.field).join(', ')}`
+          : 'microplans.json válido',
       details: { filename, issues }
     }
   }
@@ -286,19 +219,17 @@ export class ArtifactValidationService {
     const results: ArtifactValidationResult[] = []
 
     if (step === 1) {
-      // Step 1: Plan artifacts
-      const planJson = artifacts.get('plan.json')
-      const contractMd = artifacts.get('contract.md')
-      const taskSpecMd = artifacts.get('task.spec.md') || artifacts.get('task_spec.md')
+      // Step 1: Plan artifacts (microplans.json)
+      const microplansJson = artifacts.get('microplans.json')
 
-      // Validate plan.json (obrigatório)
-      if (!planJson) {
+      // Validate microplans.json (obrigatório)
+      if (!microplansJson) {
         results.push({
           valid: false,
           severity: 'error',
-          message: 'Artefato obrigatório ausente: plan.json',
+          message: 'Artefato obrigatório ausente: microplans.json',
           details: {
-            filename: 'plan.json',
+            filename: 'microplans.json',
             issues: [{
               field: 'existence',
               expected: 'File exists',
@@ -308,48 +239,7 @@ export class ArtifactValidationService {
           }
         })
       } else {
-        results.push(this.validatePlanJson(planJson))
-      }
-
-      // Validate contract.md (obrigatório)
-      if (!contractMd) {
-        results.push({
-          valid: false,
-          severity: 'error',
-          message: 'Artefato obrigatório ausente: contract.md',
-          details: {
-            filename: 'contract.md',
-            issues: [{
-              field: 'existence',
-              expected: 'File exists',
-              actual: 'File missing',
-              severity: 'error'
-            }]
-          }
-        })
-      } else {
-        results.push(this.validateContractMd(contractMd))
-      }
-
-      // Validate task.spec.md OR task_spec.md (pelo menos um obrigatório)
-      if (!taskSpecMd) {
-        results.push({
-          valid: false,
-          severity: 'error',
-          message: 'Artefato obrigatório ausente: task.spec.md ou task_spec.md',
-          details: {
-            filename: 'task.spec.md',
-            issues: [{
-              field: 'existence',
-              expected: 'task.spec.md or task_spec.md exists',
-              actual: 'Both missing',
-              severity: 'error'
-            }]
-          }
-        })
-      } else {
-        const filename = artifacts.has('task.spec.md') ? 'task.spec.md' : 'task_spec.md'
-        results.push(this.validateTaskSpecMd(taskSpecMd, filename))
+        results.push(this.validateMicroplansJson(microplansJson))
       }
     } else if (step === 2) {
       // Step 2: Spec/test artifacts
