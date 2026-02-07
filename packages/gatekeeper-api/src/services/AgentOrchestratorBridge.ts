@@ -233,6 +233,9 @@ export class AgentOrchestratorBridge {
       console.log(`[Bridge] Parsed ${memoryArtifacts.size} artifact(s) from text`)
     }
 
+    // Add task prompt as an artifact for future reference
+    memoryArtifacts.set('task_prompt.md', `# Task Prompt\n\n${input.taskDescription}`)
+
     // Persist artifacts to disk
     const artifacts = await this.persistArtifacts(
       memoryArtifacts,
@@ -290,11 +293,34 @@ export class AgentOrchestratorBridge {
 
     if (this.isCliProvider(phase)) {
       outputDir = await this.resolveOutputDir(input.outputId, input.projectPath)
+      // Debug: Log outputDir and expected test file
+      const planData = JSON.parse(existingArtifacts['plan.json'])
+      const testFilePath = planData.manifest?.testFile || 'spec.ts'
+      console.log('[Bridge:generateSpec] 🔍 OutputDir:', outputDir)
+      console.log('[Bridge:generateSpec] 🔍 Expected testFile basename:', path.basename(testFilePath))
       // Try to get CLI append from templates, fallback to hardcoded
       const cliAppend = await this.assembler.getCliSystemAppend(2, { outputDir })
       systemPrompt += cliAppend
         ? `\n\n${cliAppend}`
-        : `\n\nIMPORTANT: Write test file(s) using your Write tool to: ${outputDir}/`
+        : `
+IMPORTANT: Write test file(s) using your Write tool to: ${outputDir}/
+
+CRITICAL PATH INSTRUCTION:
+- When you read plan.json, the testFile field contains the FULL PROJECT PATH (e.g., "packages/gatekeeper-api/test/unit/defaults.spec.ts")
+- You MUST extract ONLY THE FILENAME (e.g., "defaults.spec.ts") from this path
+- Write the spec file with ONLY the filename: Write(path="${outputDir}/defaults.spec.ts")
+- Do NOT preserve the directory structure from the testFile path
+- Do NOT write to: ${outputDir}/packages/... (this is WRONG)
+
+Example:
+  plan.json testFile: "packages/gatekeeper-api/test/unit/defaults.spec.ts"
+  Correct Write path: "${outputDir}/defaults.spec.ts"
+  Wrong Write path: "${outputDir}/packages/gatekeeper-api/test/unit/defaults.spec.ts"
+`
+      // Add expected filename to help LLM
+      const expectedFilename = path.basename(testFilePath)
+      systemPrompt += `\nExpected filename: ${expectedFilename}`
+
       // Replace save_artifact instructions with Write tool instructions for CLI
       const criticalReplace = await this.assembler.getCliReplacement(2, 'critical-spec', { outputDir })
       const reminderReplace = await this.assembler.getCliReplacement(2, 'reminder-spec', { outputDir })
@@ -316,14 +342,36 @@ export class AgentOrchestratorBridge {
       tools = [...READ_TOOLS]
     }
 
-    const result = await runner.run({
-      phase,
-      systemPrompt,
-      userMessage,
-      tools,
-      projectRoot: input.projectPath,
-      onEvent: emit,
+    // Timeout protection for spec generation (Tarefa 8.1)
+    const SPEC_TIMEOUT_MS = 5 * 60 * 1000  // 5 minutes
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Spec generation timeout after 5 minutes')), SPEC_TIMEOUT_MS)
     })
+
+    let result
+    try {
+      result = await Promise.race([
+        runner.run({
+          phase,
+          systemPrompt,
+          userMessage,
+          tools,
+          projectRoot: input.projectPath,
+          onEvent: emit,
+        }),
+        timeoutPromise
+      ])
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('timeout')) {
+        emit({
+          type: 'agent:error',
+          phase: 'SPEC',
+          error: 'Agent exceeded maximum execution time (5 minutes)',
+          canRetry: true,
+        } as any)
+      }
+      throw error
+    }
 
     let memoryArtifacts = toolExecutor.getArtifacts()
 

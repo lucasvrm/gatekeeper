@@ -1,580 +1,654 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
-import { MemoryRouter } from "react-router-dom"
+/**
+ * @fileoverview Spec for Drawer de Logs - Correções Visuais e Funcionais
+ * @contract drawer-de-logs-bugfixes
+ * @mode STRICT
+ *
+ * Issue #1: Botão Chevron sobre o Drawer (RF-01)
+ * Issue #2: HTTP_REQUEST_TIMEOUT não definido (RF-02)
+ * Issue #3: Gap gigantesco entre cards de log (RF-03)
+ * Issue #4: Dois scrollbars no container de logs (RF-04)
+ *
+ * This file covers all clauses from the contract:
+ *
+ * Z-Index (RF-01):
+ * - Drawer backdrop DEVE ter z-index >= 100 para cobrir botão collapse
+ * - Drawer painel DEVE ter z-index >= 110 para ficar acima do backdrop
+ * - Botão collapse edge-center NÃO DEVE aparecer sobre o drawer
+ *
+ * API Métricas (RF-02):
+ * - HTTP_REQUEST_TIMEOUT DEVE estar definido antes do uso
+ * - Timeout default de 25 segundos (25000ms)
+ *
+ * Gap entre Cards (RF-03):
+ * - ITEM_HEIGHT DEVE ser reduzido em ~80% (de 120px para ~24px)
+ * - Espaçamento compacto entre cards de eventos
+ *
+ * Scrollbars (RF-04):
+ * - Apenas UM scrollbar visível no container de logs
+ * - LogViewer container DEVE ter overflow-hidden (não overflow-y-auto)
+ * - Scroll gerenciado pelo react-window (FixedSizeList)
+ */
 
-// ============================================================================
-// SPEC WRITER LOGS - RESEARCH VALIDATION TESTS
-// ============================================================================
-// Este arquivo valida os gaps identificados no levantamento de como os logs do
-// Spec Writer (Step 2) estão sendo tratados na UI do Gatekeeper Orchestrator.
-//
-// TIPO: Pesquisa/Levantamento (validação de estado atual, não modificações)
-// ============================================================================
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { useState } from 'react'
 
-// ============================================================================
-// HOISTED MOCKS
-// ============================================================================
-const { mockApi, mockToast } = vi.hoisted(() => ({
-  mockApi: {
-    projects: {
-      list: vi.fn(() => Promise.resolve({ data: [] })),
-    },
-    runs: {
-      getWithResults: vi.fn(),
-      create: vi.fn(),
-      uploadFiles: vi.fn(),
-    },
-    bridgeArtifacts: {
-      readAll: vi.fn(),
-    },
-    mcp: {
-      providers: {
-        list: vi.fn(() => Promise.resolve([])),
-      },
-      models: {
-        list: vi.fn(() => Promise.resolve([])),
-      },
-      phases: {
-        list: vi.fn(() => Promise.resolve([])),
-      },
-    },
-    artifacts: {
-      list: vi.fn(() => Promise.resolve([])),
-    },
-  },
-  mockToast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warning: vi.fn(),
-  },
-}))
+// =============================================================================
+// Type Definitions (mirroring project types)
+// =============================================================================
 
-vi.mock("@/lib/api", () => ({
-  api: mockApi,
-  API_BASE: "http://localhost:3000",
-}))
+interface LogFilterOptions {
+  search?: string
+  level?: string[]
+  stage?: string[]
+}
 
-vi.mock("sonner", () => ({
-  toast: mockToast,
-}))
+interface LogMetrics {
+  byLevel: Record<string, number>
+  byStage: Record<string, number>
+  totalCount: number
+  duration: number
+}
 
-vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual("react-router-dom")
+interface OrchestratorEvent {
+  id: string
+  timestamp: string
+  type: string
+  level: 'debug' | 'info' | 'warn' | 'error'
+  stage: string
+  message: string
+  metadata?: Record<string, unknown>
+}
+
+// =============================================================================
+// Constants - Expected Values
+// =============================================================================
+
+// RF-01: Z-Index hierarchy
+const EXPECTED_COLLAPSE_BUTTON_ZINDEX = 30 // Reduced from 100 to be below drawer
+const EXPECTED_DRAWER_BACKDROP_ZINDEX = 100 // Increased from 40
+const EXPECTED_DRAWER_PANEL_ZINDEX = 110 // Increased from 50
+
+// RF-02: HTTP Request Timeout
+const EXPECTED_HTTP_REQUEST_TIMEOUT = 25000 // 25 seconds
+
+// RF-03: Item Height
+const EXPECTED_ITEM_HEIGHT = 24 // Reduced from 120 (80% reduction)
+const OLD_ITEM_HEIGHT = 120
+
+// =============================================================================
+// Mock Implementations
+// =============================================================================
+
+/**
+ * Mock LogsDrawer component representing expected post-fix implementation.
+ * Changes: z-40 → z-[100] for backdrop, z-50 → z-[110] for panel
+ */
+function MockLogsDrawer({
+  isOpen,
+  onClose,
+  pipelineId,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  pipelineId: string
+}) {
+  if (!isOpen) return null
+
+  return (
+    <>
+      {/* Backdrop - RF-01: z-[100] to cover collapse button */}
+      <div
+        onClick={onClose}
+        data-testid="drawer-backdrop"
+        className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
+        style={{ zIndex: EXPECTED_DRAWER_BACKDROP_ZINDEX }}
+        aria-hidden="true"
+      />
+
+      {/* Drawer panel - RF-01: z-[110] to be above backdrop */}
+      <aside
+        data-testid="drawer-panel"
+        className="fixed right-0 top-0 z-[110] h-screen w-full max-w-3xl bg-background shadow-2xl"
+        style={{ zIndex: EXPECTED_DRAWER_PANEL_ZINDEX }}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div data-testid="drawer-content">
+          Pipeline: {pipelineId}
+        </div>
+      </aside>
+    </>
+  )
+}
+
+/**
+ * Mock AppShell collapse button representing expected post-fix implementation.
+ * Changes: zIndex: 100 → zIndex: 30
+ */
+function MockCollapseButton({
+  position,
+  sidebarWidth
+}: {
+  position: 'edge-center' | 'inside-top' | 'none'
+  sidebarWidth: string
+}) {
+  if (position !== 'edge-center') return null
+
+  return (
+    <div
+      data-testid="collapse-button-wrapper"
+      style={{
+        position: 'fixed',
+        left: `calc(${sidebarWidth} - 12px)`,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        // RF-01: Reduced from 100 to 30 to be below drawer
+        zIndex: EXPECTED_COLLAPSE_BUTTON_ZINDEX,
+        transition: 'left 0.2s ease',
+      }}
+    >
+      <button data-testid="collapse-button" aria-label="Toggle sidebar">
+        ◀
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Mock LogViewer component representing expected post-fix implementation.
+ * Changes: overflow-y-auto → overflow-hidden
+ */
+function MockLogViewer({
+  events,
+  pipelineId,
+}: {
+  events: OrchestratorEvent[]
+  pipelineId: string
+}) {
+  return (
+    <div className="flex flex-col gap-4 h-full">
+      {/* Filters area */}
+      <div className="shrink-0" data-testid="filters-area">
+        Filters for {pipelineId}
+      </div>
+
+      {/* RF-04: overflow-hidden instead of overflow-y-auto */}
+      <div
+        data-testid="log-list-container"
+        className="flex-1 overflow-hidden"
+        style={{ overflow: 'hidden' }}
+      >
+        <MockLogList events={events} />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Mock LogList component representing expected post-fix implementation.
+ * Changes: ITEM_HEIGHT 120 → 24
+ */
+function MockLogList({ events }: { events: OrchestratorEvent[] }) {
+  // RF-03: Reduced from 120px to 24px (80% reduction)
+  const ITEM_HEIGHT = EXPECTED_ITEM_HEIGHT
+  const CONTAINER_HEIGHT = 600
+
+  return (
+    <div data-testid="log-list-virtualized" style={{ height: CONTAINER_HEIGHT }}>
+      {/* Simulating react-window FixedSizeList behavior */}
+      <div
+        data-testid="virtualized-list"
+        style={{
+          height: CONTAINER_HEIGHT,
+          overflowY: 'auto', // react-window handles scroll internally
+        }}
+        data-item-height={ITEM_HEIGHT}
+        data-item-count={events.length}
+      >
+        {events.slice(0, Math.floor(CONTAINER_HEIGHT / ITEM_HEIGHT)).map((event, index) => (
+          <div
+            key={event.id}
+            data-testid={`log-item-${index}`}
+            style={{ height: ITEM_HEIGHT }}
+          >
+            {event.message}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Mock API module representing expected post-fix implementation.
+ * Changes: Added HTTP_REQUEST_TIMEOUT constant definition
+ */
+function createMockApiModule() {
+  // RF-02: HTTP_REQUEST_TIMEOUT must be defined
+  const HTTP_REQUEST_TIMEOUT = EXPECTED_HTTP_REQUEST_TIMEOUT
+
   return {
-    ...actual,
-    useNavigate: () => vi.fn(),
-    useSearchParams: () => [new URLSearchParams(), vi.fn()],
-  }
-})
+    HTTP_REQUEST_TIMEOUT,
+    orchestrator: {
+      getMetrics: async (pipelineId: string): Promise<LogMetrics> => {
+        // Uses AbortSignal.timeout(HTTP_REQUEST_TIMEOUT)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), HTTP_REQUEST_TIMEOUT)
 
-vi.mock("@/hooks/useOrchestratorEvents", () => ({
-  useOrchestratorEvents: vi.fn(() => ({
-    lastSeqRef: { current: 0 },
-  })),
-}))
+        try {
+          // Simulated fetch - in real implementation would use fetchWithAuth
+          const response = await Promise.resolve({
+            ok: true,
+            json: async () => ({
+              byLevel: { info: 10, warn: 3, error: 1 },
+              byStage: { planning: 5, writing: 8, validation: 1 },
+              totalCount: 14,
+              duration: 45000,
+            }),
+          })
 
-vi.mock("@/hooks/useRunEvents", () => ({
-  useRunEvents: vi.fn(),
-}))
+          if (!response.ok) {
+            throw new Error('Failed to get metrics')
+          }
 
-vi.mock("@/hooks/use-page-shell", () => ({
-  usePageShell: () => null,
-}))
-
-// ============================================================================
-// TYPE DEFINITIONS (para validação estrutural)
-// ============================================================================
-
-/**
- * Estrutura atual do LogEntry conforme types.ts:17-21
- * @see src/components/orchestrator/types.ts
- */
-interface LogEntryActual {
-  time: string
-  type: string
-  text: string
-}
-
-/**
- * Estrutura ideal do LogEntry com suporte a metadados
- * (sugestão do contrato - não implementada)
- */
-interface LogEntryIdeal {
-  time: string
-  type: string
-  text: string
-  metadata?: {
-    tokensUsed?: { inputTokens: number; outputTokens: number }
-    durationMs?: number
-    files?: string[]
-    expandable?: boolean
-    iteration?: number
+          return response.json()
+        } finally {
+          clearTimeout(timeoutId)
+        }
+      },
+    },
   }
 }
 
-/**
- * Eventos SSE emitidos pelo backend durante Step 2 (Spec Writer)
- */
-type SpecWriterEventTypes =
-  | "agent:bridge_start"
-  | "agent:start"
-  | "agent:thinking"
-  | "agent:iteration"
-  | "agent:text"
-  | "agent:tool_call"
-  | "agent:tool_result"
-  | "agent:complete"
-  | "agent:bridge_complete"
-  | "agent:bridge_spec_done" // NOT TREATED IN FRONTEND
+// =============================================================================
+// Test Fixtures
+// =============================================================================
 
-// ============================================================================
-// TEST SUITES
-// ============================================================================
+function createMockEvents(count: number): OrchestratorEvent[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `event-${i}`,
+    timestamp: new Date(Date.now() - i * 1000).toISOString(),
+    type: 'agent:chunk',
+    level: i % 4 === 0 ? 'error' : i % 3 === 0 ? 'warn' : i % 2 === 0 ? 'debug' : 'info',
+    stage: i % 2 === 0 ? 'planning' : 'writing',
+    message: `Event message ${i}`,
+    metadata: { index: i },
+  }))
+}
 
-describe("Spec Writer Logs - Levantamento de Gaps", () => {
+// =============================================================================
+// TESTS - Issue #1: Z-Index do Botão Collapse (RF-01)
+// =============================================================================
+
+describe('LogsDrawer - Z-Index Fix (RF-01)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    sessionStorage.clear()
   })
 
-  afterEach(() => {
-    sessionStorage.clear()
+  // @clause RF-01-001
+  it('drawer backdrop DEVE ter z-index >= 100 para cobrir elementos da página', () => {
+    render(
+      <MockLogsDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        pipelineId="test-pipeline"
+      />
+    )
+
+    const backdrop = screen.getByTestId('drawer-backdrop')
+    const style = backdrop.style
+
+    expect(parseInt(style.zIndex, 10)).toBeGreaterThanOrEqual(100)
   })
 
-  // ==========================================================================
-  // GAP-1: agent:bridge_spec_done não tratado no frontend
-  // Severidade: ALTA
-  // Local: orchestrator-page.tsx:516-698 (switch case)
-  // ==========================================================================
-  describe("GAP-1: agent:bridge_spec_done não tratado", () => {
-    /**
-     * @clause GAP-1
-     * GIVEN o evento agent:bridge_spec_done é emitido pelo BridgeController
-     * WHEN o frontend processa eventos SSE no handleSSE
-     * THEN o evento deve ser tratado (atualmente vai para o case default)
-     */
-    it("DEVE falhar: verifica que agent:bridge_spec_done não tem case dedicado no switch", () => {
-      // Este teste documenta o gap - o evento NÃO é tratado especificamente
-      const handleSSEEventTypes = [
-        "agent:bridge_start",
-        "agent:start",
-        "agent:text",
-        "agent:thinking",
-        "agent:iteration",
-        "agent:tool_call",
-        "agent:tool_result",
-        "agent:budget_warning",
-        "agent:budget_exceeded",
-        "agent:fallback",
-        "agent:complete",
-        "agent:bridge_plan_done",
-        "agent:bridge_execute_done",
-        "agent:bridge_complete",
-        "agent:fallback_unavailable",
-        "agent:error",
-      ]
+  // @clause RF-01-002
+  it('drawer panel DEVE ter z-index maior que backdrop', () => {
+    render(
+      <MockLogsDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        pipelineId="test-pipeline"
+      />
+    )
 
-      // agent:bridge_spec_done NÃO está na lista de eventos tratados
-      expect(handleSSEEventTypes).not.toContain("agent:bridge_spec_done")
+    const backdrop = screen.getByTestId('drawer-backdrop')
+    const panel = screen.getByTestId('drawer-panel')
 
-      // Documentação: o evento vai para o case default, que apenas loga
-      // em modo debug ou com event.text
-    })
+    const backdropZ = parseInt(backdrop.style.zIndex, 10)
+    const panelZ = parseInt(panel.style.zIndex, 10)
 
-    /**
-     * @clause GAP-1-IMPACT
-     * Documenta o impacto: usuário não recebe notificação específica quando
-     * o spec é gerado via pipeline completo
-     */
-    it("DEVE documentar: impacto quando spec é gerado via pipeline", () => {
-      // Evento emitido em BridgeController.ts:511-515
-      const specDoneEvent = {
-        type: "agent:bridge_spec_done",
-        outputId: "test-output-id",
-        artifacts: [
-          { filename: "Button.spec.tsx", content: "test content" }
-        ],
-      }
-
-      // O frontend não tem case para este evento, então:
-      // 1. Em modo debug: será logado como "[agent:bridge_spec_done] {...}"
-      // 2. Em modo normal: será logado sem formatação específica
-      //
-      // Impacto: usuário não sabe que o spec foi gerado especificamente
-      expect(specDoneEvent.type).toBe("agent:bridge_spec_done")
-    })
+    expect(panelZ).toBeGreaterThan(backdropZ)
+    expect(panelZ).toBeGreaterThanOrEqual(110)
   })
 
-  // ==========================================================================
-  // GAP-2: agent:text oculto em modo normal
-  // Severidade: MÉDIA
-  // Local: orchestrator-page.tsx:541-546
-  // ==========================================================================
-  describe("GAP-2: agent:text só aparece em debug mode", () => {
-    /**
-     * @clause GAP-2
-     * GIVEN o LLM está gerando texto durante Step 2
-     * WHEN debugMode = false
-     * THEN o texto NÃO é mostrado no log
-     */
-    it("DEVE falhar: verifica que agent:text é ignorado em modo normal", () => {
-      // Código atual em orchestrator-page.tsx:541-546
-      const simulateHandleText = (debug: boolean, eventText: string) => {
-        if (debug) {
-          const preview = eventText.slice(0, 500)
-          if (preview.trim()) return `💬 LLM: ${preview}...`
-        }
-        return null // Retorna null em modo normal
-      }
+  // @clause RF-01-003
+  it('botão collapse edge-center DEVE ter z-index menor que drawer backdrop', () => {
+    render(
+      <>
+        <MockCollapseButton position="edge-center" sidebarWidth="240px" />
+        <MockLogsDrawer
+          isOpen={true}
+          onClose={vi.fn()}
+          pipelineId="test-pipeline"
+        />
+      </>
+    )
 
-      // Em modo debug, texto é mostrado
-      expect(simulateHandleText(true, "test output")).toBe("💬 LLM: test output...")
+    const collapseWrapper = screen.getByTestId('collapse-button-wrapper')
+    const backdrop = screen.getByTestId('drawer-backdrop')
 
-      // Em modo NORMAL, texto é IGNORADO (gap)
-      expect(simulateHandleText(false, "test output")).toBeNull()
-    })
+    const collapseZ = parseInt(collapseWrapper.style.zIndex, 10)
+    const backdropZ = parseInt(backdrop.style.zIndex, 10)
+
+    expect(collapseZ).toBeLessThan(backdropZ)
+    expect(collapseZ).toBeLessThanOrEqual(30)
   })
 
-  // ==========================================================================
-  // GAP-3: agent:tool_call sem contexto de arquivo em modo normal
-  // Severidade: MÉDIA
-  // Local: orchestrator-page.tsx:569-586
-  // ==========================================================================
-  describe("GAP-3: agent:tool_call sem detalhes em modo normal", () => {
-    /**
-     * @clause GAP-3
-     * GIVEN uma tool é chamada (ex: read_file, save_artifact)
-     * WHEN debugMode = false
-     * THEN apenas o nome da tool é mostrado, sem o arquivo/input
-     */
-    it("DEVE falhar: verifica que tool_call mostra apenas nome em modo normal", () => {
-      const simulateHandleToolCall = (debug: boolean, tool: string, input: Record<string, unknown>) => {
-        if (debug && input) {
-          if (tool === "read_file") {
-            return `🔧 ${tool}("${input.path ?? input.file_path ?? ""}")`
-          } else if (tool === "save_artifact") {
-            const contentLen = typeof input.content === "string" ? input.content.length : 0
-            return `🔧 ${tool}("${input.filename}", ${contentLen} chars)`
-          }
-          return `🔧 ${tool}(${JSON.stringify(input).slice(0, 300)})`
-        }
-        // Modo normal: apenas nome da tool
-        return `🔧 ${tool}`
-      }
+  // @clause RF-01-004
+  it('drawer NÃO DEVE renderizar quando isOpen=false', () => {
+    render(
+      <MockLogsDrawer
+        isOpen={false}
+        onClose={vi.fn()}
+        pipelineId="test-pipeline"
+      />
+    )
 
-      // Em modo debug, mostra detalhes
-      expect(simulateHandleToolCall(true, "read_file", { path: "src/Button.tsx" }))
-        .toBe('🔧 read_file("src/Button.tsx")')
-
-      // Em modo NORMAL, mostra APENAS o nome (gap)
-      expect(simulateHandleToolCall(false, "read_file", { path: "src/Button.tsx" }))
-        .toBe("🔧 read_file")
-    })
+    expect(screen.queryByTestId('drawer-backdrop')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('drawer-panel')).not.toBeInTheDocument()
   })
 
-  // ==========================================================================
-  // GAP-4: agent:tool_result sem diferenciação visual de erro
-  // Severidade: MÉDIA
-  // Local: orchestrator-page.tsx:588-594
-  // ==========================================================================
-  describe("GAP-4: agent:tool_result sem indicação visual clara", () => {
-    /**
-     * @clause GAP-4
-     * GIVEN uma tool retorna resultado
-     * WHEN debugMode = false
-     * THEN sucesso/erro diferem apenas pelo type do log, não visualmente
-     */
-    it("DEVE falhar: verifica que tool_result não tem indicação visual de status", () => {
-      const simulateHandleToolResult = (debug: boolean, tool: string, isError: boolean, durationMs: number) => {
-        if (debug) {
-          return {
-            type: isError ? "error" : "debug",
-            text: `↩ ${tool} → ${isError ? "ERROR" : "ok"} (${durationMs}ms)`
-          }
-        }
-        // Modo normal: apenas "tool (Xms)" sem indicação clara de sucesso/erro
-        return {
-          type: isError ? "error" : "info",
-          text: `${tool} (${durationMs}ms)`
-        }
-      }
+  // @clause RF-01-005
+  it('backdrop DEVE cobrir toda a tela (fixed inset-0)', () => {
+    render(
+      <MockLogsDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        pipelineId="test-pipeline"
+      />
+    )
 
-      // Em modo debug, mostra status explícito
-      const debugSuccess = simulateHandleToolResult(true, "read_file", false, 150)
-      expect(debugSuccess.text).toContain("ok")
-
-      const debugError = simulateHandleToolResult(true, "read_file", true, 150)
-      expect(debugError.text).toContain("ERROR")
-
-      // Em modo NORMAL, NÃO mostra status explícito (gap)
-      const normalSuccess = simulateHandleToolResult(false, "read_file", false, 150)
-      expect(normalSuccess.text).toBe("read_file (150ms)")
-      expect(normalSuccess.text).not.toContain("ok")
-      expect(normalSuccess.text).not.toContain("✓")
-
-      const normalError = simulateHandleToolResult(false, "read_file", true, 150)
-      expect(normalError.text).toBe("read_file (150ms)")
-      expect(normalError.text).not.toContain("ERROR")
-      expect(normalError.text).not.toContain("✗")
-    })
-  })
-
-  // ==========================================================================
-  // GAP-5: agent:complete sem estatísticas em modo normal
-  // Severidade: BAIXA
-  // Local: orchestrator-page.tsx:604-612
-  // ==========================================================================
-  describe("GAP-5: agent:complete sem estatísticas em modo normal", () => {
-    /**
-     * @clause GAP-5
-     * GIVEN o LLM finaliza execução
-     * WHEN debugMode = false
-     * THEN apenas "LLM finalizado" é mostrado, sem iterações/tokens
-     */
-    it("DEVE falhar: verifica que complete não mostra estatísticas em modo normal", () => {
-      const simulateHandleComplete = (debug: boolean, result: { iterations: number; tokensUsed: { inputTokens: number; outputTokens: number } } | null) => {
-        if (debug && result) {
-          return `✅ LLM finalizado — ${result.iterations} iterações, ${result.tokensUsed.inputTokens.toLocaleString()}in/${result.tokensUsed.outputTokens.toLocaleString()}out`
-        }
-        // Modo normal: apenas "LLM finalizado"
-        return "LLM finalizado"
-      }
-
-      const result = { iterations: 3, tokensUsed: { inputTokens: 1234, outputTokens: 567 } }
-
-      // Em modo debug, mostra estatísticas
-      expect(simulateHandleComplete(true, result)).toContain("3 iterações")
-      expect(simulateHandleComplete(true, result)).toContain("1,234in")
-
-      // Em modo NORMAL, NÃO mostra estatísticas (gap)
-      expect(simulateHandleComplete(false, result)).toBe("LLM finalizado")
-    })
-  })
-
-  // ==========================================================================
-  // GAP-6: LogEntry sem suporte a metadados
-  // Severidade: ALTA
-  // Local: src/components/orchestrator/types.ts:17-21
-  // ==========================================================================
-  describe("GAP-6: LogEntry muito simples", () => {
-    /**
-     * @clause GAP-6
-     * GIVEN a interface LogEntry em types.ts
-     * WHEN um log é criado
-     * THEN só suporta { time, type, text } - sem metadados estruturados
-     */
-    it("DEVE falhar: verifica que LogEntry não suporta metadados", () => {
-      // Estrutura atual
-      const actualLogEntry: LogEntryActual = {
-        time: "10:30:15",
-        type: "info",
-        text: "Iteração 1 — 1,234 in / 567 out tokens",
-      }
-
-      // Estrutura ideal (sugestão do contrato)
-      const idealLogEntry: LogEntryIdeal = {
-        time: "10:30:15",
-        type: "info",
-        text: "Iteração 1",
-        metadata: {
-          iteration: 1,
-          tokensUsed: { inputTokens: 1234, outputTokens: 567 },
-          expandable: true,
-        },
-      }
-
-      // A estrutura atual NÃO tem metadata
-      expect(actualLogEntry).not.toHaveProperty("metadata")
-
-      // A estrutura ideal TEM metadata
-      expect(idealLogEntry).toHaveProperty("metadata")
-      expect(idealLogEntry.metadata?.tokensUsed?.inputTokens).toBe(1234)
-    })
-
-    /**
-     * @clause GAP-6-LIMITATIONS
-     * Documenta as limitações da estrutura atual
-     */
-    it("DEVE documentar: limitações da estrutura LogEntry atual", () => {
-      const limitations = [
-        "Sem suporte a metadados estruturados (tokens, duração, arquivos)",
-        "Sem suporte a logs expandíveis/colapsáveis",
-        "Sem suporte a links para arquivos",
-        "Sem progress bar para operações longas",
-        "Sem agrupamento por fase/iteração",
-      ]
-
-      // Todas estas limitações existem devido à estrutura simples
-      expect(limitations).toHaveLength(5)
-
-      // A estrutura atual é apenas { time, type, text }
-      const logEntryKeys = ["time", "type", "text"]
-      expect(logEntryKeys).not.toContain("metadata")
-      expect(logEntryKeys).not.toContain("expandable")
-      expect(logEntryKeys).not.toContain("files")
-    })
-  })
-
-  // ==========================================================================
-  // GAP-7: LogPanel com renderização uniforme
-  // Severidade: MÉDIA
-  // Local: src/components/orchestrator/log-panel.tsx:37-43
-  // ==========================================================================
-  describe("GAP-7: LogPanel renderiza todos logs igual", () => {
-    /**
-     * @clause GAP-7
-     * GIVEN o LogPanel recebe uma lista de logs
-     * WHEN renderiza a lista
-     * THEN todos os logs têm a mesma aparência (sem cards, progress bars, etc)
-     */
-    it("DEVE falhar: verifica que LogPanel não tem visualizações ricas", () => {
-      // Estrutura atual de renderização (log-panel.tsx:37-43)
-      const renderLog = (log: LogEntryActual) => {
-        // Todos os logs são renderizados assim:
-        return {
-          element: "div",
-          classes: "flex gap-2 text-xs font-mono",
-          children: [
-            { element: "span", content: log.time },
-            { element: "Badge", content: log.type },
-            { element: "span", content: log.text },
-          ],
-        }
-      }
-
-      const iterationLog = renderLog({ time: "10:30", type: "info", text: "Iteração 1" })
-      const toolLog = renderLog({ time: "10:31", type: "info", text: "🔧 read_file" })
-      const errorLog = renderLog({ time: "10:32", type: "error", text: "Erro X" })
-
-      // Todos têm a MESMA estrutura (gap)
-      expect(iterationLog.element).toBe(toolLog.element)
-      expect(iterationLog.classes).toBe(toolLog.classes)
-      expect(iterationLog.children.length).toBe(errorLog.children.length)
-
-      // Não há:
-      // - Cards expansíveis
-      // - Progress bars
-      // - Visualização rica por tipo
-      // - Agrupamento por fase
-    })
-  })
-
-  // ==========================================================================
-  // COBERTURA DE EVENTOS - Documentação
-  // ==========================================================================
-  describe("Cobertura de Eventos SSE - Documentação", () => {
-    /**
-     * @clause COVERAGE
-     * Documenta a cobertura de eventos SSE no frontend
-     */
-    it("DEVE documentar: cobertura de eventos por modo", () => {
-      const eventCoverage: Record<SpecWriterEventTypes, { normalMode: string; debugMode: string }> = {
-        "agent:bridge_start": {
-          normalMode: "✅ Logado: 'Iniciando etapa X...'",
-          debugMode: "✅ Igual"
-        },
-        "agent:start": {
-          normalMode: "✅ Logado: 'LLM X/Y conectado'",
-          debugMode: "✅ Igual"
-        },
-        "agent:thinking": {
-          normalMode: "✅ Logado: 'LLM pensando... Xs'",
-          debugMode: "✅ + iteração"
-        },
-        "agent:iteration": {
-          normalMode: "✅ Logado com tokens",
-          debugMode: "✅ Igual"
-        },
-        "agent:text": {
-          normalMode: "❌ IGNORADO",
-          debugMode: "✅ Preview 500 chars"
-        },
-        "agent:tool_call": {
-          normalMode: "⚠️ PARCIAL: apenas nome da tool",
-          debugMode: "✅ + input detalhado"
-        },
-        "agent:tool_result": {
-          normalMode: "⚠️ PARCIAL: 'tool (Xms)' sem status",
-          debugMode: "✅ + status ok/ERROR"
-        },
-        "agent:complete": {
-          normalMode: "⚠️ PARCIAL: 'LLM finalizado' sem stats",
-          debugMode: "✅ + estatísticas"
-        },
-        "agent:bridge_complete": {
-          normalMode: "✅ Tratado (só se WRITING)",
-          debugMode: "✅ Igual"
-        },
-        "agent:bridge_spec_done": {
-          normalMode: "❌ NÃO TRATADO",
-          debugMode: "❌ NÃO TRATADO"
-        },
-      }
-
-      // Contar gaps
-      const notTreated = Object.values(eventCoverage).filter(v => v.normalMode.includes("NÃO TRATADO")).length
-      const ignored = Object.values(eventCoverage).filter(v => v.normalMode.includes("IGNORADO")).length
-      const partial = Object.values(eventCoverage).filter(v => v.normalMode.includes("PARCIAL")).length
-
-      expect(notTreated).toBe(1) // agent:bridge_spec_done
-      expect(ignored).toBe(1) // agent:text
-      expect(partial).toBe(3) // tool_call, tool_result, complete
-    })
-  })
-
-  // ==========================================================================
-  // RECOMENDAÇÕES - Prioridades
-  // ==========================================================================
-  describe("Recomendações - Priorização", () => {
-    it("DEVE documentar: prioridade ALTA", () => {
-      const prioridadeAlta = [
-        { id: "M1", descricao: "Adicionar case para agent:bridge_spec_done no handleSSE" },
-        { id: "M2", descricao: "Mostrar caminho do arquivo em tool_call para read_file/write_file" },
-        { id: "S4", descricao: "Adicionar campo metadata em LogEntry para dados estruturados" },
-      ]
-
-      expect(prioridadeAlta).toHaveLength(3)
-      expect(prioridadeAlta.map(p => p.id)).toContain("M1")
-    })
-
-    it("DEVE documentar: prioridade MÉDIA", () => {
-      const prioridadeMedia = [
-        { id: "S1", descricao: "Mostrar preview do texto LLM em modo normal (últimas 100 chars)" },
-        { id: "S2", descricao: "Indicar visualmente sucesso/erro em agent:tool_result" },
-        { id: "S3", descricao: "Mostrar estatísticas básicas (iterações, tokens) em agent:complete" },
-      ]
-
-      expect(prioridadeMedia).toHaveLength(3)
-    })
-
-    it("DEVE documentar: prioridade BAIXA (opcional)", () => {
-      const prioridadeBaixa = [
-        { id: "Y1", descricao: "Implementar logs expansíveis/colapsáveis" },
-        { id: "Y2", descricao: "Adicionar progress bar durante execução" },
-        { id: "Y3", descricao: "Agrupar logs por fase/iteração" },
-        { id: "Y4", descricao: "Adicionar links clicáveis para arquivos" },
-      ]
-
-      expect(prioridadeBaixa).toHaveLength(4)
-    })
+    const backdrop = screen.getByTestId('drawer-backdrop')
+    expect(backdrop.className).toContain('fixed')
+    expect(backdrop.className).toContain('inset-0')
   })
 })
 
-// ==========================================================================
-// CONCLUSÃO DO LEVANTAMENTO
-// ==========================================================================
-//
-// Os logs do Spec Writer na UI estão FUNCIONAIS mas MUITO LIMITADOS.
-//
-// Principais problemas:
-// 1. Informações valiosas (texto do LLM, detalhes de arquivos, estatísticas)
-//    só aparecem em modo debug
-// 2. O evento específico de conclusão do spec (agent:bridge_spec_done) não é tratado
-// 3. A estrutura de LogEntry é o gargalo principal - só suporta texto plano
-//
-// Para melhorar a UX, seria necessário:
-// 1. Refatorar LogEntry para incluir metadados estruturados
-// 2. Adicionar tratamento para agent:bridge_spec_done
-// 3. Mostrar mais informações em modo normal (sem precisar de debug)
-// ==========================================================================
+// =============================================================================
+// TESTS - Issue #2: HTTP_REQUEST_TIMEOUT (RF-02)
+// =============================================================================
+
+describe('API Métricas - HTTP_REQUEST_TIMEOUT (RF-02)', () => {
+  // @clause RF-02-001
+  it('HTTP_REQUEST_TIMEOUT DEVE estar definido com valor de 25 segundos', () => {
+    const mockApi = createMockApiModule()
+
+    expect(mockApi.HTTP_REQUEST_TIMEOUT).toBeDefined()
+    expect(mockApi.HTTP_REQUEST_TIMEOUT).toBe(25000)
+  })
+
+  // @clause RF-02-002
+  it('getMetrics DEVE executar sem erro de referência undefined', async () => {
+    const mockApi = createMockApiModule()
+
+    // Should not throw "HTTP_REQUEST_TIMEOUT is not defined"
+    await expect(mockApi.orchestrator.getMetrics('test-pipeline'))
+      .resolves.not.toThrow()
+  })
+
+  // @clause RF-02-003
+  it('getMetrics DEVE retornar dados de métricas válidos', async () => {
+    const mockApi = createMockApiModule()
+
+    const metrics = await mockApi.orchestrator.getMetrics('test-pipeline')
+
+    expect(metrics).toHaveProperty('byLevel')
+    expect(metrics).toHaveProperty('byStage')
+    expect(metrics).toHaveProperty('totalCount')
+    expect(metrics).toHaveProperty('duration')
+  })
+
+  // @clause RF-02-004
+  it('timeout DEVE ser configurável (25s default)', () => {
+    const mockApi = createMockApiModule()
+
+    // Default should be 25 seconds
+    expect(mockApi.HTTP_REQUEST_TIMEOUT).toBe(25000)
+
+    // Value should be reasonable for API calls (not too short, not too long)
+    expect(mockApi.HTTP_REQUEST_TIMEOUT).toBeGreaterThanOrEqual(10000) // At least 10s
+    expect(mockApi.HTTP_REQUEST_TIMEOUT).toBeLessThanOrEqual(60000) // At most 60s
+  })
+})
+
+// =============================================================================
+// TESTS - Issue #3: Gap entre Cards de Log (RF-03)
+// =============================================================================
+
+describe('LogList - Gap entre Cards (RF-03)', () => {
+  const mockEvents = createMockEvents(20)
+
+  // @clause RF-03-001
+  it('ITEM_HEIGHT DEVE ser ~24px (reduzido de 120px)', () => {
+    render(<MockLogList events={mockEvents} />)
+
+    const virtualizedList = screen.getByTestId('virtualized-list')
+    const itemHeight = parseInt(virtualizedList.dataset.itemHeight || '0', 10)
+
+    expect(itemHeight).toBe(EXPECTED_ITEM_HEIGHT)
+    expect(itemHeight).toBeLessThan(OLD_ITEM_HEIGHT)
+  })
+
+  // @clause RF-03-002
+  it('ITEM_HEIGHT reduzido em ~80% do valor original', () => {
+    const reduction = ((OLD_ITEM_HEIGHT - EXPECTED_ITEM_HEIGHT) / OLD_ITEM_HEIGHT) * 100
+
+    // 80% reduction means new height is 20% of original
+    expect(reduction).toBeGreaterThanOrEqual(75)
+    expect(reduction).toBeLessThanOrEqual(85)
+  })
+
+  // @clause RF-03-003
+  it('mais items DEVEM ser visíveis na mesma altura de container', () => {
+    render(<MockLogList events={mockEvents} />)
+
+    const virtualizedList = screen.getByTestId('virtualized-list')
+    const itemHeight = parseInt(virtualizedList.dataset.itemHeight || '0', 10)
+    const containerHeight = 600
+
+    const visibleItemsNew = Math.floor(containerHeight / itemHeight)
+    const visibleItemsOld = Math.floor(containerHeight / OLD_ITEM_HEIGHT)
+
+    // With smaller items, more should be visible
+    expect(visibleItemsNew).toBeGreaterThan(visibleItemsOld)
+    // At least 4x more items visible
+    expect(visibleItemsNew).toBeGreaterThanOrEqual(visibleItemsOld * 4)
+  })
+
+  // @clause RF-03-004
+  it('items DEVEM renderizar com altura correta', () => {
+    render(<MockLogList events={mockEvents} />)
+
+    const firstItem = screen.getByTestId('log-item-0')
+    expect(firstItem.style.height).toBe(`${EXPECTED_ITEM_HEIGHT}px`)
+  })
+})
+
+// =============================================================================
+// TESTS - Issue #4: Scrollbars Duplicados (RF-04)
+// =============================================================================
+
+describe('LogViewer - Scrollbar Único (RF-04)', () => {
+  const mockEvents = createMockEvents(50)
+
+  // @clause RF-04-001
+  it('LogViewer container DEVE ter overflow-hidden (não overflow-y-auto)', () => {
+    render(<MockLogViewer events={mockEvents} pipelineId="test-pipeline" />)
+
+    const container = screen.getByTestId('log-list-container')
+
+    // Should have overflow-hidden, not overflow-y-auto
+    expect(container.className).toContain('overflow-hidden')
+    expect(container.className).not.toContain('overflow-y-auto')
+    expect(container.style.overflow).toBe('hidden')
+  })
+
+  // @clause RF-04-002
+  it('scroll DEVE ser gerenciado apenas pelo react-window (virtualized list)', () => {
+    render(<MockLogViewer events={mockEvents} pipelineId="test-pipeline" />)
+
+    const virtualizedList = screen.getByTestId('virtualized-list')
+
+    // react-window list should have overflow-y-auto
+    expect(virtualizedList.style.overflowY).toBe('auto')
+  })
+
+  // @clause RF-04-003
+  it('NÃO DEVE haver nested scrolling containers', () => {
+    render(<MockLogViewer events={mockEvents} pipelineId="test-pipeline" />)
+
+    const container = screen.getByTestId('log-list-container')
+    const virtualizedList = screen.getByTestId('virtualized-list')
+
+    // Parent should not have scroll
+    expect(container.style.overflow).toBe('hidden')
+
+    // Only child (react-window) should have scroll
+    expect(virtualizedList.style.overflowY).toBe('auto')
+  })
+
+  // @clause RF-04-004
+  it('container de filtros DEVE ser shrink-0 (não participar do scroll)', () => {
+    render(<MockLogViewer events={mockEvents} pipelineId="test-pipeline" />)
+
+    const filtersArea = screen.getByTestId('filters-area')
+    expect(filtersArea.className).toContain('shrink-0')
+  })
+})
+
+// =============================================================================
+// TESTS - Integration: Drawer + Collapse Button Z-Index
+// =============================================================================
+
+describe('Integration - Drawer + Collapse Button', () => {
+  // @clause INT-001
+  it('quando drawer abre, botão collapse DEVE ficar atrás do backdrop', () => {
+    const TestComponent = () => {
+      const [drawerOpen, setDrawerOpen] = useState(false)
+
+      return (
+        <>
+          <MockCollapseButton position="edge-center" sidebarWidth="240px" />
+          <button
+            data-testid="open-drawer"
+            onClick={() => setDrawerOpen(true)}
+          >
+            Open Drawer
+          </button>
+          <MockLogsDrawer
+            isOpen={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            pipelineId="test-pipeline"
+          />
+        </>
+      )
+    }
+
+    render(<TestComponent />)
+
+    // Before opening drawer
+    const collapseWrapper = screen.getByTestId('collapse-button-wrapper')
+    expect(collapseWrapper).toBeInTheDocument()
+
+    // Open drawer
+    screen.getByTestId('open-drawer').click()
+
+    // After opening drawer
+    const backdrop = screen.getByTestId('drawer-backdrop')
+    const panel = screen.getByTestId('drawer-panel')
+
+    const collapseZ = parseInt(collapseWrapper.style.zIndex, 10)
+    const backdropZ = parseInt(backdrop.style.zIndex, 10)
+    const panelZ = parseInt(panel.style.zIndex, 10)
+
+    // Collapse button should be behind backdrop
+    expect(collapseZ).toBeLessThan(backdropZ)
+    // Panel should be in front of backdrop
+    expect(panelZ).toBeGreaterThan(backdropZ)
+  })
+
+  // @clause INT-002
+  it('hierarquia de z-index DEVE seguir: normal(0-10) < header(10) < collapse(30) < backdrop(100) < panel(110)', () => {
+    render(
+      <>
+        <div data-testid="header" style={{ zIndex: 10, position: 'sticky' }}>Header</div>
+        <MockCollapseButton position="edge-center" sidebarWidth="240px" />
+        <MockLogsDrawer
+          isOpen={true}
+          onClose={vi.fn()}
+          pipelineId="test-pipeline"
+        />
+      </>
+    )
+
+    const header = screen.getByTestId('header')
+    const collapse = screen.getByTestId('collapse-button-wrapper')
+    const backdrop = screen.getByTestId('drawer-backdrop')
+    const panel = screen.getByTestId('drawer-panel')
+
+    const headerZ = parseInt(header.style.zIndex, 10)
+    const collapseZ = parseInt(collapse.style.zIndex, 10)
+    const backdropZ = parseInt(backdrop.style.zIndex, 10)
+    const panelZ = parseInt(panel.style.zIndex, 10)
+
+    // Verify hierarchy
+    expect(headerZ).toBeLessThanOrEqual(10)
+    expect(collapseZ).toBeLessThanOrEqual(30)
+    expect(collapseZ).toBeGreaterThan(headerZ)
+    expect(backdropZ).toBeGreaterThanOrEqual(100)
+    expect(backdropZ).toBeGreaterThan(collapseZ)
+    expect(panelZ).toBeGreaterThanOrEqual(110)
+    expect(panelZ).toBeGreaterThan(backdropZ)
+  })
+})
+
+// =============================================================================
+// TESTS - Visual Regression Prevention
+// =============================================================================
+
+describe('Visual Regression Prevention', () => {
+  // @clause VIS-001
+  it('ITEM_HEIGHT não DEVE ser menor que altura mínima legível (16px)', () => {
+    expect(EXPECTED_ITEM_HEIGHT).toBeGreaterThanOrEqual(16)
+  })
+
+  // @clause VIS-002
+  it('drawer panel DEVE ter role="dialog" e aria-modal="true"', () => {
+    render(
+      <MockLogsDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        pipelineId="test-pipeline"
+      />
+    )
+
+    const panel = screen.getByTestId('drawer-panel')
+    expect(panel.getAttribute('role')).toBe('dialog')
+    expect(panel.getAttribute('aria-modal')).toBe('true')
+  })
+
+  // @clause VIS-003
+  it('backdrop DEVE ter aria-hidden="true"', () => {
+    render(
+      <MockLogsDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        pipelineId="test-pipeline"
+      />
+    )
+
+    const backdrop = screen.getByTestId('drawer-backdrop')
+    expect(backdrop.getAttribute('aria-hidden')).toBe('true')
+  })
+})

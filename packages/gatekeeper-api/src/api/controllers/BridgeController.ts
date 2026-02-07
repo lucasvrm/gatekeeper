@@ -59,9 +59,9 @@ function asProvider(value: unknown): ProviderName | undefined {
   return undefined
 }
 
-function makeEmitter(runId: string) {
+function makeEmitter(runId: string, agentRunId?: string) {
   return (event: AgentEvent) => {
-    OrchestratorEventService.emitOrchestratorEvent(runId, event)
+    OrchestratorEventService.emitOrchestratorEvent(runId, event, { agentRunId })
   }
 }
 
@@ -184,7 +184,18 @@ export class BridgeController {
           { onEvent: emit },
         )
 
+        // Validate that we have artifacts before emitting success
+        if (!result.artifacts || result.artifacts.length === 0) {
+          console.error('[Bridge] Spec generation completed but no artifacts were produced')
+          OrchestratorEventService.emitOrchestratorEvent(outputId, {
+            type: 'agent:error',
+            error: 'Spec generation completed but no artifacts were produced. Check LLM output.',
+          })
+          return
+        }
+
         // Emit completion with full result
+        console.log(`[Bridge] Spec done: ${result.artifacts.length} artifact(s)`)
         OrchestratorEventService.emitOrchestratorEvent(outputId, {
           type: 'agent:bridge_spec_done',
           outputId,
@@ -467,7 +478,6 @@ export class BridgeController {
   ): Promise<void> {
     const bridge = getBridge()
     const validationBridge = getValidationBridge()
-    const emit = makeEmitter(runId)
     const {
       taskDescription, projectPath, taskType, profileId, projectId,
       provider, model, maxFixRetries,
@@ -481,6 +491,8 @@ export class BridgeController {
       model: model || 'claude-sonnet-4-5-20250929',
       outputId: existingOutputId,
     })
+
+    const emit = makeEmitter(runId, dbRunId)
 
     // If resuming, update run status back to running
     if (existingDbRunId) {

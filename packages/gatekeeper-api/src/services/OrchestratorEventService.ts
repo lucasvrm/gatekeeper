@@ -440,13 +440,13 @@ class OrchestratorEventServiceClass extends EventEmitter {
    * Legacy method for backward compatibility.
    * Calls persistAndEmit with default options.
    */
-  emitOrchestratorEvent(outputId: string, event: EmittableEvent) {
+  emitOrchestratorEvent(outputId: string, event: EmittableEvent, options?: Partial<PersistAndEmitOptions>) {
     // Infer stage from event type
     const data = event as OrchestratorEventData
     const stage = this.inferStage(data)
 
     // Fire and forget (don't await to maintain sync behavior)
-    this.persistAndEmit(outputId, stage, event).catch((err) => {
+    this.persistAndEmit(outputId, stage, event, options).catch((err) => {
       log.error({ err, outputId }, 'persistAndEmit failed')
     })
   }

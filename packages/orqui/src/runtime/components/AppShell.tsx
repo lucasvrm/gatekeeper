@@ -422,17 +422,20 @@ export function AppShell({
     </aside>
   ) : null;
 
+  // RF-01: Reduced z-index from 100 to 30 to be below drawer backdrop
   const edgeCenterCollapseEl = sidebar?.enabled && cbPosition === "edge-center" && collapseButtonEl ? (
-    <div style={{
-      position: "fixed",
-      left: `calc(${sidebarWidth} - 12px)`,
-      top: layoutMode === "header-first"
-        ? `calc(${headerHeightNum}px + (100vh - ${headerHeightNum}px) / 2)`
-        : `calc(${headerHeightNum}px + (100vh - ${headerHeightNum}px) / 2)`,
-      transform: "translateY(-50%)",
-      zIndex: 100,
-      transition: "left 0.2s ease",
-    }}>
+    <div
+      data-testid="collapse-button-wrapper"
+      style={{
+        position: "fixed",
+        left: `calc(${sidebarWidth} - 12px)`,
+        top: layoutMode === "header-first"
+          ? `calc(${headerHeightNum}px + (100vh - ${headerHeightNum}px) / 2)`
+          : `calc(${headerHeightNum}px + (100vh - ${headerHeightNum}px) / 2)`,
+        transform: "translateY(-50%)",
+        zIndex: 30,
+        transition: "left 0.2s ease",
+      }}>
       {collapseButtonEl}
     </div>
   ) : null;

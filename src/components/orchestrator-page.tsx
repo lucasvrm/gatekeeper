@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
+import { Copy, MessageSquare, Loader2 } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
 import { FixInstructionsDialog } from "@/components/fix-instructions-dialog"
 import type {
   ParsedArtifact,
@@ -72,6 +74,13 @@ function loadSession(outputId?: string): OrchestratorSession | null {
           if (localStorage.getItem(ACTIVE_KEY) === targetId) localStorage.removeItem(ACTIVE_KEY)
           return null
         }
+
+        // Validate: Don't restore step 3+ without specArtifacts (prevents stuck state from previous bugs)
+        if (session.step >= 3 && (!session.specArtifacts || session.specArtifacts.length === 0)) {
+          console.warn('[loadSession] Session has step 3+ but no specArtifacts - resetting to step 2')
+          session.step = 2
+        }
+
         return session
       }
     }
@@ -145,6 +154,14 @@ export function OrchestratorPage() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(() =>
     new Set(saved?.completedSteps ?? [])
   )
+
+  // Ref to avoid stale closure in handleSSE
+  const stepRef = useRef(step)
+
+  // Keep stepRef in sync with step
+  useEffect(() => {
+    stepRef.current = step
+  }, [step])
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -356,6 +373,7 @@ export function OrchestratorPage() {
 
   // Attachments (ad-hoc files for plan generation context)
   const [attachments, setAttachments] = useState<Array<{ name: string; type: string; content: string; size: number }>>([])
+  const [isGeneratingSpec, setIsGeneratingSpec] = useState(false)  // Tarefa 9.1
 
   // ── Persist session on state changes ───────────────────────────────────
   useEffect(() => {
@@ -401,7 +419,7 @@ export function OrchestratorPage() {
 
     api.bridgeArtifacts.readAll(resumeOutputId, projectPath).then((artifacts) => {
       const plan = artifacts.filter((a) =>
-        ["plan.json", "contract.md", "task.spec.md"].includes(a.filename)
+        ["plan.json", "contract.md", "task.spec.md", "task_spec.md"].includes(a.filename)
       )
       const specs = artifacts.filter((a) =>
         a.filename.endsWith(".spec.ts") || a.filename.endsWith(".spec.tsx") || a.filename.endsWith(".test.ts") || a.filename.endsWith(".test.tsx")
@@ -496,6 +514,14 @@ export function OrchestratorPage() {
       }
     })
   }, [])
+
+  // ── Debug: Monitor specArtifacts state changes ─────────────────────────
+  useEffect(() => {
+    console.log('[DEBUG] specArtifacts state changed:', specArtifacts.length, 'artifacts')
+    if (specArtifacts.length > 0) {
+      console.log('[DEBUG] specArtifacts filenames:', specArtifacts.map(a => a.filename))
+    }
+  }, [specArtifacts])
 
   // ── SSE events ─────────────────────────────────────────────────────────
   const addLog = useCallback((type: string, text: string) => {
@@ -623,7 +649,7 @@ export function OrchestratorPage() {
         case "agent:bridge_plan_done": {
           const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
           const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
-          setPlanArtifacts(artifacts)
+          setPlanArtifacts(Array.isArray(artifacts) ? artifacts : [])
           markComplete(0)
           markComplete(1)
           // Only advance to step 2 if we're currently before it (prevent reverting from later steps during reconciliation)
@@ -633,6 +659,39 @@ export function OrchestratorPage() {
           pipelineProgressRef.current = 25
           addLog("success", `Plano gerado: ${event.outputId} (${artifacts.length} artefatos${tokens ? `, ${tokens.inputTokens.toLocaleString()} tokens` : ""})`)
           toast.success("Plano gerado com sucesso")
+          break
+        }
+        case "agent:bridge_spec_done": {
+          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
+
+          console.log('[SSE:agent:bridge_spec_done] Received - artifacts count:', artifacts.length)
+
+          // Validate that we actually have artifacts before advancing
+          if (!Array.isArray(artifacts) || artifacts.length === 0) {
+            const errMsg = "Geração de testes falhou: nenhum artefato foi gerado"
+            console.error('[SSE:agent:bridge_spec_done] ❌ No artifacts - NOT advancing step')
+            setError(errMsg)
+            addLog("error", errMsg)
+            toast.error(errMsg)
+            setLoading(false)
+            setIsGeneratingSpec(false)  // Tarefa 9.3 - Clear loading state on error
+            break
+          }
+
+          console.log('[SSE:agent:bridge_spec_done] ✅ Artifacts OK - advancing to step 3')
+          setSpecArtifacts(artifacts)
+          console.log('[SSE:agent:bridge_spec_done] setSpecArtifacts called with:', artifacts.length, 'artifacts')
+          console.log('[SSE:agent:bridge_spec_done] Artifact filenames:', artifacts.map(a => a.filename))
+          markComplete(2)
+          // Only advance to step 3 if we're currently before it (prevent reverting from later steps during reconciliation)
+          setStep((prev) => (prev < 3 ? 3 : prev))
+          setLoading(false)
+          setIsGeneratingSpec(false)  // Tarefa 9.3 - Clear loading state on success
+          pipelineStageRef.current = "validation"
+          pipelineProgressRef.current = 50
+          addLog("success", `Testes gerados: ${artifacts.map((a) => a.filename).join(", ")}${tokens ? ` (${tokens.inputTokens.toLocaleString()} tokens)` : ""}`)
+          toast.success("✅ Testes gerados com sucesso!")  // Tarefa 9.3 - Toast only after completion
           break
         }
         case "agent:bridge_execute_done":
@@ -690,12 +749,13 @@ export function OrchestratorPage() {
             pipelineStatusRef.current = "failed"
             setError(errorMsg)
             setLoading(false)
+            setIsGeneratingSpec(false)  // Tarefa 9.3 - Clear loading state on error
             setExecutionPhase(null)
             setExecutionProgress(null)
 
             // If we have available providers, allow retry with different provider
             if (canRetry && availableProviders && availableProviders.length > 0) {
-              const stepDefault = getDefault(step)
+              const stepDefault = getDefault(stepRef.current)
               const defaultProvider = availableProviders.includes(stepDefault.provider)
                 ? stepDefault.provider
                 : availableProviders[0]
@@ -703,7 +763,7 @@ export function OrchestratorPage() {
               setRetryState({
                 canRetry: true,
                 availableProviders,
-                failedStep: step,
+                failedStep: stepRef.current,
                 selectedProvider: defaultProvider,
                 selectedModel: defaultModel,
               })
@@ -744,12 +804,21 @@ export function OrchestratorPage() {
     } : null,
   )
 
+  // Track if we've already applied reconciliation (avoid replaying events multiple times)
+  const reconciliationAppliedRef = useRef(false)
+
   // Apply reconciliation results when done
   useEffect(() => {
+    // Guard: only run once when reconciliation finishes loading
     if (reconciliation.isLoading) return
+    if (reconciliationAppliedRef.current) return
+    reconciliationAppliedRef.current = true
+
+    console.log('[Reconciliation] Applying reconciliation results (ONE TIME ONLY)')
 
     // Update step/completedSteps from reconciled state
     if (reconciliation.remoteStep !== null && reconciliation.remoteStep > step) {
+      console.log('[Reconciliation] Advancing step from', step, 'to', reconciliation.remoteStep)
       setStep(reconciliation.remoteStep as WizardStep)
     }
     if (reconciliation.remoteCompletedSteps !== null && reconciliation.remoteCompletedSteps.length > completedSteps.size) {
@@ -763,14 +832,22 @@ export function OrchestratorPage() {
     pipelineStageRef.current = reconciliation.pipelineStage
     pipelineProgressRef.current = reconciliation.pipelineProgress
 
-    // Replay missed events through handleSSE to rebuild artifacts/logs
-    for (const evt of reconciliation.missedEvents) {
-      if (evt.payload) {
-        try {
-          handleSSE(JSON.parse(evt.payload))
-        } catch { /* skip unparseable */ }
+    // Wait for state to settle before replaying events (ensures stepRef.current is updated)
+    setTimeout(() => {
+      console.log('[Reconciliation] Replaying', reconciliation.missedEvents.length, 'events (ONE TIME ONLY)')
+      console.log('[Reconciliation] Current step before replay:', stepRef.current)
+
+      // Replay missed events through handleSSE to rebuild artifacts/logs
+      for (const evt of reconciliation.missedEvents) {
+        if (evt.payload) {
+          try {
+            handleSSE(JSON.parse(evt.payload))
+          } catch { /* skip unparseable */ }
+        }
       }
-    }
+
+      console.log('[Reconciliation] ✅ Replay complete')
+    }, 0) // Next tick ensures stepRef.current is updated
 
     // If pipeline already terminated, ensure UI reflects final state
     if (reconciliation.isTerminal) {
@@ -812,6 +889,72 @@ export function OrchestratorPage() {
     return () => clearInterval(interval)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-reload artifacts from disk when missing (e.g., after error that cleared state) ───
+  useEffect(() => {
+    // Only run if:
+    // 1. We have an outputId (active session)
+    // 2. Reconciliation has finished (not loading)
+    // 3. We're missing artifacts (planArtifacts is empty)
+    // 4. We're not already resuming
+    // 5. We don't have resumeOutputId (that's handled by the useEffect above)
+    if (!outputId || reconciliation.isLoading || planArtifacts.length > 0 || resuming || resumeOutputId) {
+      return
+    }
+
+    console.log('[Auto-reload] Detected missing artifacts for outputId:', outputId)
+    console.log('[Auto-reload] Current planArtifacts:', planArtifacts.length, 'specArtifacts:', specArtifacts.length)
+
+    const projectPath = projects.find((p) => p.id === selectedProjectId)?.workspace?.rootPath
+    if (!projectPath) {
+      console.warn('[Auto-reload] No project path found, cannot reload artifacts')
+      return
+    }
+
+    console.log('[Auto-reload] Attempting to reload artifacts from disk...')
+    setResuming(true)
+
+    api.bridgeArtifacts.readAll(outputId, projectPath).then((artifacts) => {
+      console.log('[Auto-reload] Loaded', artifacts.length, 'artifacts from disk')
+
+      const plan = artifacts.filter((a) =>
+        ["plan.json", "contract.md", "task.spec.md", "task_spec.md", "task_prompt.md"].includes(a.filename)
+      )
+      const specs = artifacts.filter((a) =>
+        a.filename.endsWith(".spec.ts") || a.filename.endsWith(".spec.tsx") || a.filename.endsWith(".test.ts") || a.filename.endsWith(".test.tsx")
+      )
+
+      console.log('[Auto-reload] Found', plan.length, 'plan artifacts,', specs.length, 'spec artifacts')
+
+      if (plan.length > 0) {
+        setPlanArtifacts(plan)
+        console.log('[Auto-reload] Restored planArtifacts:', plan.map(a => a.filename))
+
+        // Restore taskDescription from plan.json if available
+        const planJsonArtifact = plan.find((a) => a.filename === "plan.json")
+        if (planJsonArtifact) {
+          try {
+            const parsed = JSON.parse(planJsonArtifact.content)
+            if (parsed.taskPrompt) setTaskDescription(parsed.taskPrompt)
+          } catch { /* plan.json parse failed — keep current taskDescription */ }
+        }
+      }
+
+      if (specs.length > 0) {
+        setSpecArtifacts(specs)
+        console.log('[Auto-reload] Restored specArtifacts:', specs.map(a => a.filename))
+      }
+
+      addLog("info", `Artefatos recuperados automaticamente: ${artifacts.length} arquivo(s)`)
+      toast.success("Artefatos recuperados do disco")
+    }).catch((err) => {
+      console.error('[Auto-reload] Failed to reload artifacts:', err)
+      addLog("error", `Falha ao recarregar artefatos: ${err.message}`)
+      toast.error("Não foi possível recarregar artefatos")
+    }).finally(() => {
+      setResuming(false)
+    })
+  }, [outputId, reconciliation.isLoading, planArtifacts.length, resuming, resumeOutputId, projects, selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Run validation SSE — polls run status inline ──────────────────────
   const validationResolvedRef = useRef(false)
 
@@ -850,7 +993,7 @@ export function OrchestratorPage() {
             // Reset validationStatus so Step 4 doesn't think EXECUTION already passed
             setTimeout(() => {
               setValidationStatus(null)
-              setStep(4)
+              setStep(prev => Math.max(prev, 4)) // Never regress
             }, 1500)
           }
         } else {
@@ -1086,23 +1229,23 @@ export function OrchestratorPage() {
     setError(null)
     setRetryState(null)
     setLoading(true)
+    setIsGeneratingSpec(true)  // Tarefa 9.2 - Set loading state
     addLog("info", "Gerando testes...")
 
     try {
-      const result: StepResult = await apiPost("spec", { outputId, provider: stepLLMs[2]?.provider ?? getDefault(2).provider, model: stepLLMs[2]?.model ?? getDefault(2).model, projectPath: getProjectPath() })
-
-      setSpecArtifacts(result.artifacts || [])
-      markComplete(2)
-      setStep(3)
-      addLog("success", `Testes gerados: ${result.artifacts?.map((a) => a.filename).join(", ")}`)
-      toast.success("Testes gerados com sucesso")
+      // POST returns 202 immediately — spec generation runs in background
+      // Completion is handled by handleSSE when it receives 'agent:bridge_spec_done'
+      await apiPost("spec", { outputId, provider: stepLLMs[2]?.provider ?? getDefault(2).provider, model: stepLLMs[2]?.model ?? getDefault(2).model, projectPath: getProjectPath() })
+      addLog("info", "LLM iniciou geração de testes — aguarde...")
+      // Note: loading stays true, setLoading(false) happens in SSE handler
+      // Note: NO toast.success here - wait for SSE event (Tarefa 9.2)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao gerar testes"
       setError(msg)
       addLog("error", msg)
       toast.error(msg)
-    } finally {
       setLoading(false)
+      setIsGeneratingSpec(false)  // Tarefa 9.2 - Clear loading state on error
     }
   }
 
@@ -1136,7 +1279,8 @@ export function OrchestratorPage() {
 
       const completed = new Set([0, 1, 2])
       setCompletedSteps(completed)
-      setStep(3)
+      console.log('[handleRerunFromDisk] Advancing to step 3 after loading artifacts')
+      setStep(prev => Math.max(prev, 3)) // Never regress
 
       addLog("success", `Artefatos carregados: plan.json + ${contents.specFileName}`)
 
@@ -1185,13 +1329,14 @@ export function OrchestratorPage() {
 
   // ── Step 3: Validate ───────────────────────────────────────────────────
   const handleValidate = async () => {
+    console.log('[handleValidate] Called - step:', stepRef.current, 'outputId:', outputId)
     if (!outputId || !selectedProjectId) return
     setError(null)
     setLoading(true)
     setValidationStatus("RUNNING")
     setRunResults(null)
     validationResolvedRef.current = false
-    addLog("info", "Iniciando validação Gatekeeper...")
+    addLog("info", "Iniciando validação Gatekeeper (Gates 0-1)...")
 
     try {
       if (!Array.isArray(planArtifacts)) {
@@ -1414,7 +1559,7 @@ export function OrchestratorPage() {
       // 202 — LLM starts in background. Completion comes via SSE: agent:bridge_execute_done
       await apiPost("execute", { outputId, projectPath, provider: stepLLMs[4]?.provider ?? getDefault(4).provider, model: stepLLMs[4]?.model ?? getDefault(4).model }, 1)
       markComplete(3)
-      setStep(4)
+      setStep(prev => Math.max(prev, 4)) // Never regress
       addLog("info", "LLM iniciou — acompanhe o progresso abaixo")
       // Note: loading stays true, setLoading(false) happens in SSE handler
     } catch (err) {
@@ -1434,6 +1579,7 @@ export function OrchestratorPage() {
 
   // ── Auto-trigger Gates 2-3 after execute_done (via useEffect to avoid stale closures) ──
   const startExecutionValidation = async () => {
+    console.log('[startExecutionValidation] Called - step:', stepRef.current, 'executeDoneData:', !!executeDoneData)
     if (!outputId || !selectedProjectId) return
 
     setValidationStatus("RUNNING")
@@ -1489,11 +1635,41 @@ export function OrchestratorPage() {
   // ── Auto-load git status when Gates 2-3 pass ──
   useEffect(() => {
     if (step === 4 && validationStatus === "PASSED" && selectedProjectId) {
-      api.git.changedFiles(selectedProjectId).then(setGitChangedFiles).catch(() => setGitChangedFiles([]))
+      // Filter changed files to only show files from the manifest
+      api.git.changedFiles(selectedProjectId).then((allChangedFiles) => {
+        // Get manifest files from plan.json
+        const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+        if (planArtifact) {
+          try {
+            const plan = JSON.parse(planArtifact.content)
+            const manifestFiles = (plan.manifest?.files || []).map((f: any) => f.path)
+
+            // Only show files that are BOTH in manifest AND modified
+            const relevantChanges = allChangedFiles.filter(f =>
+              manifestFiles.includes(f.path)
+            )
+
+            console.log('[Git] All changed files:', allChangedFiles.length)
+            console.log('[Git] Manifest files:', manifestFiles.length)
+            console.log('[Git] Relevant changes (manifest ∩ changed):', relevantChanges.length)
+
+            setGitChangedFiles(relevantChanges)
+          } catch {
+            // If plan.json parsing fails, show all changed files as fallback
+            console.warn('[Git] Failed to parse plan.json, showing all changed files')
+            setGitChangedFiles(allChangedFiles)
+          }
+        } else {
+          // If no plan.json, show all changed files as fallback
+          console.warn('[Git] No plan.json found, showing all changed files')
+          setGitChangedFiles(allChangedFiles)
+        }
+      }).catch(() => setGitChangedFiles([]))
+
       const prov = stepLLMs[4]?.provider ?? "unknown"
       setCommitMessage(`${prov}_${outputId || "unknown"}`)
     }
-  }, [step, validationStatus]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, validationStatus, planArtifacts]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Git commit ────────────────────────────────────────────────────────
   const handleGitCommit = async () => {
@@ -1520,8 +1696,22 @@ export function OrchestratorPage() {
       addLog("success", `Commit: ${result.commitHash.slice(0, 7)} ${result.message}`)
       toast.success("🎉 Commit realizado!")
 
-      // Refresh changed files
-      api.git.changedFiles(selectedProjectId).then(setGitChangedFiles).catch(() => {})
+      // Refresh changed files (filtered by manifest)
+      api.git.changedFiles(selectedProjectId).then((allChangedFiles) => {
+        const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+        if (planArtifact) {
+          try {
+            const plan = JSON.parse(planArtifact.content)
+            const manifestFiles = (plan.manifest?.files || []).map((f: any) => f.path)
+            const relevantChanges = allChangedFiles.filter(f => manifestFiles.includes(f.path))
+            setGitChangedFiles(relevantChanges)
+          } catch {
+            setGitChangedFiles(allChangedFiles)
+          }
+        } else {
+          setGitChangedFiles(allChangedFiles)
+        }
+      }).catch(() => {})
     } catch (err: any) {
       const msg = err?.message || "Erro no commit"
       addLog("error", msg)
@@ -1822,8 +2012,15 @@ export function OrchestratorPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button onClick={handleGenerateSpec} disabled={loading} className="w-full">
-                    {loading ? "Gerando..." : "Gerar Testes →"}
+                  <Button onClick={handleGenerateSpec} disabled={isGeneratingSpec || loading} className="w-full">
+                    {isGeneratingSpec ? (
+                      <>
+                        <Loader2 className="animate-spin mr-2" size={16} />
+                        Gerando testes...
+                      </>
+                    ) : (
+                      "Gerar Testes →"
+                    )}
                   </Button>
                 </CardContent>
                   </Card>
@@ -1838,7 +2035,52 @@ export function OrchestratorPage() {
                   <CardTitle>Artefatos Gerados</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ArtifactViewer artifacts={[...planArtifacts, ...specArtifacts]} />
+                  {(() => {
+                    // Try multiple sources for task prompt (Tarefas 7.2 + 7.3)
+                    const taskPromptArtifact = planArtifacts?.find(a => a.filename === 'task_prompt.md')
+                    const taskPromptContent = taskPromptArtifact?.content?.replace(/^# Task Prompt\n\n/, '') || ''
+                    const displayTaskPrompt =
+                      taskPromptContent ||                          // New format (from task_prompt.md)
+                      taskDescription ||                            // Current session
+                      'Prompt original não disponível (run antiga)' // Fallback
+
+                    return (
+                      <>
+                        {/* Task Prompt - Always visible (Tarefa 7.2) */}
+                        <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <MessageSquare size={16} className="text-muted-foreground" />
+                              <span className="text-sm font-medium">Tarefa Original</span>
+                            </div>
+                            {/* Copy button (Tarefa 7.4) */}
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(displayTaskPrompt)
+                                toast.success('Prompt copiado!')
+                              }}
+                              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              title="Copiar prompt"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          </div>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {displayTaskPrompt}
+                          </p>
+                        </div>
+
+                        {/* Separator */}
+                        <Separator className="mb-4" />
+
+                        {/* Rest of artifacts (plan, contract, spec) */}
+                        <ArtifactViewer artifacts={[
+                          ...(Array.isArray(planArtifacts) ? planArtifacts.filter(a => a.filename !== 'task_prompt.md') : []),
+                          ...(Array.isArray(specArtifacts) ? specArtifacts : [])
+                        ]} />
+                      </>
+                    )
+                  })()}
                 </CardContent>
               </Card>
 

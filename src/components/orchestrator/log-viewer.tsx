@@ -150,8 +150,8 @@ export function LogViewer({ pipelineId, onFiltersChange }: LogViewerProps) {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* Filters */}
-      <div className="shrink-0">
+      {/* Filters - RF-04: shrink-0 prevents this area from scrolling */}
+      <div className="shrink-0" data-testid="filters-area">
         <LogFilters filters={filters} onFiltersChange={handleFiltersChange} />
       </div>
 
@@ -170,8 +170,8 @@ export function LogViewer({ pipelineId, onFiltersChange }: LogViewerProps) {
         </div>
       )}
 
-      {/* Log List */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+      {/* Log List - RF-04: overflow-hidden instead of overflow-y-auto (scroll managed by react-window) */}
+      <div ref={scrollContainerRef} data-testid="log-list-container" className="flex-1 overflow-hidden" style={{ overflow: 'hidden' }}>
         <LogList
           events={displayEvents}
           loading={loading && page === 1}

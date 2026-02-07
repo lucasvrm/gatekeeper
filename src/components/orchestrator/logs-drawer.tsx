@@ -89,16 +89,20 @@ export function LogsDrawer({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - RF-01: z-[100] to cover collapse button */}
       <div
         onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+        data-testid="drawer-backdrop"
+        className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
+        style={{ zIndex: 100 }}
         aria-hidden="true"
       />
 
-      {/* Drawer panel */}
+      {/* Drawer panel - RF-01: z-[110] to be above backdrop */}
       <aside
-        className="fixed right-0 top-0 z-50 h-screen w-full max-w-3xl bg-background shadow-2xl border-l border-border overflow-hidden flex flex-col"
+        data-testid="drawer-panel"
+        className="fixed right-0 top-0 z-[110] h-screen w-full max-w-3xl bg-background shadow-2xl border-l border-border overflow-hidden flex flex-col"
+        style={{ zIndex: 110 }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="logs-drawer-title"

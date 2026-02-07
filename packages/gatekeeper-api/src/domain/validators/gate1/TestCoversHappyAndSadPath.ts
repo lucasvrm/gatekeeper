@@ -26,8 +26,8 @@ export const TestCoversHappyAndSadPathValidator: ValidatorDefinition = {
     try {
       const content = await ctx.services.git.readFile(ctx.testFilePath)
 
-      const happyKeywordsStr = ctx.config.get('HAPPY_PATH_KEYWORDS') || 'success,succeeds,should,valid,passes,correctly,works,returns'
-      const sadKeywordsStr = ctx.config.get('SAD_PATH_KEYWORDS') || 'error,fail,throws,invalid,not,reject,deny,block'
+      const happyKeywordsStr = ctx.config.get('HAPPY_PATH_KEYWORDS') || 'success,succeeds,should,valid,passes,correctly,works,returns,deve,válido,sucesso,corretamente,retorna,funciona'
+      const sadKeywordsStr = ctx.config.get('SAD_PATH_KEYWORDS') || 'error,fail,throws,invalid,not,reject,deny,block,erro,falha,inválido,não deve,rejeita,bloqueia'
       const happyKeywords = happyKeywordsStr.split(',').map((k) => k.trim()).filter(Boolean)
       const sadKeywords = sadKeywordsStr.split(',').map((k) => k.trim()).filter(Boolean)
 

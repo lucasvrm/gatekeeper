@@ -46,6 +46,9 @@ export const API_BASE = "http://localhost:3001/api"
 const CONFIG_BASE = `${API_BASE}/config`
 const AGENT_BASE = `${API_BASE}/agent`
 
+// RF-02: HTTP request timeout for API calls (25 seconds)
+export const HTTP_REQUEST_TIMEOUT = 25000
+
 // Helper to get auth headers
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token')

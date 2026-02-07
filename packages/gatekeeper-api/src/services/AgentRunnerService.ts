@@ -46,6 +46,8 @@ export interface AgentRunOptions {
 }
 
 export class AgentRunnerService {
+  private thinkingStartTime: number | null = null  // Track thinking duration (Tarefa 8.2)
+
   constructor(
     private registry: LLMProviderRegistry,
     private toolExecutor: AgentToolExecutor,
@@ -292,10 +294,26 @@ export class AgentRunnerService {
       // ── LLM Call ────────────────────────────────────────────────────────
 
       const llmStart = Date.now()
+      // Track thinking start time (Tarefa 8.2)
+      if (!this.thinkingStartTime) {
+        this.thinkingStartTime = llmStart
+      }
+
       const heartbeat = setInterval(() => {
+        const thinkingDuration = Date.now() - llmStart
+
+        // Warn if thinking too long (Tarefa 8.2)
+        if (thinkingDuration > 60000) {  // 60s
+          console.warn('[AgentRunner] Extended thinking detected', {
+            duration: thinkingDuration,
+            iteration,
+            step: phase.step,
+          })
+        }
+
         emit({
           type: 'agent:thinking',
-          elapsedMs: Date.now() - llmStart,
+          elapsedMs: thinkingDuration,
           iteration,
         })
       }, 5_000)
@@ -391,6 +409,17 @@ export class AgentRunnerService {
         }
 
         console.log(`[AgentRunner] Step ${phase.step} complete — ${iteration} iterations, ${totalTokens.inputTokens}in/${totalTokens.outputTokens}out tokens`)
+
+        // Check if iterations exceeded reasonable limit (Tarefa 8.3)
+        const MAX_ITERATIONS_WARNING = 10
+        if (iteration > MAX_ITERATIONS_WARNING) {
+          console.warn('[AgentRunner] High iteration count', {
+            iterations: iteration,
+            step: phase.step,
+            projectRoot,
+          })
+        }
+
         emit({ type: 'agent:complete', result })
         return result
       }

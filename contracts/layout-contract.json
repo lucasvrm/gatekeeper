@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:b3020f3a81c563e777093b0de71fd9c5ea68bcc9958cf997785c28488abbe54e",
-    "generatedAt": "2026-02-07T03:08:52.041Z",
+    "hash": "sha256:bc73cfbc92434b368a9c7981073bb654d7d01ee28c6de46d5fb2a785acbb6d58",
+    "generatedAt": "2026-02-07T06:18:37.318Z",
     "pageCount": 2
   },
   "structure": {
@@ -736,15 +736,15 @@
     },
     "fontSizes": {
       "2xs": {
-        "value": 10,
+        "value": 8,
         "unit": "px"
       },
       "xs": {
-        "value": 11,
+        "value": 10,
         "unit": "px"
       },
       "sm": {
-        "value": 12.5,
+        "value": 11.5,
         "unit": "px"
       },
       "md": {
@@ -752,27 +752,27 @@
         "unit": "px"
       },
       "lg": {
-        "value": 15.5,
+        "value": 12.5,
         "unit": "px"
       },
       "xl": {
-        "value": 18,
+        "value": 16,
         "unit": "px"
       },
       "2xl": {
-        "value": 21,
+        "value": 19,
         "unit": "px"
       },
       "3xl": {
-        "value": 26,
+        "value": 22,
         "unit": "px"
       },
       "4xl": {
-        "value": 34,
+        "value": 30,
         "unit": "px"
       },
       "5xl": {
-        "value": 44,
+        "value": 40,
         "unit": "px"
       }
     },
