@@ -3,7 +3,7 @@ import { join, dirname, basename, isAbsolute, relative, resolve } from 'node:pat
 import PQueue from 'p-queue'
 import { prisma } from '../db/client.js'
 import { GATES_CONFIG, CONTRACT_GATE_NUMBERS, EXECUTION_GATE_NUMBERS } from '../config/gates.config.js'
-import type { ValidationContext, GateDefinition, ManifestInput, ContractInput, UIContracts, UIRegistryContract, LayoutContract, OrquiLock, Microplan, MicroplansDocument } from '../types/index.js'
+import type { ValidationContext, GateDefinition, ManifestInput, ContractInput, UIContracts, UIRegistryContract, LayoutContract, OrquiLock, Microplan } from '../types/index.js'
 import { GitService } from './GitService.js'
 import { ASTService } from './ASTService.js'
 import { TestRunnerService } from './TestRunnerService.js'
@@ -436,35 +436,14 @@ export class ValidationOrchestrator {
       }
     }
 
-    // Load microplan from artifacts directory
+    // Load microplan from run (passed by AgentOrchestratorBridge)
     let microplan: Microplan | null = null
-    if (run.outputId) {
-      let artifactsDir = 'artifacts'
-      if (run.projectId) {
-        const project = await prisma.project.findUnique({
-          where: { id: run.projectId },
-          include: { workspace: true },
-        })
-        if (project?.workspace?.artifactsDir) {
-          artifactsDir = project.workspace.artifactsDir
-        }
-      }
-
-      const microplansPath = join(run.projectPath, artifactsDir, run.outputId, 'microplans.json')
-      if (existsSync(microplansPath)) {
-        try {
-          const microplansContent = readFileSync(microplansPath, 'utf-8')
-          const microplansDoc = JSON.parse(microplansContent) as MicroplansDocument
-
-          // For now, use the first microplan (single-microplan validation)
-          // TODO: Support multi-microplan validation with depends_on resolution
-          if (microplansDoc.microplans && microplansDoc.microplans.length > 0) {
-            microplan = microplansDoc.microplans[0]
-            console.log(`[buildContext] Loaded microplan: ${microplan.id} (goal: ${microplan.goal})`)
-          }
-        } catch (error) {
-          console.warn('[buildContext] Failed to parse microplans.json:', error)
-        }
+    if (run.microplanJson) {
+      try {
+        microplan = JSON.parse(run.microplanJson) as Microplan
+        console.log(`[buildContext] Loaded microplan from run: ${microplan.id} (goal: ${microplan.goal})`)
+      } catch (error) {
+        console.warn('[buildContext] Failed to parse microplanJson from run:', error)
       }
     }
 

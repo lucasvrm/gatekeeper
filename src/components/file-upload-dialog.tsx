@@ -182,7 +182,7 @@ export function FileUploadDialog({
         <div className="space-y-4">
           {/* Plan.json Upload */}
           <div>
-            <Label className="mb-2 block">plan.json</Label>
+            <Label className="mb-2 block">Plan (microplans.json ou plan.json)</Label>
             <div
               className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
                 dragOverPlan ? 'border-primary bg-primary/5' : 'border-border'
@@ -223,7 +223,7 @@ export function FileUploadDialog({
                 <div className="text-center">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground mb-2">
-                    Arraste o plan.json aqui ou clique para procurar
+                    Arraste o arquivo de plan aqui ou clique para procurar
                   </p>
                   <input
                     ref={planInputRef}

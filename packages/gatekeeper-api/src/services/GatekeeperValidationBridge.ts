@@ -42,6 +42,8 @@ export interface PipelineValidationInput {
   manifestJson?: string
   /** Pre-parsed contract JSON */
   contractJson?: string
+  /** Current microplan being executed (JSON string of Microplan object) */
+  microplanJson?: string
   /** Explicit test file path (absolute) */
   testFilePath?: string
 }
@@ -144,6 +146,7 @@ export class GatekeeperValidationBridge {
         manifestJson,
         testFilePath: testFilePath.replace(/\\/g, '/'),
         contractJson: contractJson || null,
+        microplanJson: input.microplanJson || null,
         contractRunId: input.contractRunId || null,
         dangerMode: false,
         runType: input.runType,

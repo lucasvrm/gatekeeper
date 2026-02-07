@@ -86,8 +86,8 @@ export function ArtifactsInput({ projectId, onArtifactsLoaded, onError }: Artifa
         inputMode: "upload",
       })
     } catch (error) {
-      console.error("Failed to parse plan.json:", error)
-      onError?.("plan.json invalido")
+      console.error("Failed to parse plan artifact:", error)
+      onError?.("Plan artifact inválido (esperado: microplans.json ou plan.json)")
     }
   }, [planContent, specContent, specFileName, onArtifactsLoaded, onError])
 

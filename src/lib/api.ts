@@ -1412,6 +1412,19 @@ export const api = {
       return response.json()
     },
 
+    /** Cancel an ongoing agent execution */
+    cancel: async (outputId: string): Promise<{ cancelled: boolean; outputId: string }> => {
+      const response = await fetchWithAuth(`${AGENT_BASE}/bridge/cancel/${outputId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || `Failed to cancel execution: ${outputId}`)
+      }
+      return response.json()
+    },
+
     /** Load all artifact contents for an outputId */
     readAll: async (outputId: string, projectPath?: string): Promise<Array<{ filename: string; content: string }>> => {
       const listing = await api.bridgeArtifacts.list(outputId, projectPath)

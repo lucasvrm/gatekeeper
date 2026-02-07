@@ -457,7 +457,7 @@ export const USER_MESSAGE_PLACEHOLDERS: Record<number, Array<{ name: string; des
 }
 
 export const PIPELINE_STEPS: Record<number, { name: string; description: string }> = {
-  1: { name: 'Planner', description: 'Gera plan.json, contract.md, task.spec.md' },
+  1: { name: 'Planner', description: 'Gera microplans.json, contract.md, task_prompt.md' },
   2: { name: 'Spec Writer', description: 'Gera o arquivo de teste (.spec.ts)' },
   3: { name: 'Fixer', description: 'Corrige artifacts rejeitados pelo Gatekeeper' },
   4: { name: 'Coder', description: 'Implementa o código para passar os testes' },

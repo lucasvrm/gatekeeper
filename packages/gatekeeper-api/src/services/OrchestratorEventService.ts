@@ -985,6 +985,40 @@ class OrchestratorEventServiceClass extends EventEmitter {
     this.eventBuffer.delete(outputId)
   }
 
+  /**
+   * Immediately clear buffer for an outputId and notify SSE clients.
+   * Use this when agent execution stops (error, cancel, or completion)
+   * to prevent stale events from being replayed.
+   *
+   * @param outputId Pipeline output ID
+   * @param reason Optional reason for clearing (e.g., 'error', 'cancelled', 'completed')
+   */
+  clearBufferImmediately(outputId: string, reason?: string) {
+    const buffer = this.eventBuffer.get(outputId)
+
+    if (!buffer || buffer.length === 0) {
+      log.debug({ outputId, reason }, 'Buffer already empty, nothing to clear')
+      return
+    }
+
+    const evictedCount = buffer.length
+    this.eventBuffer.delete(outputId)
+
+    log.info({ outputId, evictedCount, reason }, 'Buffer cleared immediately')
+
+    // Notify SSE clients that buffer was cleared
+    this.emit('orchestrator-event', {
+      outputId,
+      event: {
+        type: 'orchestrator:buffer_cleared',
+        outputId,
+        reason: reason || 'execution_stopped',
+        evictedEvents: evictedCount,
+      },
+      seq: ++this.seq,
+    })
+  }
+
   // ─── Filtering ────────────────────────────────────────────────────────────
 
   /**

@@ -87,6 +87,7 @@ model ValidationRun {
   contractRunId   String?
   contractRun     ValidationRun?  @relation("ExecutionToContract", fields: [contractRunId], references: [id])
   contractJson    String?
+  microplanJson   String?
   commitHash      String?
   commitMessage   String?
   committedAt     DateTime?

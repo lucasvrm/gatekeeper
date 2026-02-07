@@ -85,6 +85,8 @@ function generateOutputId(taskDescription: string): string {
 // ─── Controller ────────────────────────────────────────────────────────────
 
 export class BridgeController {
+  // Track active executions for cancellation
+  private static activeExecutions = new Map<string, AbortController>()
   /**
    * POST /agent/bridge/discovery
    *
@@ -109,6 +111,10 @@ export class BridgeController {
 
     const emit = makeEmitter(outputId)
 
+    // Create AbortController for cancellation support
+    const controller = new AbortController()
+    BridgeController.activeExecutions.set(outputId, controller)
+
     // Return immediately so the client can connect SSE
     res.status(202).json({
       outputId,
@@ -120,7 +126,7 @@ export class BridgeController {
       try {
         const result = await bridge.generateDiscovery(
           { taskDescription, projectPath, profileId, provider, model, outputId },
-          { onEvent: emit },
+          { onEvent: emit, signal: controller.signal },
         )
 
         // Emit completion with full result
@@ -142,6 +148,11 @@ export class BridgeController {
             error: (err as Error).message,
           })
         }
+      } finally {
+        // Clean up event buffer immediately (prevent stale events from being replayed)
+        OrchestratorEventService.clearBufferImmediately(outputId, 'discovery_stopped')
+        // Clean up AbortController
+        BridgeController.activeExecutions.delete(outputId)
       }
     })
   }
@@ -170,6 +181,10 @@ export class BridgeController {
 
     const emit = makeEmitter(outputId)
 
+    // Create AbortController for cancellation support
+    const controller = new AbortController()
+    BridgeController.activeExecutions.set(outputId, controller)
+
     // Return immediately so the client can connect SSE
     res.status(202).json({
       outputId,
@@ -181,7 +196,7 @@ export class BridgeController {
       try {
         const result = await bridge.generatePlan(
           { taskDescription, projectPath, taskType, profileId, provider, model, outputId, attachments, discoveryReportContent },
-          { onEvent: emit },
+          { onEvent: emit, signal: controller.signal },
         )
 
         // Emit completion with full result
@@ -203,6 +218,11 @@ export class BridgeController {
             error: (err as Error).message,
           })
         }
+      } finally {
+        // Clean up event buffer immediately (prevent stale events from being replayed)
+        OrchestratorEventService.clearBufferImmediately(outputId, 'plan_stopped')
+        // Clean up AbortController
+        BridgeController.activeExecutions.delete(outputId)
       }
     })
   }
@@ -231,6 +251,10 @@ export class BridgeController {
     const bridge = getBridge()
     const emit = makeEmitter(outputId)
 
+    // Create AbortController for cancellation support
+    const controller = new AbortController()
+    BridgeController.activeExecutions.set(outputId, controller)
+
     // Return immediately so the client can connect SSE
     res.status(202).json({
       outputId,
@@ -242,7 +266,7 @@ export class BridgeController {
       try {
         const result = await bridge.generateSpec(
           { outputId, projectPath, profileId, provider, model },
-          { onEvent: emit },
+          { onEvent: emit, signal: controller.signal },
         )
 
         // Validate that we have artifacts before emitting success
@@ -275,6 +299,11 @@ export class BridgeController {
             error: (err as Error).message,
           })
         }
+      } finally {
+        // Clean up event buffer immediately (prevent stale events from being replayed)
+        OrchestratorEventService.clearBufferImmediately(outputId, 'spec_stopped')
+        // Clean up AbortController
+        BridgeController.activeExecutions.delete(outputId)
       }
     })
   }
@@ -354,6 +383,10 @@ export class BridgeController {
     const bridge = getBridge()
     const emit = makeEmitter(outputId)
 
+    // Create AbortController for cancellation support
+    const controller = new AbortController()
+    BridgeController.activeExecutions.set(outputId, controller)
+
     // Return immediately so the client doesn't timeout
     res.status(202).json({
       outputId,
@@ -366,7 +399,7 @@ export class BridgeController {
       try {
         const result = await bridge.execute(
           { outputId, projectPath, provider, model },
-          { onEvent: emit },
+          { onEvent: emit, signal: controller.signal },
         )
 
         OrchestratorEventService.emitOrchestratorEvent(outputId, {
@@ -384,6 +417,11 @@ export class BridgeController {
             error: (err as Error).message,
           })
         }
+      } finally {
+        // Clean up event buffer immediately (prevent stale events from being replayed)
+        OrchestratorEventService.clearBufferImmediately(outputId, 'execute_stopped')
+        // Clean up AbortController
+        BridgeController.activeExecutions.delete(outputId)
       }
     })
   }
@@ -855,5 +893,48 @@ export class BridgeController {
         error: `Artifact not found: ${outputId}/${filename}`,
       })
     }
+  }
+
+  /**
+   * POST /agent/bridge/cancel/:outputId
+   *
+   * Cancels an ongoing agent execution.
+   * Returns: 200 { cancelled: true } or 404 if not found
+   */
+  async cancelExecution(req: Request, res: Response): Promise<void> {
+    const { outputId } = req.params
+
+    if (!outputId) {
+      res.status(400).json({ error: 'outputId is required' })
+      return
+    }
+
+    const controller = BridgeController.activeExecutions.get(outputId)
+
+    if (!controller) {
+      res.status(404).json({
+        error: 'No active execution found for this outputId',
+        outputId,
+      })
+      return
+    }
+
+    console.log(`[Bridge] Cancelling execution: ${outputId}`)
+    controller.abort()
+
+    // Emit cancellation event via SSE
+    OrchestratorEventService.emitOrchestratorEvent(outputId, {
+      type: 'agent:cancelled',
+      outputId,
+      reason: 'User requested cancellation',
+    })
+
+    // Clean up immediately
+    BridgeController.activeExecutions.delete(outputId)
+
+    res.json({
+      cancelled: true,
+      outputId,
+    })
   }
 }

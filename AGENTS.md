@@ -7,11 +7,13 @@ Este documento define as regras que a LLM executora deve seguir ao implementar m
 ## Overview
 
 Gatekeeper é um **serviço de API** que valida um "run" através de uma sequência de **gates**.
-Um run é criado enviando os inputs (task prompt + manifest + test path) para a API.
+Um run é criado enviando os inputs (task prompt + microplans) para a API.
 Gatekeeper então executa **validators** que reforçam mudanças test-driven e scope-safe.
 
-- A LLM (web chat) produz os inputs (taskPrompt/manifest/test) e o conteúdo do arquivo de teste.
+- A LLM produz os inputs (taskPrompt/microplans) e os arquivos de implementação.
 - Gatekeeper avalia esses artefatos via seus **21 validators**.
+
+**Nota**: A arquitetura antiga (manifest + contract) foi substituída por **microplans** - planos atômicos que contêm arquivos e critérios de verificação distribuídos.
 
 ---
 
@@ -43,11 +45,11 @@ Executa **Gate 2** e **Gate 3**:
 
 | # | Regra |
 |---|-------|
-| 1 | Todos os arquivos no diff devem estar declarados no manifest |
+| 1 | Todos os arquivos no diff devem estar declarados no microplan |
 | 2 | Diff é obtido via `ctx.services.git.getDiffFiles(baseRef, targetRef)` |
-| 3 | Arquivos do manifest são extraídos como `Set(manifest.files.map(f => f.path))` |
-| 4 | Violações são arquivos presentes no diff mas ausentes no manifest |
-| 5 | Quando `manifest` é null, retorna `FAILED` |
+| 3 | Arquivos do microplan são extraídos como `Set(microplan.files.map(f => f.path))` |
+| 4 | Violações são arquivos presentes no diff mas ausentes no microplan |
+| 5 | Quando `microplan` é null, retorna `FAILED` |
 
 ---
 
@@ -99,8 +101,8 @@ Executa **Gate 2** e **Gate 3**:
 
 | # | Regra |
 |---|-------|
-| 1 | Arquivos do manifest são verificados com ESLint |
-| 2 | Quando `manifest` é null, retorna `SKIPPED` |
+| 1 | Arquivos do microplan são verificados com ESLint |
+| 2 | Quando `microplan` é null, retorna `SKIPPED` |
 | 3 | Configs ESLint procurados: `eslint.config.js`, `eslint.config.mjs`, `eslint.config.cjs`, `.eslintrc.js`, `.eslintrc.json`, `.eslintrc` |
 | 4 | Quando não há config ESLint, retorna `SKIPPED` |
 | 5 | Apenas arquivos com extensão `.ts`, `.tsx`, `.js`, `.jsx` são lintados |
@@ -158,7 +160,8 @@ Executa **Gate 2** e **Gate 3**:
 
 | Termo | Definição |
 |-------|-----------|
-| **manifest** | Lista explícita de arquivos permitidos para mudança (e motivo), mais o caminho canônico do arquivo de teste |
+| **microplan** | Plano atômico contendo goal, arquivos (files[]), critérios de verificação (verify) e dependências |
+| **microplans** | Array de microplans que substituem o manifest/contract monolítico - execution atômica e dependency-aware |
 | **taskPrompt** | Definição da tarefa em linguagem natural, usada como referência para escopo e intenção |
 | **CONTRACT run** | Verifica se a tarefa está bem formada e os testes são significativos e alinhados |
 | **EXECUTION run** | Verifica se a implementação permanece dentro do escopo e passa nos gates de execução |
@@ -167,6 +170,8 @@ Executa **Gate 2** e **Gate 3**:
 | **Hard Block** | Validator que bloqueia o pipeline quando falha |
 | **Soft Gate** | Validator que emite WARNING mas permite o pipeline continuar |
 | **Cláusula Pétrea** | Regra imutável que não pode ser desabilitada (TEST_FAILS_BEFORE_IMPLEMENTATION) |
+| **manifest** | ⚠️ DEPRECATED - Use microplan.files[] ao invés |
+| **contract** | ⚠️ DEPRECATED - Use microplan.verify ao invés |
 
 ---
 

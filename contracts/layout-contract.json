@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:e0d1e9aff631685ffbc07b03a491dc081203158a1d2fc3bb6f9e3a5396291242",
-    "generatedAt": "2026-02-07T10:16:29.013Z",
+    "hash": "sha256:753b69e16681ffa5ab44a0fe156e2e4f24799cc6605268e46eebf1d2a41ea5f2",
+    "generatedAt": "2026-02-07T17:53:58.046Z",
     "pageCount": 2
   },
   "structure": {
@@ -392,43 +392,43 @@
         "label": "Dashboard",
         "route": "/",
         "description": "Visão geral de workspaces, projetos e validações",
-        "browserTitle": "Dashboard / Gatekeeper"
+        "browserTitle": "Dashboard - Gatekeeper"
       },
       "runs": {
         "label": "Runs de Validação",
         "route": "/runs",
         "description": "Ver e gerenciar todas as runs de validação",
-        "browserTitle": "Runs de Validação / Gatekeeper"
+        "browserTitle": "Runs de Validação - Gatekeeper"
       },
       "new-validation": {
         "label": "Nova Validação",
         "route": "/runs/new",
         "description": "Carregue o plano e o teste",
-        "browserTitle": "Nova Validação / Gatekeeper"
+        "browserTitle": "Nova Validação - Gatekeeper"
       },
       "gates": {
         "label": "Validation Gates",
         "route": "/gates",
         "description": "Visão geral de todos os validation gates e seus validators",
-        "browserTitle": "Validation Gates / Gatekeeper"
+        "browserTitle": "Validation Gates - Gatekeeper"
       },
       "workspaces": {
         "label": "Workspaces",
         "route": "/workspaces",
         "description": "Gerenciar workspaces de validação",
-        "browserTitle": "Workspaces / Gatekeeper"
+        "browserTitle": "Workspaces - Gatekeeper"
       },
       "projects": {
         "label": "Projects",
         "route": "/projects",
         "description": "Gerenciar projetos de validação",
-        "browserTitle": "Projects / Gatekeeper"
+        "browserTitle": "Projects - Gatekeeper"
       },
       "config": {
         "label": "Config",
         "route": "/config",
         "description": "Configurações gerais do Gatekeeper",
-        "browserTitle": "Config / Gatekeeper"
+        "browserTitle": "Config - Gatekeeper"
       },
       "orchestrator": {
         "label": "Orchestrator",
@@ -439,7 +439,7 @@
             "maxWidth": "none"
           }
         },
-        "browserTitle": "Orchestrator / Gatekeeper"
+        "browserTitle": "Orchestrator - Gatekeeper"
       }
     },
     "contentLayout": {

@@ -134,6 +134,7 @@ export type AgentEvent =
   | { type: 'agent:budget_warning'; usedTokens: number; budgetTokens: number; percentUsed: number }
   | { type: 'agent:budget_exceeded'; usedTokens: number; budgetTokens: number }
   | { type: 'agent:complete'; result: AgentResult }
+  | { type: 'agent:cancelled'; reason: string; outputId?: string }
   | { type: 'agent:fallback'; from: string; to: string; reason: string }
   | { type: 'agent:fallback_unavailable'; from: string; to: string; reason: string; availableProviders: ProviderName[]; originalError: string }
   | { type: 'agent:error'; error: string; availableProviders?: ProviderName[]; canRetry?: boolean }
@@ -141,6 +142,10 @@ export type AgentEvent =
   | { type: 'agent:bridge_start'; step: number; outputId?: string }
   | { type: 'agent:bridge_complete'; step: number; outputId: string; artifactNames: string[] }
   | { type: 'agent:validation_warning'; step: number; warnings: string[] }
+  // Microplan execution events (individual microplan lifecycle)
+  | { type: 'agent:microplan_start'; microplanId: string; goal: string }
+  | { type: 'agent:microplan_complete'; microplanId: string }
+  | { type: 'agent:microplan_failed'; microplanId: string; failedValidators: string[] }
 
 // ─── Agent Result ────────────────────────────────────────────────────────────
 

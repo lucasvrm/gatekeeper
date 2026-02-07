@@ -43,6 +43,7 @@ export interface AgentRunOptions {
   tools: ToolDefinition[]
   projectRoot: string
   onEvent?: (event: AgentEvent) => void
+  signal?: AbortSignal
 }
 
 export class AgentRunnerService {
@@ -291,6 +292,13 @@ export class AgentRunnerService {
     while (iteration < phase.maxIterations) {
       iteration++
 
+      // ── Check cancellation ──────────────────────────────────────────────
+      if (options.signal?.aborted) {
+        const error = new Error('Agent execution cancelled by user')
+        emit({ type: 'agent:cancelled', reason: 'User requested cancellation' })
+        throw error
+      }
+
       // ── LLM Call ────────────────────────────────────────────────────────
 
       const llmStart = Date.now()
@@ -331,6 +339,16 @@ export class AgentRunnerService {
           }, LLM_TIMEOUT_MS)
         })
 
+        // Abort promise: rejects immediately when signal is aborted
+        const abortPromise = new Promise<never>((_, reject) => {
+          if (options.signal?.aborted) {
+            reject(new Error('Agent execution cancelled by user'))
+          }
+          options.signal?.addEventListener('abort', () => {
+            reject(new Error('Agent execution cancelled by user'))
+          })
+        })
+
         response = await Promise.race([
           llm.chat({
             model: phase.model,
@@ -344,6 +362,7 @@ export class AgentRunnerService {
             onEvent: emit,
           }),
           timeoutPromise,
+          abortPromise,
         ])
       } finally {
         clearInterval(heartbeat)

@@ -21,18 +21,22 @@ import { AgentToolExecutor, READ_TOOLS, WRITE_TOOLS, SAVE_ARTIFACT_TOOL } from '
 import { AgentRunnerService } from './AgentRunnerService.js'
 import { AgentPromptAssembler } from './AgentPromptAssembler.js'
 import { ArtifactValidationService } from './ArtifactValidationService.js'
+import { GatekeeperValidationBridge } from './GatekeeperValidationBridge.js'
 import type {
   PhaseConfig,
   AgentEvent,
   AgentResult,
   ProviderName,
   TokenUsage,
+  Microplan,
+  MicroplansDocument,
 } from '../types/agent.types.js'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface BridgeCallbacks {
   onEvent?: (event: AgentEvent) => void
+  signal?: AbortSignal
 }
 
 /** Mirrors gatekeeper-orchestrator GeneratePlanInput */
@@ -79,6 +83,8 @@ export interface BridgeExecuteInput {
   projectPath: string
   provider?: ProviderName
   model?: string
+  /** Enable individual microplan execution (default: true) */
+  individualExecution?: boolean
 }
 
 export interface BridgeExecuteOutput {
@@ -197,6 +203,7 @@ export class AgentOrchestratorBridge {
       tools,
       projectRoot: input.projectPath,
       onEvent: emit,
+      signal: callbacks.signal,
     })
 
     // Collect artifacts from tool executor
@@ -354,6 +361,7 @@ export class AgentOrchestratorBridge {
       tools,
       projectRoot: input.projectPath,
       onEvent: emit,
+      signal: callbacks.signal,
     })
 
     // Collect artifacts
@@ -549,6 +557,7 @@ Example:
           tools,
           projectRoot: input.projectPath,
           onEvent: emit,
+          signal: callbacks.signal,
         }),
         timeoutPromise
       ])
@@ -698,6 +707,49 @@ Example:
       )
     }
 
+    // ✅ NEW: Individual microplan execution (default behavior)
+    if (input.individualExecution !== false) {
+      const microplansJson = existingArtifacts['microplans.json']
+      if (microplansJson) {
+        console.log('[Bridge:Execute] Using individual microplan execution')
+        const microplansDoc = JSON.parse(microplansJson) as MicroplansDocument
+
+        await this.executeIndividualMicroplans(microplansDoc, input, emit)
+
+        // Re-read artifacts from disk (microplans may have generated new files)
+        const finalArtifacts = await this.readArtifactsFromDisk(input.outputId, input.projectPath)
+        const artifacts = Object.entries(finalArtifacts).map(([filename, content]) => ({
+          filename,
+          content,
+        }))
+
+        emit({
+          type: 'agent:bridge_complete',
+          step: 4,
+          outputId: input.outputId,
+          artifactNames: artifacts.map((a) => a.filename),
+        } as AgentEvent)
+
+        // Return aggregated result (tokens/iterations will be accumulated in future)
+        return {
+          artifacts,
+          tokensUsed: { inputTokens: 0, outputTokens: 0 }, // TODO: accumulate from individual runs
+          agentResult: {
+            text: 'Individual microplan execution completed',
+            tokensUsed: { inputTokens: 0, outputTokens: 0 },
+            iterations: 0,
+            provider: input.provider || 'unknown',
+            model: input.model || 'unknown',
+          },
+        }
+      } else {
+        console.log('[Bridge:Execute] No microplans.json found, falling back to monolithic execution')
+      }
+    } else {
+      console.log('[Bridge:Execute] Individual execution disabled, using monolithic execution')
+    }
+
+    // Fallback: monolithic execution (backward compatibility)
     const phase = await this.resolvePhaseConfig(4, input.provider, input.model)
     const basePrompt = await this.assembler.assembleForStep(4)
     const sessionContext = await this.fetchSessionContext()
@@ -736,6 +788,7 @@ Example:
       tools,
       projectRoot: input.projectPath,
       onEvent: emit,
+      signal: callbacks.signal,
     })
 
     // Coder may save artifacts too (e.g. implementation notes)
@@ -869,6 +922,7 @@ Example:
       tools,
       projectRoot: input.projectPath,
       onEvent: emit,
+      signal: callbacks.signal,
     })
 
     console.log('[Bridge:Fix] LLM finished — iterations:', result.iterations)
@@ -2377,6 +2431,304 @@ Example:
     } catch (error) {
       return `[Error fetching rejection report: ${(error as Error).message}]`
     }
+  }
+
+  /**
+   * Ordena microplans respeitando depends_on (topological sort).
+   * Detecta dependências circulares e lança erro se encontrada.
+   */
+  private topologicalSort(microplans: Microplan[]): Microplan[] {
+    const sorted: Microplan[] = []
+    const visited = new Set<string>()
+    const visiting = new Set<string>()
+
+    const visit = (mp: Microplan) => {
+      if (visited.has(mp.id)) return
+      if (visiting.has(mp.id)) {
+        throw new BridgeError(
+          `Circular dependency detected: ${mp.id}`,
+          'CIRCULAR_DEPENDENCY',
+          { microplanId: mp.id }
+        )
+      }
+
+      visiting.add(mp.id)
+
+      for (const depId of mp.depends_on) {
+        const dep = microplans.find(m => m.id === depId)
+        if (!dep) {
+          throw new BridgeError(
+            `Dependency not found: ${depId} (required by ${mp.id})`,
+            'DEPENDENCY_NOT_FOUND',
+            { microplanId: mp.id, dependencyId: depId }
+          )
+        }
+        visit(dep)
+      }
+
+      visiting.delete(mp.id)
+      visited.add(mp.id)
+      sorted.push(mp)
+    }
+
+    for (const mp of microplans) {
+      visit(mp)
+    }
+
+    return sorted
+  }
+
+  /**
+   * Valida um microplan individual usando GatekeeperValidationBridge.
+   * Retorna resultado da validação incluindo validators que falharam.
+   */
+  private async validateMicroplan(
+    microplan: Microplan,
+    outputId: string,
+    projectPath: string
+  ): Promise<{ passed: boolean; failedValidators: string[] }> {
+    const bridge = new GatekeeperValidationBridge()
+
+    try {
+      const result = await bridge.validate({
+        outputId,
+        projectPath,
+        taskDescription: microplan.goal,
+        runType: 'EXECUTION',
+        microplanJson: JSON.stringify(microplan), // ✅ Passa microplan específico
+      })
+
+      return {
+        passed: result.passed,
+        failedValidators: result.failedValidatorCodes, // ✅ Já vem como string[]
+      }
+    } catch (error) {
+      throw new BridgeError(
+        `Failed to validate microplan ${microplan.id}: ${(error as Error).message}`,
+        'VALIDATION_ERROR',
+        { microplanId: microplan.id, originalError: String(error) }
+      )
+    }
+  }
+
+  /**
+   * Executa microplans sequencialmente, respeitando depends_on.
+   * Cada microplan é validado individualmente antes de prosseguir.
+   * Se algum microplan falhar na validação, o pipeline é abortado.
+   */
+  private async executeIndividualMicroplans(
+    microplansDoc: MicroplansDocument,
+    input: BridgeExecuteInput,
+    emit: (event: AgentEvent) => void
+  ): Promise<void> {
+    const { microplans } = microplansDoc
+    const completed = new Set<string>()
+
+    // Ordena microplans por depends_on (topological sort)
+    let sorted: Microplan[]
+    try {
+      sorted = this.topologicalSort(microplans)
+    } catch (error) {
+      // Erro de dependência circular ou não encontrada
+      emit({
+        type: 'agent:error',
+        error: (error as Error).message,
+      } as AgentEvent)
+      throw error
+    }
+
+    console.log('[Bridge:ExecuteIndividual] Sorted microplans:', sorted.map(mp => mp.id).join(', '))
+
+    // Executa cada microplan sequencialmente
+    for (const microplan of sorted) {
+      console.log(`[Bridge:ExecuteIndividual] Starting microplan: ${microplan.id}`)
+
+      emit({
+        type: 'agent:microplan_start',
+        microplanId: microplan.id,
+        goal: microplan.goal,
+      } as AgentEvent)
+
+      try {
+        // 1. Executar implementação do microplan
+        await this.executeMicroplan(microplan, input, emit)
+
+        // 2. Validar microplan individual
+        console.log(`[Bridge:ExecuteIndividual] Validating microplan: ${microplan.id}`)
+        const validationResult = await this.validateMicroplan(
+          microplan,
+          input.outputId,
+          input.projectPath
+        )
+
+        if (!validationResult.passed) {
+          // Validação falhou — abortar pipeline
+          console.error(`[Bridge:ExecuteIndividual] Microplan ${microplan.id} failed validation`)
+          console.error('[Bridge:ExecuteIndividual] Failed validators:', validationResult.failedValidators)
+
+          emit({
+            type: 'agent:microplan_failed',
+            microplanId: microplan.id,
+            failedValidators: validationResult.failedValidators,
+          } as AgentEvent)
+
+          throw new BridgeError(
+            `Microplan ${microplan.id} failed validation`,
+            'MICROPLAN_VALIDATION_FAILED',
+            {
+              microplanId: microplan.id,
+              failedValidators: validationResult.failedValidators,
+            }
+          )
+        }
+
+        // Validação passou — marcar como completo
+        completed.add(microplan.id)
+        console.log(`[Bridge:ExecuteIndividual] Microplan ${microplan.id} completed successfully`)
+
+        emit({
+          type: 'agent:microplan_complete',
+          microplanId: microplan.id,
+        } as AgentEvent)
+
+      } catch (error) {
+        // Erro durante execução ou validação
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorCode = error instanceof BridgeError ? error.code : 'MICROPLAN_EXECUTION_ERROR'
+
+        console.error(`[Bridge:ExecuteIndividual] Error in microplan ${microplan.id}:`, errorMessage)
+
+        emit({
+          type: 'agent:error',
+          error: errorMessage,
+        } as AgentEvent)
+
+        // Re-throw para abortar pipeline
+        if (error instanceof BridgeError) {
+          throw error
+        }
+
+        throw new BridgeError(
+          `Failed to execute microplan ${microplan.id}: ${errorMessage}`,
+          errorCode,
+          { microplanId: microplan.id, originalError: errorMessage }
+        )
+      }
+    }
+
+    console.log('[Bridge:ExecuteIndividual] All microplans completed successfully')
+    console.log('[Bridge:ExecuteIndividual] Completed microplans:', Array.from(completed).join(', '))
+  }
+
+  /**
+   * Executa a implementação de um microplan específico.
+   * Similar ao execute() mas focado em um único microplan.
+   */
+  private async executeMicroplan(
+    microplan: Microplan,
+    input: BridgeExecuteInput,
+    emit: (event: AgentEvent) => void
+  ): Promise<void> {
+    const phase = await this.resolvePhaseConfig(4, input.provider, input.model)
+    const systemPrompt = await this.assembleMicroplanPrompt(microplan, input, phase)
+
+    const toolExecutor = new AgentToolExecutor()
+    await toolExecutor.loadSafetyConfig()
+    const runner = new AgentRunnerService(this.registry, toolExecutor)
+
+    // Monta userMessage focado no microplan
+    const userMessage = this.buildMicroplanUserMessage(microplan, input.outputId)
+
+    let tools = [...READ_TOOLS, ...WRITE_TOOLS, SAVE_ARTIFACT_TOOL]
+
+    if (this.isCliProvider(phase)) {
+      // CLI providers usam suas próprias tools built-in
+      tools = []
+    }
+
+    const result = await runner.run({
+      phase,
+      systemPrompt,
+      userMessage,
+      tools,
+      projectRoot: input.projectPath,
+      onEvent: emit,
+    })
+
+    // Persiste artifacts gerados (se houver)
+    if (toolExecutor.getArtifacts().size > 0) {
+      await this.persistArtifacts(
+        toolExecutor.getArtifacts(),
+        input.outputId,
+        input.projectPath
+      )
+    }
+  }
+
+  /**
+   * Monta system prompt focado em um microplan específico.
+   * Usa base prompt do step 4 + contexto do microplan.
+   */
+  private async assembleMicroplanPrompt(
+    microplan: Microplan,
+    input: BridgeExecuteInput,
+    phase: PhaseConfig
+  ): Promise<string> {
+    // Base prompt do step 4 (Execute)
+    const basePrompt = await this.assembler.assembleForStep(4)
+    const sessionContext = await this.fetchSessionContext()
+    let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
+
+    // Adiciona contexto específico do microplan
+    const microplanContext = [
+      `\n## Current Microplan`,
+      `You are implementing microplan: ${microplan.id}`,
+      `Goal: ${microplan.goal}`,
+      ``,
+      `Files to modify:`,
+      ...microplan.files.map(f => `  - ${f.action} ${f.path}: ${f.what}`),
+      ``,
+      `Verification: ${microplan.verify}`,
+    ].join('\n')
+
+    systemPrompt += microplanContext
+
+    // CLI providers: append instruções específicas
+    if (this.isCliProvider(phase)) {
+      const cliAppend = await this.assembler.getCliSystemAppend(4, {})
+      systemPrompt += cliAppend
+        ? `\n\n${cliAppend}`
+        : `\n\nIMPORTANT: Implement the code changes using your Write and Edit tools. Run tests using Bash.`
+    }
+
+    return systemPrompt
+  }
+
+  /**
+   * Monta user message focado em um microplan específico.
+   */
+  private buildMicroplanUserMessage(microplan: Microplan, outputId: string): string {
+    const filesBlock = microplan.files
+      .map(f => `- **${f.action}** \`${f.path}\`: ${f.what}`)
+      .join('\n')
+
+    return [
+      `## Microplan: ${microplan.id}`,
+      `**Goal**: ${microplan.goal}`,
+      ``,
+      `## Files to Modify`,
+      filesBlock,
+      ``,
+      `## Verification`,
+      microplan.verify,
+      ``,
+      `## Instructions`,
+      `1. Implement the changes described above`,
+      `2. Ensure all files are created/modified correctly`,
+      `3. Run tests to verify the implementation`,
+      ``,
+      `Output ID: ${outputId}`,
+    ].join('\n')
   }
 }
 

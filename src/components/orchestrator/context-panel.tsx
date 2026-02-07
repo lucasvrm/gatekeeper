@@ -171,7 +171,7 @@ function PanelContent(props: ContextPanelProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Revalidar artefatos existentes</p>
-              <p className="text-xs text-muted-foreground">Pular geração — usar plan.json + spec do disco. Zero tokens.</p>
+              <p className="text-xs text-muted-foreground">Pular geração — usar artifacts do disco (microplans.json ou plan.json). Zero tokens.</p>
             </div>
             <Button
               variant="outline"

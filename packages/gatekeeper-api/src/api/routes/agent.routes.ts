@@ -330,6 +330,14 @@ router.get('/bridge/artifacts/:outputId/:filename', async (req, res, next) => {
   }
 })
 
+router.post('/bridge/cancel/:outputId', async (req, res, next) => {
+  try {
+    await bridgeCtrl.cancelExecution(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
 // ─── Runs: Observability ──────────────────────────────────────────────────
 
 router.get('/runs', async (req, res, next) => {

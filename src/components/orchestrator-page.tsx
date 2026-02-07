@@ -32,7 +32,24 @@ import type {
   StepLLMConfig,
   OrchestratorSession,
   PlannerSubstep,
+  Artifact,
 } from "./orchestrator/types"
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Plan artifact with fallback
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Helper: busca plan artifact com fallback para microplans.json
+ * Prioriza microplans.json (novo formato), fallback para plan.json (backward compat)
+ */
+function getPlanArtifact(artifacts: Artifact[]) {
+  const microplans = artifacts.find((a) => a.filename === "microplans.json")
+  if (microplans) return microplans
+
+  const plan = artifacts.find((a) => a.filename === "plan.json")
+  return plan
+}
 import {
   SESSION_TTL_MS,
   SESSION_KEY_PREFIX,
@@ -42,7 +59,7 @@ import {
 import { StepIndicator } from "./orchestrator/step-indicator"
 import { ArtifactViewer } from "./orchestrator/artifact-viewer"
 import { ContextPanel } from "./orchestrator/context-panel"
-import { OrchestratorHeader } from "./orchestrator/orchestrator-header"
+import { OrchestratorHeader, type AgentStatus } from "./orchestrator/orchestrator-header"
 import { LogsDrawer } from "./orchestrator/logs-drawer"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -211,6 +228,9 @@ export function OrchestratorPage() {
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [resuming, setResuming] = useState(false)
+
+  // Agent status tracking
+  const [agentStatus, setAgentStatus] = useState<AgentStatus>({ status: 'idle' })
   const [debugMode, setDebugMode] = useState(false)
   const debugModeRef = useRef(debugMode)
   debugModeRef.current = debugMode
@@ -218,6 +238,12 @@ export function OrchestratorPage() {
     const saved = localStorage.getItem('gk-logs-drawer-open')
     return saved === 'true'
   })
+
+  // ── Log utility (defined early so other callbacks can use it) ─────────────
+  const addLog = useCallback((type: string, text: string) => {
+    const time = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    setLogs((prev) => [...prev, { time, type, text }])
+  }, [])
 
   // Persist logs drawer state
   useEffect(() => {
@@ -579,10 +605,21 @@ export function OrchestratorPage() {
   }, [specArtifacts])
 
   // ── SSE events ─────────────────────────────────────────────────────────
-  const addLog = useCallback((type: string, text: string) => {
-    const time = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-    setLogs((prev) => [...prev, { time, type, text }])
-  }, [])
+
+  // Kill agent execution
+  const handleKillAgent = useCallback(async () => {
+    if (!outputId) return
+
+    try {
+      await api.bridgeArtifacts.cancel(outputId)
+      toast.success('Agent cancelado com sucesso')
+      setAgentStatus({ status: 'cancelled' })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao cancelar agent'
+      toast.error(msg)
+      addLog('error', msg)
+    }
+  }, [outputId, addLog])
 
   const handleSSE = useCallback(
     (event: OrchestratorEvent) => {
@@ -619,6 +656,62 @@ export function OrchestratorPage() {
             thinkingSeconds: Math.round(((event as any).elapsedMs ?? 0) / 1000),
             iteration: (event as any).iteration ?? prev.iteration,
           } : prev)
+        }
+      }
+
+      // ── Update agent status ──
+      if (event.type === "agent:start") {
+        console.log('[AgentStatus] agent:start', event)
+        setAgentStatus({
+          status: 'running',
+          provider: String(event.provider),
+          model: String(event.model),
+          step: event.step,
+          iteration: 0,
+          tokensUsed: { inputTokens: 0, outputTokens: 0 },
+          elapsedMs: 0,
+          isTerminal: false,
+        })
+      } else if (event.type === "agent:iteration") {
+        console.log('[AgentStatus] agent:iteration', event)
+        // Ignore stale iteration events after terminal state (error/cancelled)
+        setAgentStatus(prev => {
+          if (prev.isTerminal) {
+            console.log('[AgentStatus] Ignoring stale agent:iteration (terminal state)')
+            return prev
+          }
+          return {
+            ...prev,
+            status: 'running',
+            iteration: Number(event.iteration ?? 0),
+            tokensUsed: {
+              inputTokens: Number((event.tokensUsed as any)?.inputTokens ?? 0),
+              outputTokens: Number((event.tokensUsed as any)?.outputTokens ?? 0),
+            },
+          }
+        })
+      } else if (event.type === "agent:complete" || event.type === "agent:bridge_plan_done" || event.type === "agent:bridge_spec_done" || event.type === "agent:bridge_execute_done" || event.type === "agent:bridge_discovery_done") {
+        setAgentStatus({ status: 'idle', isTerminal: false })
+      } else if (event.type === "agent:cancelled") {
+        setAgentStatus({ status: 'cancelled', isTerminal: true })
+      } else if (event.type === "agent:error") {
+        setAgentStatus({ status: 'error', isTerminal: true })
+      }
+
+      // ── Guard: Ignore stale "work in progress" events after terminal state ──
+      const staleEventTypes = ["agent:text", "agent:thinking", "agent:iteration", "agent:tool_call", "agent:tool_result"]
+      if (staleEventTypes.includes(event.type)) {
+        // Check current agentStatus synchronously via functional setState
+        let shouldIgnore = false
+        setAgentStatus(prev => {
+          if (prev.isTerminal) {
+            shouldIgnore = true
+          }
+          return prev
+        })
+        if (shouldIgnore) {
+          console.log(`[SSE] Ignoring stale ${event.type} (terminal state)`)
+          return // Skip processing this event
         }
       }
 
@@ -692,6 +785,18 @@ export function OrchestratorPage() {
         case "agent:fallback":
           addLog("warning", `🔄 Fallback: ${(event as any).from} → ${(event as any).to} (${(event as any).reason})`)
           break
+        case "agent:microplan_start":
+          addLog("info", `📋 Iniciando microplan: ${(event as any).goal || (event as any).microplanId}`)
+          break
+        case "agent:microplan_complete":
+          addLog("info", `✅ Microplan concluído: ${(event as any).microplanId}`)
+          break
+        case "agent:microplan_failed": {
+          const failedValidators = (event as any).failedValidators as string[] | undefined
+          const validatorsStr = failedValidators?.join(", ") || "unknown"
+          addLog("error", `❌ Microplan falhou: ${(event as any).microplanId} (${validatorsStr})`)
+          break
+        }
         case "agent:complete": {
           const r = (event as any).result
           if (debug && r) {
@@ -702,7 +807,11 @@ export function OrchestratorPage() {
           break
         }
         case "agent:bridge_discovery_done": {
-          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          // Normalize artifacts: convert object to array if needed
+          let artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          if (!Array.isArray(artifacts) && typeof artifacts === 'object') {
+            artifacts = Object.values(artifacts)
+          }
           const reportArtifact = artifacts.find(a => a.filename === 'discovery_report.md')
 
           if (reportArtifact) {
@@ -719,7 +828,11 @@ export function OrchestratorPage() {
           break
         }
         case "agent:bridge_plan_done": {
-          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          // Normalize artifacts: convert object to array if needed (backend may send object with numeric keys)
+          let artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          if (!Array.isArray(artifacts) && typeof artifacts === 'object') {
+            artifacts = Object.values(artifacts)
+          }
           const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
 
           // ✅ VALIDATE before advancing
@@ -763,7 +876,11 @@ export function OrchestratorPage() {
           break
         }
         case "agent:bridge_spec_done": {
-          const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          // Normalize artifacts: convert object to array if needed
+          let artifacts = (event.artifacts ?? []) as ParsedArtifact[]
+          if (!Array.isArray(artifacts) && typeof artifacts === 'object') {
+            artifacts = Object.values(artifacts)
+          }
           const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
 
           console.log('[SSE:agent:bridge_spec_done] Received - artifacts:', artifacts)
@@ -1077,13 +1194,13 @@ export function OrchestratorPage() {
         setPlanArtifacts(plan)
         console.log('[Auto-reload] Restored planArtifacts:', plan.map(a => a.filename))
 
-        // Restore taskDescription from plan.json if available
-        const planJsonArtifact = plan.find((a) => a.filename === "plan.json")
+        // Restore taskDescription from plan artifact if available
+        const planJsonArtifact = getPlanArtifact(plan)
         if (planJsonArtifact) {
           try {
             const parsed = JSON.parse(planJsonArtifact.content)
             if (parsed.taskPrompt) setTaskDescription(parsed.taskPrompt)
-          } catch { /* plan.json parse failed — keep current taskDescription */ }
+          } catch { /* plan artifact parse failed — keep current taskDescription */ }
         }
       }
 
@@ -1346,6 +1463,7 @@ export function OrchestratorPage() {
     setError(null)
     setRetryState(null)
     setLoading(true)
+    setLogsDrawerOpen(false) // Close drawer when starting plan
     addLog("info", "Gerando plano...")
 
     try {
@@ -1401,6 +1519,7 @@ export function OrchestratorPage() {
   const handleGenerateDiscovery = async () => {
     setError(null)
     setLoading(true)
+    setLogsDrawerOpen(false) // Close drawer when starting discovery
     setPlannerSubstep('discovery')
     addLog("info", "Gerando discovery report...")
 
@@ -1471,7 +1590,7 @@ export function OrchestratorPage() {
       // 1. Read artifacts from disk via API
       const contents = await api.artifacts.getContents(selectedProjectId, oid)
 
-      if (!contents.planJson) throw new Error("plan.json não encontrado no disco")
+      if (!contents.planJson) throw new Error("plan artifact (microplans.json ou plan.json) não encontrado no disco")
       if (!contents.specContent || !contents.specFileName) throw new Error("Spec file não encontrado no disco")
 
       const plan = contents.planJson as LLMPlanOutput
@@ -1497,7 +1616,7 @@ export function OrchestratorPage() {
       const manifest = extractManifest(plan, contents.specFileName)
       const contract = plan.contract || undefined
 
-      if (manifest.files.length === 0) throw new Error("plan.json não contém arquivos (manifest.files, files_to_create, ou files_to_modify)")
+      if (manifest.files.length === 0) throw new Error("plan artifact não contém arquivos (manifest.files, files_to_create, ou files_to_modify)")
 
       setValidationStatus("RUNNING")
       setRunResults(null)
@@ -1551,8 +1670,8 @@ export function OrchestratorPage() {
       if (!Array.isArray(planArtifacts)) {
         throw new Error("Artefatos do plano corrompidos. Reinicie o fluxo.")
       }
-      const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
-      if (!planArtifact) throw new Error("plan.json não encontrado")
+      const planArtifact = getPlanArtifact(planArtifacts)
+      if (!planArtifact) throw new Error("plan artifact (microplans.json ou plan.json) não encontrado")
 
       const plan = JSON.parse(planArtifact.content)
 
@@ -1560,12 +1679,12 @@ export function OrchestratorPage() {
 
       if (manifest.files.length === 0) {
         throw new Error(
-          "plan.json não contém arquivos. " +
+          "plan artifact não contém arquivos. " +
           "Verifique se o plano inclui 'manifest.files', 'files_to_create', ou 'files_to_modify'."
         )
       }
 
-      // Extract contract from plan.json if present (used by TestClauseMappingValid)
+      // Extract contract from plan artifact if present (used by TestClauseMappingValid)
       const contract = plan.contract || undefined
 
       const response = await api.runs.create({
@@ -1801,8 +1920,8 @@ export function OrchestratorPage() {
       if (!Array.isArray(planArtifacts)) {
         throw new Error("Artefatos do plano corrompidos. Reinicie o fluxo.")
       }
-      const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
-      if (!planArtifact) throw new Error("plan.json não encontrado")
+      const planArtifact = getPlanArtifact(planArtifacts)
+      if (!planArtifact) throw new Error("plan artifact (microplans.json ou plan.json) não encontrado")
 
       const plan = JSON.parse(planArtifact.content)
       const files = plan.manifest?.files || plan.files || []
@@ -1847,8 +1966,8 @@ export function OrchestratorPage() {
     if (step === 4 && validationStatus === "PASSED" && selectedProjectId) {
       // Filter changed files to only show files from the manifest
       api.git.changedFiles(selectedProjectId).then((allChangedFiles) => {
-        // Get manifest files from plan.json
-        const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+        // Get manifest files from plan artifact
+        const planArtifact = getPlanArtifact(planArtifacts)
         if (planArtifact) {
           try {
             const plan = JSON.parse(planArtifact.content)
@@ -1865,13 +1984,13 @@ export function OrchestratorPage() {
 
             setGitChangedFiles(relevantChanges)
           } catch {
-            // If plan.json parsing fails, show all changed files as fallback
-            console.warn('[Git] Failed to parse plan.json, showing all changed files')
+            // If plan artifact parsing fails, show all changed files as fallback
+            console.warn('[Git] Failed to parse plan artifact, showing all changed files')
             setGitChangedFiles(allChangedFiles)
           }
         } else {
-          // If no plan.json, show all changed files as fallback
-          console.warn('[Git] No plan.json found, showing all changed files')
+          // If no plan artifact, show all changed files as fallback
+          console.warn('[Git] No plan artifact found, showing all changed files')
           setGitChangedFiles(allChangedFiles)
         }
       }).catch(() => setGitChangedFiles([]))
@@ -1891,7 +2010,7 @@ export function OrchestratorPage() {
       if (commitMode === "all") {
         await api.git.add(selectedProjectId)
       } else if (Array.isArray(planArtifacts)) {
-        const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+        const planArtifact = getPlanArtifact(planArtifacts)
         if (planArtifact) {
           const plan = JSON.parse(planArtifact.content)
           const manifestFiles = (plan.manifest?.files || []).map((f: any) => f.path)
@@ -1908,7 +2027,7 @@ export function OrchestratorPage() {
 
       // Refresh changed files (filtered by manifest)
       api.git.changedFiles(selectedProjectId).then((allChangedFiles) => {
-        const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+        const planArtifact = getPlanArtifact(planArtifacts)
         if (planArtifact) {
           try {
             const plan = JSON.parse(planArtifact.content)
@@ -1964,7 +2083,7 @@ export function OrchestratorPage() {
   // ── Manifest file paths (for commit mode comparison) ──────────────────
   const manifestFilePaths: string[] = (() => {
     if (!Array.isArray(planArtifacts)) return []
-    const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
+    const planArtifact = getPlanArtifact(planArtifacts)
     if (!planArtifact) return []
     try {
       const plan = JSON.parse(planArtifact.content)
@@ -1982,11 +2101,12 @@ export function OrchestratorPage() {
         step={step}
         completedSteps={completedSteps}
         onStepClick={handleStepClick}
-        taskDescription={taskDescription}
         outputId={outputId}
         onReset={handleReset}
         loading={loading}
         plannerSubstep={plannerSubstep}
+        agentStatus={agentStatus}
+        onKillAgent={handleKillAgent}
       />
 
       {/* Session controls (resume only — reset moved to header) */}
