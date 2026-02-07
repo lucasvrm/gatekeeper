@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { COLORS, s } from "../lib/constants";
 import { Field, Row, Section, ColorInput } from "../components/shared";
-import { PhosphorSvg, getPhosphorPath } from "../components/PhosphorIcons";
+import { LucideSvg } from "../components/LucideIcons";
 
 // ============================================================================
 // Gradient Editor — visual color stops + angle + raw CSS
@@ -151,9 +151,9 @@ function LogoMiniPreview({ gLogo, scale = 1 }: { gLogo: any; scale?: number }) {
       <div style={{ display: "inline-flex", alignItems: "center", gap }}>
         {gLogo.iconUrl ? (
           <img src={gLogo.iconUrl} alt="" style={{ height: iconSz, objectFit: "contain" as const }} />
-        ) : icon.startsWith("ph:") ? (() => {
-          const p = getPhosphorPath(icon.slice(3));
-          return p ? <PhosphorSvg d={typeof p === "string" ? p : p.fg} dBg={typeof p === "object" ? p.bg : undefined} size={iconSz} color={typo.color || COLORS.text} /> : null;
+        ) : (icon.startsWith("ph:") || icon.startsWith("lucide:")) ? (() => {
+          const iconName = icon.replace(/^(lucide:|ph:)/, "");
+          return <LucideSvg name={iconName} size={iconSz} color={typo.color || COLORS.text} />;
         })() : (
           <span style={{ fontSize: iconSz }}>{icon}</span>
         )}
@@ -371,7 +371,7 @@ export function LoginPageEditor({ config, onChange, globalLogo }: LoginPageEdito
 
         {(bg.type === "solid" || !bg.type) && (
           <Field label="Cor de Fundo">
-            <ColorInput value={bg.color || "#111113"} onChange={(v) => update("background", "color", v)} />
+            <ColorInput value={bg.color || "#111113"} onChange={(v) => update("background", "color", v)} tokens={tokens} />
           </Field>
         )}
 
@@ -414,7 +414,7 @@ export function LoginPageEditor({ config, onChange, globalLogo }: LoginPageEdito
 
         {bg.type === "image" && (
           <Field label="Overlay (rgba)">
-            <ColorInput value={bg.overlay || ""} onChange={(v) => update("background", "overlay", v)} />
+            <ColorInput value={bg.overlay || ""} onChange={(v) => update("background", "overlay", v)} tokens={tokens} />
           </Field>
         )}
       </Section>
@@ -453,10 +453,10 @@ export function LoginPageEditor({ config, onChange, globalLogo }: LoginPageEdito
         </Row>
         <Row>
           <Field label="Background" style={{ flex: 1 }}>
-            <ColorInput value={card.background || ""} onChange={(v) => update("card", "background", v)} />
+            <ColorInput value={card.background || ""} onChange={(v) => update("card", "background", v)} tokens={tokens} />
           </Field>
           <Field label="Border Color" style={{ flex: 1 }}>
-            <ColorInput value={card.borderColor || ""} onChange={(v) => update("card", "borderColor", v)} />
+            <ColorInput value={card.borderColor || ""} onChange={(v) => update("card", "borderColor", v)} tokens={tokens} />
           </Field>
         </Row>
         <Row>
@@ -494,14 +494,14 @@ export function LoginPageEditor({ config, onChange, globalLogo }: LoginPageEdito
       <Section title="Cores dos Inputs" defaultOpen={false} id="login-inputs">
         <Row>
           <Field label="Background" style={{ flex: 1 }}>
-            <ColorInput value={inputs.background || ""} onChange={(v) => update("inputs", "background", v)} />
+            <ColorInput value={inputs.background || ""} onChange={(v) => update("inputs", "background", v)} tokens={tokens} />
           </Field>
           <Field label="Border Color" style={{ flex: 1 }}>
-            <ColorInput value={inputs.borderColor || ""} onChange={(v) => update("inputs", "borderColor", v)} />
+            <ColorInput value={inputs.borderColor || ""} onChange={(v) => update("inputs", "borderColor", v)} tokens={tokens} />
           </Field>
         </Row>
         <Field label="Focus Border Color">
-          <ColorInput value={inputs.focusBorderColor || ""} onChange={(v) => update("inputs", "focusBorderColor", v)} />
+          <ColorInput value={inputs.focusBorderColor || ""} onChange={(v) => update("inputs", "focusBorderColor", v)} tokens={tokens} />
         </Field>
         <div style={s.infoBox}>
           Tipografia, padding, border-radius e placeholder herdam de <strong style={{ color: COLORS.accent }}>Cores &gt; input-bg / input-border</strong> e tokens globais.
@@ -512,14 +512,14 @@ export function LoginPageEditor({ config, onChange, globalLogo }: LoginPageEdito
       <Section title="Cores do Botao" defaultOpen={false} id="login-button">
         <Row>
           <Field label="Background" style={{ flex: 1 }}>
-            <ColorInput value={button.background || ""} onChange={(v) => update("button", "background", v)} />
+            <ColorInput value={button.background || ""} onChange={(v) => update("button", "background", v)} tokens={tokens} />
           </Field>
           <Field label="Text Color" style={{ flex: 1 }}>
-            <ColorInput value={button.color || ""} onChange={(v) => update("button", "color", v)} />
+            <ColorInput value={button.color || ""} onChange={(v) => update("button", "color", v)} tokens={tokens} />
           </Field>
         </Row>
         <Field label="Hover Background">
-          <ColorInput value={button.hoverBackground || ""} onChange={(v) => update("button", "hoverBackground", v)} />
+          <ColorInput value={button.hoverBackground || ""} onChange={(v) => update("button", "hoverBackground", v)} tokens={tokens} />
         </Field>
         <div style={s.infoBox}>
           Tipografia e dimensoes herdam de <strong style={{ color: COLORS.accent }}>Cores &gt; accent</strong> e tokens globais.
@@ -530,10 +530,10 @@ export function LoginPageEditor({ config, onChange, globalLogo }: LoginPageEdito
       <Section title="Cores dos Links" defaultOpen={false} id="login-links">
         <Row>
           <Field label="Cor" style={{ flex: 1 }}>
-            <ColorInput value={links.color || ""} onChange={(v) => update("links", "color", v)} />
+            <ColorInput value={links.color || ""} onChange={(v) => update("links", "color", v)} tokens={tokens} />
           </Field>
           <Field label="Hover Color" style={{ flex: 1 }}>
-            <ColorInput value={links.hoverColor || ""} onChange={(v) => update("links", "hoverColor", v)} />
+            <ColorInput value={links.hoverColor || ""} onChange={(v) => update("links", "hoverColor", v)} tokens={tokens} />
           </Field>
         </Row>
       </Section>

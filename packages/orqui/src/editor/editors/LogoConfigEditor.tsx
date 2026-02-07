@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { COLORS, s, GOOGLE_FONTS } from "../lib/constants";
 import { Field, Row } from "../components/shared";
-import { IconPicker } from "../components/PhosphorIcons";
+import { IconPicker } from "../components/LucideIcons";
 import { loadGoogleFont } from "../hooks/useGoogleFont";
 
 // ============================================================================

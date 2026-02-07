@@ -2,10 +2,11 @@
 // Orqui Runtime — AppShell (Layout Orchestrator)
 // ============================================================================
 import React, { useState, useEffect } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import type { Tokens, RegionConfig, SeparatorConfig } from "../types.js";
 import { resolveTokenRef } from "../tokens.js";
-import { PHOSPHOR_SVG_PATHS } from "../icons.js";
+import { PHOSPHOR_SVG_PATHS, LUCIDE_ICON_REGISTRY } from "../icons.js";
 import { resolvePageKey, resolvePageLayout } from "../utils.js";
 import { useContract } from "../context.js";
 import { LogoRenderer } from "./Logo.js";
@@ -216,6 +217,36 @@ export function AppShell({
     </button>
   ) : null;
 
+  // Helper to render Lucide icon as SVG string for favicon
+  const renderLucideIconSvg = (iconName: string, color: string = "white"): string | null => {
+    // Remove lucide: prefix if present
+    let name = iconName;
+    if (name.startsWith("lucide:")) {
+      name = name.slice(7);
+    }
+
+    // Try to get the icon component from registry
+    const IconComponent = LUCIDE_ICON_REGISTRY[name];
+    if (!IconComponent) {
+      return null;
+    }
+
+    // Render the icon component to static markup (SVG string)
+    try {
+      const svgMarkup = renderToStaticMarkup(
+        React.createElement(IconComponent, {
+          size: 24,
+          color,
+          strokeWidth: 2,
+        })
+      );
+      return svgMarkup;
+    } catch (error) {
+      console.error(`[AppShell] Failed to render Lucide icon "${name}" for favicon:`, error);
+      return null;
+    }
+  };
+
   // Inject favicon
   useEffect(() => {
     if (!faviconConfig || faviconConfig.type === "none") return;
@@ -231,7 +262,19 @@ export function AppShell({
     } else if (faviconConfig.type === "emoji" && faviconConfig.emoji) {
       let svg: string;
       const fillColor = faviconConfig.color || "white";
-      if (faviconConfig.emoji.startsWith("ph:")) {
+
+      // Handle Lucide icons
+      if (faviconConfig.emoji.startsWith("lucide:")) {
+        const lucideSvg = renderLucideIconSvg(faviconConfig.emoji, fillColor);
+        if (lucideSvg) {
+          svg = lucideSvg;
+        } else {
+          // Fallback if icon not found
+          svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">?</text></svg>`;
+        }
+      }
+      // Handle legacy Phosphor icons (deprecated)
+      else if (faviconConfig.emoji.startsWith("ph:")) {
         const phPath = PHOSPHOR_SVG_PATHS[faviconConfig.emoji.slice(3)];
         if (phPath) {
           // Check if this is a duotone icon (object with bg and fg)
@@ -243,9 +286,12 @@ export function AppShell({
         } else {
           svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">?</text></svg>`;
         }
-      } else {
+      }
+      // Handle emoji
+      else {
         svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${faviconConfig.emoji}</text></svg>`;
       }
+
       link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
       link.type = "image/svg+xml";
     }
@@ -279,7 +325,7 @@ export function AppShell({
       background: sidebar?.background ? String(resolve(sidebar.background) ?? "var(--sidebar)") : "var(--sidebar)",
       borderRight: "1px solid var(--sidebar-border)",
       transition: "width 0.2s ease, min-width 0.2s ease",
-      overflow: "hidden",
+      overflow: "visible",
       boxSizing: "border-box",
     }}>
       {/* Sidebar header — full-width, own padding */}
@@ -322,19 +368,27 @@ export function AppShell({
       {/* Nav area — own padding from sidebar config */}
       <nav data-orqui-sidebar-nav="" style={{
         flex: 1,
-        overflow: sidebar.behavior?.scrollable ? "auto" : "hidden",
+        overflow: sidebar.behavior?.scrollable ? "auto" : "visible",
         display: "flex",
         flexDirection: "column",
-        gap: String(resolve("$tokens.spacing.2xs") ?? "2px"),
+        gap: String(resolve("$tokens.spacing.xs") ?? "4px"),
         padding: collapsed
-          ? `${String(resolve("$tokens.spacing.sm") ?? "8px")} 4px`
+          ? `${navPad.top}px 4px ${navPad.bottom}px 4px`
           : `${navPad.top}px ${navPad.right}px ${navPad.bottom}px ${navPad.left}px`,
         ...(collapsed ? { alignItems: "center" } : {}),
       }}>
         {collapsed ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "center", width: "100%" }}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              alignItems: "center",
+              width: "100%",
+            }}
             data-orqui-collapsed="true"
             data-orqui-collapsed-display={collapsedDisplay}
+            data-orqui-icon-enhanced="true"
           >
             {effectiveNav}
           </div>

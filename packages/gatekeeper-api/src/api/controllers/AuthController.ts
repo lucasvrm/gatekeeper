@@ -40,6 +40,8 @@ export class AuthController {
       const user = await prisma.user.create({
         data: {
           email: normalizedEmail,
+          firstName: input.firstName,
+          lastName: input.lastName,
           passwordHash,
         },
       })
@@ -48,6 +50,8 @@ export class AuthController {
         user: {
           id: user.id,
           email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
         },
       })
     } catch (error) {
@@ -114,6 +118,8 @@ export class AuthController {
         user: {
           id: user.id,
           email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
         },
       })
     } catch (error) {
@@ -159,6 +165,8 @@ export class AuthController {
         select: {
           id: true,
           email: true,
+          firstName: true,
+          lastName: true,
         },
       })
 
@@ -175,6 +183,8 @@ export class AuthController {
         user: {
           id: user.id,
           email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
         },
       })
     } catch (error) {

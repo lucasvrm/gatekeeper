@@ -275,15 +275,15 @@ export function LayoutSections({ layout, registry, setLayout, setRegistry }: { l
                 </Row>
                 <Row>
                   <Field label="Thumb Color">
-                    <ColorInput value={sb.thumbColor || "rgba(255,255,255,0.08)"} onChange={(v) => updateSb({ thumbColor: v })} />
+                    <ColorInput value={sb.thumbColor || "rgba(255,255,255,0.08)"} onChange={(v) => updateSb({ thumbColor: v })} tokens={tokens} />
                   </Field>
                   <Field label="Thumb Hover">
-                    <ColorInput value={sb.thumbHoverColor || "rgba(255,255,255,0.15)"} onChange={(v) => updateSb({ thumbHoverColor: v })} />
+                    <ColorInput value={sb.thumbHoverColor || "rgba(255,255,255,0.15)"} onChange={(v) => updateSb({ thumbHoverColor: v })} tokens={tokens} />
                   </Field>
                 </Row>
                 <Row>
                   <Field label="Track Color">
-                    <ColorInput value={sb.trackColor || "transparent"} onChange={(v) => updateSb({ trackColor: v })} />
+                    <ColorInput value={sb.trackColor || "transparent"} onChange={(v) => updateSb({ trackColor: v })} tokens={tokens} />
                   </Field>
                 </Row>
               </>
@@ -385,10 +385,10 @@ export function LayoutSections({ layout, registry, setLayout, setRegistry }: { l
                 </Row>
                 <Row>
                   <Field label="Base Color">
-                    <ColorInput value={sk.baseColor || "rgba(255,255,255,0.05)"} onChange={(v) => updateSk({ baseColor: v })} />
+                    <ColorInput value={sk.baseColor || "rgba(255,255,255,0.05)"} onChange={(v) => updateSk({ baseColor: v })} tokens={tokens} />
                   </Field>
                   <Field label="Highlight Color">
-                    <ColorInput value={sk.highlightColor || "rgba(255,255,255,0.10)"} onChange={(v) => updateSk({ highlightColor: v })} />
+                    <ColorInput value={sk.highlightColor || "rgba(255,255,255,0.10)"} onChange={(v) => updateSk({ highlightColor: v })} tokens={tokens} />
                   </Field>
                 </Row>
                 <Row>

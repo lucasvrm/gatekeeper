@@ -4,6 +4,60 @@
 import type { CSSProperties, ComponentType } from "react";
 
 // ============================================================================
+// Icon Types
+// ============================================================================
+
+// Top 300 Lucide icons (type-safe union)
+export type LucideTop300 =
+  | "Activity" | "Airplay" | "AlarmClock" | "AlertCircle" | "AlertOctagon" | "AlertTriangle"
+  | "Archive" | "ArrowDown" | "ArrowDownCircle" | "ArrowDownLeft" | "ArrowDownRight" | "ArrowLeft"
+  | "ArrowRight" | "ArrowUp" | "ArrowUpCircle" | "ArrowUpLeft" | "ArrowUpRight" | "AtSign"
+  | "Award" | "Ban" | "Banknote" | "BarChart" | "BarChart2" | "BarChart3" | "Battery" | "BatteryCharging"
+  | "Bell" | "BellOff" | "BellRing" | "Binary" | "Bluetooth" | "Bookmark" | "Box" | "Boxes"
+  | "Bug" | "Calendar" | "CalendarClock" | "CalendarDays" | "Camera" | "Cast" | "Check"
+  | "CheckCircle" | "CheckCircle2" | "ChevronDown" | "ChevronLeft" | "ChevronRight" | "ChevronsDown"
+  | "ChevronsLeft" | "ChevronsRight" | "ChevronsUp" | "ChevronUp" | "Circle" | "Clipboard"
+  | "ClipboardCheck" | "ClipboardCopy" | "ClipboardList" | "Clock" | "Cloud" | "CloudRain"
+  | "CloudSnow" | "Code" | "Code2" | "Coins" | "Command" | "Component" | "Contact"
+  | "Container" | "Copy" | "CornerDownLeft" | "CornerDownRight" | "CornerUpLeft" | "CornerUpRight"
+  | "Cpu" | "CreditCard" | "Crosshair" | "Crown" | "Database" | "Diamond" | "DollarSign"
+  | "DoorClosed" | "DoorOpen" | "Download" | "Edit" | "Edit2" | "Edit3" | "Eraser" | "Euro"
+  | "Eye" | "EyeOff" | "File" | "FileAudio" | "FileCode" | "FileImage" | "FileText"
+  | "FileVideo" | "Files" | "Film" | "Filter"
+  | "Flag" | "Flame" | "Folder" | "FolderCheck" | "FolderLock" | "FolderMinus" | "FolderOpen"
+  | "FolderPlus" | "FolderX" | "Forward" | "Frown" | "Gift" | "Github" | "Gitlab" | "Globe"
+  | "Grid3x3" | "Grip" | "GripHorizontal" | "GripVertical" | "Hammer" | "Hand" | "HardDrive"
+  | "Hash" | "Headphones" | "Heart" | "HelpCircle" | "Highlighter" | "Home" | "Hourglass"
+  | "Image" | "Images" | "Inbox" | "Info" | "Key" | "Laptop" | "Laugh" | "Layers" | "LayoutGrid"
+  | "LayoutList" | "Link" | "List" | "Loader" | "Loader2" | "Lock" | "LockKeyhole"
+  | "LockKeyholeOpen" | "LogIn" | "LogOut" | "Mail" | "MailOpen" | "Map" | "MapPin" | "Maximize"
+  | "Meh" | "Menu" | "MessageCircle" | "MessageSquare" | "MessagesSquare" | "Mic" | "MicOff"
+  | "Minimize" | "Minus" | "MinusCircle" | "Monitor" | "Moon" | "MoreHorizontal" | "MoreVertical"
+  | "Move" | "MoveDown" | "MoveLeft" | "MoveRight" | "MoveUp" | "Music" | "Music2" | "Navigation"
+  | "Navigation2" | "Package" | "PanelLeft" | "PanelRight" | "Paperclip" | "Pause"
+  | "Pen" | "PenLine" | "PenTool" | "Pencil" | "Percent" | "Phone" | "PhoneCall" | "PhoneIncoming"
+  | "PhoneMissed" | "PhoneOff" | "PhoneOutgoing" | "PieChart" | "Play" | "Plus" | "PlusCircle"
+  | "Plug" | "Podcast" | "PoundSterling" | "Power" | "PowerOff" | "Radio" | "Receipt" | "Redo"
+  | "RefreshCcw" | "RefreshCw" | "Reply" | "RotateCcw" | "RotateCw" | "Save" | "Scissors"
+  | "Search" | "Send" | "Server" | "Settings" | "Share" | "Share2" | "Shield" | "ShieldAlert"
+  | "ShieldCheck" | "ShieldX" | "ShoppingBag" | "ShoppingCart" | "Sidebar" | "Signal"
+  | "SkipBack" | "SkipForward" | "Slash" | "Sliders" | "Smartphone" | "Smile" | "Sparkles"
+  | "Square" | "Star" | "Sun" | "Sunrise" | "Sunset" | "Table" | "Tablet" | "Tag" | "Tags"
+  | "Target" | "Terminal" | "TestTube" | "ThumbsDown" | "ThumbsUp" | "Ticket" | "Timer"
+  | "Trash2" | "TrendingDown" | "TrendingUp" | "Triangle" | "Trophy" | "Undo"
+  | "Unlock" | "Upload" | "User" | "UserCheck" | "UserCircle" | "UserMinus" | "UserPlus"
+  | "Users" | "UserSquare" | "UserX" | "Video" | "VideoOff" | "Volume" | "Volume1" | "Volume2"
+  | "VolumeX" | "Wallet" | "Wind" | "Workflow" | "Wrench" | "X" | "XCircle" | "XOctagon"
+  | "Zap" | "ZoomIn" | "ZoomOut";
+
+// Icon value pode ser: emoji, lucide prefixado, ou direto
+export type IconValue =
+  | LucideTop300                    // "Home"
+  | `lucide:${LucideTop300}`        // "lucide:Home"
+  | `ph:${string}`                  // legacy "ph:gear"
+  | string;                          // emoji ou custom
+
+// ============================================================================
 // Grid Engine Types
 // ============================================================================
 export interface GridItem {
@@ -79,7 +133,7 @@ export interface NavTypography {
 export interface NavItem {
   id: string;
   label: string;
-  icon?: string;
+  icon?: IconValue;
   route?: string;
   badge?: string | number;
   disabled?: boolean;

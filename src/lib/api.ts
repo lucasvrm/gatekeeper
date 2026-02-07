@@ -37,6 +37,9 @@ import type {
   ModelDiscoveryResult,
   PipelineState,
   PipelineEvent,
+  LogFilterOptions,
+  FilteredLogsResponse,
+  LogMetrics,
 } from "./types"
 
 export const API_BASE = "http://localhost:3001/api"
@@ -126,7 +129,7 @@ export interface AgentRunCostStats {
 export const api = {
   // ─── Auth ────────────────────────────────────────────────────────────────
   auth: {
-    login: async (email: string, password: string): Promise<{ token: string; user: { id: string; email: string } }> => {
+    login: async (email: string, password: string): Promise<{ token: string; user: { id: string; email: string; firstName: string; lastName: string } }> => {
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,11 +142,11 @@ export const api = {
       return response.json()
     },
 
-    register: async (email: string, password: string): Promise<{ user: { id: string; email: string } }> => {
+    register: async (email: string, password: string, firstName: string, lastName: string): Promise<{ user: { id: string; email: string; firstName: string; lastName: string } }> => {
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, firstName, lastName }),
       })
       if (!response.ok) {
         const data = await response.json().catch(() => null)
@@ -153,7 +156,7 @@ export const api = {
       return response.json()
     },
 
-    me: async (): Promise<{ user: { id: string; email: string } }> => {
+    me: async (): Promise<{ user: { id: string; email: string; firstName: string; lastName: string } }> => {
       const response = await fetchWithAuth(`${API_BASE}/auth/me`)
       if (!response.ok) throw new Error('Sessao invalida')
       return response.json()
@@ -1439,6 +1442,101 @@ export const api = {
         `${API_BASE}/orchestrator/${outputId}/events?${params}`
       )
       if (!response.ok) throw new Error("Failed to fetch pipeline events")
+      return response.json()
+    },
+
+    /**
+     * GET /api/orchestrator/:outputId/logs — Filtered logs with query params
+     * Filters logs by level, stage, type, search text, and date range
+     */
+    getFilteredLogs: async (outputId: string, filters: LogFilterOptions = {}): Promise<FilteredLogsResponse> => {
+      const params = new URLSearchParams()
+
+      // Add filter params (only if defined)
+      if (filters.level) params.append("level", filters.level)
+      if (filters.stage) params.append("stage", filters.stage)
+      if (filters.type) params.append("type", filters.type)
+      if (filters.search) params.append("search", filters.search)
+
+      // Serialize dates as ISO strings
+      if (filters.startDate) {
+        const date = filters.startDate instanceof Date ? filters.startDate.toISOString() : filters.startDate
+        params.append("startDate", date)
+      }
+      if (filters.endDate) {
+        const date = filters.endDate instanceof Date ? filters.endDate.toISOString() : filters.endDate
+        params.append("endDate", date)
+      }
+
+      const queryString = params.toString()
+      const url = queryString
+        ? `${API_BASE}/orchestrator/${outputId}/logs?${queryString}`
+        : `${API_BASE}/orchestrator/${outputId}/logs`
+
+      const response = await fetchWithAuth(url)
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || "Failed to fetch filtered logs")
+      }
+      return response.json()
+    },
+
+    /**
+     * GET /api/orchestrator/:outputId/logs/export — Export logs as JSON or CSV
+     * Returns Blob for download
+     */
+    exportLogs: async (
+      outputId: string,
+      filters: LogFilterOptions = {},
+      format: "json" | "csv" = "json"
+    ): Promise<Blob> => {
+      const params = new URLSearchParams()
+
+      // Add format
+      params.append("format", format)
+
+      // Add filter params (only if defined)
+      if (filters.level) params.append("level", filters.level)
+      if (filters.stage) params.append("stage", filters.stage)
+      if (filters.type) params.append("type", filters.type)
+      if (filters.search) params.append("search", filters.search)
+
+      // Serialize dates as ISO strings
+      if (filters.startDate) {
+        const date = filters.startDate instanceof Date ? filters.startDate.toISOString() : filters.startDate
+        params.append("startDate", date)
+      }
+      if (filters.endDate) {
+        const date = filters.endDate instanceof Date ? filters.endDate.toISOString() : filters.endDate
+        params.append("endDate", date)
+      }
+
+      const url = `${API_BASE}/orchestrator/${outputId}/logs/export?${params.toString()}`
+
+      const response = await fetchWithAuth(url)
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || "Failed to export logs")
+      }
+
+      return response.blob()
+    },
+
+    /**
+     * GET /api/orchestrator/:pipelineId/metrics — Get aggregated metrics
+     * Returns metrics with counts by level, stage, type and duration
+     */
+    getMetrics: async (pipelineId: string): Promise<LogMetrics> => {
+      const response = await fetchWithAuth(
+        `${API_BASE}/orchestrator/${pipelineId}/metrics`,
+        { signal: AbortSignal.timeout(HTTP_REQUEST_TIMEOUT) }
+      )
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Failed to get metrics: ${response.status} ${errorText}`)
+      }
+
       return response.json()
     },
   },

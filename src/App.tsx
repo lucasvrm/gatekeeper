@@ -18,106 +18,21 @@ import { MCPSessionPage } from "@/components/mcp-session-page"
 import { OrchestratorPage } from "@/components/orchestrator-page"
 import { AgentRunsPage } from "@/components/agent-runs-page"
 import { AgentRunDetailsPage } from "@/components/agent-run-details-page"
+import { LogsMetricsPage } from "@/components/logs-metrics-page"
 import { CommandPalette } from "@/components/command-palette"
 import { useCommandPalette } from "@/hooks/use-command-palette"
 import { PageShellProvider, usePageShellState } from "@/hooks/use-page-shell"
-import { AuthProvider, useAuth } from "@/components/auth-provider"
+import { AuthProvider } from "@/components/auth-provider"
 import { ProtectedRoute } from "@/components/protected-route"
 import { LoginPage } from "@/components/login-page"
 import { RegisterPage } from "@/components/register-page"
+import { UserMenu } from "@/components/user-menu"
+import { ProfilePage } from "@/components/profile-page"
 
-import layoutContract from "../contracts/layout-contract.json"
+import layoutContractStatic from "../contracts/layout-contract.json"
 import registryContract from "../contracts/ui-registry-contract.json"
 import { ContractProvider, AppShell, IconValue } from "../packages/orqui/src/runtime"
-
-const navItems = [
-  { to: "/", label: "Dashboard" },
-  { to: "/runs", label: "Runs" },
-  { to: "/orchestrator", label: "Orchestrator" },
-  { to: "/agent-runs", label: "Agent Runs" },
-  { to: "/gates", label: "Gates" },
-  { to: "/workspaces", label: "Workspaces" },
-  { to: "/projects", label: "Projects" },
-  { to: "/mcp", label: "MCP" },
-  { to: "/config", label: "Config" },
-]
-
-const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
-  display: "block",
-  padding: "8px 12px",
-  borderRadius: 6,
-  color: isActive ? "var(--orqui-colors-text)" : "var(--orqui-colors-text-muted)",
-  background: isActive ? "var(--orqui-colors-surface-3)" : "transparent",
-  textDecoration: "none" as const,
-  fontSize: 14,
-  fontWeight: isActive ? 500 : 400,
-  transition: "all 0.15s",
-})
-
-// ─── User Menu (sidebar footer) ────────────────────────────────────────────
-
-function UserMenu({ collapsed }: { collapsed: boolean }) {
-  const { user, logout } = useAuth()
-  if (!user) return null
-
-  return (
-    <div style={{ position: "relative" }}>
-      <a
-        href="#"
-        onClick={(e) => { e.preventDefault(); logout() }}
-        data-testid="logout-button"
-        className="orqui-nav-item"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: collapsed ? "8px 0" : "8px 6px",
-          borderRadius: 6,
-          textDecoration: "none",
-          color: "var(--sidebar-foreground, var(--foreground))",
-          fontSize: 14,
-          cursor: "pointer",
-          justifyContent: collapsed ? "center" : "flex-start",
-        }}
-      >
-        {collapsed ? (
-          <IconValue icon="ph:sign-out" size={18} color="var(--destructive, #ef4444)" />
-        ) : (
-          <>
-            <IconValue icon="ph:sign-out" size={18} color="var(--destructive, #ef4444)" />
-            <span style={{
-              fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
-              background: "var(--destructive, #ef4444)",
-              color: "#fff", lineHeight: "16px",
-            }}>Sair</span>
-          </>
-        )}
-      </a>
-      {collapsed && (
-        <span className="orqui-nav-tooltip" style={{
-          position: "absolute",
-          left: `calc(100% + var(--orqui-tooltip-offset, 12px))`,
-          top: "50%",
-          transform: "translateY(-50%)",
-          background: "var(--orqui-tooltip-bg, var(--surface-3, #1e1e28))",
-          color: "var(--destructive, #ef4444)",
-          border: `1px solid var(--orqui-tooltip-border, var(--border, #2a2a33))`,
-          borderRadius: "var(--orqui-tooltip-radius, 4px)",
-          padding: "var(--orqui-tooltip-padding, 5px 10px)",
-          fontSize: "var(--orqui-tooltip-font-size, 12px)",
-          fontWeight: "var(--orqui-tooltip-font-weight, 500)",
-          fontFamily: "var(--orqui-tooltip-font-family, var(--font-mono, monospace))",
-          whiteSpace: "nowrap",
-          pointerEvents: "none",
-          opacity: 0,
-          transition: "opacity 0.15s ease",
-          zIndex: 1000,
-          boxShadow: "var(--orqui-tooltip-shadow, 0 4px 12px rgba(0,0,0,0.4))",
-        }}>Sair</span>
-      )}
-    </div>
-  )
-}
+import { useState, useEffect } from "react"
 
 // ─── AppShell Wrapper ──────────────────────────────────────────────────────
 
@@ -136,15 +51,6 @@ function AppShellWrapper({ children }: { children: React.ReactNode }) {
           <span style={{ fontWeight: 700, fontSize: 18, color: "var(--orqui-colors-accent)" }}>
               .Gatekeeper
           </span>
-        }
-        sidebarNav={
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {navItems.map(({ to, label }) => (
-              <NavLink key={to} to={to} end={to === "/"} style={navLinkStyle}>
-                {label}
-              </NavLink>
-            ))}
-          </div>
         }
         sidebarFooter={(collapsed) => <UserMenu collapsed={collapsed} />}
         onSearch={() => openPalette()}
@@ -174,6 +80,7 @@ function ProtectedApp() {
           <Route path="/agent-runs" element={<AgentRunsPage />} />
           <Route path="/agent-runs/:id" element={<AgentRunDetailsPage />} />
           <Route path="/gates" element={<GatesPage />} />
+          <Route path="/logs" element={<LogsMetricsPage />} />
           <Route path="/mcp" element={<MCPSessionPage />} />
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/workspaces" element={<WorkspacesListPage />} />
@@ -184,6 +91,7 @@ function ProtectedApp() {
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppShellWrapper>
@@ -194,6 +102,20 @@ function ProtectedApp() {
 // ─── App Root ──────────────────────────────────────────────────────────────
 
 function App() {
+  const [layoutContract, setLayoutContract] = useState(layoutContractStatic)
+
+  // Enable HMR for layout contract in development
+  useEffect(() => {
+    if (import.meta.hot) {
+      import.meta.hot.accept('../contracts/layout-contract.json', (newModule) => {
+        if (newModule) {
+          console.log('[App] Layout contract reloaded via HMR')
+          setLayoutContract(newModule.default)
+        }
+      })
+    }
+  }, [])
+
   return (
     <ContractProvider layout={layoutContract} registry={registryContract}>
       <BrowserRouter>

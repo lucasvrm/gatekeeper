@@ -202,6 +202,8 @@ export function RegisterPage() {
   const logoCfg = loginCfg.logo || {}
   const globalLogo = (layout.structure as any).logo || {}
 
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -228,7 +230,7 @@ export function RegisterPage() {
 
     setIsLoading(true)
     try {
-      await register(email, password)
+      await register(email, password, firstName, lastName)
       toast.success('Conta criada! Faca login para continuar.')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Falha no registro'
@@ -268,6 +270,37 @@ export function RegisterPage() {
           )}
 
           <div style={{ marginBottom: 14 }}>
+            <label htmlFor="register-first-name" style={styles.label}>Nome</label>
+            <StyledInput
+              id="register-first-name"
+              type="text"
+              value={firstName}
+              onChange={(e: any) => setFirstName(e.target.value)}
+              placeholder="Seu nome"
+              required
+              autoFocus
+              data-testid="first-name-input"
+              style={styles.input}
+              focusStyle={styles.inputFocus}
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label htmlFor="register-last-name" style={styles.label}>Sobrenome</label>
+            <StyledInput
+              id="register-last-name"
+              type="text"
+              value={lastName}
+              onChange={(e: any) => setLastName(e.target.value)}
+              placeholder="Seu sobrenome"
+              required
+              data-testid="last-name-input"
+              style={styles.input}
+              focusStyle={styles.inputFocus}
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
             <label htmlFor="register-email" style={styles.label}>Email</label>
             <StyledInput
               id="register-email"
@@ -276,7 +309,6 @@ export function RegisterPage() {
               onChange={(e: any) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               required
-              autoFocus
               data-testid="email-input"
               style={styles.input}
               focusStyle={styles.inputFocus}

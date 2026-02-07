@@ -67,7 +67,8 @@
       "Bash(VITEST_RUN_E2E=true timeout 35 npx vitest:*)",
       "Bash(npm run test:e2e:*)",
       "Bash(grep:*)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

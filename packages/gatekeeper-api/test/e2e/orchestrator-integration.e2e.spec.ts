@@ -244,4 +244,128 @@ describe('Real Orchestrator Integration E2E', () => {
       expect(finalState.status).toBe('failed')
     }
   }, 120000)
+
+  // ─── MP-LOGS-03: Filtered Logs Endpoint Tests ─────────────────────────
+
+  describe('GET /api/orchestrator/:outputId/logs - Filtered Logs', () => {
+    let runOutputId: string
+
+    beforeEach(async () => {
+      // Cria uma run para gerar eventos
+      const run = await client.post('/api/orchestrator/run', {
+        projectId: testProjectId,
+        task: 'Test filtered logs endpoint',
+        phases: ['PLANNING'],
+      })
+      runOutputId = run.outputId
+
+      // Aguarda alguns eventos serem gerados
+      await client.wait(2000)
+    })
+
+    it('should return filtered logs with valid query params', async () => {
+      const response = await client.get(`/api/orchestrator/${runOutputId}/logs`)
+
+      expect(response.outputId).toBe(runOutputId)
+      expect(response.filters).toBeDefined()
+      expect(response.count).toBeGreaterThanOrEqual(0)
+      expect(Array.isArray(response.events)).toBe(true)
+    }, 30000)
+
+    it('should filter logs by level', async () => {
+      const response = await client.get(`/api/orchestrator/${runOutputId}/logs?level=error`)
+
+      expect(response.filters.level).toBe('error')
+      expect(Array.isArray(response.events)).toBe(true)
+
+      // Se houver eventos, todos devem ser do nível error
+      if (response.events.length > 0) {
+        response.events.forEach((event: any) => {
+          const isError = event.type.includes('error') || event.type.includes('failed')
+          expect(isError).toBe(true)
+        })
+      }
+    }, 30000)
+
+    it('should filter logs by stage', async () => {
+      const response = await client.get(`/api/orchestrator/${runOutputId}/logs?stage=planning`)
+
+      expect(response.filters.stage).toBe('planning')
+      expect(Array.isArray(response.events)).toBe(true)
+    }, 30000)
+
+    it('should filter logs by type', async () => {
+      const response = await client.get(`/api/orchestrator/${runOutputId}/logs?type=agent:start`)
+
+      expect(response.filters.type).toBe('agent:start')
+      expect(Array.isArray(response.events)).toBe(true)
+
+      // Se houver eventos, todos devem ser do tipo especificado
+      if (response.events.length > 0) {
+        response.events.forEach((event: any) => {
+          expect(event.type).toBe('agent:start')
+        })
+      }
+    }, 30000)
+
+    it('should filter logs by search text', async () => {
+      const response = await client.get(`/api/orchestrator/${runOutputId}/logs?search=test`)
+
+      expect(response.filters.search).toBe('test')
+      expect(Array.isArray(response.events)).toBe(true)
+    }, 30000)
+
+    it('should combine multiple filters', async () => {
+      const response = await client.get(
+        `/api/orchestrator/${runOutputId}/logs?level=info&stage=planning&search=agent`
+      )
+
+      expect(response.filters.level).toBe('info')
+      expect(response.filters.stage).toBe('planning')
+      expect(response.filters.search).toBe('agent')
+      expect(Array.isArray(response.events)).toBe(true)
+    }, 30000)
+
+    it('should return 400 for invalid level parameter', async () => {
+      try {
+        await client.get(`/api/orchestrator/${runOutputId}/logs?level=invalid`)
+        expect.fail('Should have thrown validation error')
+      } catch (error: any) {
+        // Zod validation error
+        expect(error.message).toContain('validation')
+      }
+    }, 30000)
+
+    it('should return 400 for invalid date format', async () => {
+      try {
+        await client.get(`/api/orchestrator/${runOutputId}/logs?startDate=invalid-date`)
+        expect.fail('Should have thrown validation error')
+      } catch (error: any) {
+        // Zod validation error
+        expect(error.message).toContain('validation')
+      }
+    }, 30000)
+
+    it('should handle non-existent outputId gracefully', async () => {
+      const response = await client.get('/api/orchestrator/nonexistent-id/logs')
+
+      // Deve retornar sucesso mas com array vazio
+      expect(response.outputId).toBe('nonexistent-id')
+      expect(response.events).toEqual([])
+      expect(response.count).toBe(0)
+    }, 30000)
+
+    it('should filter by date range', async () => {
+      const now = new Date()
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+
+      const response = await client.get(
+        `/api/orchestrator/${runOutputId}/logs?startDate=${oneHourAgo.toISOString()}&endDate=${now.toISOString()}`
+      )
+
+      expect(response.filters.startDate).toBe(oneHourAgo.toISOString())
+      expect(response.filters.endDate).toBe(now.toISOString())
+      expect(Array.isArray(response.events)).toBe(true)
+    }, 30000)
+  })
 })

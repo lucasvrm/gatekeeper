@@ -44,6 +44,12 @@ export function OrquiEditor() {
     JSON.stringify(registry) !== JSON.stringify(savedSnapshot.registry)
   );
 
+  // Visual indicator para mudanças não salvas
+  const [showUnsavedIndicator, setShowUnsavedIndicator] = useState(false);
+  useEffect(() => {
+    setShowUnsavedIndicator(!!hasUnsavedChanges);
+  }, [hasUnsavedChanges]);
+
   const undoChanges = useCallback(() => {
     if (!savedSnapshot) return;
     setLayout(savedSnapshot.layout);
@@ -255,6 +261,20 @@ export function OrquiEditor() {
         <span style={{ fontSize: 13, color: COLORS.textMuted, fontWeight: 500 }}>
           Shell & Tokens
         </span>
+
+        {/* Unsaved changes indicator */}
+        {showUnsavedIndicator && (
+          <span style={{
+            padding: '2px 8px',
+            background: '#f59e0b',
+            color: '#000',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 600,
+          }}>
+            Não salvo ⚠️
+          </span>
+        )}
 
         {/* Dot separator */}
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.border }} />

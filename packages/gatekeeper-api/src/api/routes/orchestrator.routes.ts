@@ -9,6 +9,7 @@ import {
   StatusParamsSchema,
   EventsQuerySchema,
   RunPipelineSchema,
+  LogFilterSchema,
 } from '../schemas/orchestrator.schema.js'
 import { createLogger } from '../../utils/logger.js'
 
@@ -105,6 +106,40 @@ router.get('/:outputId/events', async (req, res, next) => {
     const query = EventsQuerySchema.parse(req.query)
     ;(req as any).validatedQuery = query
     await controller.getEvents(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// REST: Filtered logs
+router.get('/:outputId/logs', async (req, res, next) => {
+  try {
+    StatusParamsSchema.parse(req.params)
+    const query = LogFilterSchema.parse(req.query)
+    ;(req as any).validatedQuery = query
+    await controller.getFilteredLogs(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// REST: Export logs (JSON or CSV)
+router.get('/:outputId/logs/export', async (req, res, next) => {
+  try {
+    StatusParamsSchema.parse(req.params)
+    const query = LogFilterSchema.parse(req.query)
+    ;(req as any).validatedQuery = query
+    await controller.exportLogs(req, res)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// REST: Get aggregated metrics
+router.get('/:pipelineId/metrics', async (req, res, next) => {
+  try {
+    StatusParamsSchema.parse(req.params)
+    await controller.getMetrics(req, res)
   } catch (error) {
     next(error)
   }

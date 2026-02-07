@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:ba090773d11a77bba377081a22d0f0193a36a4b70940859c3a8c3ffb3d9783d3",
-    "generatedAt": "2026-02-06T16:14:13.360Z",
+    "hash": "sha256:e1cf791c8eec8fa7e893c24f5c2d5b7dd28160cdad2746ece046b018d2ec1798",
+    "generatedAt": "2026-02-07T02:43:05.417Z",
     "pageCount": 2
   },
   "structure": {
@@ -68,68 +68,68 @@
         "navigation": {
           "icons": {
             "enabled": true,
-            "size": "$tokens.sizing.icon-md",
+            "size": "$tokens.sizing.icon-sm",
             "gap": "$tokens.spacing.sm"
           },
           "typography": {
             "fontSize": "$tokens.fontSizes.sm",
-            "activeFontWeight": "$tokens.fontWeights.bold",
-            "activeColor": "$tokens.colors.bg",
+            "activeFontWeight": "$tokens.fontWeights.medium",
+            "activeColor": "$tokens.colors.accent",
             "fontFamily": "$tokens.fontFamilies.mono",
             "hoverColor": "$tokens.colors.accent",
             "cardEnabled": true,
-            "activeBackground": "$tokens.colors.ring",
+            "activeBackground": "$tokens.colors.card-border",
             "cardBackground": "",
             "cardBorderColor": "",
             "cardBorderWidth": "1",
-            "cardBorderRadius": "$tokens.borderRadius.md",
+            "cardBorderRadius": "$tokens.borderRadius.sm",
             "cardPadding": "$tokens.spacing.sm",
             "activeCardBorder": "$tokens.colors.accent",
             "hoverCardBorder": "",
             "hoverBackground": "$tokens.colors.surface",
-            "hoverFontWeight": ""
+            "hoverFontWeight": "$tokens.fontWeights.medium"
           },
           "items": [
             {
               "id": "dashboard",
               "label": "Dashboard",
-              "icon": "ph:hurricane-duotone",
+              "icon": "lucide:BarChart2",
               "route": "/dashboard"
             },
             {
               "id": "mcp",
               "label": "Orchestrator",
-              "icon": "ph:brain-duotone",
+              "icon": "lucide:Terminal",
               "route": "/orchestrator"
             },
             {
               "id": "runs",
               "label": "Runs",
-              "icon": "ph:arrows-clockwise-duotone",
+              "icon": "lucide:RefreshCcw",
               "route": "/runs"
             },
             {
               "id": "workspaces",
               "label": "Workspaces",
-              "icon": "ph:squares-four",
+              "icon": "lucide:LayoutGrid",
               "route": "/workspaces"
             },
             {
               "id": "projects",
               "label": "Projetos",
-              "icon": "ph:file",
+              "icon": "lucide:FileText",
               "route": "/projects"
             },
             {
               "id": "gates",
               "label": "Gates",
-              "icon": "ph:shield-check",
+              "icon": "lucide:DoorClosed",
               "route": "/gates"
             },
             {
               "id": "config",
               "label": "Config",
-              "icon": "ph:gear",
+              "icon": "lucide:Settings",
               "route": "/config"
             }
           ]
@@ -141,7 +141,7 @@
         },
         "separators": {
           "header": {
-            "enabled": true,
+            "enabled": false,
             "color": "$tokens.colors.border",
             "width": "$tokens.borderWidth.thin",
             "style": "solid"
@@ -173,7 +173,7 @@
           "fontWeight": "$tokens.fontWeights.medium",
           "padding": "5px 10px",
           "shadow": "0 4px 12px rgba(0,0,0,0.4)",
-          "offset": "12px",
+          "offset": "6px",
           "arrow": true
         }
       },
@@ -266,7 +266,7 @@
         "padding": {
           "top": "$tokens.spacing.md",
           "right": "$tokens.sizing.main-pad",
-          "bottom": "$tokens.spacing.xl",
+          "bottom": "$tokens.spacing.lg",
           "left": "$tokens.sizing.main-pad"
         },
         "containers": [
@@ -284,43 +284,7 @@
         "background": ""
       },
       "footer": {
-        "enabled": true,
-        "position": "bottom",
-        "dimensions": {
-          "height": "$tokens.sizing.footer-height"
-        },
-        "padding": {
-          "top": "0",
-          "right": "$tokens.sizing.main-pad",
-          "bottom": "0",
-          "left": "$tokens.sizing.main-pad"
-        },
-        "containers": [
-          {
-            "name": "status",
-            "description": "Status do sistema e versão",
-            "order": 0
-          },
-          {
-            "name": "links",
-            "description": "Links de suporte e documentação",
-            "order": 1
-          }
-        ],
-        "behavior": {
-          "fixed": false,
-          "collapsible": false,
-          "scrollable": false
-        },
-        "separators": {
-          "top": {
-            "enabled": true,
-            "color": "$tokens.colors.border",
-            "width": "$tokens.borderWidth.thin",
-            "style": "solid"
-          }
-        },
-        "background": ""
+        "enabled": false
       }
     },
     "breadcrumbs": {
@@ -346,9 +310,9 @@
       "_alignNote": "Left edge controlled by header content-zone paddingLeft"
     },
     "logo": {
-      "type": "icon-text",
+      "type": "text",
       "text": "Gatekeeper",
-      "icon": "ph:axe-duotone",
+      "icon": "lucide:LockKeyholeOpen",
       "iconUrl": "",
       "imageUrl": "",
       "position": "header",
@@ -359,23 +323,23 @@
         "top": 0,
         "right": 0,
         "bottom": 0,
-        "left": 0
+        "left": 2
       },
       "iconGap": 8,
       "typography": {
-        "fontFamily": "Poppins",
-        "fontSize": 20,
+        "fontFamily": "JetBrains Mono",
+        "fontSize": 21,
         "fontWeight": 700,
-        "color": "#3a6ab5",
-        "letterSpacing": 0
+        "color": "#2c2417",
+        "letterSpacing": -1
       },
-      "iconSize": 36,
+      "iconSize": 24,
       "_alignNote": "Padding controlled by header sidebar-zone paddingLeft"
     },
     "favicon": {
       "type": "emoji",
       "url": "",
-      "emoji": "ph:axe-duotone",
+      "emoji": "lucide:Code2",
       "color": "#3a6ab5"
     },
     "headerElements": {
@@ -398,32 +362,15 @@
             "route": "/bell"
           },
           {
-            "id": "settings",
-            "route": "/settings"
+            "id": "user",
+            "route": "/user"
           }
         ]
       },
-      "ctas": [
-        {
-          "id": "cta-mcp",
-          "label": "Orch",
-          "variant": "default",
-          "route": "/orchestrator",
-          "icon": "ph:brain-duotone"
-        },
-        {
-          "id": "cta-new-validation",
-          "label": "Run",
-          "variant": "outline",
-          "route": "/runs/new",
-          "icon": "ph:arrows-clockwise-duotone"
-        }
-      ],
+      "ctas": [],
       "order": [
         "icons",
-        "search",
-        "cta:cta-new-validation",
-        "cta:cta-mcp"
+        "search"
       ]
     },
     "pages": {
@@ -473,7 +420,11 @@
         "label": "Orchestrator",
         "route": "/orchestrator",
         "description": "LLM-Driven Coding Pipeline",
-        "overrides": {},
+        "overrides": {
+          "main": {
+            "maxWidth": "none"
+          }
+        },
         "browserTitle": "Orchestrator / Gatekeeper"
       }
     },
@@ -495,7 +446,7 @@
       "padding": {
         "top": "0",
         "right": "0",
-        "bottom": "$tokens.spacing.lg",
+        "bottom": "$tokens.spacing.sm",
         "left": "0"
       },
       "typography": {
@@ -649,7 +600,7 @@
         "unit": "px"
       },
       "sidebar-collapsed": {
-        "value": 52,
+        "value": 60,
         "unit": "px"
       },
       "header-height": {
@@ -709,15 +660,15 @@
         "unit": "px"
       },
       "icon-sm": {
-        "value": 10,
+        "value": 16,
         "unit": "px"
       },
       "icon-md": {
-        "value": 13,
+        "value": 18,
         "unit": "px"
       },
       "icon-lg": {
-        "value": 18,
+        "value": 22,
         "unit": "px"
       },
       "input-height": {
@@ -995,7 +946,7 @@
     "display-1": {
       "description": "Hero / display heading — landing pages e estados vazios",
       "fontFamily": "$tokens.fontFamilies.display",
-      "fontSize": "$tokens.fontSizes.5xl",
+      "fontSize": "$tokens.fontSizes.4xl",
       "fontWeight": "$tokens.fontWeights.bold",
       "lineHeight": "$tokens.lineHeights.none",
       "letterSpacing": "$tokens.letterSpacings.tighter"
@@ -1003,7 +954,7 @@
     "heading-1": {
       "description": "Título principal de página",
       "fontFamily": "$tokens.fontFamilies.display",
-      "fontSize": "$tokens.fontSizes.3xl",
+      "fontSize": "$tokens.fontSizes.2xl",
       "fontWeight": "$tokens.fontWeights.bold",
       "lineHeight": "$tokens.lineHeights.tight",
       "letterSpacing": "$tokens.letterSpacings.tight"
@@ -1033,7 +984,7 @@
     "body": {
       "description": "Texto padrão de conteúdo",
       "fontFamily": "$tokens.fontFamilies.primary",
-      "fontSize": "$tokens.fontSizes.md",
+      "fontSize": "$tokens.fontSizes.sm",
       "fontWeight": "$tokens.fontWeights.regular",
       "lineHeight": "$tokens.lineHeights.normal"
     },

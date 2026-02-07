@@ -32,6 +32,11 @@ interface ContractProviderProps {
 export function ContractProvider({ layout, registry, children, injectCSS = true }: ContractProviderProps) {
   const [layoutState, setLayoutState] = useState(layout);
 
+  // Sync layoutState when layout prop changes (e.g., from workbench edits)
+  useEffect(() => {
+    setLayoutState(layout);
+  }, [layout]);
+
   const updateContract = useCallback((updates: Partial<LayoutContract>) => {
     setLayoutState(prev => ({ ...prev, ...updates }));
   }, []);
@@ -60,7 +65,7 @@ export function ContractProvider({ layout, registry, children, injectCSS = true 
 
   const styleSheet = useMemo(
     () => injectCSS ? buildStyleSheet(layoutState.tokens, layoutState) : "",
-    [layoutState.tokens, injectCSS]
+    [layoutState, injectCSS]
   );
 
   // Build component-specific CSS from registry styles

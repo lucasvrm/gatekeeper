@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { COLORS, s } from "../lib/constants";
 import { Field, Row, Section, WBSub, ColorInput } from "../components/shared";
-import { TokenRefSelect } from "./ColorTokenEditor";
+import { TokenRefSelect, TokenRefSelectWithSwatch } from "./ColorTokenEditor";
 
 // ============================================================================
 // Separator Editor
@@ -16,7 +16,7 @@ export function SeparatorEditor({ separator, tokens, onChange }) {
       {separator?.enabled && (
         <>
           <Field label="Color" style={{ flex: 1 }}>
-            <TokenRefSelect value={separator.color} tokens={tokens} category="colors" onChange={(v) => update("color", v)} />
+            <TokenRefSelectWithSwatch value={separator.color} tokens={tokens} category="colors" onChange={(v) => update("color", v)} />
           </Field>
           <Field label="Width" style={{ width: 110 }}>
             <TokenRefSelect value={separator.width} tokens={tokens} category="borderWidth" onChange={(v) => update("width", v)} />
@@ -182,10 +182,10 @@ export function BreadcrumbEditor({ breadcrumbs, tokens, textStyles, onChange }) 
           </Row>
           <Row gap={12}>
             <Field label="Color (links)" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.color} category="colors" onChange={(v) => updateTypo("color", v)} />
+              <TokenRefSelectWithSwatch tokens={tokens} value={bc.typography?.color} category="colors" onChange={(v) => updateTypo("color", v)} />
             </Field>
             <Field label="Color (ativo)" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.activeColor} category="colors" onChange={(v) => updateTypo("activeColor", v)} />
+              <TokenRefSelectWithSwatch tokens={tokens} value={bc.typography?.activeColor} category="colors" onChange={(v) => updateTypo("activeColor", v)} />
             </Field>
             <Field label="Weight (ativo)" style={{ flex: 1 }}>
               <TokenRefSelect tokens={tokens} value={bc.typography?.activeFontWeight} category="fontWeights" onChange={(v) => updateTypo("activeFontWeight", v)} />
@@ -193,7 +193,7 @@ export function BreadcrumbEditor({ breadcrumbs, tokens, textStyles, onChange }) 
           </Row>
           <Row gap={12}>
             <Field label="Cor separador" style={{ flex: 1 }}>
-              <TokenRefSelect tokens={tokens} value={bc.typography?.separatorColor} category="colors" onChange={(v) => updateTypo("separatorColor", v)} />
+              <TokenRefSelectWithSwatch tokens={tokens} value={bc.typography?.separatorColor} category="colors" onChange={(v) => updateTypo("separatorColor", v)} />
             </Field>
           </Row>
 
@@ -523,7 +523,7 @@ export function PageHeaderEditor({ config, textStyles, onChange }: { config: any
             </Row>
             <Row gap={8}>
               <Field label="Color" style={{ flex: 1 }}>
-                <ColorInput value={ph.typography?.title?.color || ""} onChange={(v) => updateTypo("title", "color", v)} placeholder="var(--foreground)" />
+                <ColorInput value={ph.typography?.title?.color || ""} onChange={(v) => updateTypo("title", "color", v)} placeholder="var(--foreground)" tokens={tokens} />
               </Field>
               <Field label="Letter Spacing" style={{ flex: 1 }}>
                 <input value={ph.typography?.title?.letterSpacing || ""} onChange={(e) => updateTypo("title", "letterSpacing", e.target.value)} style={s.input} placeholder="$tokens.letterSpacings.tight" />
@@ -548,7 +548,7 @@ export function PageHeaderEditor({ config, textStyles, onChange }: { config: any
             </Row>
             <Row gap={8}>
               <Field label="Color" style={{ flex: 1 }}>
-                <ColorInput value={ph.typography?.subtitle?.color || ""} onChange={(v) => updateTypo("subtitle", "color", v)} placeholder="$tokens.colors.text-muted" />
+                <ColorInput value={ph.typography?.subtitle?.color || ""} onChange={(v) => updateTypo("subtitle", "color", v)} placeholder="$tokens.colors.text-muted" tokens={tokens} />
               </Field>
               <Field label="Letter Spacing" style={{ flex: 1 }}>
                 <input value={ph.typography?.subtitle?.letterSpacing || ""} onChange={(e) => updateTypo("subtitle", "letterSpacing", e.target.value)} style={s.input} placeholder="$tokens.letterSpacings.normal" />
@@ -567,7 +567,7 @@ export function PageHeaderEditor({ config, textStyles, onChange }: { config: any
           </WBSub>
 
           <Field label="Background">
-            <ColorInput value={ph.background || ""} onChange={(v) => update("background", v)} placeholder="var(--background) ou token ref" />
+            <ColorInput value={ph.background || ""} onChange={(v) => update("background", v)} placeholder="var(--background) ou token ref" tokens={tokens} />
           </Field>
         </>
       )}

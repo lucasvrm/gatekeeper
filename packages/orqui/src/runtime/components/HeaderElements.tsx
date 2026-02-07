@@ -106,7 +106,6 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
     const cta = allItems.find(c => c.id === ctaId);
     if (!cta) return null;
     const style = CTA_VARIANT_CSS[cta.variant || "default"] || CTA_VARIANT_CSS.default;
-    const phIcon = cta.icon?.startsWith("ph:") ? cta.icon.slice(3) : undefined;
     return (
       <button key={cta.id} onClick={() => handleNavigation(cta.route, onCTA)} style={{
         padding: "6px 14px", borderRadius: 6, cursor: "pointer",
@@ -114,7 +113,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
         ...textStyleCSS,
         ...style,
       }}>
-        {phIcon && <PhosphorIcon name={phIcon} size={14} />}
+        {cta.icon && <IconValue icon={cta.icon} size={14} color="currentColor" />}
         {cta.label}
       </button>
     );
@@ -127,7 +126,6 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
     if (!items.length) return null;
     return items.map((cta) => {
       const style = CTA_VARIANT_CSS[cta.variant || "default"] || CTA_VARIANT_CSS.default;
-      const phIcon = cta.icon?.startsWith("ph:") ? cta.icon.slice(3) : undefined;
       return (
         <button key={cta.id} onClick={() => handleNavigation(cta.route, onCTA)} style={{
           padding: "6px 14px", borderRadius: 6, cursor: "pointer",
@@ -135,7 +133,7 @@ export function HeaderElementsRenderer({ config, onSearch, onCTA, onIconClick, n
           ...textStyleCSS,
           ...style,
         }}>
-          {phIcon && <PhosphorIcon name={phIcon} size={14} />}
+          {cta.icon && <IconValue icon={cta.icon} size={14} color="currentColor" />}
           {cta.label}
         </button>
       );

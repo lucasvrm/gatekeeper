@@ -451,6 +451,57 @@ const gap = useToken("spacing", "md"); // "16px"
 const style = useTextStyle("body-md"); // { fontSize: "14px", ... }
 ```
 
+## Icons
+
+Orqui usa Lucide icons (278 ícones validados, testados contra lucide-react v0.563.0).
+
+**Bundle Size:** ~140KB (otimizado de ~560KB = **75% redução**)
+
+**Ícones Disponíveis:** Ver `LUCIDE_TOP_300` em `src/editor/components/LucideIcons.tsx`
+
+### Features
+
+- ✅ **Busca fuzzy** - encontra ícones mesmo com typos
+- ✅ **Filtro por categoria** - 15 categorias (Interface, Files, System, etc)
+- ✅ **Keyboard navigation** - Arrow Up/Down + Enter
+- ✅ **Type-safe** - union types para autocomplete
+- ✅ **Backwards compatible** - suporta prefixo `ph:` (Phosphor legacy)
+
+### Uso
+
+```tsx
+import { IconValue } from "@orqui/cli/runtime";
+
+// Lucide icon
+<IconValue icon="lucide:Home" size={20} />
+
+// Emoji
+<IconValue icon="🏠" size={20} />
+
+// Legacy Phosphor (com mapping automático)
+<IconValue icon="ph:gear" size={20} />
+```
+
+### No Editor (Workbench)
+
+```tsx
+import { LucideIconSelect, IconPicker } from "../components/LucideIcons";
+
+// Dropdown selector
+<LucideIconSelect
+  value="lucide:Home"
+  onChange={(val) => console.log(val)}
+/>
+
+// Picker completo (Emoji + Lucide tabs)
+<IconPicker
+  value="lucide:Home"
+  onSelect={(icon) => console.log(icon)}
+/>
+```
+
+Para mais detalhes, ver [Icon Optimization Docs](../../docs/ICON_OPTIMIZATION.md).
+
 ## CLI
 
 ```bash

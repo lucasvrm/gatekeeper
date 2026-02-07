@@ -41,9 +41,57 @@ export const COLOR_GROUPS = [
   { label: "Status", keys: ["danger", "danger-dim", "success", "success-dim", "warning", "warning-dim"] },
 ];
 
+// Color usage mapping (onde cada cor é aplicada)
+const COLOR_USAGE_MAP: Record<string, string[]> = {
+  "bg": ["Fundo principal da página"],
+  "surface": ["Cards, popovers (fallback se card-bg não existir)"],
+  "surface-2": ["Botões secondary, áreas muted"],
+  "surface-3": ["Hover states (botões, links)"],
+  "sidebar-bg": ["Fundo da sidebar"],
+  "header-bg": ["Fundo do header"],
+  "card-bg": ["Cards, popovers (sobrescreve surface)"],
+  "input-bg": ["Inputs de formulário"],
+};
+
+// Detecta cores duplicadas
+function findDuplicateColors(colors: Record<string, { value: string }>) {
+  const duplicates: Record<string, string[]> = {};
+  const colorMap: Record<string, string[]> = {};
+
+  Object.entries(colors).forEach(([key, tok]) => {
+    const val = tok.value?.toLowerCase();
+    if (!val) return;
+    if (!colorMap[val]) colorMap[val] = [];
+    colorMap[val].push(key);
+  });
+
+  Object.entries(colorMap).forEach(([color, keys]) => {
+    if (keys.length > 1) {
+      keys.forEach(key => {
+        duplicates[key] = keys.filter(k => k !== key);
+      });
+    }
+  });
+
+  return duplicates;
+}
+
+// Verifica se a cor é clara (retorna true para cores claras)
+function isLightColor(hex: string): boolean {
+  if (!hex || !hex.startsWith("#")) return false;
+  const rgb = hex.length === 4
+    ? hex.slice(1).split("").map(c => parseInt(c + c, 16))
+    : [hex.slice(1, 3), hex.slice(3, 5), hex.slice(5, 7)].map(c => parseInt(c, 16));
+  const luminance = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+  return luminance > 0.5;
+}
+
 export function ColorTokenEditor({ colors, onChange }) {
   const [newKey, setNewKey] = useState("");
   const [activeGroup, setActiveGroup] = usePersistentTab("color-group", "Backgrounds");
+  const [showPreview, setShowPreview] = useState(false);
+
+  const duplicates = useMemo(() => findDuplicateColors(colors), [colors]);
 
   const updateColor = (key, value) => {
     onChange({ ...colors, [key]: { value } });
@@ -74,25 +122,47 @@ export function ColorTokenEditor({ colors, onChange }) {
   const allGroupedKeys = new Set(COLOR_GROUPS.flatMap((g) => g.keys));
   const ungrouped = Object.entries(colors).filter(([k]) => !allGroupedKeys.has(k));
 
-  const renderColorRow = ([key, tok]) => (
-    <div key={key} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-      <input
-        type="color"
-        value={tok.value?.startsWith("#") && tok.value.length <= 7 ? tok.value : "#888888"}
-        onChange={(e) => updateColor(key, e.target.value)}
-        aria-label={`Color picker for ${key}`}
-        style={{ width: 24, height: 22, border: "none", borderRadius: 3, cursor: "pointer", background: "transparent", padding: 0, flexShrink: 0 }}
-      />
-      <span style={{ fontSize: 11, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", minWidth: 100, flexShrink: 0 }}>{key}</span>
-      <input
-        value={tok.value || ""}
-        onChange={(e) => updateColor(key, e.target.value)}
-        style={{ ...s.input, width: 100, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, padding: "3px 6px" }}
-      />
-      <div style={{ width: 36, height: 18, borderRadius: 3, border: `1px solid ${COLORS.border}`, background: tok.value || "#888", flexShrink: 0 }} />
-      <button onClick={() => removeColor(key)} style={{ ...s.btnDanger, padding: "2px 6px", fontSize: 10 }}>✕</button>
-    </div>
-  );
+  const renderColorRow = ([key, tok]) => {
+    const isDuplicate = duplicates[key] && duplicates[key].length > 0;
+    const usage = COLOR_USAGE_MAP[key];
+
+    return (
+      <div key={key}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+          <input
+            type="color"
+            value={tok.value?.startsWith("#") && tok.value.length <= 7 ? tok.value : "#888888"}
+            onChange={(e) => updateColor(key, e.target.value)}
+            aria-label={`Color picker for ${key}`}
+            style={{ width: 24, height: 22, border: "none", borderRadius: 3, cursor: "pointer", background: "transparent", padding: 0, flexShrink: 0 }}
+          />
+          <span style={{ fontSize: 11, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", minWidth: 100, flexShrink: 0 }}>{key}</span>
+          <input
+            value={tok.value || ""}
+            onChange={(e) => updateColor(key, e.target.value)}
+            style={{ ...s.input, width: 100, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, padding: "3px 6px" }}
+          />
+          <div style={{ width: 36, height: 18, borderRadius: 3, border: `1px solid ${COLORS.border}`, background: tok.value || "#888", flexShrink: 0 }} />
+          <button onClick={() => removeColor(key)} style={{ ...s.btnDanger, padding: "2px 6px", fontSize: 10 }}>✕</button>
+        </div>
+        {/* Warnings e Usage info */}
+        {(isDuplicate || usage) && (
+          <div style={{ marginLeft: 30, marginBottom: 6, fontSize: 9 }}>
+            {isDuplicate && (
+              <div style={{ color: "#fbbf24", marginBottom: 2 }}>
+                ⚠️ Duplicata de: {duplicates[key].join(", ")}
+              </div>
+            )}
+            {usage && (
+              <div style={{ color: COLORS.textDim }}>
+                Usado em: {usage.join(", ")}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Build tabs from groups that have entries + Other
   const availableTabs = [
@@ -115,6 +185,16 @@ export function ColorTokenEditor({ colors, onChange }) {
             Altere aqui — todos os componentes atualizam automaticamente.
           </p>
           <div style={{ display: "flex", gap: 4 }}>
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              style={{
+                ...s.btnSmall,
+                background: showPreview ? COLORS.accent + "20" : COLORS.surface3,
+                color: showPreview ? COLORS.accent : COLORS.textMuted
+              }}
+            >
+              {showPreview ? "Ocultar" : "Preview"}
+            </button>
             {Object.keys(COLOR_PRESETS).map((name) => (
               <button key={name} onClick={() => loadPreset(name)} style={s.btnSmall}>
                 {name}
@@ -122,6 +202,63 @@ export function ColorTokenEditor({ colors, onChange }) {
             ))}
           </div>
         </div>
+
+        {/* Visual Preview */}
+        {showPreview && (
+          <div style={{
+            marginTop: 12,
+            padding: 12,
+            background: COLORS.surface2,
+            borderRadius: 8,
+            border: `1px solid ${COLORS.border}`
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.text, marginBottom: 10 }}>
+              Preview de Aplicação das Cores
+            </div>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: 8
+            }}>
+              {COLOR_GROUPS[0].keys.filter(k => colors[k]).map(key => (
+                <div key={key} style={{
+                  background: colors[key]?.value || "#888",
+                  padding: 12,
+                  borderRadius: 6,
+                  border: `1px solid ${COLORS.border}`,
+                  position: "relative"
+                }}>
+                  <div style={{
+                    fontSize: 9,
+                    fontWeight: 600,
+                    color: colors[key]?.value && isLightColor(colors[key].value) ? "#000" : "#fff",
+                    marginBottom: 4,
+                    fontFamily: "'JetBrains Mono', monospace"
+                  }}>
+                    {key}
+                  </div>
+                  <div style={{
+                    fontSize: 8,
+                    color: colors[key]?.value && isLightColor(colors[key].value) ? "#666" : "#ccc",
+                    opacity: 0.8
+                  }}>
+                    {COLOR_USAGE_MAP[key]?.[0] || "Cor personalizada"}
+                  </div>
+                  {duplicates[key] && (
+                    <div style={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      fontSize: 10
+                    }}>
+                      ⚠️
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {availableTabs.length > 0 && (
@@ -208,6 +345,10 @@ export function TokenEditor({ tokens, onChange, categories }: { tokens: any; onC
 // ============================================================================
 // Token Reference Selector
 // ============================================================================
+
+/**
+ * @deprecated Use TokenRefSelectWithSwatch para melhor UX com thumbnails de cores
+ */
 export function TokenRefSelect({ value, tokens, category, onChange }) {
   const options = useMemo(() => {
     const refs = [];
@@ -229,4 +370,7 @@ export function TokenRefSelect({ value, tokens, category, onChange }) {
     </select>
   );
 }
+
+// Export do componente com thumbnails visuais
+export { TokenRefSelectWithSwatch } from "../components/TokenRefSelectWithSwatch.js";
 

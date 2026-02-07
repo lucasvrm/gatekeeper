@@ -606,3 +606,55 @@ export interface PipelineEvent {
   source: string | null
   createdAt: string
 }
+
+// ─── Log Filtering ────────────────────────────────────────────────────────────
+
+export interface LogFilterOptions {
+  level?: 'error' | 'warn' | 'info' | 'debug'
+  stage?: string
+  type?: string
+  search?: string
+  startDate?: string  // ISO 8601 datetime string
+  endDate?: string    // ISO 8601 datetime string
+}
+
+export interface FilteredLogsResponse {
+  outputId: string
+  filters: LogFilterOptions
+  count: number
+  events: Array<Record<string, unknown> & { type: string; id?: number; timestamp?: number; seq?: number }>
+}
+
+/**
+ * Métricas agregadas de logs do orquestrador.
+ */
+export interface LogMetrics {
+  /** ID da pipeline */
+  pipelineId: string
+
+  /** Número total de eventos */
+  totalEvents: number
+
+  /** Contagem de eventos por nível (error, warning, info) */
+  byLevel: Record<string, number>
+
+  /** Contagem de eventos por fase (planning, spec, fix, execute) */
+  byStage: Record<string, number>
+
+  /** Contagem de eventos por tipo (agent:start, agent:error, etc) */
+  byType: Record<string, number>
+
+  /** Duração da execução */
+  duration: {
+    /** Duração em milissegundos */
+    ms: number
+    /** Duração formatada (HH:mm:ss) */
+    formatted: string
+  }
+
+  /** Timestamp do primeiro evento (ISO string) */
+  firstEvent: string | null
+
+  /** Timestamp do último evento (ISO string) */
+  lastEvent: string | null
+}

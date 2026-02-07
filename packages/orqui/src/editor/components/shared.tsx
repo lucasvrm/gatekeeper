@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { COLORS, s } from "../lib/constants";
 import { usePersistentState } from "../hooks/usePersistentState";
+import type { Tokens } from "../../runtime/types.js";
 
 export function Field({ label, children, style: st, inline, compact }: {
   label: string; children: any; style?: any; inline?: boolean; compact?: boolean;
@@ -164,7 +165,7 @@ export function EmptyState({ message, action }) {
 }
 
 /** Color input with swatch picker + text field. Supports hex, rgba, CSS vars, token refs. */
-export function ColorInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+export function ColorInput({ value, onChange, placeholder, tokens }: { value: string; onChange: (v: string) => void; placeholder?: string; tokens?: Tokens }) {
   // Convert value to a valid hex for the color picker (best-effort)
   const toHex = (v: string): string => {
     if (!v) return "#888888";
@@ -178,6 +179,16 @@ export function ColorInput({ value, onChange, placeholder }: { value: string; on
     if (s === "transparent") return "#000000";
     return "#888888";
   };
+
+  // Resolve token refs to actual color values
+  const resolvedColor = useMemo(() => {
+    if (value?.startsWith("$tokens.colors.") && tokens) {
+      const key = value.replace("$tokens.colors.", "");
+      return tokens.colors?.[key]?.value || toHex(value);
+    }
+    return toHex(value);
+  }, [value, tokens]);
+
   return (
     <div style={{ display: "flex", gap: 4, alignItems: "center", width: "100%" }}>
       <input
@@ -187,6 +198,19 @@ export function ColorInput({ value, onChange, placeholder }: { value: string; on
         aria-label="Color picker"
         style={{ width: 26, height: 24, border: "none", borderRadius: 4, cursor: "pointer", background: "transparent", padding: 0, flexShrink: 0 }}
       />
+      {value && resolvedColor && (
+        <div
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: 3,
+            background: resolvedColor,
+            border: `1px solid ${COLORS.border}`,
+            flexShrink: 0,
+          }}
+          aria-hidden="true"
+        />
+      )}
       <input
         type="text"
         value={value}

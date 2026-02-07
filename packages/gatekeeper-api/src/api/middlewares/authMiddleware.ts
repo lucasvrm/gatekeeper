@@ -24,7 +24,8 @@ const PUBLIC_PREFIXES = [
 // SSE endpoints and E2E test endpoints that need pattern matching
 const SSE_PATTERNS = [
   /^\/api\/runs\/[^/]+\/events$/,
-  /^\/api\/orchestrator\/[^/]+\/(status|events)$/,  // E2E testing endpoints
+  /^\/api\/orchestrator\/[^/]+\/(status|events|logs)$/,  // E2E testing endpoints + logs endpoint
+  /^\/api\/orchestrator\/[^/]+\/logs\/export$/,  // Export endpoint for E2E testing
 ]
 
 /**

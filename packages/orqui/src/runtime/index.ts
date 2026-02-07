@@ -40,6 +40,8 @@ export { HeaderElementsRenderer } from "./components/HeaderElements.js";
 export { PageHeaderSlot } from "./components/PageHeader.js";
 export { BreadcrumbRenderer } from "./components/Breadcrumbs.js";
 export { SidebarNavRenderer } from "./components/SidebarNav.js";
+export { NavItem } from "./components/NavItem.js";
+export { TooltipPortal } from "./components/TooltipPortal.js";
 export { Skeleton, SkeletonText, SkeletonCard } from "./components/Skeleton.js";
 export { Toast, useToast } from "./components/Toast.js";
 export { EmptyState, EmptyTableState } from "./components/EmptyState.js";

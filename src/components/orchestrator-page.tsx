@@ -21,36 +21,30 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 import { FixInstructionsDialog } from "@/components/fix-instructions-dialog"
+import type {
+  ParsedArtifact,
+  StepResult,
+  LogEntry,
+  WizardStep,
+  PageTab,
+  StepLLMConfig,
+  OrchestratorSession,
+} from "./orchestrator/types"
+import {
+  SESSION_TTL_MS,
+  SESSION_KEY_PREFIX,
+  ACTIVE_KEY,
+  STEPS,
+} from "./orchestrator/types"
+import { StepIndicator } from "./orchestrator/step-indicator"
+import { ArtifactViewer } from "./orchestrator/artifact-viewer"
+import { ContextPanel } from "./orchestrator/context-panel"
+import { OrchestratorHeader } from "./orchestrator/orchestrator-header"
+import { LogsDrawer } from "./orchestrator/logs-drawer"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Session persistence
 // ─────────────────────────────────────────────────────────────────────────────
-
-const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
-const SESSION_KEY_PREFIX = "gk-pipeline-"
-const ACTIVE_KEY = "gk-active-pipeline"
-
-interface OrchestratorSession {
-  outputId?: string
-  step: number
-  completedSteps: number[]
-  taskDescription: string
-  taskType?: string
-  selectedProjectId: string | null
-  provider: string
-  model: string
-  stepLLMs?: Record<number, { provider: string; model: string }>
-  planArtifacts: ParsedArtifact[]
-  specArtifacts: ParsedArtifact[]
-  runId: string | null
-  savedAt: number
-  // Pipeline reconciliation fields
-  lastEventId: number
-  lastSeq: number
-  pipelineStatus: string | null    // 'running' | 'completed' | 'failed'
-  pipelineStage: string | null     // 'planning' | 'spec' | 'fix' | 'execute' | 'complete'
-  pipelineProgress: number         // 0-100
-}
 
 function sessionKey(id: string): string {
   return `${SESSION_KEY_PREFIX}${id}`
@@ -124,235 +118,9 @@ function clearSession(outputId?: string) {
   sessionStorage.removeItem("gk-orchestrator-session")
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
 
-interface ParsedArtifact {
-  filename: string
-  content: string
-}
 
-interface StepResult {
-  outputId?: string
-  artifacts?: ParsedArtifact[]
-  tokensUsed?: { inputTokens: number; outputTokens: number }
-  correctedTaskPrompt?: string
-}
 
-interface LogEntry {
-  time: string
-  type: string
-  text: string
-}
-
-type WizardStep = 0 | 1 | 2 | 3 | 4
-type PageTab = "pipeline"
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Step indicator
-// ─────────────────────────────────────────────────────────────────────────────
-
-const STEPS = [
-  { num: 0, label: "Tarefa" },
-  { num: 1, label: "Plano" },
-  { num: 2, label: "Testes" },
-  { num: 3, label: "Validação" },
-  { num: 4, label: "Execução" },
-] as const
-
-function StepIndicator({ current, completed, onStepClick }: { current: WizardStep; completed: Set<number>; onStepClick?: (step: WizardStep) => void }) {
-  return (
-    <div className="flex items-center gap-1">
-      {STEPS.map(({ num, label }, i) => {
-        const canClick = onStepClick && completed.has(num) && num !== current
-        return (
-          <div key={num} className="flex items-center">
-            <button
-              type="button"
-              disabled={!canClick}
-              onClick={() => canClick && onStepClick(num as WizardStep)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                num === current
-                  ? "bg-primary text-primary-foreground"
-                  : completed.has(num)
-                  ? "bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 cursor-pointer"
-                  : "bg-muted text-muted-foreground"
-              } ${!canClick ? "cursor-default" : ""}`}
-            >
-              <span>{completed.has(num) ? "✓" : num}</span>
-              <span className="hidden sm:inline">{label}</span>
-            </button>
-            {i < STEPS.length - 1 && (
-              <div className={`w-6 h-px mx-1 ${completed.has(num) ? "bg-green-500/40" : "bg-border"}`} />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Artifact viewer
-// ─────────────────────────────────────────────────────────────────────────────
-
-function ArtifactViewer({ artifacts }: { artifacts: ParsedArtifact[] }) {
-  const [selected, setSelected] = useState(0)
-  if (artifacts.length === 0) return null
-
-  const content = artifacts[selected]?.content ?? ""
-  const lines = content.split("\n")
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(content)
-      toast.success("Artifact copied to clipboard")
-    } catch (err) {
-      toast.error("Failed to copy: " + (err as Error).message)
-    }
-  }
-
-  const handleSave = () => {
-    try {
-      const blob = new Blob([content], { type: "text/plain" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = artifacts[selected].filename
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success("Artifact saved")
-    } catch (err) {
-      toast.error("Failed to save: " + (err as Error).message)
-    }
-  }
-
-  const handleSaveAll = async () => {
-    try {
-      const JSZip = (await import("jszip")).default
-      const zip = new JSZip()
-      artifacts.forEach((a) => zip.file(a.filename, a.content))
-      const blob = await zip.generateAsync({ type: "blob" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = "artifacts.zip"
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success("All artifacts saved as ZIP")
-    } catch (err) {
-      toast.error("Failed to save all: " + (err as Error).message)
-    }
-  }
-
-  return (
-    <div className="border border-border rounded-lg overflow-hidden" data-testid="artifact-viewer">
-      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-2 py-1">
-        <div className="flex">
-          {artifacts.map((a, i) => (
-            <button
-              key={a.filename}
-              onClick={() => setSelected(i)}
-              className={`px-3 py-2 text-xs font-mono transition-colors ${
-                i === selected
-                  ? "bg-card text-foreground border-b-2 border-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              data-testid={`artifact-tab-${i}`}
-            >
-              {a.filename}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          <button
-            onClick={handleCopy}
-            title="Copy to clipboard"
-            data-testid="artifact-copy-btn"
-            className="h-7 px-2"
-          >
-            📋
-          </button>
-          <button
-            onClick={handleSave}
-            title="Save current artifact"
-            data-testid="artifact-save-btn"
-            className="h-7 px-2"
-          >
-            💾
-          </button>
-          <button
-            onClick={handleSaveAll}
-            title="Save all as ZIP"
-            data-testid="artifact-save-all-btn"
-            className="h-7 px-2"
-          >
-            📦
-          </button>
-        </div>
-      </div>
-      <div className="overflow-auto max-h-96 bg-card">
-        <table className="w-full" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
-          <tbody>
-            {lines.map((line, i) => (
-              <tr key={i} style={{ border: 'none' }}>
-                <td className="select-none text-right pr-2 pl-2 py-0 text-[10px] font-mono text-muted-foreground/25 w-[1%] whitespace-nowrap align-top leading-[1.35rem]" style={{ border: 'none' }}>
-                  {i + 1}
-                </td>
-                <td className="pl-3 pr-4 py-0 text-xs font-mono whitespace-pre text-foreground align-top leading-[1.35rem]" style={{ border: 'none' }}>
-                  {line || "\u00A0"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Log panel
-// ─────────────────────────────────────────────────────────────────────────────
-
-function LogPanel({ logs, debugMode, onToggleDebug }: { logs: LogEntry[]; debugMode: boolean; onToggleDebug: () => void }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  // Auto-scroll to bottom when new logs arrive
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [logs.length])
-
-  if (logs.length === 0) return null
-
-  return (
-    <Card className="mt-4">
-      <CardHeader className="flex flex-row items-center justify-between py-2">
-        <CardTitle className="text-sm">Log</CardTitle>
-        <button
-          onClick={onToggleDebug}
-          className={`text-[10px] font-mono px-2 py-0.5 rounded border ${debugMode ? "bg-violet-500/20 border-violet-500/50 text-violet-700 dark:text-violet-300" : "border-muted text-muted-foreground hover:text-foreground"}`}
-        >
-          {debugMode ? "🐛 DEBUG ON" : "DEBUG"}
-        </button>
-      </CardHeader>
-      <CardContent>
-        <div ref={scrollRef} className={`${debugMode ? "max-h-96" : "max-h-48"} overflow-auto space-y-1`}>
-          {logs.map((log, i) => (
-            <div key={i} className={`flex gap-2 text-xs font-mono ${log.type === "debug" ? "opacity-75" : ""}`}>
-              <span className="text-muted-foreground shrink-0">{log.time}</span>
-              <Badge variant="outline" className={`text-[10px] shrink-0 ${log.type === "debug" ? "border-violet-500/40 text-violet-700 dark:text-violet-300" : ""}`}>{log.type}</Badge>
-              <span className={`${log.type === "debug" ? "text-violet-700 dark:text-violet-300" : "text-foreground"} break-all`}>{log.text}</span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main page
@@ -378,8 +146,6 @@ export function OrchestratorPage() {
     new Set(saved?.completedSteps ?? [])
   )
 
-  // Header portal (page key only)
-  const headerPortals = usePageShell({ page: "orchestrator" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
@@ -387,6 +153,15 @@ export function OrchestratorPage() {
   const [debugMode, setDebugMode] = useState(false)
   const debugModeRef = useRef(debugMode)
   debugModeRef.current = debugMode
+  const [logsDrawerOpen, setLogsDrawerOpen] = useState(() => {
+    const saved = localStorage.getItem('gk-logs-drawer-open')
+    return saved === 'true'
+  })
+
+  // Persist logs drawer state
+  useEffect(() => {
+    localStorage.setItem('gk-logs-drawer-open', String(logsDrawerOpen))
+  }, [logsDrawerOpen])
 
   // Rerun — existing artifact folders on disk
   const [diskArtifacts, setDiskArtifacts] = useState<ArtifactFolder[]>([])
@@ -430,7 +205,6 @@ export function OrchestratorPage() {
   // Per-step LLM configuration — allows choosing different models per step.
   // Session isolation is guaranteed by the backend: each step spawns
   // a fresh CLI process with its own session_id.
-  interface StepLLMConfig { provider: string; model: string }
 
   const [stepLLMs, setStepLLMs] = useState<Record<number, StepLLMConfig>>(
     saved?.stepLLMs ?? {}
@@ -486,10 +260,14 @@ export function OrchestratorPage() {
 
   // Step 1 result
   const [outputId, setOutputId] = useState<string | undefined>(resumeOutputId ?? saved?.outputId)
-  const [planArtifacts, setPlanArtifacts] = useState<ParsedArtifact[]>(saved?.planArtifacts ?? [])
+  const [planArtifacts, setPlanArtifacts] = useState<ParsedArtifact[]>(
+    Array.isArray(saved?.planArtifacts) ? saved.planArtifacts : []
+  )
 
   // Step 2 result
-  const [specArtifacts, setSpecArtifacts] = useState<ParsedArtifact[]>(saved?.specArtifacts ?? [])
+  const [specArtifacts, setSpecArtifacts] = useState<ParsedArtifact[]>(
+    Array.isArray(saved?.specArtifacts) ? saved.specArtifacts : []
+  )
 
   // Step 3 result
   const [runId, setRunId] = useState<string | null>(saved?.runId ?? null)
@@ -543,6 +321,22 @@ export function OrchestratorPage() {
 
   // Force re-render every 5s during WRITING to update elapsed timers
   const [, setTick] = useState(0)
+
+  // Header portal (page key + header content injection)
+  const headerPortals = usePageShell({
+    page: "orchestrator",
+    headerRight: outputId ? (
+      <div className="flex items-center gap-2">
+        <Badge variant="secondary" className="text-xs">
+          Step {step}/4
+        </Badge>
+        <span className="text-xs text-muted-foreground font-mono">
+          {outputId.slice(-8)}
+        </span>
+      </div>
+    ) : null,
+  })
+
   useEffect(() => {
     if (executionPhase !== "WRITING") return
     const interval = setInterval(() => setTick(t => t + 1), 5000)
@@ -1375,6 +1169,9 @@ export function OrchestratorPage() {
     addLog("info", "Iniciando validação Gatekeeper...")
 
     try {
+      if (!Array.isArray(planArtifacts)) {
+        throw new Error("Artefatos do plano corrompidos. Reinicie o fluxo.")
+      }
       const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
       if (!planArtifact) throw new Error("plan.json não encontrado")
 
@@ -1620,6 +1417,9 @@ export function OrchestratorPage() {
     addLog("info", "Iniciando validação pós-execução (Gates 2-3)...")
 
     try {
+      if (!Array.isArray(planArtifacts)) {
+        throw new Error("Artefatos do plano corrompidos. Reinicie o fluxo.")
+      }
       const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
       if (!planArtifact) throw new Error("plan.json não encontrado")
 
@@ -1679,7 +1479,7 @@ export function OrchestratorPage() {
       // Stage files
       if (commitMode === "all") {
         await api.git.add(selectedProjectId)
-      } else {
+      } else if (Array.isArray(planArtifacts)) {
         const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
         if (planArtifact) {
           const plan = JSON.parse(planArtifact.content)
@@ -1738,6 +1538,7 @@ export function OrchestratorPage() {
 
   // ── Manifest file paths (for commit mode comparison) ──────────────────
   const manifestFilePaths: string[] = (() => {
+    if (!Array.isArray(planArtifacts)) return []
     const planArtifact = planArtifacts.find((a) => a.filename === "plan.json")
     if (!planArtifact) return []
     try {
@@ -1751,7 +1552,18 @@ export function OrchestratorPage() {
     <div>
       {headerPortals}
 
-      {/* Session controls (resume only — reset moved to prompt card) */}
+      {/* Sticky orchestrator header */}
+      <OrchestratorHeader
+        step={step}
+        completedSteps={completedSteps}
+        onStepClick={handleStepClick}
+        taskDescription={taskDescription}
+        outputId={outputId}
+        onReset={handleReset}
+        loading={loading}
+      />
+
+      {/* Session controls (resume only — reset moved to header) */}
       {!outputId && saved?.outputId && (
         <div className="flex items-center gap-3 mt-6">
           <Button
@@ -1867,136 +1679,21 @@ export function OrchestratorPage() {
             </div>
           )}
 
-          {/* ─── Prompt card (visible on all steps) ───────────────── */}
-          {step > 0 && taskDescription.trim() && (
-            <Card className="p-4" data-testid="task-prompt-display-card">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  PROMPT
-                </h3>
-                <div className="flex items-center gap-2">
-                  {outputId && (
-                    <span className="text-xs font-mono text-muted-foreground/60">
-                      {outputId}
-                    </span>
-                  )}
-                  {outputId && (
-                    <Button variant="ghost" size="sm" onClick={handleReset} className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive">
-                      ✕ Resetar
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-4">
-                {taskDescription}
-              </p>
-            </Card>
-          )}
-
-          {/* ─── Step 0: Task input ─────────────────────────────────── */}
-          {step === 0 && (
-            <>
-              {/* Card existente "Descreva a Tarefa" */}
-              <Card>
+          {/* ─── 2-panel layout ────────────────────────────────────────── */}
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', width: '100%', minHeight: 'calc(100vh - 200px)' }}>
+            {/* Main panel: cresce naturalmente, sem scroll próprio */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* ─── Step 0: Task input ─────────────────────────────────── */}
+              {step === 0 && (
+                <div className="space-y-4">
+                  <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Descreva a Tarefa</CardTitle>
-                    <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
-                  </div>
+                  <CardTitle>Descreva a Tarefa</CardTitle>
                   <CardDescription>
                     Descreva o que precisa ser implementado. O LLM vai gerar o plano, contrato e especificação.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Projeto</Label>
-                  {projects.length === 0 ? (
-                    <div className="text-sm text-muted-foreground p-3 border border-amber-500/50 bg-amber-500/10 rounded">
-                      Nenhum projeto configurado. Crie um em <a href="/projects" className="underline">/projects</a>.
-                    </div>
-                  ) : (
-                    <Select value={selectedProjectId || undefined} onValueChange={setSelectedProjectId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um projeto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects.filter((p) => p.isActive).map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.workspace?.name} / {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Tipo</Label>
-                  <Select value={taskType} onValueChange={setTaskType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Opcional" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="feature">Feature</SelectItem>
-                      <SelectItem value="bugfix">Bugfix</SelectItem>
-                      <SelectItem value="refactor">Refactor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Per-step LLM configuration */}
-                  <div className="col-span-2 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Label>LLMs por Etapa</Label>
-                      <span className="text-[10px] text-muted-foreground font-medium px-1.5 py-0.5 bg-muted rounded">
-                        Sessões isoladas
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground -mt-1">
-                      Cada etapa roda em sessão independente. Você pode usar o mesmo ou diferentes modelos por etapa.
-                    </p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {([
-                        { step: 1, label: "Planejamento", desc: "plan + contract" },
-                        { step: 2, label: "Testes", desc: "spec file" },
-                        { step: 4, label: "Execução", desc: "implementation" },
-                      ] as const).map(({ step: s, label, desc }) => {
-                        const cfg = stepLLMs[s] ?? getDefault(s)
-
-                        return (
-                          <div key={s} className="space-y-1.5 p-2.5 rounded-lg border border-border">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-medium">{label}</span>
-                              <span className="text-[10px] text-muted-foreground">{desc}</span>
-                            </div>
-                            <Select value={cfg.provider} onValueChange={(v) => setStepLLM(s, "provider", v)}>
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
-                                  <SelectItem key={key} value={key}>{c.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Select value={cfg.model} onValueChange={(v) => setStepLLM(s, "model", v)}>
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(PROVIDER_MODELS[cfg.provider]?.models || []).map((m) => (
-                                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="task-description-textarea">Descrição da tarefa</Label>
                   <Textarea
@@ -2072,67 +1769,17 @@ export function OrchestratorPage() {
                 >
                   {loading ? "Gerando..." : "Gerar Plano →"}
                 </Button>
-
-                {/* ── Rerun from existing artifacts ─────────────── */}
-                {diskArtifacts.length > 0 && (
-                  <div className="border-t pt-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium">Revalidar artefatos existentes</p>
-                        <p className="text-xs text-muted-foreground">Pular geração — usar plan.json + spec do disco. Zero tokens.</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowRerunPicker(!showRerunPicker)}
-                      >
-                        {showRerunPicker ? "Fechar" : `${diskArtifacts.length} disponíveis →`}
-                      </Button>
-                    </div>
-                    {showRerunPicker && (
-                      <div className="space-y-1 max-h-48 overflow-auto rounded border p-2">
-                        {diskArtifacts.map((af) => {
-                          const date = new Date(af.createdAt)
-                          const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
-                          const shortId = af.outputId.length > 50 ? af.outputId.slice(0, 50) + "…" : af.outputId
-                          return (
-                            <button
-                              key={af.outputId}
-                              disabled={rerunLoading || loading}
-                              className="w-full text-left px-3 py-2 rounded hover:bg-muted/50 transition-colors flex items-center justify-between gap-2 text-xs disabled:opacity-50"
-                              onClick={async () => {
-                                setRerunLoading(true)
-                                await handleRerunFromDisk(af.outputId)
-                                setRerunLoading(false)
-                                setShowRerunPicker(false)
-                              }}
-                            >
-                              <span className="font-mono truncate flex-1">{shortId}</span>
-                              <span className="text-muted-foreground shrink-0">{dateStr}</span>
-                              <Badge variant="outline" className="text-[10px] shrink-0">
-                                {af.hasSpec ? "plan+spec" : "plan"}
-                              </Badge>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
               </CardContent>
             </Card>
-            </>
-          )}
+                </div>
+              )}
 
-          {/* ─── Step 2: Plan review + generate spec ─────────────────── */}
-          {step === 2 && (
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Artefatos do Plano</CardTitle>
-                    <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
-                  </div>
+              {/* ─── Step 2: Plan review + generate spec ─────────────────── */}
+              {step === 2 && (
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                  <CardTitle>Artefatos do Plano</CardTitle>
                   <CardDescription>
                     plan.json, contract.md e task.spec.md gerados pelo LLM. Revise antes de prosseguir.
                   </CardDescription>
@@ -2154,19 +1801,16 @@ export function OrchestratorPage() {
                     {loading ? "Gerando..." : "Gerar Testes →"}
                   </Button>
                 </CardContent>
-              </Card>
-            </div>
-          )}
+                  </Card>
+                </div>
+              )}
 
-          {/* ─── Step 3: Validate ─────────────────────────────────────── */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <Card>
+              {/* ─── Step 3: Validate ─────────────────────────────────────── */}
+              {step === 3 && (
+                <div className="space-y-4">
+                  <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Artefatos Gerados</CardTitle>
-                    <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
-                  </div>
+                  <CardTitle>Artefatos Gerados</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ArtifactViewer artifacts={[...planArtifacts, ...specArtifacts]} />
@@ -2212,26 +1856,6 @@ export function OrchestratorPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {/* Inline LLM selector for execute */}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="shrink-0">LLM:</span>
-                      <Select value={stepLLMs[4]?.provider ?? getDefault(4).provider} onValueChange={(v) => setStepLLM(4, "provider", v)}>
-                        <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
-                            <SelectItem key={key} value={key}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={stepLLMs[4]?.model ?? getDefault(4).model} onValueChange={(v) => setStepLLM(4, "model", v)}>
-                        <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? getDefault(4).provider]?.models || []).map((m) => (
-                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                     <Button onClick={handleExecute} disabled={loading} variant="outline" className="w-full">
                       {loading && validationStatus !== "RUNNING" ? "Executando..." : "Executar sem validar →"}
                     </Button>
@@ -2337,25 +1961,6 @@ export function OrchestratorPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="shrink-0">LLM p/ execução:</span>
-                      <Select value={stepLLMs[4]?.provider ?? getDefault(4).provider} onValueChange={(v) => setStepLLM(4, "provider", v)}>
-                        <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
-                            <SelectItem key={key} value={key}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={stepLLMs[4]?.model ?? getDefault(4).model} onValueChange={(v) => setStepLLM(4, "model", v)}>
-                        <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? getDefault(4).provider]?.models || []).map((m) => (
-                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                     <Button onClick={handleExecute} disabled={loading} className="w-full">
                       {loading ? "Executando..." : "Executar Implementação →"}
                     </Button>
@@ -2413,26 +2018,6 @@ export function OrchestratorPage() {
 
                     {/* Fix actions */}
                     <div className="space-y-3 pt-2">
-                      {/* Inline LLM selector for fix */}
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="shrink-0">LLM p/ correção:</span>
-                        <Select value={stepLLMs[3]?.provider ?? getDefault(3).provider} onValueChange={(v) => setStepLLM(3, "provider", v)}>
-                          <SelectTrigger className="h-7 text-xs w-[160px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
-                              <SelectItem key={key} value={key}>{c.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select value={stepLLMs[3]?.model ?? getDefault(3).model} onValueChange={(v) => setStepLLM(3, "model", v)}>
-                          <SelectTrigger className="h-7 text-xs w-[120px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {(PROVIDER_MODELS[stepLLMs[3]?.provider ?? getDefault(3).provider]?.models || []).map((m) => (
-                              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
                       <div className="flex gap-2">
                         {(() => {
                           // Auto-detect fix target based on failed validators
@@ -2494,24 +2079,21 @@ export function OrchestratorPage() {
                     </div>
                   </CardContent>
                 </Card>
+                  )}
+                </div>
               )}
-            </div>
-          )}
 
-          {/* ─── Step 4: Execute + Validate + Commit ───── */}
-          {step === 4 && (
-            <div className="space-y-4">
+              {/* ─── Step 4: Execute + Validate + Commit ───── */}
+              {step === 4 && (
+                <div className="space-y-4">
               {/* ── Main execution card ── */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className={executeResult && !executionPhase ? "text-green-400" : ""}>
-                      {executionPhase === "WRITING" ? "Execução em Andamento"
-                        : executeResult ? "Execução Concluída"
-                        : "Execução"}
-                    </CardTitle>
-                    <StepIndicator current={step} completed={completedSteps} onStepClick={handleStepClick} />
-                  </div>
+                  <CardTitle className={executeResult && !executionPhase ? "text-green-400" : ""}>
+                    {executionPhase === "WRITING" ? "Execução em Andamento"
+                      : executeResult ? "Execução Concluída"
+                      : "Execução"}
+                  </CardTitle>
                   {!executionPhase && !executeResult && !validationStatus && !loading && (
                     <CardDescription>
                       Gates 0-1 aprovados. Pronto para executar a implementação.
@@ -2522,25 +2104,6 @@ export function OrchestratorPage() {
                 {/* IDLE — execute button */}
                 {!executionPhase && !executeResult && !validationStatus && !loading && (
                   <CardContent className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="shrink-0">LLM:</span>
-                      <Select value={stepLLMs[4]?.provider ?? getDefault(4).provider} onValueChange={(v) => setStepLLM(4, "provider", v)}>
-                        <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(PROVIDER_MODELS).map(([key, c]) => (
-                            <SelectItem key={key} value={key}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={stepLLMs[4]?.model ?? getDefault(4).model} onValueChange={(v) => setStepLLM(4, "model", v)}>
-                        <SelectTrigger className="h-7 text-xs w-[120px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {(PROVIDER_MODELS[stepLLMs[4]?.provider ?? getDefault(4).provider]?.models || []).map((m) => (
-                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                     <Button onClick={handleExecute} disabled={loading} className="w-full">
                       {loading ? "Executando..." : "Executar Implementação →"}
                     </Button>
@@ -2814,12 +2377,47 @@ export function OrchestratorPage() {
                     </Button>
                   )}
                 </div>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
 
-      {/* Log panel */}
-      <LogPanel logs={logs} debugMode={debugMode} onToggleDebug={() => setDebugMode(d => !d)} />
+            {/* Context panel: sticky, cola na viewport (desktop only) */}
+            <div
+              className="context-panel-desktop"
+              style={{
+                width: '320px',
+                flexShrink: 0,
+                position: 'sticky',
+                top: '80px',  // Altura do OrchestratorHeader + gap
+                alignSelf: 'flex-start',
+                zIndex: 5,
+              }}
+            >
+              <ContextPanel
+                projects={projects}
+                selectedProjectId={selectedProjectId}
+                onProjectChange={setSelectedProjectId}
+                taskType={taskType}
+                onTaskTypeChange={setTaskType}
+                stepLLMs={stepLLMs}
+                onStepLLMChange={setStepLLM}
+                providerModels={PROVIDER_MODELS}
+                getDefault={getDefault}
+                diskArtifacts={diskArtifacts}
+                showRerunPicker={showRerunPicker}
+                onToggleRerunPicker={() => setShowRerunPicker(!showRerunPicker)}
+                onRerunFromDisk={handleRerunFromDisk}
+                rerunLoading={rerunLoading}
+                loading={loading}
+                logs={logs}
+                logsCount={logs.length}
+                debugMode={debugMode}
+                onToggleDebug={() => setDebugMode(!debugMode)}
+                onOpenLogs={() => setLogsDrawerOpen(true)}
+              />
+            </div>
+          </div>
 
       {/* Fix instructions dialog */}
       <FixInstructionsDialog
@@ -2829,6 +2427,15 @@ export function OrchestratorPage() {
         failedValidators={fixDialogValidators}
         onConfirm={handleFixWithInstructions}
       />
+
+      {/* Logs Drawer */}
+      {outputId && (
+        <LogsDrawer
+          isOpen={logsDrawerOpen}
+          onClose={() => setLogsDrawerOpen(false)}
+          pipelineId={outputId}
+        />
+      )}
       </div>
     </div>
   )

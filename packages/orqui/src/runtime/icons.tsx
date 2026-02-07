@@ -1,147 +1,286 @@
 // ============================================================================
-// Orqui Runtime — Phosphor Icons
+// Orqui Runtime — Icon System (Lucide Icons)
 // ============================================================================
 import React from "react";
+import {
+  Activity, Airplay, AlarmClock, AlertCircle, AlertOctagon, AlertTriangle,
+  Archive, ArrowDown, ArrowDownCircle, ArrowDownLeft, ArrowDownRight, ArrowLeft,
+  ArrowRight, ArrowUp, ArrowUpCircle, ArrowUpLeft, ArrowUpRight, AtSign,
+  Award, Ban, Banknote, BarChart, BarChart2, BarChart3, Battery, BatteryCharging,
+  Bell, BellOff, BellRing, Binary, Bluetooth, Bookmark, Box, Boxes,
+  Bug, Calendar, CalendarClock, CalendarDays, Camera, Cast, Check,
+  CheckCircle, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronsDown,
+  ChevronsLeft, ChevronsRight, ChevronsUp, ChevronUp, Circle, Clipboard,
+  ClipboardCheck, ClipboardCopy, ClipboardList, Clock, Cloud, CloudRain,
+  CloudSnow, Code, Code2, Coins, Command, Component, Contact,
+  Container, Copy, CornerDownLeft, CornerDownRight, CornerUpLeft, CornerUpRight,
+  Cpu, CreditCard, Crosshair, Crown, Database, Diamond, DollarSign,
+  DoorClosed, DoorOpen, Download, Edit, Edit2, Edit3, Eraser, Euro,
+  Eye, EyeOff, File, FileAudio, FileCode, FileImage, FileText,
+  FileVideo, Files, Film, Filter,
+  Flag, Flame, Folder, FolderCheck, FolderLock, FolderMinus, FolderOpen,
+  FolderPlus, FolderX, Forward, Frown, Gift, Github, Gitlab, Globe,
+  Grid3x3, Grip, GripHorizontal, GripVertical, Hammer, Hand, HardDrive,
+  Hash, Headphones, Heart, HelpCircle, Highlighter, Home, Hourglass,
+  Image, Images, Inbox, Info, Key, Laptop, Laugh, Layers, LayoutGrid,
+  LayoutList, Link, List, Loader, Loader2, Lock, LockKeyhole,
+  LockKeyholeOpen, LogIn, LogOut, Mail, MailOpen, Map, MapPin, Maximize,
+  Meh, Menu, MessageCircle, MessageSquare, MessagesSquare, Mic, MicOff,
+  Minimize, Minus, MinusCircle, Monitor, Moon, MoreHorizontal, MoreVertical,
+  Move, MoveDown, MoveLeft, MoveRight, MoveUp, Music, Music2, Navigation,
+  Navigation2, Package, PanelLeft, PanelRight, Paperclip, Pause,
+  Pen, PenLine, PenTool, Pencil, Percent, Phone, PhoneCall, PhoneIncoming,
+  PhoneMissed, PhoneOff, PhoneOutgoing, PieChart, Play, Plus, PlusCircle,
+  Plug, Podcast, PoundSterling, Power, PowerOff, Radio, Receipt, Redo,
+  RefreshCcw, RefreshCw, Reply, RotateCcw, RotateCw, Save, Scissors,
+  Search, Send, Server, Settings, Share, Share2, Shield, ShieldAlert,
+  ShieldCheck, ShieldX, ShoppingBag, ShoppingCart, Sidebar, Signal,
+  SkipBack, SkipForward, Slash, Sliders, Smartphone, Smile, Sparkles,
+  Square, Star, Sun, Sunrise, Sunset, Table, Tablet, Tag, Tags,
+  Target, Terminal, TestTube, ThumbsDown, ThumbsUp, Ticket, Timer,
+  Trash2, TrendingDown, TrendingUp, Triangle, Trophy, Undo,
+  Unlock, Upload, User, UserCheck, UserCircle, UserMinus, UserPlus,
+  Users, UserSquare, UserX, Video, VideoOff, Volume, Volume1, Volume2,
+  VolumeX, Wallet, Wind, Workflow, Wrench, X, XCircle, XOctagon,
+  Zap, ZoomIn, ZoomOut,
+  type LucideProps
+} from "lucide-react";
 
-export const PHOSPHOR_SVG_PATHS: Record<string, string | { bg: string; fg: string }> = {
-  "house": "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8H96a8,8,0,0,0,8-8V160h48v56a8,8,0,0,0,8,8h56a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H168V152a8,8,0,0,0-8-8H96a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z",
-  "gear": "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.68l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.67a73.68,73.68,0,0,1-8.68,0,8,8,0,0,0-5.68,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64l-22.58-2.51a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.66,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.68L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69l2.51-22.58a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.66,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.68-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z",
-  "magnifying-glass": "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z",
-  "bell": "M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z",
-  "user": "M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z",
-  "shield-check": "M208,40H48A16,16,0,0,0,32,56v58.77c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.52-80-30.69-80-109.18V56H208ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z",
-  "shield": "M208,40H48A16,16,0,0,0,32,56v58.77c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.52-80-30.69-80-109.18V56H208Z",
-  "lock": "M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208Zm-80-36V140a12,12,0,1,1,0-24h0a12,12,0,0,1,12,12v24a12,12,0,0,1-24,0Z",
-  "key": "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A80,80,0,0,0,216.57,39.43ZM224,100a63.08,63.08,0,0,1-17.39,43.52L126.34,168H104a8,8,0,0,0-8,8v16H80a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,2.11-7.34A63.93,63.93,0,0,1,160.05,36,64.08,64.08,0,0,1,224,100Zm-44-20a12,12,0,1,1-12-12A12,12,0,0,1,180,80Z",
-  "eye": "M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.29A169.47,169.47,0,0,1,24.7,128,169.47,169.47,0,0,1,48.07,97.29C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.29A169.47,169.47,0,0,1,231.3,128C223.94,141.44,192.22,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z",
-  "warning": "M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z",
-  "folder": "M216,72H131.31L104,44.69A15.86,15.86,0,0,0,92.69,40H40A16,16,0,0,0,24,56V200.62A15.4,15.4,0,0,0,39.38,216H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V56H92.69l29.65,29.66A8,8,0,0,0,128,88h88Z",
-  "file": "M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z",
-  "code": "M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.29Zm176,27.7-48-40a8,8,0,1,0-10.24,12.29L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z",
-  "rocket": "M152,224a8,8,0,0,1-8,8H112a8,8,0,0,1,0-16h32A8,8,0,0,1,152,224Zm-24-80a12,12,0,1,0-12-12A12,12,0,0,0,128,144Z",
-  "lightning": "M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7l-112,120a8,8,0,0,0,3,13l57.63,21.61L88.16,238.43a8,8,0,0,0,13.69,7l112-120A8,8,0,0,0,215.79,118.17ZM109.37,214l10.47-52.38a8,8,0,0,0-5.1-9.27L58.81,131.35l88.82-95.27L137.16,88.46a8,8,0,0,0,5.1,9.27l55.93,20.95Z",
-  "star": "M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.38,16.38,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.38,16.38,0,0,0,239.18,97.26Z",
-  "heart": "M178,32c-20.65,0-38.73,8.88-50,23.89C116.73,40.88,98.65,32,78,32A62.07,62.07,0,0,0,16,94c0,70,103.79,126.66,108.21,129a8,8,0,0,0,7.58,0C136.21,220.66,240,164,240,94A62.07,62.07,0,0,0,178,32Z",
-  "globe": "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Z",
-  "sparkle": "M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112.9,220.38,93.54,168.22a8,8,0,0,0-4.74-4.74L36.64,144,88.8,124.58a8,8,0,0,0,4.74-4.74L112.9,67.62l19.36,52.16a8,8,0,0,0,4.74,4.74L189.16,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z",
-  "robot": "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16Zm-36-60a12,12,0,1,1-12-12A12,12,0,0,1,180,132ZM88,132a12,12,0,1,1-12-12A12,12,0,0,1,88,132Z",
-  "chart-bar": "M224,200h-8V40a8,8,0,0,0-16,0V200H168V96a8,8,0,0,0-16,0V200H112V136a8,8,0,0,0-16,0v64H56V168a8,8,0,0,0-16,0v32H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16Z",
-  "flow-arrow": "M245.66,74.34l-32-32a8,8,0,0,0-11.32,11.32L220.69,72H208c-49.33,0-61.05,28.12-71.38,52.92-9.38,22.51-16.92,40.59-49.48,42.84a40,40,0,1,0,.1,16c43.26-2.65,54.34-29.15,64.14-52.69C161.41,107,169.33,88,208,88h12.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,74.34ZM48,200a24,24,0,1,1,24-24A24,24,0,0,1,48,200Z",
-  "chat-circle": "M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z",
-  "list": "M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z",
-  "squares-four": "M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48Z",
-  "clipboard": "M200,32H163.74a47.92,47.92,0,0,0-71.48,0H56A16,16,0,0,0,40,48V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Z",
-  "database": "M128,24C74.17,24,32,48.6,32,80v96c0,31.4,42.17,56,96,56s96-24.6,96-56V80C224,48.6,181.83,24,128,24Z",
-  "plus": "M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z",
-  "check": "M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z",
-  "x": "M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z",
-  "barricade": "M224,64H32A16,16,0,0,0,16,80v72a16,16,0,0,0,16,16H56v32a8,8,0,0,0,16,0V168H184v32a8,8,0,0,0,16,0V168h24a16,16,0,0,0,16-16V80A16,16,0,0,0,224,64Zm0,64.69L175.31,80H224ZM80.69,80l72,72H103.31L32,80.69V80ZM32,103.31,80.69,152H32ZM224,152H175.31l-72-72h49.38L224,151.32V152Z",
-  "sign-out": {
-    bg: "M224,56V200a16,16,0,0,1-16,16H48V40H208A16,16,0,0,1,224,56Z",
-    fg: "M120,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H56V208h56A8,8,0,0,1,120,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L204.69,120H112a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,229.66,122.34Z",
-  },
-  "door": "M232,216H208V40a16,16,0,0,0-16-16H64A16,16,0,0,0,48,40V216H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16ZM64,40H192V216H64Zm104,92a12,12,0,1,1-12-12A12,12,0,0,1,168,132Z",
-  "door-open": "M232,216H208V40a16,16,0,0,0-16-16H64A16,16,0,0,0,48,40V216H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16Zm-40,0H176V40h16ZM64,40h96V216H64Zm80,92a12,12,0,1,1-12-12A12,12,0,0,1,144,132Z",
-  "envelope": "M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48Zm-96,85.15L52.57,64H203.43ZM98.71,128,40,181.81V74.19Zm11.84,10.85,12,11.05a8,8,0,0,0,10.82,0l12-11.05,58,53.15H52.57ZM157.29,128,216,74.18V181.82Z",
-  "question": "M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180ZM128,72c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Zm104,56A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z",
-  "moon": "M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z",
-  "sun": "M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z",
-  "arrow-square-down": "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V48H208V208Zm-42.34-77.66a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L120,148.69V88a8,8,0,0,1,16,0v60.69l18.34-18.35A8,8,0,0,1,165.66,130.34Z",
-  "share-network": "M176,160a39.89,39.89,0,0,0-28.62,12.09l-46.1-29.63a39.8,39.8,0,0,0,0-28.92l46.1-29.63a40,40,0,1,0-8.66-13.45l-46.1,29.63a40,40,0,1,0,0,55.82l46.1,29.63A40,40,0,1,0,176,160Zm0-128a24,24,0,1,1-24,24A24,24,0,0,1,176,32ZM64,152a24,24,0,1,1,24-24A24,24,0,0,1,64,152Zm112,72a24,24,0,1,1,24-24A24,24,0,0,1,176,224Z",
-  "hard-drives": "M208,136H48a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136Zm0,56H48V152H208v40Zm0-160H48A16,16,0,0,0,32,48V88a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,56H48V48H208V88ZM188,172a12,12,0,1,1-12-12A12,12,0,0,1,188,172Zm-40,0a12,12,0,1,1-12-12A12,12,0,0,1,148,172ZM188,68a12,12,0,1,1-12-12A12,12,0,0,1,188,68Zm-40,0a12,12,0,1,1-12-12A12,12,0,0,1,148,68Z",
-  // Duotone icons
-  "asterisk-duotone": {
-    bg: "M200,128a72,72,0,1,1-72-72A72,72,0,0,1,200,128Z",
-    fg: "M214.86,180.12a8,8,0,0,1-11,2.74L136,142.13V216a8,8,0,0,1-16,0V142.13L52.12,182.86a8,8,0,1,1-8.23-13.72L112.45,128,43.89,86.86a8,8,0,1,1,8.23-13.72L120,113.87V40a8,8,0,0,1,16,0v73.87l67.88-40.73a8,8,0,1,1,8.23,13.72L143.55,128l68.56,41.14A8,8,0,0,1,214.86,180.12Z",
-  },
-  "meteor-duotone": {
-    bg: "M128,160a32,32,0,1,1-32-32A32,32,0,0,1,128,160Z",
-    fg: "M96,120a40,40,0,1,0,40,40A40,40,0,0,0,96,120Zm0,64a24,24,0,1,1,24-24A24,24,0,0,1,96,184Zm125.66-61.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32-11.32l48-48A8,8,0,0,1,221.66,122.34Zm-56,11.32a8,8,0,0,1-11.32-11.32l24-24a8,8,0,0,1,11.32,11.32Zm64-64-16,16a8,8,0,0,1-11.32-11.32l16-16a8,8,0,0,1,11.32,11.32ZM122.34,90.34l72-72a8,8,0,1,1,11.32,11.32l-72,72a8,8,0,0,1-11.32-11.32ZM146.91,199.6a8,8,0,0,1,0,11.31A72,72,0,1,1,45.09,109.09l82.74-82.75a8,8,0,1,1,11.32,11.32L56.4,120.4a56,56,0,0,0,79.2,79.2A8,8,0,0,1,146.91,199.6Z",
-  },
-  "hurricane-duotone": {
-    bg: "M148.62,50.68,160,8S48,32,48,128a80,80,0,0,0,59.38,77.32L96,248s112-24,112-120A80,80,0,0,0,148.62,50.68ZM128,152a24,24,0,1,1,24-24A24,24,0,0,1,128,152Z",
-    fg: "M128,96a32,32,0,1,0,32,32A32,32,0,0,0,128,96Zm0,48a16,16,0,1,1,16-16A16,16,0,0,1,128,144Zm30.32-98.64,9.41-35.3A8,8,0,0,0,158.32.18,195.87,195.87,0,0,0,99.67,25.27C60.63,50.37,40,85.89,40,128a88.11,88.11,0,0,0,57.68,82.64l-9.41,35.3a8,8,0,0,0,9.41,9.88,195.87,195.87,0,0,0,58.65-25.09C195.37,205.63,216,170.11,216,128A88.1,88.1,0,0,0,158.32,45.36ZM148.06,217a184.14,184.14,0,0,1-40.68,19.37l7.73-29a8,8,0,0,0-5.67-9.79A72.06,72.06,0,0,1,56,128c0-36.77,17.48-66.72,51.94-89a184.14,184.14,0,0,1,40.68-19.37l-7.73,29a8,8,0,0,0,5.67,9.79A72.06,72.06,0,0,1,200,128C200,164.77,182.52,194.72,148.06,217Z",
-  },
-  "skull-duotone": {
-    bg: "M128,24c-53,0-96,41.19-96,92,0,34.05,19.31,63.78,48,79.69V216a8,8,0,0,0,8,8h80a8,8,0,0,0,8-8V195.69c28.69-15.91,48-45.64,48-79.69C224,65.19,181,24,128,24ZM92,152a20,20,0,1,1,20-20A20,20,0,0,1,92,152Zm72,0a20,20,0,1,1,20-20A20,20,0,0,1,164,152Z",
-    fg: "M92,104a28,28,0,1,0,28,28A28,28,0,0,0,92,104Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,92,144Zm72-40a28,28,0,1,0,28,28A28,28,0,0,0,164,104Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,164,144ZM128,16C70.65,16,24,60.86,24,116c0,34.1,18.27,66,48,84.28V216a16,16,0,0,0,16,16h80a16,16,0,0,0,16-16V200.28C213.73,182,232,150.1,232,116,232,60.86,185.35,16,128,16Zm44.12,172.69a8,8,0,0,0-4.12,7V216H152V192a8,8,0,0,0-16,0v24H120V192a8,8,0,0,0-16,0v24H88V195.69a8,8,0,0,0-4.12-7C56.81,173.69,40,145.84,40,116c0-46.32,39.48-84,88-84s88,37.68,88,84C216,145.83,199.19,173.69,172.12,188.69Z",
-  },
-  "airplane-takeoff-duotone": {
-    bg: "M240,91.64l-147.41,88a32,32,0,0,1-38-4.32L18.53,140a8,8,0,0,1,2.32-13.19L24,125.27,55.79,136,88,116.51,58.65,88a8,8,0,0,1,2.2-13.3L68,72l57.53,21.17,54.84-32.75a32,32,0,0,1,41,7.32Z",
-    fg: "M176,216a8,8,0,0,1-8,8H24a8,8,0,0,1,0-16H168A8,8,0,0,1,176,216ZM247.86,93.15a8,8,0,0,1-3.76,5.39l-147.41,88a40.18,40.18,0,0,1-20.26,5.52,39.78,39.78,0,0,1-27.28-10.87l-.12-.12L13,145.8a16,16,0,0,1,4.49-26.21l3-1.47a8,8,0,0,1,6.08-.4l28.26,9.54L75,115.06,53.17,93.87A16,16,0,0,1,57.7,67.4l.32-.13,7.15-2.71a8,8,0,0,1,5.59,0L124.7,84.38,176.27,53.6a39.82,39.82,0,0,1,51.28,9.12l.12.15,18.64,23.89A8,8,0,0,1,247.86,93.15Zm-19.74-3.7-13-16.67a23.88,23.88,0,0,0-30.68-5.42l-54.8,32.72a8.06,8.06,0,0,1-6.87.64L68,80.58l-4,1.53.21.2L93.57,110.8a8,8,0,0,1-1.43,12.58L59.93,142.87a8,8,0,0,1-6.7.73l-28.67-9.67-.19.1-.37.17a.71.71,0,0,1,.13.12l36,35.26a23.85,23.85,0,0,0,28.42,3.18Z",
-  },
-  "alien-duotone": {
-    bg: "M128,24a88,88,0,0,0-88,88c0,48.6,56,120,88,120s88-71.4,88-120A88,88,0,0,0,128,24ZM104,144a32,32,0,0,1-32-32,8,8,0,0,1,8-8,32,32,0,0,1,32,32A8,8,0,0,1,104,144Zm48,0a8,8,0,0,1-8-8,32,32,0,0,1,32-32,8,8,0,0,1,8,8A32,32,0,0,1,152,144Z",
-    fg: "M128,16a96.11,96.11,0,0,0-96,96c0,24,12.56,55.06,33.61,83,21.18,28.15,44.5,45,62.39,45s41.21-16.81,62.39-45c21.05-28,33.61-59,33.61-83A96.11,96.11,0,0,0,128,16Zm49.61,169.42C160.24,208.49,140.31,224,128,224s-32.24-15.51-49.61-38.58C59.65,160.5,48,132.37,48,112a80,80,0,0,1,160,0C208,132.37,196.35,160.5,177.61,185.42ZM120,136A40,40,0,0,0,80,96a16,16,0,0,0-16,16,40,40,0,0,0,40,40A16,16,0,0,0,120,136ZM80,112a24,24,0,0,1,24,24h0A24,24,0,0,1,80,112Zm96-16a40,40,0,0,0-40,40,16,16,0,0,0,16,16,40,40,0,0,0,40-40A16,16,0,0,0,176,96Zm-24,40a24,24,0,0,1,24-24A24,24,0,0,1,152,136Zm0,48a8,8,0,0,1-8,8H112a8,8,0,0,1,0-16h32A8,8,0,0,1,152,184Z",
-  },
-  "arrows-clockwise-duotone": {
-    bg: "M216,128a88,88,0,1,1-88-88A88,88,0,0,1,216,128Z",
-    fg: "M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43h-.45A79.52,79.52,0,0,0,69.59,72.71,8,8,0,0,1,58.41,61.27a96,96,0,0,1,135,.79L208,76.69V48a8,8,0,0,1,16,0ZM186.41,183.29a80,80,0,0,1-112.47-.66L59.31,168H88a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V179.31l14.63,14.63A95.43,95.43,0,0,0,130,222.06h.53a95.36,95.36,0,0,0,67.07-27.33,8,8,0,0,0-11.18-11.44Z",
-  },
-  "axe-duotone": {
-    bg: "M245.65,108.46l-81.19,81.19A8,8,0,0,1,150.87,185c-7.09-53.14-42.41-87.8-59.45-99.76A8,8,0,0,1,90.33,73L129,34.33a8,8,0,0,1,12.2,1.09c12,17,46.62,52.36,99.76,59.45A8,8,0,0,1,245.65,108.46Z",
-    fg: "M255.15,97.72A16,16,0,0,0,242,86.94a136.46,136.46,0,0,1-51.65-18l10.31-10.3a25,25,0,0,0-35.32-35.32l-13.2,13.21c-2.33-2.8-3.81-4.84-4.41-5.69a16,16,0,0,0-24.41-2.15L84.68,67.36a16,16,0,0,0,2.14,24.4c.86.6,2.9,2.08,5.7,4.41L7.31,181.37a25,25,0,0,0,35.32,35.32l82.3-82.31a136.63,136.63,0,0,1,18,51.65,16,16,0,0,0,10.77,13.12,16.21,16.21,0,0,0,5.15.85,15.88,15.88,0,0,0,11.26-4.69l81.18-81.19A15.86,15.86,0,0,0,255.15,97.72ZM176.69,34.63a9,9,0,1,1,12.68,12.68L176.82,59.86A152.5,152.5,0,0,1,163.1,48.21ZM31.31,205.37a9,9,0,1,1-12.68-12.68l85.58-85.58a150.89,150.89,0,0,1,11.65,13.71ZM158.8,183.92C150,118.29,101.52,82.52,96,78.67L134.66,40c3.86,5.5,39.63,54,105.25,62.78Z",
-  },
-  "brain-duotone": {
-    bg: "M240,124a48,48,0,0,1-32,45.27h0V176a40,40,0,0,1-80,0,40,40,0,0,1-80,0v-6.73h0a48,48,0,0,1,0-90.54V72a40,40,0,0,1,80,0,40,40,0,0,1,80,0v6.73A48,48,0,0,1,240,124Z",
-    fg: "M248,124a56.11,56.11,0,0,0-32-50.61V72a48,48,0,0,0-88-26.49A48,48,0,0,0,40,72v1.39a56,56,0,0,0,0,101.2V176a48,48,0,0,0,88,26.49A48,48,0,0,0,216,176v-1.41A56.09,56.09,0,0,0,248,124ZM88,208a32,32,0,0,1-31.81-28.56A55.87,55.87,0,0,0,64,180h8a8,8,0,0,0,0-16H64A40,40,0,0,1,50.67,86.27,8,8,0,0,0,56,78.73V72a32,32,0,0,1,64,0v68.26A47.8,47.8,0,0,0,88,128a8,8,0,0,0,0,16,32,32,0,0,1,0,64Zm104-44h-8a8,8,0,0,0,0,16h8a55.87,55.87,0,0,0,7.81-.56A32,32,0,1,1,168,144a8,8,0,0,0,0-16,47.8,47.8,0,0,0-32,12.26V72a32,32,0,0,1,64,0v6.73a8,8,0,0,0,5.33,7.54A40,40,0,0,1,192,164Zm16-52a8,8,0,0,1-8,8h-4a36,36,0,0,1-36-36V80a8,8,0,0,1,16,0v4a20,20,0,0,0,20,20h4A8,8,0,0,1,208,112ZM60,120H56a8,8,0,0,1,0-16h4A20,20,0,0,0,80,84V80a8,8,0,0,1,16,0v4A36,36,0,0,1,60,120Z",
-  },
-  "kanban-duotone": {
-    bg: "M96,88H72v96H96Zm48,0H112v96h32Zm48,0H160v96h32Z",
-    fg: "M208,56H48a8,8,0,0,0-8,8V192a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V64A8,8,0,0,0,208,56ZM56,72H200V192H56Zm16,16v96H96V88Zm48,0v96h32V88Zm48,0v96h32V88Z",
-  },
-  "squares-four-duotone": {
-    bg: "M104,56H56v48h48Zm96,0H152v48h48Zm-96,96H56v48h48Zm96,0H152v48h48Z",
-    fg: "M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48Z",
-  },
-  "gauge-duotone": {
-    bg: "M197.66,186.34a96,96,0,1,0-139.32,0h0l30.06-30.06a48,48,0,1,1,79.2,0l30.06,30.06Z",
-    fg: "M128,80a48,48,0,0,0-33.94,81.94l-30.07,30.06a96,96,0,1,1,128,0l-30.05-30.06A48,48,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z",
-  },
+// Create icon registry for dynamic lookup
+const LUCIDE_ICON_REGISTRY: Record<string, React.ComponentType<LucideProps>> = {
+  Activity, Airplay, AlarmClock, AlertCircle, AlertOctagon, AlertTriangle,
+  Archive, ArrowDown, ArrowDownCircle, ArrowDownLeft, ArrowDownRight, ArrowLeft,
+  ArrowRight, ArrowUp, ArrowUpCircle, ArrowUpLeft, ArrowUpRight, AtSign,
+  Award, Ban, Banknote, BarChart, BarChart2, BarChart3, Battery, BatteryCharging,
+  Bell, BellOff, BellRing, Binary, Bluetooth, Bookmark, Box, Boxes,
+  Bug, Calendar, CalendarClock, CalendarDays, Camera, Cast, Check,
+  CheckCircle, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronsDown,
+  ChevronsLeft, ChevronsRight, ChevronsUp, ChevronUp, Circle, Clipboard,
+  ClipboardCheck, ClipboardCopy, ClipboardList, Clock, Cloud, CloudRain,
+  CloudSnow, Code, Code2, Coins, Command, Component, Contact,
+  Container, Copy, CornerDownLeft, CornerDownRight, CornerUpLeft, CornerUpRight,
+  Cpu, CreditCard, Crosshair, Crown, Database, Diamond, DollarSign,
+  DoorClosed, DoorOpen, Download, Edit, Edit2, Edit3, Eraser, Euro,
+  Eye, EyeOff, File, FileAudio, FileCode, FileImage, FileText,
+  FileVideo, Files, Film, Filter,
+  Flag, Flame, Folder, FolderCheck, FolderLock, FolderMinus, FolderOpen,
+  FolderPlus, FolderX, Forward, Frown, Gift, Github, Gitlab, Globe,
+  Grid3x3, Grip, GripHorizontal, GripVertical, Hammer, Hand, HardDrive,
+  Hash, Headphones, Heart, HelpCircle, Highlighter, Home, Hourglass,
+  Image, Images, Inbox, Info, Key, Laptop, Laugh, Layers, LayoutGrid,
+  LayoutList, Link, List, Loader, Loader2, Lock, LockKeyhole,
+  LockKeyholeOpen, LogIn, LogOut, Mail, MailOpen, Map, MapPin, Maximize,
+  Meh, Menu, MessageCircle, MessageSquare, MessagesSquare, Mic, MicOff,
+  Minimize, Minus, MinusCircle, Monitor, Moon, MoreHorizontal, MoreVertical,
+  Move, MoveDown, MoveLeft, MoveRight, MoveUp, Music, Music2, Navigation,
+  Navigation2, Package, PanelLeft, PanelRight, Paperclip, Pause,
+  Pen, PenLine, PenTool, Pencil, Percent, Phone, PhoneCall, PhoneIncoming,
+  PhoneMissed, PhoneOff, PhoneOutgoing, PieChart, Play, Plus, PlusCircle,
+  Plug, Podcast, PoundSterling, Power, PowerOff, Radio, Receipt, Redo,
+  RefreshCcw, RefreshCw, Reply, RotateCcw, RotateCw, Save, Scissors,
+  Search, Send, Server, Settings, Share, Share2, Shield, ShieldAlert,
+  ShieldCheck, ShieldX, ShoppingBag, ShoppingCart, Sidebar, Signal,
+  SkipBack, SkipForward, Slash, Sliders, Smartphone, Smile, Sparkles,
+  Square, Star, Sun, Sunrise, Sunset, Table, Tablet, Tag, Tags,
+  Target, Terminal, TestTube, ThumbsDown, ThumbsUp, Ticket, Timer,
+  Trash2, TrendingDown, TrendingUp, Triangle, Trophy, Undo,
+  Unlock, Upload, User, UserCheck, UserCircle, UserMinus, UserPlus,
+  Users, UserSquare, UserX, Video, VideoOff, Volume, Volume1, Volume2,
+  VolumeX, Wallet, Wind, Workflow, Wrench, X, XCircle, XOctagon,
+  Zap, ZoomIn, ZoomOut,
 };
 
-/** Render inline SVG for a Phosphor icon name */
-export function PhosphorIcon({ name, size = 20, color = "currentColor" }: { name: string; size?: number; color?: string }) {
-  const pathData = PHOSPHOR_SVG_PATHS[name];
-  if (!pathData) return <span style={{ fontSize: size }}>?</span>;
+// Export registry
+export { LUCIDE_ICON_REGISTRY };
 
-  // Check if this is a duotone icon (object with bg and fg)
-  if (typeof pathData === "object" && pathData.bg && pathData.fg) {
+// Mapeamento de nomes Phosphor (antigos) para Lucide
+const PHOSPHOR_TO_LUCIDE_MAP: Record<string, string> = {
+  // Sidebar navigation icons
+  "hurricane-duotone": "Tornado",
+  "hurricane": "Tornado",
+  "brain-duotone": "Brain",
+  "brain": "Brain",
+  "arrows-clockwise-duotone": "RefreshCw",
+  "arrows-clockwise": "RefreshCw",
+  "squares-four": "LayoutGrid",
+  "file": "File",
+  "shield-check": "ShieldCheck",
+  "gear": "Settings",
+
+  // Common icons
+  "sign-out": "LogOut",
+  "sign-in": "LogIn",
+  "magnifying-glass": "Search",
+  "axe-duotone": "Axe",
+  "axe": "Axe",
+  "house": "Home",
+  "user": "User",
+  "caret-right": "ChevronRight",
+  "caret-left": "ChevronLeft",
+  "caret-down": "ChevronDown",
+  "caret-up": "ChevronUp",
+  "x": "X",
+  "check": "Check",
+  "plus": "Plus",
+  "minus": "Minus",
+};
+
+/**
+ * Get Lucide icon component by name (supports both lucide: prefix and ph: legacy)
+ */
+function getLucideIcon(iconName: string): React.ComponentType<LucideProps> | null {
+  // Remove prefix if present
+  let name = iconName;
+  if (name.startsWith("lucide:")) {
+    name = name.slice(7);
+  } else if (name.startsWith("ph:")) {
+    // Legacy Phosphor support - map to Lucide equivalent
+    const phosphorName = name.slice(3);
+    name = PHOSPHOR_TO_LUCIDE_MAP[phosphorName] || phosphorName;
+  }
+
+  // Try exact match from registry (PascalCase)
+  if (LUCIDE_ICON_REGISTRY[name]) {
+    return LUCIDE_ICON_REGISTRY[name];
+  }
+
+  // Try PascalCase conversion (kebab-case → PascalCase)
+  const pascalCase = name
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+
+  if (LUCIDE_ICON_REGISTRY[pascalCase]) {
+    return LUCIDE_ICON_REGISTRY[pascalCase];
+  }
+
+  return null;
+}
+
+/**
+ * Render an icon value — supports emoji strings, "lucide:icon-name", or legacy "ph:icon-name"
+ */
+export function IconValue({
+  icon,
+  size = 20,
+  color = "currentColor",
+  enhanced = false,
+  showDebug = false,
+}: {
+  icon?: string; // Keep as string for backwards compatibility (IconValue type is too strict for runtime)
+  size?: number;
+  color?: string;
+  enhanced?: boolean;
+  showDebug?: boolean;
+}) {
+  if (!icon) {
+    if (showDebug) {
+      console.warn('[Orqui Icons] IconValue called with no icon prop');
+    }
+    // Fallback visual when icon is missing
     return (
-      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 256 256" fill={color}>
-        <path d={pathData.bg} opacity="0.2" />
-        <path d={pathData.fg} />
-      </svg>
+      <span
+        style={{
+          fontSize: size,
+          opacity: 0.3,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: size,
+          height: size,
+        }}
+        title="Icon missing"
+      >
+        ◯
+      </span>
     );
   }
 
-  // Single-path icon (string)
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 256 256" fill={color}>
-      <path d={pathData as string} />
-    </svg>
-  );
-}
+  // Check if it's a Lucide icon (lucide: prefix) or legacy Phosphor (ph: prefix)
+  if (icon.startsWith("lucide:") || icon.startsWith("ph:")) {
+    const IconComponent = getLucideIcon(icon);
 
-/** Build an SVG string for a Phosphor icon (used for favicon generation) */
-export function buildPhosphorFaviconSvg(name: string, fillColor: string): string | null {
-  const pathData = PHOSPHOR_SVG_PATHS[name];
-  if (!pathData) return null;
+    if (!IconComponent) {
+      if (showDebug) {
+        console.warn(`[Orqui Icons] Icon "${icon}" not found in Lucide`);
+      }
+      return (
+        <span
+          style={{ fontSize: size, opacity: 0.5 }}
+          title={`Icon not found: ${icon}`}
+        >
+          ⚠️
+        </span>
+      );
+    }
 
-  // Check if this is a duotone icon (object with bg and fg)
-  if (typeof pathData === "object" && pathData.bg && pathData.fg) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${fillColor}"><path d="${pathData.bg}" opacity="0.2"/><path d="${pathData.fg}"/></svg>`;
+    // Render Lucide icon with wrapper to enforce size
+    // Using ref + useEffect to force display with !important
+    const wrapperRef = React.useRef<HTMLSpanElement>(null);
+
+    React.useEffect(() => {
+      if (wrapperRef.current) {
+        wrapperRef.current.style.setProperty('display', 'inline-flex', 'important');
+      }
+    }, []);
+
+    return (
+      <span
+        ref={wrapperRef}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: size,
+          height: size,
+          minWidth: size,
+          minHeight: size,
+          flexShrink: 0,
+          flexGrow: 0,
+        }}
+      >
+        <IconComponent
+          size={size}
+          color={color}
+          strokeWidth={enhanced ? 2.5 : 2}
+          style={{
+            minWidth: size,
+            minHeight: size,
+            flexShrink: 0,
+          }}
+        />
+      </span>
+    );
   }
 
-  // Single-path icon (string)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${fillColor}"><path d="${pathData}"/></svg>`;
-}
-
-/** Render an icon value — supports emoji strings or "ph:icon-name" Phosphor refs */
-export function IconValue({ icon, size = 20, color }: { icon?: string; size?: number; color?: string }) {
-  if (!icon) return null;
-  if (icon.startsWith("ph:")) {
-    return <PhosphorIcon name={icon.slice(3)} size={size} color={color} />;
-  }
+  // Emoji fallback
   return <span style={{ fontSize: size, lineHeight: 1 }}>{icon}</span>;
+}
+
+// ============================================================================
+// LEGACY EXPORTS - Kept for backwards compatibility with other components
+// ============================================================================
+// These are empty/stub implementations. All new code should use IconValue with Lucide.
+// Components still using these: AppShell (favicon), HeaderElements, EmptyState, NodeRenderer
+
+/**
+ * @deprecated Use Lucide icons via IconValue instead
+ * Legacy Phosphor SVG paths - now empty for backwards compatibility
+ */
+export const PHOSPHOR_SVG_PATHS: Record<string, any> = {};
+
+/**
+ * @deprecated Use IconValue with lucide: prefix instead
+ * Legacy Phosphor icon component - returns null
+ */
+export function PhosphorIcon(): null {
+  return null;
+}
+
+/**
+ * @deprecated Favicon generation should use Lucide or emoji
+ * Legacy Phosphor favicon builder - returns null
+ */
+export function buildPhosphorFaviconSvg(): null {
+  return null;
 }

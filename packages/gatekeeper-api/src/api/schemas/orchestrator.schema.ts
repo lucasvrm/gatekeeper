@@ -57,6 +57,16 @@ export const EventsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 })
 
+export const LogFilterSchema = z.object({
+  level: z.enum(['error', 'warn', 'info', 'debug']).optional(),
+  stage: z.string().max(MAX_TYPE_LENGTH).optional(),
+  type: z.string().max(MAX_TYPE_LENGTH).optional(),
+  search: z.string().max(MAX_TEXT_LENGTH).optional(),
+  startDate: z.string().datetime().optional(), // ISO 8601 datetime string
+  endDate: z.string().datetime().optional(), // ISO 8601 datetime string
+  format: z.enum(['json', 'csv']).optional().default('json'), // Export format
+})
+
 export const RunPipelineSchema = z.object({
   projectId: z.string().min(1, 'projectId é obrigatório').max(MAX_REF_LENGTH),
   task: z
@@ -73,3 +83,4 @@ export type GenerateSpecInput = z.infer<typeof GenerateSpecSchema>
 export type FixArtifactsInput = z.infer<typeof FixArtifactsSchema>
 export type ExecuteInput = z.infer<typeof ExecuteSchema>
 export type RunPipelineInput = z.infer<typeof RunPipelineSchema>
+export type LogFilterInput = z.infer<typeof LogFilterSchema>

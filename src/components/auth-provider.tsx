@@ -7,13 +7,15 @@ import { api, API_BASE } from '@/lib/api'
 interface User {
   id: string
   email: string
+  firstName: string
+  lastName: string
 }
 
 interface AuthContextType {
   user: User | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
   logout: () => void
 }
 
@@ -88,8 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate('/')
   }, [navigate])
 
-  const register = useCallback(async (email: string, password: string) => {
-    await api.auth.register(email, password)
+  const register = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
+    await api.auth.register(email, password, firstName, lastName)
     // Backend register doesn't return token — redirect to login
     navigate('/login')
   }, [navigate])

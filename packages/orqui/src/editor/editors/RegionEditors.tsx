@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { COLORS, s, SPACING_PRESETS } from "../lib/constants";
 import { resolveToken, resolveTokenNum } from "../lib/utils";
 import { Field, Row, Section, WBSub, EmptyState, ColorInput } from "../components/shared";
-import { TokenRefSelect } from "./ColorTokenEditor";
-import { PhosphorIconSelect } from "../components/PhosphorIcons";
+import { TokenRefSelect, TokenRefSelectWithSwatch } from "./ColorTokenEditor";
+import { LucideIconSelect } from "../components/LucideIcons";
 import { SeparatorEditor } from "./ContentLayoutEditor";
+import { IconValue } from "../../runtime/icons";
 
 // ============================================================================
 // Container Editor
@@ -173,13 +174,13 @@ export function CollapsedTooltipEditor({ tooltip, tokens, onChange }) {
 
       <Row gap={8}>
         <Field label="Background" style={{ flex: 1 }}>
-          <TokenRefSelect value={tt.background} tokens={tokens} category="colors" onChange={(v) => update("background", v)} />
+          <TokenRefSelectWithSwatch value={tt.background} tokens={tokens} category="colors" onChange={(v) => update("background", v)} />
         </Field>
         <Field label="Text Color" style={{ flex: 1 }}>
-          <TokenRefSelect value={tt.color} tokens={tokens} category="colors" onChange={(v) => update("color", v)} />
+          <TokenRefSelectWithSwatch value={tt.color} tokens={tokens} category="colors" onChange={(v) => update("color", v)} />
         </Field>
         <Field label="Border Color" style={{ flex: 1 }}>
-          <TokenRefSelect value={tt.borderColor} tokens={tokens} category="colors" onChange={(v) => update("borderColor", v)} />
+          <TokenRefSelectWithSwatch value={tt.borderColor} tokens={tokens} category="colors" onChange={(v) => update("borderColor", v)} />
         </Field>
       </Row>
       <Row gap={8}>
@@ -310,7 +311,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
         </Row>
         <Row gap={8}>
           <Field label="Color" style={{ flex: 1 }}>
-            <TokenRefSelect value={navTypo.color || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("color", v)} />
+            <TokenRefSelectWithSwatch value={navTypo.color || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("color", v)} />
           </Field>
           <Field label="Font Family" style={{ flex: 1 }}>
             <TokenRefSelect value={navTypo.fontFamily || ""} tokens={tokens} category="fontFamilies" onChange={(v) => updateNavTypo("fontFamily", v)} />
@@ -344,10 +345,10 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
             <>
               <Row gap={8}>
                 <Field label="Background" style={{ flex: 1 }}>
-                  <TokenRefSelect value={navTypo.cardBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("cardBackground", v)} />
+                  <TokenRefSelectWithSwatch value={navTypo.cardBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("cardBackground", v)} />
                 </Field>
                 <Field label="Border" style={{ flex: 1 }}>
-                  <TokenRefSelect value={navTypo.cardBorderColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("cardBorderColor", v)} />
+                  <TokenRefSelectWithSwatch value={navTypo.cardBorderColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("cardBorderColor", v)} />
                 </Field>
                 <Field label="Border Width" style={{ flex: 1 }}>
                   <select value={navTypo.cardBorderWidth || "0"} onChange={(e) => updateNavTypo("cardBorderWidth", e.target.value)} style={s.select}>
@@ -364,19 +365,19 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
           <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 6, fontWeight: 600, textTransform: "uppercase" }}>Active Item</div>
           <Row gap={8}>
             <Field label="Color" style={{ flex: 1 }}>
-              <TokenRefSelect value={navTypo.activeColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeColor", v)} />
+              <TokenRefSelectWithSwatch value={navTypo.activeColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeColor", v)} />
             </Field>
             <Field label="Weight" style={{ flex: 1 }}>
               <TokenRefSelect value={navTypo.activeFontWeight || ""} tokens={tokens} category="fontWeights" onChange={(v) => updateNavTypo("activeFontWeight", v)} />
             </Field>
             <Field label="Background" style={{ flex: 1 }}>
-              <TokenRefSelect value={navTypo.activeBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeBackground", v)} />
+              <TokenRefSelectWithSwatch value={navTypo.activeBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeBackground", v)} />
             </Field>
           </Row>
           {navTypo.cardEnabled && (
             <Row gap={8}>
               <Field label="Card Border (active)" style={{ flex: 1 }}>
-                <TokenRefSelect value={navTypo.activeCardBorder || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeCardBorder", v)} />
+                <TokenRefSelectWithSwatch value={navTypo.activeCardBorder || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("activeCardBorder", v)} />
               </Field>
             </Row>
           )}
@@ -385,19 +386,19 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
           <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 6, fontWeight: 600, textTransform: "uppercase" }}>Hover</div>
           <Row gap={8}>
             <Field label="Color" style={{ flex: 1 }}>
-              <TokenRefSelect value={navTypo.hoverColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverColor", v)} />
+              <TokenRefSelectWithSwatch value={navTypo.hoverColor || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverColor", v)} />
             </Field>
             <Field label="Weight" style={{ flex: 1 }}>
               <TokenRefSelect value={navTypo.hoverFontWeight || ""} tokens={tokens} category="fontWeights" onChange={(v) => updateNavTypo("hoverFontWeight", v)} />
             </Field>
             <Field label="Background" style={{ flex: 1 }}>
-              <TokenRefSelect value={navTypo.hoverBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverBackground", v)} />
+              <TokenRefSelectWithSwatch value={navTypo.hoverBackground || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverBackground", v)} />
             </Field>
           </Row>
           {navTypo.cardEnabled && (
             <Row gap={8}>
               <Field label="Card Border (hover)" style={{ flex: 1 }}>
-                <TokenRefSelect value={navTypo.hoverCardBorder || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverCardBorder", v)} />
+                <TokenRefSelectWithSwatch value={navTypo.hoverCardBorder || ""} tokens={tokens} category="colors" onChange={(v) => updateNavTypo("hoverCardBorder", v)} />
               </Field>
             </Row>
           )}
@@ -413,14 +414,52 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
           </label>
         </Row>
         {nav.icons?.enabled && (
-          <Row gap={8}>
-            <Field label="Icon Size" style={{ flex: 1 }}>
-              <TokenRefSelect value={nav.icons.size} tokens={tokens} category="sizing" onChange={(v) => updateNav("size", v)} />
-            </Field>
-            <Field label="Gap" style={{ flex: 1 }}>
-              <TokenRefSelect value={nav.icons.gap} tokens={tokens} category="spacing" onChange={(v) => updateNav("gap", v)} />
-            </Field>
-          </Row>
+          <>
+            <Row gap={8}>
+              <Field label="Icon Size" style={{ flex: 1 }}>
+                <TokenRefSelect value={nav.icons.size} tokens={tokens} category="sizing" onChange={(v) => updateNav("size", v)} />
+              </Field>
+              <Field label="Gap" style={{ flex: 1 }}>
+                <TokenRefSelect value={nav.icons.gap} tokens={tokens} category="spacing" onChange={(v) => updateNav("gap", v)} />
+              </Field>
+            </Row>
+            {/* Preview ao vivo */}
+            <div style={{
+              marginTop: 12,
+              padding: 12,
+              background: COLORS.surface2,
+              borderRadius: 6,
+              border: `1px solid ${COLORS.border}`
+            }}>
+              <div style={{ fontSize: 9, color: COLORS.textDim, textTransform: 'uppercase', marginBottom: 8 }}>
+                Preview (collapsed)
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+                {navItems.slice(0, 5).map(item => {
+                  if (!item.icon) return null;
+                  const iconSize = (() => {
+                    const sizeRef = nav.icons?.size;
+                    if (!sizeRef) return 18;
+                    const resolved = resolveTokenNum(sizeRef, tokens);
+                    return resolved ?? 18;
+                  })();
+                  return (
+                    <div key={item.id} style={{ textAlign: 'center' }}>
+                      <IconValue
+                        icon={item.icon}
+                        size={iconSize}
+                        color={COLORS.text}
+                        enhanced={true}
+                      />
+                      <div style={{ fontSize: 8, color: COLORS.textDim, marginTop: 4 }}>
+                        {item.label.slice(0, 3)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -469,7 +508,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
                   <button onClick={() => moveNavItem(idx, 1)} disabled={idx === navItems.length - 1} style={{ ...s.btnSmall, padding: "0 3px", fontSize: 8, opacity: idx === navItems.length - 1 ? 0.2 : 0.7, lineHeight: "12px" }}>▼</button>
                 </div>
                 {/* Icon */}
-                <PhosphorIconSelect value={item.icon || ""} allowEmpty placeholder="—" onChange={(val) => updateNavItem(item.id, "icon", val)} />
+                <LucideIconSelect value={item.icon || ""} allowEmpty placeholder="—" onChange={(val) => updateNavItem(item.id, "icon", val)} />
                 {/* Label */}
                 <input value={item.label || ""} onChange={(e) => updateNavItem(item.id, "label", e.target.value)} style={{ ...s.input, flex: 1, fontSize: 12 }} placeholder="Label" />
                 {/* Route */}
@@ -513,7 +552,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
                   {subItems.map((sub, si) => (
                     <div key={sub.id || si} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 3, paddingLeft: 8 }}>
                       <span style={{ fontSize: 10, color: COLORS.textDim }}>↳</span>
-                      <PhosphorIconSelect value={sub.icon || ""} allowEmpty placeholder="—" onChange={(val) => updateSubItem(item.id, sub.id, "icon", val)} />
+                      <LucideIconSelect value={sub.icon || ""} allowEmpty placeholder="—" onChange={(val) => updateSubItem(item.id, sub.id, "icon", val)} />
                       <input value={sub.label || ""} onChange={(e) => updateSubItem(item.id, sub.id, "label", e.target.value)} style={{ ...s.input, flex: 1, fontSize: 11 }} placeholder="Sub-label" />
                       <input value={sub.route || ""} onChange={(e) => updateSubItem(item.id, sub.id, "route", e.target.value)} style={{ ...s.input, width: 80, fontSize: 10, fontFamily: "monospace" }} placeholder="/sub-rota" />
                       <button onClick={() => removeSubItem(item.id, sub.id)} style={{ ...s.btnSmall, padding: "1px 5px", fontSize: 9, color: COLORS.danger }}>✕</button>
@@ -541,7 +580,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
           <div style={{ marginBottom: 8, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Collapsed Display</div>
           <div style={{ padding: 12, background: COLORS.surface2, borderRadius: 6, marginBottom: 12 }}>
             <Field label="Mode when collapsed">
-              <select value={behavior.collapsedDisplay || "letter-only"} onChange={(e) => updateBehavior("collapsedDisplay", e.target.value)} style={s.select}>
+              <select value={behavior.collapsedDisplay || "icon-only"} onChange={(e) => updateBehavior("collapsedDisplay", e.target.value)} style={s.select}>
                 <option value="icon-only">Icon only</option>
                 <option value="icon-letter">Icon + first letter</option>
                 <option value="letter-only">First letter only</option>
@@ -551,7 +590,7 @@ export function SidebarConfigEditor({ region, tokens, onChange }) {
               {behavior.collapsedDisplay === "icon-only" && "Mostra apenas o ícone de cada item de navegação"}
               {behavior.collapsedDisplay === "icon-letter" && "Mostra ícone + primeira letra do label"}
               {behavior.collapsedDisplay === "letter-only" && "Mostra apenas a primeira letra do label (como avatar)"}
-              {!behavior.collapsedDisplay && "Mostra apenas a primeira letra do label (como avatar)"}
+              {!behavior.collapsedDisplay && "Mostra apenas o ícone de cada item de navegação (padrão)"}
             </div>
           </div>
 

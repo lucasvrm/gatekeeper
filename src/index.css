@@ -28,3 +28,137 @@
     gap: var(--orqui-content-gap, 1.5rem);
   }
 }
+
+/* Animação para bottom sheet do Context Panel (MP-UI-10) */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Animação fade-in para novos log items (MP-VIEWER-07) */
+@keyframes logFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Aplicar animação aos log items */
+[data-log-level] {
+  animation: logFadeIn 200ms ease-out;
+}
+
+/* Smooth transitions para expand/collapse */
+[data-log-level] [class*="metadata"] {
+  transition: max-height 200ms ease-out, opacity 200ms ease-out;
+}
+
+/* Context Panel: sticky em desktop, bottom sheet em mobile (MP-UI-10) */
+@media (max-width: 1023px) {
+  .context-panel-desktop {
+    display: none !important;
+  }
+}
+
+/* ─── Logs Drawer (MP-DRAWER-02) ─────────────────────────────── */
+
+/* Backdrop animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Drawer slide-in animation */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Backdrop */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  animation: fadeIn 200ms ease-in;
+}
+
+/* Drawer panel */
+.logs-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 500px;
+  max-width: 100%;
+  background: var(--background);
+  border-left: 1px solid var(--border);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 300ms ease-out;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Drawer header */
+.logs-drawer header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logs-drawer header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.logs-drawer header button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+}
+
+.logs-drawer header button:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+/* Drawer content area */
+.logs-drawer .drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .logs-drawer {
+    width: 100%;
+  }
+}

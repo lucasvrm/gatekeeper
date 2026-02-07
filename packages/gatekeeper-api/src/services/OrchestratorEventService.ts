@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events'
 import type { PrismaClient, PipelineEvent } from '@prisma/client'
 import type { AgentEvent } from '../types/agent.types.js'
+import type { LogMetrics } from '../types/index.js'
 import { createLogger } from '../utils/logger.js'
 
 const log = createLogger('OrchestratorEventService')
@@ -622,6 +623,328 @@ class OrchestratorEventServiceClass extends EventEmitter {
     const hasMore = events.length > take
     if (hasMore) events.pop()
     return { events, hasMore }
+  }
+
+  /**
+   * Get filtered events for an outputId from both buffer and database.
+   * Filters by level, stage, type, search text, and date range.
+   *
+   * Flow:
+   * 1. Fetch all events from buffer (in-memory, recent)
+   * 2. Fetch all events from database (persistent, historical)
+   * 3. Merge and deduplicate by seq/id
+   * 4. Apply filters in-memory
+   * 5. Return filtered events
+   *
+   * @param outputId Pipeline output ID
+   * @param filters Filter options (level, stage, type, search, startDate, endDate)
+   * @returns Array of filtered events
+   *
+   * @example
+   * const events = await eventService.getEventsFiltered('abc123', {
+   *   level: 'error',
+   *   stage: 'planning',
+   *   search: 'timeout'
+   * })
+   */
+  async getEventsFiltered(
+    outputId: string,
+    filters: {
+      level?: 'error' | 'warn' | 'info' | 'debug'
+      stage?: string
+      type?: string
+      search?: string
+      startDate?: string
+      endDate?: string
+    } = {},
+  ): Promise<Array<OrchestratorEventData & { id?: number; timestamp?: number; seq?: number }>> {
+    // 1. Get buffer events (recent, in-memory)
+    const bufferEvents = this.getBufferedEventsWithSeq(outputId).map((e) => {
+      const event = e.event as OrchestratorEventData
+      return {
+        ...event,
+        seq: e.seq,
+        timestamp: Date.now(), // Approximate timestamp
+        // Inject metadata for filtering (same as DB events)
+        _level: event.level || this.inferLevel(event.type),
+        _stage: this.inferStage(event),
+        _eventType: event.type,
+        _message: event.message || this.extractMessage(event) || undefined,
+      }
+    })
+
+    // 2. Get database events (persistent, historical)
+    let dbEvents: Array<OrchestratorEventData & { id: number; timestamp: number }> = []
+    if (this.prisma) {
+      const dbRecords = await this.prisma.pipelineEvent.findMany({
+        where: { outputId },
+        orderBy: { id: 'asc' },
+        take: 1000, // Limit to prevent huge responses
+      })
+
+      dbEvents = dbRecords.map((record) => {
+        let parsedPayload: OrchestratorEventData
+        try {
+          parsedPayload = JSON.parse(record.payload || '{}')
+        } catch {
+          parsedPayload = { type: record.eventType }
+        }
+
+        return {
+          ...parsedPayload,
+          id: record.id,
+          timestamp: record.createdAt.getTime(),
+          // Inject metadata for filtering
+          _level: record.level || undefined,
+          _stage: record.stage,
+          _eventType: record.eventType,
+          _message: record.message || undefined,
+        }
+      })
+    }
+
+    // 3. Merge buffer + DB events (prioritize buffer for recent events)
+    const allEvents = [...bufferEvents, ...dbEvents]
+
+    // 4. Apply filters
+    let filtered = allEvents
+
+    // Filter by level
+    if (filters.level) {
+      filtered = filtered.filter((e) => {
+        const eventLevel = '_level' in e ? e._level : this.inferLevel(e.type)
+        return eventLevel === filters.level
+      })
+    }
+
+    // Filter by stage
+    if (filters.stage) {
+      filtered = filtered.filter((e) => {
+        const eventStage = '_stage' in e ? e._stage : this.inferStage(e)
+        return eventStage === filters.stage
+      })
+    }
+
+    // Filter by type (exact match on event.type)
+    if (filters.type) {
+      filtered = filtered.filter((e) => e.type === filters.type)
+    }
+
+    // Filter by search (case-insensitive, searches in message and type)
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase()
+      filtered = filtered.filter((e) => {
+        const message = ('_message' in e && e._message) ? String(e._message) : (this.extractMessage(e) || '')
+        const type = e.type || ''
+        return (
+          message.toLowerCase().includes(searchLower) ||
+          type.toLowerCase().includes(searchLower)
+        )
+      })
+    }
+
+    // Filter by date range
+    if (filters.startDate) {
+      const startTime = new Date(filters.startDate).getTime()
+      filtered = filtered.filter((e) => {
+        if (!e.timestamp) return true // Keep events without timestamp
+        return e.timestamp >= startTime
+      })
+    }
+
+    if (filters.endDate) {
+      const endTime = new Date(filters.endDate).getTime()
+      filtered = filtered.filter((e) => {
+        if (!e.timestamp) return true // Keep events without timestamp
+        return e.timestamp <= endTime
+      })
+    }
+
+    return filtered
+  }
+
+  /**
+   * Format events as pretty-printed JSON string for export.
+   *
+   * @param events Array of events to format
+   * @returns JSON string with 2-space indentation
+   *
+   * @example
+   * const json = eventService.formatEventsAsJSON(events)
+   * // Returns: "[\n  { \"type\": \"...\", ... },\n  ...\n]"
+   */
+  formatEventsAsJSON(
+    events: Array<OrchestratorEventData & { id?: number; timestamp?: number; seq?: number }>,
+  ): string {
+    return JSON.stringify(events, null, 2)
+  }
+
+  /**
+   * Format events as CSV string for export.
+   * Columns: timestamp, level, stage, type, message, metadata
+   *
+   * @param events Array of events to format
+   * @returns CSV string with header row
+   *
+   * @example
+   * const csv = eventService.formatEventsAsCSV(events)
+   * // Returns: "timestamp,level,stage,type,message,metadata\n..."
+   */
+  formatEventsAsCSV(
+    events: Array<OrchestratorEventData & { id?: number; timestamp?: number; seq?: number }>,
+  ): string {
+    // CSV header
+    const header = 'timestamp,level,stage,type,message,metadata'
+
+    // CSV rows
+    const rows = events.map((event) => {
+      const timestamp = event.timestamp ? new Date(event.timestamp).toISOString() : ''
+      const level = ('_level' in event && event._level) ? String(event._level) : this.inferLevel(event.type)
+      const stage = ('_stage' in event && event._stage) ? String(event._stage) : this.inferStage(event)
+      const type = event.type || ''
+      const message = ('_message' in event && event._message) ? String(event._message) : (this.extractMessage(event) || '')
+
+      // Metadata: extract metadata field if exists, otherwise collect remaining fields
+      let metadataObj: Record<string, any> = {}
+
+      if ('metadata' in event && event.metadata && typeof event.metadata === 'object') {
+        // Event has explicit metadata field, use only that
+        metadataObj = event.metadata as Record<string, any>
+      } else {
+        // Collect all fields except those already exported in columns
+        metadataObj = { ...event }
+        delete metadataObj.type
+        delete metadataObj.level  // Remove duplicate (exported in column)
+        delete metadataObj.stage  // Remove duplicate (exported in column)
+        delete metadataObj.message  // Remove duplicate (exported in column)
+        delete metadataObj.id
+        delete metadataObj.timestamp
+        delete metadataObj.seq
+        delete metadataObj._level
+        delete metadataObj._stage
+        delete metadataObj._eventType
+        delete metadataObj._message
+      }
+
+      const metadataStr = Object.keys(metadataObj).length > 0 ? JSON.stringify(metadataObj) : ''
+
+      // Escape CSV values (double quotes and newlines)
+      const escape = (value: string): string => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`
+        }
+        return value
+      }
+
+      return [
+        escape(timestamp),
+        escape(level),
+        escape(stage),
+        escape(type),
+        escape(message),
+        escape(metadataStr),
+      ].join(',')
+    })
+
+    return [header, ...rows].join('\n')
+  }
+
+  /**
+   * Get aggregated metrics for a pipeline.
+   *
+   * Calculates metrics from in-memory buffered events:
+   * - Total event count
+   * - Count by level (error, warning, info)
+   * - Count by stage (planning, spec, fix, execute)
+   * - Count by type (agent:start, agent:error, etc)
+   * - Execution duration (first to last event)
+   *
+   * @param pipelineId Pipeline ID (outputId)
+   * @returns LogMetrics object with aggregated data
+   *
+   * @example
+   * ```ts
+   * const metrics = eventService.getMetrics('pipeline-123')
+   * console.log(metrics.totalEvents) // => 42
+   * console.log(metrics.duration.formatted) // => '00:05:30'
+   * ```
+   */
+  async getMetrics(pipelineId: string): Promise<LogMetrics> {
+    // Import metrics helpers (dynamic import to avoid circular deps)
+    const { countByField, calculateDuration } = await import('../utils/metrics.js')
+
+    // 1. Get buffered events with timestamps from internal buffer
+    const buffer = this.eventBuffer.get(pipelineId)
+    if (!buffer || buffer.length === 0) {
+      return {
+        pipelineId,
+        totalEvents: 0,
+        byLevel: {},
+        byStage: {},
+        byType: {},
+        duration: { ms: 0, formatted: '00:00:00' },
+        firstEvent: null,
+        lastEvent: null,
+      }
+    }
+
+    // Filter by TTL
+    const cutoff = Date.now() - BUFFER_TTL_MS
+    const validEvents = buffer.filter((b) => b.timestamp >= cutoff)
+
+    if (validEvents.length === 0) {
+      return {
+        pipelineId,
+        totalEvents: 0,
+        byLevel: {},
+        byStage: {},
+        byType: {},
+        duration: { ms: 0, formatted: '00:00:00' },
+        firstEvent: null,
+        lastEvent: null,
+      }
+    }
+
+    // 2. Extract enriched fields (level, stage) for aggregation
+    const enrichedEvents = validEvents.map((bufferedEvent) => {
+      const event = bufferedEvent.event
+      return {
+        ...event,
+        level: ('_level' in event && event._level)
+          ? String(event._level)
+          : this.inferLevel(event.type),
+        stage: ('_stage' in event && event._stage)
+          ? String(event._stage)
+          : this.inferStage(event),
+        type: event.type || 'unknown',
+        timestamp: bufferedEvent.timestamp,
+      }
+    })
+
+    // 3. Aggregate
+    const byLevel = countByField(enrichedEvents, 'level')
+    const byStage = countByField(enrichedEvents, 'stage')
+    const byType = countByField(enrichedEvents, 'type')
+
+    // 4. Calculate duration
+    const sortedByTime = [...enrichedEvents].sort((a, b) => a.timestamp - b.timestamp)
+    const firstEvent = new Date(sortedByTime[0].timestamp).toISOString()
+    const lastEvent = new Date(sortedByTime[sortedByTime.length - 1].timestamp).toISOString()
+
+    const duration = calculateDuration(
+      sortedByTime.map((e) => ({ timestamp: new Date(e.timestamp) }))
+    )
+
+    return {
+      pipelineId,
+      totalEvents: validEvents.length,
+      byLevel,
+      byStage,
+      byType,
+      duration,
+      firstEvent,
+      lastEvent,
+    }
   }
 
   /**

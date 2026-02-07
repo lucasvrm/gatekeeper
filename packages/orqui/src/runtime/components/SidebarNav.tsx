@@ -1,9 +1,13 @@
 // ============================================================================
 // Orqui Runtime — Sidebar Navigation Renderer
 // ============================================================================
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import type { NavigationConfig, NavItem, NavGroup } from "../types.js";
 import { IconValue } from "../icons.js";
+import { TooltipPortal } from "./TooltipPortal.js";
+import { NavItem as NavItemComponent } from "./NavItem.js";
+import { useContract } from "../context.js";
+import { resolveTokenRef } from "../tokens.js";
 
 export function SidebarNavRenderer({ navConfig, page, navigate, collapsed, collapsedDisplay }: {
   navConfig: NavigationConfig;
@@ -16,6 +20,67 @@ export function SidebarNavRenderer({ navConfig, page, navigate, collapsed, colla
   const groups = navConfig.groups || [];
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const { tokens } = useContract();
+
+  // Extract card configuration from navigation.typography
+  const cardConfig = useMemo(() => {
+    const typo = navConfig.typography || {};
+    return {
+      enabled: typo.cardEnabled !== false, // default true
+      padding: typo.cardPadding,
+      borderRadius: typo.cardBorderRadius,
+      background: typo.cardBackground,
+      borderColor: typo.cardBorderColor,
+      borderWidth: typo.cardBorderWidth,
+      activeBackground: typo.activeBackground,
+      activeCardBorder: typo.activeCardBorder,
+      hoverBackground: typo.hoverBackground,
+      hoverCardBorder: typo.hoverCardBorder,
+    };
+  }, [navConfig.typography]);
+
+  // Recalcula icon size quando navConfig.icons ou tokens mudam
+  // Inclui objeto completo para detectar mudanças de referência
+  const baseIconSize = useMemo(() => {
+    // Try to resolve configured size from token
+    const configuredSize = navConfig.icons?.size
+      ? resolveTokenRef(navConfig.icons.size, tokens)
+      : null;
+
+    // Convert to number (handle "18px" → 18 or 18 → 18)
+    let size = 18; // default fallback
+    if (configuredSize !== null) {
+      const numericSize = typeof configuredSize === 'number'
+        ? configuredSize
+        : parseInt(String(configuredSize), 10);
+      if (!isNaN(numericSize) && numericSize > 0) {
+        size = numericSize;
+      }
+    }
+
+    return size;
+  }, [navConfig.icons, tokens]);
+
+  // DEBUG: Log icon rendering state in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && collapsed) {
+      const iconItems = items.filter(item => item.icon);
+      console.log('[SidebarNav] Collapsed mode:', {
+        collapsedDisplay,
+        iconCount: iconItems.length,
+        icons: iconItems.map(i => ({ id: i.id, icon: i.icon })),
+        baseIconSize,
+      });
+    }
+  }, [collapsed, collapsedDisplay, items, baseIconSize]);
+
+  // Resolve icon size with depth reduction
+  const getIconSize = (depth: number = 0): number => {
+    // Apply depth reduction: nested items get smaller icons (-2px per level)
+    const depthReduction = depth > 0 ? Math.min(depth * 2, baseIconSize - 8) : 0;
+    return Math.max(baseIconSize - depthReduction, 8); // minimum 8px for legibility
+  };
 
   // Track current pathname for active state
   const [pathname, setPathname] = useState(() =>
@@ -65,101 +130,6 @@ export function SidebarNavRenderer({ navConfig, page, navigate, collapsed, colla
     );
   };
 
-  const renderItem = (item: NavItem, depth = 0) => {
-    const active = isActive(item.route);
-    const hasChildren = item.children && item.children.length > 0;
-    const isSubOpen = openSubs[item.id] ?? active; // Auto-open if child is active
-
-    // Collapsed: show icon (icon-only) or first letter (letter-only)
-    const renderCollapsedContent = () => {
-      if (collapsedDisplay === "letter-only" || !item.icon) {
-        const letter = (item.label || "?").charAt(0).toUpperCase();
-        return (
-          <span style={{
-            width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 13, fontWeight: active ? 700 : 500,
-            color: active ? "var(--accent, #e89c28)" : "var(--sidebar-foreground, var(--foreground))",
-            background: active ? "var(--surface-2, rgba(232,156,40,0.08))" : "transparent",
-            borderRadius: 6,
-          }}>{letter}</span>
-        );
-      }
-      return <IconValue icon={item.icon} size={18} color="currentColor" />;
-    };
-
-    return (
-      <div key={item.id} style={{ position: "relative" }}>
-        <a
-          href={item.route || "#"}
-          onClick={(e) => {
-            if (hasChildren && !item.route) {
-              e.preventDefault();
-              setOpenSubs(prev => ({ ...prev, [item.id]: !isSubOpen }));
-            } else {
-              handleClick(e, item.route);
-            }
-          }}
-          data-active={active ? "true" : undefined}
-          className="orqui-nav-item"
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: collapsed
-              ? "8px 0"
-              : (depth > 0 ? "6px 12px 6px 28px" : "8px 6px"),
-            borderRadius: 6,
-            textDecoration: "none",
-            color: "var(--sidebar-foreground, var(--foreground))",
-            fontSize: depth > 0 ? 13 : 14,
-            opacity: item.disabled ? 0.4 : 1,
-            pointerEvents: item.disabled ? "none" as const : undefined,
-            cursor: item.disabled ? "default" : "pointer",
-            justifyContent: collapsed ? "center" : "flex-start",
-          }}
-        >
-          {collapsed ? renderCollapsedContent() : (
-            <>
-              {item.icon && <IconValue icon={item.icon} size={depth > 0 ? 16 : 18} color="currentColor" />}
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
-              {renderBadge(item.badge)}
-              {hasChildren && (
-                <span style={{ fontSize: 10, color: "var(--sidebar-foreground)", opacity: 0.4, transition: "transform 0.2s", transform: isSubOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-              )}
-            </>
-          )}
-        </a>
-        {/* Collapsed tooltip — always mandatory */}
-        {collapsed && (
-          <span className="orqui-nav-tooltip" style={{
-            position: "absolute",
-            left: `calc(100% + var(--orqui-tooltip-offset, 12px))`,
-            top: "50%",
-            transform: "translateY(-50%)",
-            background: "var(--orqui-tooltip-bg, var(--surface-3, #1e1e28))",
-            color: "var(--orqui-tooltip-color, var(--foreground, #e8e8ec))",
-            border: `1px solid var(--orqui-tooltip-border, var(--border, #2a2a33))`,
-            borderRadius: "var(--orqui-tooltip-radius, 4px)",
-            padding: "var(--orqui-tooltip-padding, 5px 10px)",
-            fontSize: "var(--orqui-tooltip-font-size, 12px)",
-            fontWeight: "var(--orqui-tooltip-font-weight, 500)",
-            fontFamily: "var(--orqui-tooltip-font-family, var(--font-mono, monospace))",
-            whiteSpace: "nowrap",
-            pointerEvents: "none",
-            opacity: 0,
-            transition: "opacity 0.15s ease",
-            zIndex: 1000,
-            boxShadow: "var(--orqui-tooltip-shadow, 0 4px 12px rgba(0,0,0,0.4))",
-          }}>{item.label}</span>
-        )}
-        {/* Children (sub-items) */}
-        {hasChildren && isSubOpen && !collapsed && (
-          <div style={{ overflow: "hidden" }}>
-            {item.children!.map(child => renderItem(child, depth + 1))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // Group items
   const groupMap = new Map<string, NavItem[]>();
   const ungrouped: NavItem[] = [];
@@ -186,6 +156,21 @@ export function SidebarNavRenderer({ navConfig, page, navigate, collapsed, colla
     }
   }
 
+  // Shared props for NavItem components
+  const sharedNavItemProps = {
+    collapsed,
+    collapsedDisplay,
+    isActive,
+    handleClick,
+    renderBadge,
+    getIconSize,
+    baseIconSize,
+    openSubs,
+    setOpenSubs,
+    cardConfig,
+    tokens,
+  };
+
   return (
     <>
       {sections.map((sec, si) => {
@@ -210,7 +195,14 @@ export function SidebarNavRenderer({ navConfig, page, navigate, collapsed, colla
                 )}
               </div>
             )}
-            {!gCollapsed && sec.items.map(item => renderItem(item))}
+            {!gCollapsed && sec.items.map(item => (
+              <NavItemComponent
+                key={item.id}
+                item={item}
+                depth={0}
+                {...sharedNavItemProps}
+              />
+            ))}
           </div>
         );
       })}

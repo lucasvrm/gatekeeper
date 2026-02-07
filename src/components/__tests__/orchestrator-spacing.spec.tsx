@@ -40,7 +40,24 @@ const {
       list: vi.fn(),
     },
     projects: {
-      list: vi.fn(),
+      list: vi.fn(() => Promise.resolve([])),
+    },
+    mcp: {
+      providers: {
+        list: vi.fn(() => Promise.resolve([])),
+      },
+      models: {
+        list: vi.fn(() => Promise.resolve([])),
+      },
+      phases: {
+        list: vi.fn(() => Promise.resolve([])),
+      },
+    },
+    artifacts: {
+      list: vi.fn(() => Promise.resolve([])),
+    },
+    bridgeArtifacts: {
+      readAll: vi.fn(() => Promise.resolve([])),
     },
   },
   mockToast: {
@@ -50,9 +67,6 @@ const {
     warning: vi.fn(),
   },
   mockUseRunEvents: vi.fn(),
-  mockPortalsContent: {
-    headerPortals: <div data-testid="mock-header-portals" />,
-  },
 }))
 
 // =============================================================================
@@ -73,9 +87,23 @@ vi.mock("@/hooks/useRunEvents", () => ({
   },
 }))
 
-vi.mock("@orqui/core", () => ({
-  createPortals: () => mockPortalsContent,
-  __esModule: true,
+vi.mock("@/hooks/useOrchestratorEvents", () => ({
+  useOrchestratorEvents: vi.fn(() => ({
+    lastSeqRef: { current: 0 },
+  })),
+}))
+
+vi.mock("@/hooks/usePipelineReconciliation", () => ({
+  usePipelineReconciliation: vi.fn(() => ({
+    isLoading: false,
+    error: null,
+    reconciliation: null,
+    missedEvents: [],
+  })),
+}))
+
+vi.mock("@/hooks/use-page-shell", () => ({
+  usePageShell: () => React.createElement('div', { 'data-testid': 'mock-header-portals' }),
 }))
 
 // Component under test (REAL)

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import { OrchestratorEventService, type OrchestratorEventData } from '../../services/OrchestratorEventService.js'
-import type { GeneratePlanInput, GenerateSpecInput, FixArtifactsInput, ExecuteInput, RunPipelineInput } from '../schemas/orchestrator.schema.js'
+import type { GeneratePlanInput, GenerateSpecInput, FixArtifactsInput, ExecuteInput, RunPipelineInput, LogFilterInput } from '../schemas/orchestrator.schema.js'
 import { prisma } from '../../db/client.js'
 import { nanoid } from 'nanoid'
 import { createLogger } from '../../utils/logger.js'
@@ -312,6 +312,104 @@ export class OrchestratorController {
     const { sinceId, limit } = (req as any).validatedQuery as { sinceId?: number; limit: number }
     const result = await OrchestratorEventService.getEventsPaginated(outputId, sinceId, limit)
     res.json(result)
+  }
+
+  /**
+   * GET /api/orchestrator/:outputId/logs - Retorna eventos filtrados
+   * Query params: level, stage, type, search, startDate, endDate
+   */
+  async getFilteredLogs(req: Request, res: Response): Promise<void> {
+    const { outputId } = req.params
+    const filters = (req as any).validatedQuery as LogFilterInput
+
+    try {
+      log.debug({ outputId, filters }, 'Getting filtered logs')
+
+      const events = await OrchestratorEventService.getEventsFiltered(outputId, filters)
+
+      res.json({
+        outputId,
+        filters,
+        count: events.length,
+        events,
+      })
+    } catch (error) {
+      log.error({ outputId, filters, error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to get filtered logs')
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to get filtered logs',
+        code: 'FILTER_FAILED',
+      })
+    }
+  }
+
+  /**
+   * GET /api/orchestrator/:outputId/logs/export - Export logs as JSON or CSV
+   * Query params: format (json|csv), level, stage, type, search, startDate, endDate
+   */
+  async exportLogs(req: Request, res: Response): Promise<void> {
+    const { outputId } = req.params
+    const { format = 'json', ...filters } = (req as any).validatedQuery as LogFilterInput & { format?: 'json' | 'csv' }
+
+    try {
+      log.debug({ outputId, format, filters }, 'Exporting logs')
+
+      // Fetch filtered events
+      const events = await OrchestratorEventService.getEventsFiltered(outputId, filters)
+
+      // Format based on requested type
+      let content: string
+      let contentType: string
+      let extension: string
+
+      if (format === 'csv') {
+        content = OrchestratorEventService.formatEventsAsCSV(events)
+        contentType = 'text/csv'
+        extension = 'csv'
+      } else {
+        content = OrchestratorEventService.formatEventsAsJSON(events)
+        contentType = 'application/json'
+        extension = 'json'
+      }
+
+      // Set headers for file download
+      const filename = `logs-${outputId}.${extension}`
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+      res.send(content)
+    } catch (error) {
+      log.error({ outputId, format, filters, error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to export logs')
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to export logs',
+        code: 'EXPORT_FAILED',
+      })
+    }
+  }
+
+  /**
+   * Get aggregated metrics for a pipeline.
+   *
+   * GET /api/orchestrator/:pipelineId/metrics
+   *
+   * @returns LogMetrics JSON with aggregated event statistics
+   */
+  async getMetrics(req: Request, res: Response): Promise<void> {
+    const { pipelineId } = req.params
+
+    try {
+      log.debug({ pipelineId }, 'Getting pipeline metrics')
+
+      const metrics = await OrchestratorEventService.getMetrics(pipelineId)
+
+      log.info({ pipelineId, totalEvents: metrics.totalEvents }, 'Metrics retrieved')
+
+      res.json(metrics)
+    } catch (error) {
+      log.error({ pipelineId, error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to get metrics')
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to get metrics',
+        code: 'METRICS_FAILED',
+      })
+    }
   }
 
   async execute(req: Request, res: Response): Promise<void> {

@@ -160,7 +160,7 @@ export const DEFAULT_LAYOUT = {
       emoji: "⬡",
     },
     headerElements: {
-      search: { enabled: false, placeholder: "Buscar...", showIcon: true, icon: "ph:magnifying-glass" },
+      search: { enabled: false, placeholder: "Buscar...", showIcon: true, icon: "lucide:search" },
       cta: { enabled: false, label: "Novo", variant: "default" },
       ctas: [],
       icons: { enabled: true, items: [{ id: "bell", route: "/notifications" }, { id: "settings", route: "/settings" }] },
@@ -187,7 +187,7 @@ export const DEFAULT_LAYOUT = {
       duration: 4000,
     },
     emptyState: {
-      icon: "ph:magnifying-glass",
+      icon: "lucide:search",
       title: "Nenhum item encontrado",
       description: "",
       showAction: true,
