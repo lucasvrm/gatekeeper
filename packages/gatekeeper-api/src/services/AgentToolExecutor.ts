@@ -373,12 +373,43 @@ export class AgentToolExecutor {
   private bashAuditLog: Array<{ command: string; allowed: boolean; reason?: string; timestamp: Date }> = []
   private bashSafetyConfig: BashSafetyConfig = DEFAULT_BASH_SAFETY
 
+  // Tool deduplication cache: tracks all tool calls to prevent redundant work
+  private toolCallCache = new Map<string, { count: number; firstCall: Date; lastCall: Date }>()
+  private enableDeduplication = true  // Can be disabled for debugging
+
   /**
    * Load DB-configurable bash safety settings.
    * Call once before running the agent loop.
    */
   async loadSafetyConfig(): Promise<void> {
     this.bashSafetyConfig = await loadBashSafetyConfig()
+  }
+
+  /**
+   * Determine if a tool should be deduplicated.
+   * Bash commands are excluded (can be intentionally repeated).
+   */
+  private shouldDeduplicate(toolName: string): boolean {
+    // Don't deduplicate bash (commands can be intentionally repeated)
+    if (toolName === 'bash') return false
+    // Don't deduplicate save_artifact (multiple artifacts are expected)
+    if (toolName === 'save_artifact') return false
+    // Deduplicate all read tools
+    return true
+  }
+
+  /**
+   * Create a cache key for deduplication.
+   * Normalizes input to detect semantically identical calls.
+   */
+  private makeCacheKey(toolName: string, input: Record<string, unknown>): string {
+    // Normalize input for consistent hashing
+    const normalized = Object.fromEntries(
+      Object.entries(input)
+        .sort(([a], [b]) => a.localeCompare(b))  // Sort keys
+        .filter(([, v]) => v !== undefined && v !== null)  // Remove undefined/null
+    )
+    return `${toolName}::${JSON.stringify(normalized)}`
   }
 
   /**
@@ -400,6 +431,17 @@ export class AgentToolExecutor {
    */
   clearArtifacts(): void {
     this.artifacts.clear()
+    this.toolCallCache.clear()  // Reset deduplication cache between phases
+  }
+
+  /**
+   * Get tool call statistics (for monitoring/debugging).
+   */
+  getToolCallStats(): Array<{ tool: string; input: string; count: number; firstCall: Date; lastCall: Date }> {
+    return Array.from(this.toolCallCache.entries()).map(([key, stats]) => {
+      const [tool, input] = key.split('::', 2)
+      return { tool, input, ...stats }
+    })
   }
 
   /**
@@ -410,6 +452,43 @@ export class AgentToolExecutor {
     input: Record<string, unknown>,
     projectRoot: string,
   ): Promise<ToolExecutionResult> {
+    // ── Tool Deduplication Check ─────────────────────────────────────────
+    if (this.enableDeduplication && this.shouldDeduplicate(toolName)) {
+      const cacheKey = this.makeCacheKey(toolName, input)
+      const cached = this.toolCallCache.get(cacheKey)
+
+      if (cached) {
+        // Duplicate detected!
+        cached.count++
+        cached.lastCall = new Date()
+
+        const errorMsg =
+          `❌ Tool call duplicado detectado!\n\n` +
+          `Tool: ${toolName}\n` +
+          `Input: ${JSON.stringify(input, null, 2)}\n\n` +
+          `Esta é a ${cached.count}ª vez que você chama esta ferramenta com os mesmos parâmetros.\n\n` +
+          `**Regra de eficiência violada**: Nunca repita chamadas de ferramentas.\n` +
+          `- Para read_file: leia 1x e anote as informações\n` +
+          `- Para search_code: use patterns mais abrangentes (ex: "LogFilter|LogViewer")\n` +
+          `- Para list_directory: anote a lista na primeira vez\n\n` +
+          `Primeira chamada: ${cached.firstCall.toISOString()}\n` +
+          `Última chamada: ${cached.lastCall.toISOString()}`
+
+        return {
+          content: errorMsg,
+          isError: true,
+        }
+      }
+
+      // First call: record it
+      this.toolCallCache.set(cacheKey, {
+        count: 1,
+        firstCall: new Date(),
+        lastCall: new Date(),
+      })
+    }
+
+    // ── Execute Tool ─────────────────────────────────────────────────────
     try {
       switch (toolName) {
         case 'read_file':

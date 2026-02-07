@@ -130,6 +130,7 @@ export type AgentEvent =
   | { type: 'agent:tool_call'; tool: string; input: Record<string, unknown> }
   | { type: 'agent:tool_result'; tool: string; isError: boolean; durationMs: number }
   | { type: 'agent:iteration'; iteration: number; tokensUsed: TokenUsage }
+  | { type: 'agent:iteration_limit_exceeded'; step: number; stepName: string; maxIterations: number; actualIterations: number; tokensUsed: TokenUsage; suggestion: string }
   | { type: 'agent:budget_warning'; usedTokens: number; budgetTokens: number; percentUsed: number }
   | { type: 'agent:budget_exceeded'; usedTokens: number; budgetTokens: number }
   | { type: 'agent:complete'; result: AgentResult }

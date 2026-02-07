@@ -468,9 +468,26 @@ export class AgentRunnerService {
     }
 
     // Exceeded max iterations
+    const stepName = ['Discovery', 'Planner', 'Spec Writer', 'Fixer', 'Coder'][phase.step] || `Step ${phase.step}`
+
+    // Emit specific iteration limit event
+    emit({
+      type: 'agent:iteration_limit_exceeded',
+      step: phase.step,
+      stepName,
+      maxIterations: phase.maxIterations,
+      actualIterations: iteration,
+      tokensUsed: totalTokens,
+      suggestion: phase.step === 0
+        ? 'Discovery deve ser eficiente: use grep abrangente e leia arquivos 1x apenas'
+        : 'Considere simplificar a task ou otimizar o prompt do step',
+    })
+
     const error = new Error(
-      `Agent exceeded max iterations (${phase.maxIterations}) on step ${phase.step} ` +
-        `with ${llm.name}/${phase.model}. Tokens used: ${totalTokens.inputTokens}in/${totalTokens.outputTokens}out`,
+      `❌ ${stepName} excedeu limite de ${phase.maxIterations} iterações. ` +
+        `Isso indica que o prompt precisa ser otimizado ou a task é muito complexa. ` +
+        `Provider: ${llm.name}/${phase.model}. ` +
+        `Tokens: ${totalTokens.inputTokens}in/${totalTokens.outputTokens}out`,
     )
     emit({ type: 'agent:error', error: error.message })
     throw error

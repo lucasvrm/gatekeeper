@@ -263,6 +263,8 @@ function getStageColor(stage: string): string {
   const normalized = stage.toLowerCase()
 
   switch (normalized) {
+    case 'discovery':
+      return 'hsl(180, 65%, 50%)' // Cyan
     case 'planning':
       return 'hsl(270, 60%, 55%)' // Purple
     case 'spec':
