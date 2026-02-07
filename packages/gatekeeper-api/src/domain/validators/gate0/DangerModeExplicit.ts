@@ -27,19 +27,19 @@ export const DangerModeExplicitValidator: ValidatorDefinition = {
       }
     }
 
-    if (!ctx.manifest) {
+    if (!ctx.microplan || !ctx.microplan.files) {
       return {
         passed: false,
         status: 'FAILED',
-        message: 'Danger mode enabled but no manifest provided',
+        message: 'Danger mode enabled but no microplan provided',
         context: {
           inputs: [
             { label: 'DangerMode', value: true },
             { label: 'Sensitive Files Detected', value: 0 },
           ],
           analyzed: [],
-          findings: [{ type: 'fail', message: 'Manifest missing while danger mode is enabled' }],
-          reasoning: 'Danger mode requires a manifest to confirm sensitive files are explicitly listed.',
+          findings: [{ type: 'fail', message: 'Microplan missing while danger mode is enabled' }],
+          reasoning: 'Danger mode requires a microplan to confirm sensitive files are explicitly listed.',
         },
       }
     }
@@ -47,7 +47,7 @@ export const DangerModeExplicitValidator: ValidatorDefinition = {
     let hasSensitiveFile = false
     let sensitiveCount = 0
 
-    for (const file of ctx.manifest.files) {
+    for (const file of ctx.microplan.files) {
       for (const pattern of ctx.sensitivePatterns) {
         if (minimatch(file.path, pattern)) {
           hasSensitiveFile = true
@@ -62,15 +62,15 @@ export const DangerModeExplicitValidator: ValidatorDefinition = {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'Danger mode enabled but no sensitive files in manifest (unnecessary)',
+        message: 'Danger mode enabled but no sensitive files in microplan (unnecessary)',
         context: {
           inputs: [
             { label: 'DangerMode', value: true },
             { label: 'Sensitive Files Detected', value: 0 },
           ],
           analyzed: [],
-          findings: [{ type: 'info', message: 'Skipped: no sensitive files detected in manifest' }],
-          reasoning: 'Danger mode is enabled but no sensitive files were detected in the manifest.',
+          findings: [{ type: 'info', message: 'Skipped: no sensitive files detected in microplan' }],
+          reasoning: 'Danger mode is enabled but no sensitive files were detected in the microplan.',
         },
       }
     }
@@ -86,7 +86,7 @@ export const DangerModeExplicitValidator: ValidatorDefinition = {
         ],
         analyzed: [],
         findings: [{ type: 'pass', message: 'Danger mode enabled for sensitive file access' }],
-        reasoning: 'Danger mode is enabled and sensitive files were detected in the manifest.',
+        reasoning: 'Danger mode is enabled and sensitive files were detected in the microplan.',
       },
     }
   },

@@ -112,32 +112,32 @@ export const DeleteDependencyCheckValidator: ValidatorDefinition = {
       reasoning: ''
     }
 
-    // CL-DEL-001: No manifest
-    if (!ctx.manifest || !ctx.manifest.files) {
+    // CL-DEL-001: No microplan
+    if (!ctx.microplan || !ctx.microplan.files) {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'No manifest provided',
+        message: 'No microplan provided',
         context: {
           ...baseContext,
-          reasoning: 'Manifest is null or undefined'
+          reasoning: 'Microplan is null or undefined'
         },
         details: {},
         evidence: ''
       }
     }
 
-    const files = ctx.manifest.files
+    const files = ctx.microplan.files
     const deleteFiles = files.filter(f => f.action === 'DELETE')
 
-    baseContext.inputs.push({ label: 'Manifest Files', value: files.map(f => f.path) })
+    baseContext.inputs.push({ label: 'Microplan Files', value: files.map(f => f.path) })
 
     // CL-DEL-002: No DELETE operations
     if (deleteFiles.length === 0) {
       return {
         passed: true,
         status: 'PASSED',
-        message: 'No DELETE operations in manifest',
+        message: 'No DELETE operations in microplan',
         context: {
           ...baseContext,
           reasoning: 'No files marked for deletion'
@@ -162,7 +162,7 @@ export const DeleteDependencyCheckValidator: ValidatorDefinition = {
     // Scan project files for importers
     const projectFiles = scanProjectFiles(ctx.projectPath, ctx.projectPath, ignoreDirs)
     const orphanedImports: Array<{ deletedFile: string; importers: string[] }> = []
-    const suggestions: Array<{ path: string; action: 'MODIFY' }> = []
+    const suggestions: Array<{ path: string; action: 'EDIT' }> = []
 
     for (const deleteFile of deleteFiles) {
       const deletePath = deleteFile.path
@@ -182,12 +182,12 @@ export const DeleteDependencyCheckValidator: ValidatorDefinition = {
             if (resolvedImport && matchesDeletedFile(resolvedImport, absoluteDeletePath, ctx.projectPath)) {
               const relativeProjectFile = toPosixPath(relative(ctx.projectPath, projectFile))
 
-              // Check if importer is covered in manifest
-              const isInManifest = files.some(f =>
-                toPosixPath(f.path) === relativeProjectFile && (f.action === 'MODIFY' || f.action === 'DELETE')
+              // Check if importer is covered in microplan
+              const isInMicroplan = files.some(f =>
+                toPosixPath(f.path) === relativeProjectFile && (f.action === 'EDIT' || f.action === 'DELETE')
               )
 
-              if (!isInManifest) {
+              if (!isInMicroplan) {
                 importers.push(relativeProjectFile)
               }
               break // Found import, no need to check other imports
@@ -205,7 +205,7 @@ export const DeleteDependencyCheckValidator: ValidatorDefinition = {
         })
         for (const imp of importers) {
           if (!suggestions.some(s => s.path === imp)) {
-            suggestions.push({ path: imp, action: 'MODIFY' })
+            suggestions.push({ path: imp, action: 'EDIT' })
           }
         }
       }
@@ -218,7 +218,7 @@ export const DeleteDependencyCheckValidator: ValidatorDefinition = {
         passed: true,
         status: 'PASSED',
         message: hasScannedFiles
-          ? `All importers of ${deleteFiles.length} deleted file(s) are covered in manifest`
+          ? `All importers of ${deleteFiles.length} deleted file(s) are covered in microplan`
           : `No importers found for ${deleteFiles.length} deleted file(s)`,
         context: {
           ...baseContext,
@@ -236,22 +236,22 @@ export const DeleteDependencyCheckValidator: ValidatorDefinition = {
     // CL-DEL-010: Evidence format
     const evidence = orphanedImports.map(o => {
       const importersList = o.importers.map(i => `    - ${i}`).join('\n')
-      const suggestionsList = o.importers.map(i => `    - ${i} (MODIFY)`).join('\n')
-      return `DELETE: ${o.deletedFile}\n  Imported by (NOT in manifest):\n${importersList}\n  Suggested additions:\n${suggestionsList}`
+      const suggestionsList = o.importers.map(i => `    - ${i} (EDIT)`).join('\n')
+      return `DELETE: ${o.deletedFile}\n  Imported by (NOT in microplan):\n${importersList}\n  Suggested additions:\n${suggestionsList}`
     }).join('\n\n')
 
     // CL-DEL-013: Context structure
     baseContext.findings = orphanedImports.map(o => ({
       type: 'fail' as const,
-      message: `File ${o.deletedFile} is imported by ${o.importers.length} file(s) not in manifest`,
+      message: `File ${o.deletedFile} is imported by ${o.importers.length} file(s) not in microplan`,
       location: o.deletedFile
     }))
-    baseContext.reasoning = `${totalOrphans} importers are not covered in manifest`
+    baseContext.reasoning = `${totalOrphans} importers are not covered in microplan`
 
     return {
       passed: false,
       status: 'FAILED',
-      message: `Found ${totalOrphans} file(s) importing deleted files but not in manifest`,
+      message: `Found ${totalOrphans} file(s) importing deleted files but not in microplan`,
       context: baseContext,
       details: {
         orphanedImports,

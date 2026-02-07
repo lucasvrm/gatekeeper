@@ -348,14 +348,14 @@ export const WRITE_TOOLS: ToolDefinition[] = [
 export const SAVE_ARTIFACT_TOOL: ToolDefinition = {
   name: 'save_artifact',
   description:
-    'Save a named artifact (plan.json, contract.md, task.spec.md, or .spec.ts file). Use this when you have finished producing an artifact.',
+    'Save a named artifact (microplans.json, contract.md, task_prompt.md, or .spec.ts file). Use this when you have finished producing an artifact.',
   inputSchema: {
     type: 'object',
     properties: {
       filename: {
         type: 'string',
         description:
-          'Artifact filename (e.g. "plan.json", "contract.md", "task.spec.md")',
+          'Artifact filename (e.g. "microplans.json", "contract.md", "task_prompt.md")',
       },
       content: {
         type: 'string',

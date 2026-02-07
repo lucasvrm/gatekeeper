@@ -16,7 +16,13 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
     console.log('[TEST_READ_ONLY_ENFORCEMENT] Using testFilePath:', ctx.testFilePath)
-    console.log('[TEST_READ_ONLY_ENFORCEMENT] Using manifest.testFile:', ctx.manifest?.testFile)
+
+    // Derive test file from microplan if available
+    const microplanTestFile = ctx.microplan?.files.find(f =>
+      /\.(spec|test)\.(ts|tsx|js|jsx)$/.test(f.path)
+    )?.path
+    console.log('[TEST_READ_ONLY_ENFORCEMENT] Using microplan test file:', microplanTestFile)
+
     const useWorkingTree = ctx.config.get('DIFF_SCOPE_INCLUDE_WORKING_TREE') === 'true'
     const excludedPatternsStr = ctx.config.get('TEST_READ_ONLY_EXCLUDED_PATHS')
     const excludedPatterns = excludedPatternsStr
@@ -27,15 +33,15 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
       ? await ctx.services.git.getDiffFilesWithWorkingTree(ctx.baseRef)
       : await ctx.services.git.getDiffFiles(ctx.baseRef, ctx.targetRef)
 
-    // Build array of allowed test paths (both testFilePath and manifest.testFile)
+    // Build array of allowed test paths (testFilePath and microplan test file)
     const allowedTestPaths: string[] = []
 
     if (ctx.testFilePath) {
       allowedTestPaths.push(normalizePath(resolve(ctx.projectPath, ctx.testFilePath)))
     }
 
-    if (ctx.manifest?.testFile) {
-      allowedTestPaths.push(normalizePath(resolve(ctx.projectPath, ctx.manifest.testFile)))
+    if (microplanTestFile) {
+      allowedTestPaths.push(normalizePath(resolve(ctx.projectPath, microplanTestFile)))
     }
 
     const testFilePattern = /\.(test|spec)\.(ts|tsx|js|jsx)$/
@@ -61,7 +67,7 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
     // Build list of allowed test paths for display
     const allowedTestsDisplay: string[] = []
     if (ctx.testFilePath) allowedTestsDisplay.push(ctx.testFilePath)
-    if (ctx.manifest?.testFile) allowedTestsDisplay.push(ctx.manifest.testFile)
+    if (microplanTestFile) allowedTestsDisplay.push(microplanTestFile)
 
     if (modifiedTests.length > 0) {
       return {
@@ -72,7 +78,7 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
           inputs: [
             { label: 'AllowedTests', value: allowedTestsDisplay.length > 0 ? allowedTestsDisplay : 'none' },
             { label: 'TestFilePath', value: ctx.testFilePath ?? 'none' },
-            { label: 'ManifestTestFile', value: ctx.manifest?.testFile ?? 'none' },
+            { label: 'MicroplanTestFile', value: microplanTestFile ?? 'none' },
             { label: 'ExcludedPatterns', value: excludedPatterns },
           ],
           analyzed: [{ label: 'Diff Files', items: diffFiles }],
@@ -100,7 +106,7 @@ export const TestReadOnlyEnforcementValidator: ValidatorDefinition = {
         inputs: [
           { label: 'AllowedTests', value: allowedTestsDisplay.length > 0 ? allowedTestsDisplay : 'none' },
           { label: 'TestFilePath', value: ctx.testFilePath ?? 'none' },
-          { label: 'ManifestTestFile', value: ctx.manifest?.testFile ?? 'none' },
+          { label: 'MicroplanTestFile', value: microplanTestFile ?? 'none' },
           { label: 'ExcludedPatterns', value: excludedPatterns },
         ],
         analyzed: [{ label: 'Diff Files', items: diffFiles }],

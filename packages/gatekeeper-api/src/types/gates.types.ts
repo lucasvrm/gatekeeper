@@ -250,7 +250,10 @@ export interface ValidationContext {
   baseRef: string
   targetRef: string
   taskPrompt: string
+  microplan: Microplan | null
+  /** @deprecated Use microplan.files instead */
   manifest: ManifestInput | null
+  /** @deprecated Use microplan.verify instead */
   contract: ContractInput | null
   testFilePath: string | null
   dangerMode: boolean

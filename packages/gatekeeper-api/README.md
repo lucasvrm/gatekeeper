@@ -7,8 +7,10 @@ Backend do Gatekeeper - Sistema de validação progressiva para desenvolvimento 
 O Gatekeeper API fornece:
 - Sistema de gates de validação progressiva (Gates 0-3)
 - Validadores especializados para qualidade de código
-- Gerenciamento de contratos e testes
+- Orquestração de microplans atômicos e dependency-aware
 - API REST para integração com frontend
+
+**Arquitetura**: O sistema utiliza **microplans** - planos atômicos que contêm arquivos (files[]), critérios de verificação (verify) e dependências (depends_on[]). Esta arquitetura substitui o modelo antigo de manifest/contract monolítico.
 
 ## Arquitetura
 
@@ -27,10 +29,10 @@ Cada gate contém múltiplos validators que devem passar para avançar.
 
 Validators são unidades de validação que executam verificações específicas:
 - Sintaxe e formato de testes
-- Cobertura de cláusulas contratuais
+- Alinhamento com critérios de verificação (microplan.verify)
 - Compilação e lint
 - Execução de testes
-- Validação de diff e manifest
+- Validação de escopo (diff vs microplan.files[])
 
 ## Tecnologias
 

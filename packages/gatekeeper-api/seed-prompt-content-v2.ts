@@ -48,31 +48,35 @@ Use essas ferramentas ANTES de criar o plano para entender padrões existentes.
 
 Salve exatamente 3 arquivos usando \`save_artifact\`:
 
-1. **plan.json** — Plano estruturado com manifest e contrato
-2. **contract.md** — Versão legível do contrato
-3. **task_spec.md** — Especificação detalhada da tarefa
+1. **microplans.json** — Plano estruturado com microplans atômicos
+2. **contract.md** — Versão legível do contrato (DEPRECATED - manter para compatibilidade)
+3. **task_prompt.md** — Especificação detalhada da tarefa
+
+**Nota**: A arquitetura antiga (manifest + contract) foi substituída por dados distribuídos nos microplans:
+- `microplan.files[]` substitui o manifest (lista de arquivos e ações)
+- `microplan.verify` substitui o contract (critérios de verificação)
 
 ## Regras de Formato
 
-### manifest.files[].action
-Apenas: \`CREATE\` | \`MODIFY\` | \`DELETE\` (maiúsculas, nunca "ADD" ou "add")
+### microplan.files[].action
+Apenas: \`CREATE\` | \`EDIT\` | \`DELETE\` (maiúsculas, nunca "MODIFY", "ADD" ou "add")
 
-### contract.clauses[].kind
+### contract.clauses[].kind (DEPRECATED - manter para compatibilidade)
 Apenas: \`behavior\` | \`error\` | \`invariant\` | \`ui\` | \`constraint\`
 
-### contract.clauses[].normativity
+### contract.clauses[].normativity (DEPRECATED - manter para compatibilidade)
 Apenas: \`MUST\` | \`SHOULD\` | \`MAY\`
 
-### contract.clauses[].id
+### contract.clauses[].id (DEPRECATED - manter para compatibilidade)
 Formato: \`CL-<DOMÍNIO>-<NNN>\` (ex: \`CL-ROUTE-001\`, \`CL-BTN-002\`)
 
 ### testFile
 - Deve terminar em \`.spec.ts\` ou \`.spec.tsx\`
-- Deve estar listado em \`manifest.files[]\` com action CREATE
+- Deve estar listado em \`microplan.files[]\` com action CREATE
 
 ### Arquivos sensíveis
 Se incluir: \`package.json\`, \`.env*\`, \`prisma/schema.prisma\`
-→ Defina \`dangerMode: true\` no plan.json
+→ Defina \`dangerMode: true\` no microplans.json
 
 ### ⚠️ Validador NO_IMPLICIT_FILES
 O prompt da tarefa NÃO pode conter referências implícitas como:
@@ -80,7 +84,7 @@ O prompt da tarefa NÃO pode conter referências implícitas como:
 - "arquivos relacionados", "related files"
 - "e tal", "and so on"
 
-Se o prompt do usuário contiver essas expressões, o taskPrompt no plan.json deve **reescrevê-las** de forma explícita, listando exatamente quais arquivos/componentes são afetados.
+Se o prompt do usuário contiver essas expressões, o taskPrompt no microplans.json deve **reescrevê-las** de forma explícita, listando exatamente quais arquivos/componentes são afetados.
 
 \`\`\`json
 // ❌ Prompt original: "modificar componentes de auth, etc."
@@ -91,57 +95,48 @@ Se o prompt do usuário contiver essas expressões, o taskPrompt no plan.json de
 
 export const PLANNER_SCHEMA_REFERENCE = `## Schema de Referência
 
-### plan.json — Estrutura Obrigatória
+### microplans.json — Estrutura Obrigatória
 \`\`\`json
 {
-  "outputId": "YYYY_MM_DD_NNN_slug",
-  "taskPrompt": "Descreva a tarefa de forma curta e objetiva.",
-  "manifest": {
-    "testFile": "src/path/to/Task.spec.tsx",
-    "files": [
-      {
-        "path": "src/path/to/Task.spec.tsx",
-        "action": "CREATE"
-      }
-    ]
-  },
-  "contract": {
-    "schemaVersion": "1.0",
-    "slug": "slug_sem_espacos",
-    "title": "Título do contrato",
-    "mode": "STRICT",
-    "changeType": "new | modify | bugfix | refactor",
-    "criticality": "low | medium | HIGH",
-    "clauses": [
-      {
-        "id": "CL-DOMAIN-NNN",
-        "kind": "behavior | error | invariant | ui | constraint",
-        "normativity": "MUST | SHOULD | MAY",
-        "when": "Condição observável",
-        "then": "Resultado observável"
-      }
-    ],
-    "assertionSurface": {
-      "ui": {
-        "routes": [],
-        "testIds": [],
-        "roles": [],
-        "ariaLabels": []
-      },
-      "effects": []
-    },
-    "testMapping": {
-      "tagPattern": "// @clause"
+  "task": "Descreva a tarefa de forma curta e objetiva.",
+  "microplans": [
+    {
+      "id": "mp-001",
+      "goal": "Objetivo atômico deste microplan (ex: Criar componente de botão)",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "src/components/ui/Button.tsx",
+          "action": "CREATE",
+          "what": "Componente Button com props de variant (primary, secondary, destructive)"
+        },
+        {
+          "path": "src/components/ui/Button.spec.tsx",
+          "action": "CREATE",
+          "what": "Testes unitários para o componente Button"
+        }
+      ],
+      "verify": "Verificar que o componente Button renderiza corretamente com todas as variants. Verificar que os testes passam."
     }
-  },
-  "baseRef": "origin/main",
-  "targetRef": "HEAD",
-  "dangerMode": false,
-  "runType": "CONTRACT"
+  ]
 }
 \`\`\`
 
-### contract.md — Formato Obrigatório
+**Campos obrigatórios por microplan**:
+- \`id\`: Identificador único (ex: "mp-001", "mp-002")
+- \`goal\`: Objetivo atômico e conciso
+- \`depends_on\`: Array de IDs de microplans que devem ser executados antes (pode ser vazio)
+- \`files\`: Array de arquivos com \`path\`, \`action\` (CREATE|EDIT|DELETE) e \`what\` (descrição da mudança)
+- \`verify\`: Critérios de verificação (substitui o contract)
+
+**DEPRECATED** (manter apenas para compatibilidade com runs antigos):
+- \`manifest\`: Removido - usar \`microplan.files[]\` ao invés
+- \`contract\`: Removido - usar \`microplan.verify\` ao invés
+\`\`\`
+
+### contract.md — Formato Obrigatório (DEPRECATED)
+**Nota**: Este formato é mantido para compatibilidade com runs antigos. Novos runs devem usar \`microplan.verify\` ao invés.
+
 \`\`\`markdown
 # Identidade
 - **schemaVersion**: 1.0
@@ -193,59 +188,34 @@ Formato para UI: \`CL-UI-<Component>-<variant>\` (ex.: CL-UI-Button-destructive)
 
 export const PLANNER_EXAMPLES = `## Exemplos de Artifacts que Funcionam
 
-### Exemplo 1: Modificação de Rota
+### Exemplo 1: Modificação de Rota (Nova Estrutura - Microplans)
 
 **Tarefa:** "Atualizar roteamento para que /runs/:id use RunDetailsPageV2 como padrão"
 
-#### plan.json
+#### microplans.json
 \`\`\`json
 {
-  "outputId": "2026_01_31_004_runs_id_v2_default_route",
-  "taskPrompt": "Atualizar roteamento para que /runs/:id use RunDetailsPageV2 como padrão e mover versão antiga para /runs/:id/legacy.",
-  "manifest": {
-    "testFile": "src/routes/__tests__/runs-id-default-v2-routing.spec.tsx",
-    "files": [
-      { "path": "src/routes/__tests__/runs-id-default-v2-routing.spec.tsx", "action": "CREATE" },
-      { "path": "src/App.tsx", "action": "MODIFY" }
-    ]
-  },
-  "contract": {
-    "schemaVersion": "1.0",
-    "slug": "runs-id-default-v2-routing",
-    "title": "Roteamento padrão de /runs/:id para RunDetailsPageV2",
-    "mode": "STRICT",
-    "changeType": "modify",
-    "criticality": "HIGH",
-    "clauses": [
-      {
-        "id": "CL-ROUTE-001",
-        "kind": "behavior",
-        "normativity": "MUST",
-        "when": "O usuário navegar para /runs/:id",
-        "then": "A aplicação deve renderizar o componente RunDetailsPageV2."
-      },
-      {
-        "id": "CL-ROUTE-002",
-        "kind": "behavior",
-        "normativity": "MUST",
-        "when": "O usuário navegar para /runs/:id/legacy",
-        "then": "A aplicação deve renderizar o componente RunDetailsPage (versão antiga)."
-      }
-    ],
-    "assertionSurface": {
-      "ui": {
-        "routes": ["/runs/:id", "/runs/:id/legacy"],
-        "testIds": ["run-details-page-v2", "run-details-page-legacy"],
-        "roles": [],
-        "ariaLabels": []
-      }
-    },
-    "testMapping": { "tagPattern": "// @clause" }
-  },
-  "baseRef": "origin/main",
-  "targetRef": "HEAD",
-  "dangerMode": false,
-  "runType": "CONTRACT"
+  "task": "Atualizar roteamento para que /runs/:id use RunDetailsPageV2 como padrão e mover versão antiga para /runs/:id/legacy.",
+  "microplans": [
+    {
+      "id": "mp-001",
+      "goal": "Atualizar configuração de rotas no App.tsx",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "src/routes/__tests__/runs-id-default-v2-routing.spec.tsx",
+          "action": "CREATE",
+          "what": "Testes para verificar roteamento: /runs/:id renderiza RunDetailsPageV2, /runs/:id/legacy renderiza versão antiga"
+        },
+        {
+          "path": "src/App.tsx",
+          "action": "EDIT",
+          "what": "Modificar rota /runs/:id para usar RunDetailsPageV2 e adicionar rota /runs/:id/legacy para versão antiga"
+        }
+      ],
+      "verify": "Verificar que /runs/:id renderiza RunDetailsPageV2 (data-testid='run-details-page-v2'). Verificar que /runs/:id/legacy renderiza RunDetailsPage (data-testid='run-details-page-legacy'). Testes devem passar."
+    }
+  ]
 }
 \`\`\`
 
@@ -287,11 +257,23 @@ export const PLANNER_EXAMPLES = `## Exemplos de Artifacts que Funcionam
 
 **Tarefa:** "Adicionar botão de copiar detalhes do validator no RunPanel"
 
-#### plan.json
+#### microplans.json
 \`\`\`json
 {
   "outputId": "2026_02_01_001_copy_validator_btn",
   "taskPrompt": "Adicionar botão de copiar detalhes do validator no RunPanel. Usa ícone Copy, variant ghost, size sm. Copia texto para clipboard. Feedback via toast.",
+  "microplans": [
+    {
+      "id": "mp-001",
+      "goal": "Adicionar botão de copiar no RunPanel",
+      "tasks": [
+        "Criar handler handleCopy com clipboard API",
+        "Adicionar Button com data-testid='validator-copy-btn'",
+        "Integrar toast.success e toast.error"
+      ],
+      "files": ["src/components/run-panel.tsx"]
+    }
+  ],
   "manifest": {
     "testFile": "src/components/__tests__/copy-validator-btn.spec.tsx",
     "files": [
@@ -360,11 +342,23 @@ export const PLANNER_EXAMPLES = `## Exemplos de Artifacts que Funcionam
 
 **Tarefa:** "TestRunnerService deve usar cwd correto para testes em packages/"
 
-#### plan.json
+#### microplans.json
 \`\`\`json
 {
   "outputId": "2026_01_31_001_test_runner_cwd",
   "taskPrompt": "Corrigir TestRunnerService para usar cwd correto ao rodar testes em packages/. Testes em packages/gatekeeper-api devem rodar com cwd no package root.",
+  "microplans": [
+    {
+      "id": "mp-001",
+      "goal": "Corrigir lógica de cwd no TestRunnerService",
+      "tasks": [
+        "Detectar se teste está em packages/",
+        "Usar package root como cwd para packages",
+        "Manter project root como cwd para outros testes"
+      ],
+      "files": ["packages/gatekeeper-api/src/services/TestRunnerService.ts"]
+    }
+  ],
   "manifest": {
     "testFile": "packages/gatekeeper-api/src/services/__tests__/test-runner-cwd.spec.ts",
     "files": [
@@ -432,9 +426,9 @@ export const PLANNER_USER_MESSAGE_TEMPLATE = `## Tarefa
 ## ⚠️ CRÍTICO: Salve os 3 arquivos
 
 \`\`\`
-save_artifact("plan.json", <conteúdo>)
+save_artifact("microplans.json", <conteúdo>)
 save_artifact("contract.md", <conteúdo>)
-save_artifact("task_spec.md", <conteúdo>)
+save_artifact("task_prompt.md", <conteúdo>)
 \`\`\`
 
 ❌ NÃO explique o que vai fazer
@@ -605,7 +599,7 @@ Cada cláusula \`MUST\` precisa de **3 testes**:
 | \`toHaveTextContent()\` | \`toMatchSnapshot()\` |
 
 ### Manifest Awareness — Import Strategy
-O spec deve considerar o manifest do plan.json:
+O spec deve considerar o manifest do microplans.json:
 
 | action no manifest | Pode importar? | Estratégia |
 |--------------------|----------------|------------|
@@ -822,7 +816,7 @@ export const SPEC_WRITER_USER_MESSAGE_TEMPLATE = `## Output ID: {{outputId}}
 
 ## Artefatos do Step 1
 
-### plan.json
+### microplans.json
 \`\`\`json
 {{{planJson}}}
 \`\`\`
@@ -832,7 +826,7 @@ export const SPEC_WRITER_USER_MESSAGE_TEMPLATE = `## Output ID: {{outputId}}
 {{{contractMd}}}
 \`\`\`
 
-### task_spec.md
+### task_prompt.md
 \`\`\`markdown
 {{{taskSpecMd}}}
 \`\`\`
@@ -990,7 +984,7 @@ const LoginPage = () => <div data-testid="login-form" />
 "Modificar AuthService.ts, AuthController.ts e authMiddleware.ts"
 \`\`\`
 
-**Correção:** Reescrever taskPrompt no plan.json removendo termos vagos.
+**Correção:** Reescrever taskPrompt no microplans.json removendo termos vagos.
 
 ---
 
@@ -1241,7 +1235,7 @@ export const RETRY_REJECTION_REMINDER = `## Rejection Report (reminder)
 
 export const CLI_APPEND_PLAN = `IMPORTANT: You must write each artifact as a file using your Write tool.
 Write artifacts to this directory: {{outputDir}}/
-Required files: plan.json, contract.md, task_spec.md`
+Required files: microplans.json, contract.md, task_prompt.md`
 
 export const CLI_APPEND_SPEC = `IMPORTANT: Write test file(s) using your Write tool to: {{outputDir}}/`
 
@@ -1276,8 +1270,8 @@ export const CLI_REPLACE_EXECUTE_TOOLS = `Use your Write/Edit tools to create/mo
 export const PLANNER_MANDATORY = `-Read all instructions before taking any action.
 -Understand the application exclusively from the real code.
 -The instructions are the only source of truth.
--Create only the artifacts explicitly requested: plan.json, contract.md, task_spec.md.
--In plan.json, include the full path of the test file.
+-Create only the artifacts explicitly requested: microplans.json, contract.md, task_prompt.md.
+-In microplans.json, include the full path of the test file.
 -You do not create the test specification file itself.`
 
 export const SPEC_WRITER_MANDATORY = `-Testes são o contrato da ferramenta.

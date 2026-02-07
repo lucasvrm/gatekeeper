@@ -59,7 +59,7 @@ export const NoImplicitFilesValidator: ValidatorDefinition = {
         message: `Task prompt contains ${foundTerms.length} implicit file reference(s)`,
         context: {
           inputs: [
-            { label: 'Manifest', value: ctx.manifest ?? 'none' },
+            { label: 'Microplan Files', value: ctx.microplan?.files.length ?? 0 },
             { label: 'TestFile', value: ctx.testFilePath ?? 'none' },
           ],
           analyzed: [{ label: 'Imports Found', items: imports }],
@@ -67,9 +67,9 @@ export const NoImplicitFilesValidator: ValidatorDefinition = {
             type: 'fail' as const,
             message: `Implicit reference found: "${term}"`,
           })),
-          reasoning: 'Prompt contains implicit references to files outside the manifest.',
+          reasoning: 'Prompt contains implicit references to files outside the microplan.',
         },
-        evidence: `Implicit references found:\n${foundTerms.map(t => `  - "${t}"`).join('\n')}\n\nAll files must be explicitly listed in the manifest.`,
+        evidence: `Implicit references found:\n${foundTerms.map(t => `  - "${t}"`).join('\n')}\n\nAll files must be explicitly listed in the microplan.`,
         details: {
           foundTerms,
           promptLength: ctx.taskPrompt.length,
@@ -83,7 +83,7 @@ export const NoImplicitFilesValidator: ValidatorDefinition = {
       message: 'Task prompt has explicit file references only',
       context: {
         inputs: [
-          { label: 'Manifest', value: ctx.manifest ?? 'none' },
+          { label: 'Microplan Files', value: ctx.microplan?.files.length ?? 0 },
           { label: 'TestFile', value: ctx.testFilePath ?? 'none' },
         ],
         analyzed: [{ label: 'Imports Found', items: imports }],

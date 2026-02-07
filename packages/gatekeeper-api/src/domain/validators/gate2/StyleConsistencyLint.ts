@@ -19,19 +19,19 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
       .filter(Boolean)
     const skipIfNoConfig = ctx.config.get('SKIP_LINT_IF_NO_CONFIG') !== 'false'
 
-    if (!ctx.manifest) {
+    if (!ctx.microplan) {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'No manifest provided, skipping lint check',
+        message: 'No microplan provided, skipping lint check',
         context: {
           inputs: [
             { label: 'ESLint Config Files', value: eslintConfigs },
             { label: 'Skip If No Config', value: skipIfNoConfig },
           ],
           analyzed: [],
-          findings: [{ type: 'info', message: 'Skipped: manifest not provided' }],
-          reasoning: 'Linting requires a manifest to determine which files to check.',
+          findings: [{ type: 'info', message: 'Skipped: microplan not provided' }],
+          reasoning: 'Linting requires a microplan to determine which files to check.',
         },
         details: {
           eslintConfigs,
@@ -90,7 +90,7 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
     }
 
     try {
-      const filePaths = ctx.manifest.files
+      const filePaths = ctx.microplan.files
         .filter(f => f.action !== 'DELETE')
         .map(f => f.path)
         .filter(path => /\.(ts|tsx|js|jsx)$/.test(path))
@@ -99,7 +99,7 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
         return {
           passed: true,
           status: 'SKIPPED',
-          message: 'No lintable files in manifest',
+          message: 'No lintable files in microplan',
           context: {
             inputs: [
               { label: 'ESLint Config Files', value: eslintConfigs },
@@ -107,7 +107,7 @@ export const StyleConsistencyLintValidator: ValidatorDefinition = {
             ],
             analyzed: [{ label: 'Files Linted', items: [] }],
             findings: [{ type: 'info', message: 'Skipped: no lintable files found' }],
-            reasoning: 'Manifest contains no JS/TS files to lint.',
+            reasoning: 'Microplan contains no JS/TS files to lint.',
           },
           details: {
             eslintConfigs,

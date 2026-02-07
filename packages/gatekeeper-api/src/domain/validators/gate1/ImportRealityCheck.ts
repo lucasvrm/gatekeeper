@@ -98,12 +98,12 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
       const isTestFileOutsideProject = relativeToProject.startsWith('..') || relativeToProject.includes('..\\') || relativeToProject.includes('../')
       const baseDirForRelativeImports = isTestFileOutsideProject ? projectPath : testFileDir
       const manifestCreateAbsolute = new Set(
-        ctx.manifest?.files
+        ctx.microplan?.files
           .filter((file) => file.action === 'CREATE')
           .map((file) => isAbsolute(file.path) ? file.path : resolve(projectPath, file.path)) ?? []
       )
       const manifestCreateRelative = new Set(
-        ctx.manifest?.files
+        ctx.microplan?.files
           .filter((file) => file.action === 'CREATE')
           .map((file) => stripLeadingDotSegments(toPosixPath(file.path)))
           .filter((normalized) => normalized !== '') ?? []

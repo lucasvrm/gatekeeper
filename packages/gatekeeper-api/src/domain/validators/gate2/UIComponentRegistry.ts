@@ -95,17 +95,17 @@ export const UIComponentRegistryValidator: ValidatorDefinition = {
       }
     }
 
-    // CL-REG-002: SKIPPED when manifest is null or empty
-    if (!ctx.manifest || !ctx.manifest.files || ctx.manifest.files.length === 0) {
+    // CL-REG-002: SKIPPED when microplan is null or empty
+    if (!ctx.microplan || !ctx.microplan.files || ctx.microplan.files.length === 0) {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'No manifest or empty manifest. Skipping component validation.',
+        message: 'No microplan or empty microplan. Skipping component validation.',
         context: {
-          inputs: [{ label: 'manifest', value: ctx.manifest ? 'empty files' : 'null' }],
+          inputs: [{ label: 'microplan', value: ctx.microplan ? 'empty files' : 'null' }],
           analyzed: [],
-          findings: [{ type: 'info', message: 'No manifest files to analyze' }],
-          reasoning: 'Manifest is null or has no files, validation skipped.',
+          findings: [{ type: 'info', message: 'No microplan files to analyze' }],
+          reasoning: 'Microplan is null or has no files, validation skipped.',
         },
       }
     }
@@ -124,7 +124,7 @@ export const UIComponentRegistryValidator: ValidatorDefinition = {
     )
 
     // CL-REG-008: Filter to only TSX/JSX files that are not tests and not DELETE actions
-    const filesToAnalyze = ctx.manifest.files.filter(f => {
+    const filesToAnalyze = ctx.microplan.files.filter(f => {
       if (f.action === 'DELETE') return false
       const path = f.path.toLowerCase()
       if (!path.endsWith('.tsx') && !path.endsWith('.jsx')) return false
@@ -136,12 +136,12 @@ export const UIComponentRegistryValidator: ValidatorDefinition = {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'No TSX/JSX files to analyze in manifest.',
+        message: 'No TSX/JSX files to analyze in microplan.',
         context: {
-          inputs: [{ label: 'manifest', value: ctx.manifest }],
+          inputs: [{ label: 'microplan', value: `${ctx.microplan.files.length} files` }],
           analyzed: [],
           findings: [{ type: 'info', message: 'No analyzable files' }],
-          reasoning: 'No TSX/JSX files (excluding tests) found in manifest.',
+          reasoning: 'No TSX/JSX files (excluding tests) found in microplan.',
         },
       }
     }

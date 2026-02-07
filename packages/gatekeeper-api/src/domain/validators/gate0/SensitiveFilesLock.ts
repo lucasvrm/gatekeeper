@@ -10,19 +10,19 @@ export const SensitiveFilesLockValidator: ValidatorDefinition = {
   isHardBlock: true,
   
   async execute(ctx: ValidationContext): Promise<ValidatorOutput> {
-    if (!ctx.manifest) {
+    if (!ctx.microplan || !ctx.microplan.files) {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'No manifest provided',
+        message: 'No microplan provided',
         context: {
           inputs: [
-            { label: 'Manifest Files', value: [] },
+            { label: 'Microplan Files', value: [] },
             { label: 'Sensitive Patterns', value: ctx.sensitivePatterns },
           ],
           analyzed: [],
-          findings: [{ type: 'info', message: 'Skipped: manifest not provided' }],
-          reasoning: 'Sensitive file checks require a manifest.',
+          findings: [{ type: 'info', message: 'Skipped: microplan not provided' }],
+          reasoning: 'Sensitive file checks require a microplan.',
         },
       }
     }
@@ -34,10 +34,10 @@ export const SensitiveFilesLockValidator: ValidatorDefinition = {
         message: 'Danger mode enabled - sensitive file lock bypassed',
         context: {
           inputs: [
-            { label: 'Manifest Files', value: ctx.manifest.files.map((file) => file.path) },
+            { label: 'Microplan Files', value: ctx.microplan.files.map((file) => file.path) },
             { label: 'Sensitive Patterns', value: ctx.sensitivePatterns },
           ],
-          analyzed: [{ label: 'Files Checked', items: ctx.manifest.files.map((file) => file.path) }],
+          analyzed: [{ label: 'Files Checked', items: ctx.microplan.files.map((file) => file.path) }],
           findings: [{ type: 'info', message: 'Danger mode enabled; sensitive file lock bypassed' }],
           reasoning: 'Danger mode allows modifying files that match sensitive patterns.',
         },
@@ -45,9 +45,9 @@ export const SensitiveFilesLockValidator: ValidatorDefinition = {
     }
 
     const blockedFiles: string[] = []
-    const manifestFiles = ctx.manifest.files.map((file) => file.path)
+    const microplanFiles = ctx.microplan.files.map((file) => file.path)
 
-    for (const file of ctx.manifest.files) {
+    for (const file of ctx.microplan.files) {
       for (const pattern of ctx.sensitivePatterns) {
         if (minimatch(file.path, pattern)) {
           blockedFiles.push(file.path)
@@ -63,10 +63,10 @@ export const SensitiveFilesLockValidator: ValidatorDefinition = {
         message: `Sensitive files detected: ${blockedFiles.length} file(s)`,
         context: {
           inputs: [
-            { label: 'Manifest Files', value: manifestFiles },
+            { label: 'Microplan Files', value: microplanFiles },
             { label: 'Sensitive Patterns', value: ctx.sensitivePatterns },
           ],
-          analyzed: [{ label: 'Files Checked', items: manifestFiles }],
+          analyzed: [{ label: 'Files Checked', items: microplanFiles }],
           findings: [
             ...blockedFiles.map((file) => ({
               type: 'fail' as const,
@@ -74,7 +74,7 @@ export const SensitiveFilesLockValidator: ValidatorDefinition = {
               location: file,
             })),
           ],
-          reasoning: `Detected ${blockedFiles.length} sensitive file(s) in manifest without danger mode.`,
+          reasoning: `Detected ${blockedFiles.length} sensitive file(s) in microplan without danger mode.`,
         },
         details: {
           blockedFiles,
@@ -87,15 +87,15 @@ export const SensitiveFilesLockValidator: ValidatorDefinition = {
     return {
       passed: true,
       status: 'PASSED',
-      message: 'No sensitive files in manifest',
+      message: 'No sensitive files in microplan',
       context: {
         inputs: [
-          { label: 'Manifest Files', value: manifestFiles },
+          { label: 'Microplan Files', value: microplanFiles },
           { label: 'Sensitive Patterns', value: ctx.sensitivePatterns },
         ],
-        analyzed: [{ label: 'Files Checked', items: manifestFiles }],
-        findings: [{ type: 'pass', message: 'No manifest files match sensitive patterns' }],
-        reasoning: 'No sensitive file patterns matched manifest files.',
+        analyzed: [{ label: 'Files Checked', items: microplanFiles }],
+        findings: [{ type: 'pass', message: 'No microplan files match sensitive patterns' }],
+        reasoning: 'No sensitive file patterns matched microplan files.',
       },
     }
   },

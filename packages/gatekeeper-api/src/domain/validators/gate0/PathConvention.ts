@@ -13,11 +13,11 @@ export const PathConventionValidator: ValidatorDefinition = {
     const typePatternsConfig = ctx.config.get('TYPE_DETECTION_PATTERNS')
     const typePatterns = getTypeDetectionPatterns(typePatternsConfig)
 
-    if (!ctx.manifest) {
+    if (!ctx.microplan || !ctx.microplan.files) {
       return {
         passed: true,
         status: 'SKIPPED',
-        message: 'No manifest provided',
+        message: 'No microplan provided',
         context: {
           inputs: [
             { label: 'TestFilePath', value: ctx.testFilePath ?? 'none' },
@@ -25,8 +25,8 @@ export const PathConventionValidator: ValidatorDefinition = {
             { label: 'Type Patterns', value: Object.keys(typePatterns) },
           ],
           analyzed: [],
-          findings: [{ type: 'info', message: 'Skipped: manifest not provided' }],
-          reasoning: 'Path conventions require a manifest to infer test type.',
+          findings: [{ type: 'info', message: 'Skipped: microplan not provided' }],
+          reasoning: 'Path conventions require a microplan to infer test type.',
         },
       }
     }
@@ -53,14 +53,14 @@ export const PathConventionValidator: ValidatorDefinition = {
     // thanks to PathResolverService in uploadFiles
     // This validator just confirms the file is accessible and follows conventions
 
-    // Detect test type from manifest files
-    const detectedTestType = detectTestType(ctx.manifest.files, typePatterns)
+    // Detect test type from microplan files
+    const detectedTestType = detectTestType(ctx.microplan.files, typePatterns)
 
     if (!detectedTestType) {
       return {
         passed: true,
         status: 'WARNING',
-        message: 'Could not detect test type from manifest files',
+        message: 'Could not detect test type from microplan files',
         evidence: 'Unable to determine test type. Skipping convention check.',
         context: {
           inputs: [
@@ -69,8 +69,8 @@ export const PathConventionValidator: ValidatorDefinition = {
             { label: 'Type Patterns', value: Object.keys(typePatterns) },
           ],
           analyzed: [{ label: 'Path vs Patterns', items: ['No test type detected'] }],
-          findings: [{ type: 'warning', message: 'Test type could not be detected from manifest' }],
-          reasoning: 'Unable to infer test type from manifest files, so convention check was skipped.',
+          findings: [{ type: 'warning', message: 'Test type could not be detected from microplan' }],
+          reasoning: 'Unable to infer test type from microplan files, so convention check was skipped.',
         },
       }
     }
