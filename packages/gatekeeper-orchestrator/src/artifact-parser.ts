@@ -5,7 +5,11 @@
  *
  * Expected format from LLM:
  *
- *   ```plan.json
+ *   ```microplans.json
+ *   { "task": "...", "microplans": [...] }
+ *   ```
+ *
+ *   ```plan.json  (deprecated, backwards compatible)
  *   { "outputId": "..." }
  *   ```
  *
@@ -14,10 +18,21 @@
  *   ```
  *
  * The parser is lenient: it handles optional language hints after the filename,
- * e.g. ```plan.json json  or  ```task.spec.md markdown
+ * e.g. ```microplans.json json  or  ```task.spec.md markdown
  */
 
 import type { ParsedArtifact } from './types.js'
+
+/**
+ * Required artifacts for microplans workflow (Step 1)
+ */
+export const MICROPLANS_REQUIRED = new Set(['microplans.json', 'task.spec.md'])
+
+/**
+ * Required artifacts for legacy plan workflow (Step 1)
+ * @deprecated Use MICROPLANS_REQUIRED for new projects
+ */
+export const PLAN_REQUIRED = new Set(['plan.json', 'task.spec.md'])
 
 /**
  * Extract all named code blocks from LLM text output.
@@ -50,6 +65,7 @@ export function parseArtifacts(text: string): ParsedArtifact[] {
 
 /**
  * Validate that the required artifacts are present.
+ * Supports both microplans.json (preferred) and plan.json (deprecated).
  * Returns list of missing filenames.
  */
 export function validateArtifacts(
@@ -57,7 +73,42 @@ export function validateArtifacts(
   required: string[]
 ): string[] {
   const found = new Set(artifacts.map(a => a.filename))
-  return required.filter(r => !found.has(r))
+
+  // Log deprecation warning if plan.json is used
+  if (found.has('plan.json') && !found.has('microplans.json')) {
+    console.log('⚠️ [DEPRECATED] plan.json is deprecated. Use microplans.json for new projects.')
+  }
+
+  // Accept either microplans.json OR plan.json
+  const hasValidPlan = found.has('microplans.json') || found.has('plan.json')
+
+  // Validate microplans.json schema if present
+  if (found.has('microplans.json')) {
+    const microplansArtifact = artifacts.find(a => a.filename === 'microplans.json')
+    if (microplansArtifact) {
+      try {
+        const parsed = JSON.parse(microplansArtifact.content)
+
+        // Basic schema validation
+        if (!parsed.task || typeof parsed.task !== 'string') {
+          console.error('❌ microplans.json: campo "task" (string) é obrigatório')
+        }
+        if (!Array.isArray(parsed.microplans) || parsed.microplans.length === 0) {
+          console.error('❌ microplans.json: campo "microplans" (array não-vazio) é obrigatório')
+        }
+      } catch (err) {
+        console.error(`❌ microplans.json: JSON inválido - ${(err as Error).message}`)
+      }
+    }
+  }
+
+  // Filter required artifacts, accepting either plan format
+  return required.filter(r => {
+    if (r === 'microplans.json' || r === 'plan.json') {
+      return !hasValidPlan
+    }
+    return !found.has(r)
+  })
 }
 
 /**

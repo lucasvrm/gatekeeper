@@ -223,6 +223,7 @@ export function LayoutSections({ layout, registry, setLayout, setRegistry }: { l
         <WBSection title="Page Header" dotColor={DOT.header} tag="título · subtítulo · divider" id="sec-page-header" defaultOpen={false}>
           <PageHeaderEditor
             config={layout.structure?.pageHeader}
+            tokens={layout.tokens}
             onChange={(ph) => onChange({ ...layout, structure: { ...layout.structure, pageHeader: ph } })}
           />
         </WBSection>

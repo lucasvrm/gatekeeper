@@ -217,6 +217,26 @@ export interface ValidationManifest {
   testFile: string
 }
 
+// Microplan Types (para migração de planos monolíticos)
+export interface MicroplanFile {
+  path: string
+  action: "CREATE" | "EDIT" | "DELETE"
+  what: string
+}
+
+export interface Microplan {
+  id: string
+  goal: string
+  depends_on: string[]
+  files: MicroplanFile[]
+  verify: string
+}
+
+export interface MicroplansOutput {
+  task: string
+  microplans: Microplan[]
+}
+
 export interface ContractClause {
   id: string
   kind: 'behavior' | 'error' | 'invariant' | 'ui'

@@ -1,7 +1,5 @@
 import type { GateDefinition } from '../types/index.js'
 
-import { TokenBudgetFitValidator } from '../domain/validators/gate0/TokenBudgetFit.js'
-import { TaskScopeSizeValidator } from '../domain/validators/gate0/TaskScopeSize.js'
 import { TaskClarityCheckValidator } from '../domain/validators/gate0/TaskClarityCheck.js'
 import { SensitiveFilesLockValidator } from '../domain/validators/gate0/SensitiveFilesLock.js'
 import { DangerModeExplicitValidator } from '../domain/validators/gate0/DangerModeExplicit.js'
@@ -14,13 +12,10 @@ import { TestCoversHappyAndSadPathValidator } from '../domain/validators/gate1/T
 import { TestFailsBeforeImplementationValidator } from '../domain/validators/gate1/TestFailsBeforeImplementation.js'
 import { NoDecorativeTestsValidator } from '../domain/validators/gate1/NoDecorativeTests.js'
 import { TestResilienceCheckValidator } from '../domain/validators/gate1/TestResilienceCheck.js'
-import { ManifestFileLockValidator } from '../domain/validators/gate1/ManifestFileLock.js'
 import { NoImplicitFilesValidator } from '../domain/validators/gate1/NoImplicitFiles.js'
 import { ImportRealityCheckValidator } from '../domain/validators/gate1/ImportRealityCheck.js'
 import { TestIntentAlignmentValidator } from '../domain/validators/gate1/TestIntentAlignment.js'
-import { TestClauseMappingValidValidator } from '../domain/validators/gate1/TestClauseMappingValid.js'
 
-import { DiffScopeEnforcementValidator } from '../domain/validators/gate2/DiffScopeEnforcement.js'
 import { TestReadOnlyEnforcementValidator } from '../domain/validators/gate2/TestReadOnlyEnforcement.js'
 import { UIComponentRegistryValidator } from '../domain/validators/gate2/UIComponentRegistry.js'
 import { UIPropsComplianceValidator } from '../domain/validators/gate2/UIPropsCompliance.js'
@@ -38,8 +33,6 @@ export const GATES_CONFIG: GateDefinition[] = [
     emoji: '🧹',
     description: 'Validação de entrada e escopo',
     validators: [
-      TokenBudgetFitValidator,
-      TaskScopeSizeValidator,
       TaskClarityCheckValidator,
       SensitiveFilesLockValidator,
       DangerModeExplicitValidator,
@@ -59,11 +52,9 @@ export const GATES_CONFIG: GateDefinition[] = [
       TestFailsBeforeImplementationValidator,
       NoDecorativeTestsValidator,
       TestResilienceCheckValidator,
-      ManifestFileLockValidator,
       NoImplicitFilesValidator,
       ImportRealityCheckValidator,
       TestIntentAlignmentValidator,
-      TestClauseMappingValidValidator,
     ],
   },
   {
@@ -72,7 +63,6 @@ export const GATES_CONFIG: GateDefinition[] = [
     emoji: '⚙️',
     description: 'Validação de execução e compilação',
     validators: [
-      DiffScopeEnforcementValidator,
       TestReadOnlyEnforcementValidator,
       UIComponentRegistryValidator,
       UIPropsComplianceValidator,

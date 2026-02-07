@@ -410,6 +410,7 @@ class OrchestratorEventServiceClass extends EventEmitter {
 
     // 4. Check if should persist (skip agent:text, agent:thinking)
     if (options.skipPersist || !this.shouldPersist(eventType)) {
+      console.log('[EventService] Event NOT persisted (skipPersist or ignored type):', eventType)
       return
     }
 
@@ -426,6 +427,14 @@ class OrchestratorEventServiceClass extends EventEmitter {
       payload: JSON.stringify(sanitizedPayload),
       source: options.source,
     }
+
+    console.log('[EventService] Event WILL be persisted:', {
+      eventType,
+      hasPayload: !!batchEvent.payload,
+      payloadSize: batchEvent.payload?.length,
+      hasArtifacts: 'artifacts' in sanitizedPayload,
+      artifactsCount: Array.isArray(sanitizedPayload.artifacts) ? sanitizedPayload.artifacts.length : 'not array'
+    })
 
     // 6. Add to batch
     this.addToBatch(batchEvent)

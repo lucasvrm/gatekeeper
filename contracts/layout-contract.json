@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:bc73cfbc92434b368a9c7981073bb654d7d01ee28c6de46d5fb2a785acbb6d58",
-    "generatedAt": "2026-02-07T06:18:37.318Z",
+    "hash": "sha256:6d0b2aba0db181d2fc84d781d8127edb20fc240da4003c4aed6f4c712d21c58d",
+    "generatedAt": "2026-02-07T10:12:54.034Z",
     "pageCount": 2
   },
   "structure": {
@@ -372,10 +372,19 @@
           }
         ]
       },
-      "ctas": [],
+      "ctas": [
+        {
+          "id": "cta-1770447319756",
+          "label": "Orchestrator",
+          "variant": "outline",
+          "route": "/orchestrator",
+          "icon": "lucide:Terminal"
+        }
+      ],
       "order": [
         "icons",
-        "search"
+        "search",
+        "cta:cta-1770447319756"
       ]
     },
     "pages": {
@@ -444,7 +453,7 @@
       "contentGap": "$tokens.spacing.md"
     },
     "pageHeader": {
-      "enabled": true,
+      "enabled": false,
       "showTitle": true,
       "showSubtitle": true,
       "showDivider": false,

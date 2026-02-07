@@ -151,6 +151,31 @@ export type OrchestratorEvent =
   | { type: 'execute:error'; error: string }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Microplans (replaces plan.json monolith)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type MicroplanAction = 'CREATE' | 'EDIT' | 'DELETE'
+
+export interface MicroplanFile {
+  path: string
+  action: MicroplanAction
+  what: string
+}
+
+export interface Microplan {
+  id: string
+  goal: string
+  depends_on: string[]
+  files: MicroplanFile[]
+  verify: string
+}
+
+export interface MicroplansDocument {
+  task: string
+  microplans: Microplan[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -8,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { X } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { X, ChevronDown } from "lucide-react"
 import type { LogFilterOptions } from "@/lib/types"
 
 interface LogFiltersProps {
@@ -17,6 +19,18 @@ interface LogFiltersProps {
 }
 
 export function LogFilters({ filters, onFiltersChange }: LogFiltersProps) {
+  const [openFilters, setOpenFilters] = useState<Record<string, boolean>>({
+    level: true,
+    search: false,
+    stage: false,
+    type: false,
+    dates: false,
+  })
+
+  const toggleFilter = (key: string) => {
+    setOpenFilters((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
   const handleLevelChange = (value: string) => {
     onFiltersChange({
       ...filters,
@@ -68,10 +82,9 @@ export function LogFilters({ filters, onFiltersChange }: LogFiltersProps) {
   )
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Filtros</h3>
-        {hasActiveFilters && (
+    <div className="space-y-3">
+      {hasActiveFilters && (
+        <div className="flex justify-end">
           <Button
             variant="ghost"
             size="sm"
@@ -82,120 +95,166 @@ export function LogFilters({ filters, onFiltersChange }: LogFiltersProps) {
             <X className="size-3.5 mr-1" />
             Limpar
           </Button>
-        )}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Level Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="filter-level">Nível</Label>
-          <Select
-            value={filters.level || "all"}
-            onValueChange={handleLevelChange}
-          >
-            <SelectTrigger id="filter-level" className="w-full" aria-label="Filtrar por nível de log">
-              <SelectValue placeholder="Todos os níveis" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os níveis</SelectItem>
-              <SelectItem value="error">
-                <span className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-red-500" />
-                  Error
-                </span>
-              </SelectItem>
-              <SelectItem value="warn">
-                <span className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-yellow-500" />
-                  Warning
-                </span>
-              </SelectItem>
-              <SelectItem value="info">
-                <span className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-blue-500" />
-                  Info
-                </span>
-              </SelectItem>
-              <SelectItem value="debug">
-                <span className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-gray-500" />
-                  Debug
-                </span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
         </div>
+      )}
+
+      <div className="space-y-2">
+        {/* Level Filter */}
+        <Collapsible open={openFilters.level} onOpenChange={() => toggleFilter("level")}>
+          <div className="rounded-lg border border-border/40 bg-card/50">
+            <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
+              <span>Nível</span>
+              <ChevronDown className={`size-4 transition-transform ${openFilters.level ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 pb-3 pt-1">
+                <Select
+                  value={filters.level || "all"}
+                  onValueChange={handleLevelChange}
+                >
+                  <SelectTrigger id="filter-level" className="w-full" aria-label="Filtrar por nível de log">
+                    <SelectValue placeholder="Todos os níveis" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os níveis</SelectItem>
+                    <SelectItem value="error">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-red-500" />
+                        Error
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="warn">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-yellow-500" />
+                        Warning
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="info">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-blue-500" />
+                        Info
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="debug">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-gray-500" />
+                        Debug
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
 
         {/* Search Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="filter-search">Buscar</Label>
-          <Input
-            id="filter-search"
-            type="text"
-            placeholder="Buscar na mensagem..."
-            value={filters.search || ""}
-            onChange={handleSearchChange}
-            aria-label="Buscar texto nos logs"
-          />
-        </div>
+        <Collapsible open={openFilters.search} onOpenChange={() => toggleFilter("search")}>
+          <div className="rounded-lg border border-border/40 bg-card/50">
+            <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
+              <span>Buscar</span>
+              <ChevronDown className={`size-4 transition-transform ${openFilters.search ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 pb-3 pt-1">
+                <Input
+                  id="filter-search"
+                  type="text"
+                  placeholder="Buscar na mensagem..."
+                  value={filters.search || ""}
+                  onChange={handleSearchChange}
+                  aria-label="Buscar texto nos logs"
+                />
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
 
         {/* Stage Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="filter-stage">Estágio</Label>
-          <Input
-            id="filter-stage"
-            type="text"
-            placeholder="Ex: planning, writing..."
-            value={filters.stage || ""}
-            onChange={handleStageChange}
-            aria-label="Filtrar por estágio da pipeline"
-          />
-        </div>
+        <Collapsible open={openFilters.stage} onOpenChange={() => toggleFilter("stage")}>
+          <div className="rounded-lg border border-border/40 bg-card/50">
+            <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
+              <span>Estágio</span>
+              <ChevronDown className={`size-4 transition-transform ${openFilters.stage ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 pb-3 pt-1">
+                <Input
+                  id="filter-stage"
+                  type="text"
+                  placeholder="Ex: planning, writing..."
+                  value={filters.stage || ""}
+                  onChange={handleStageChange}
+                  aria-label="Filtrar por estágio da pipeline"
+                />
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
 
         {/* Type Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="filter-type">Tipo de Evento</Label>
-          <Input
-            id="filter-type"
-            type="text"
-            placeholder="Ex: agent:tool_call"
-            value={filters.type || ""}
-            onChange={handleTypeChange}
-            aria-label="Filtrar por tipo de evento"
-          />
-        </div>
+        <Collapsible open={openFilters.type} onOpenChange={() => toggleFilter("type")}>
+          <div className="rounded-lg border border-border/40 bg-card/50">
+            <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
+              <span>Tipo de Evento</span>
+              <ChevronDown className={`size-4 transition-transform ${openFilters.type ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 pb-3 pt-1">
+                <Input
+                  id="filter-type"
+                  type="text"
+                  placeholder="Ex: agent:tool_call"
+                  value={filters.type || ""}
+                  onChange={handleTypeChange}
+                  aria-label="Filtrar por tipo de evento"
+                />
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
 
-        {/* Start Date Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="filter-start-date">Data Inicial</Label>
-          <Input
-            id="filter-start-date"
-            type="datetime-local"
-            value={
-              filters.startDate
-                ? new Date(filters.startDate).toISOString().slice(0, 16)
-                : ""
-            }
-            onChange={handleStartDateChange}
-            aria-label="Filtrar por data inicial"
-          />
-        </div>
-
-        {/* End Date Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="filter-end-date">Data Final</Label>
-          <Input
-            id="filter-end-date"
-            type="datetime-local"
-            value={
-              filters.endDate
-                ? new Date(filters.endDate).toISOString().slice(0, 16)
-                : ""
-            }
-            onChange={handleEndDateChange}
-            aria-label="Filtrar por data final"
-          />
-        </div>
+        {/* Date Filters */}
+        <Collapsible open={openFilters.dates} onOpenChange={() => toggleFilter("dates")}>
+          <div className="rounded-lg border border-border/40 bg-card/50">
+            <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
+              <span>Período</span>
+              <ChevronDown className={`size-4 transition-transform ${openFilters.dates ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 pb-3 pt-1 space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="filter-start-date" className="text-xs">Data Inicial</Label>
+                  <Input
+                    id="filter-start-date"
+                    type="datetime-local"
+                    value={
+                      filters.startDate
+                        ? new Date(filters.startDate).toISOString().slice(0, 16)
+                        : ""
+                    }
+                    onChange={handleStartDateChange}
+                    aria-label="Filtrar por data inicial"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-end-date" className="text-xs">Data Final</Label>
+                  <Input
+                    id="filter-end-date"
+                    type="datetime-local"
+                    value={
+                      filters.endDate
+                        ? new Date(filters.endDate).toISOString().slice(0, 16)
+                        : ""
+                    }
+                    onChange={handleEndDateChange}
+                    aria-label="Filtrar por data final"
+                  />
+                </div>
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
       </div>
 
       {/* Active Filters Indicator */}

@@ -61,10 +61,11 @@ function saveSession(session: OrchestratorSession) {
   } catch { /* localStorage full or unavailable */ }
 }
 
-function loadSession(outputId?: string): OrchestratorSession | null {
+function loadSession(outputId?: string, intentToRestore: boolean = false): OrchestratorSession | null {
   try {
     // 1. Try to load by explicit outputId or active pointer
-    const targetId = outputId || localStorage.getItem(ACTIVE_KEY)
+    // Fix Bug #2: Only restore from ACTIVE_KEY if user explicitly intends to restore
+    const targetId = outputId || (intentToRestore ? localStorage.getItem(ACTIVE_KEY) : null)
     if (targetId) {
       const raw = localStorage.getItem(sessionKey(targetId))
       if (raw) {
@@ -127,8 +128,48 @@ function clearSession(outputId?: string) {
   sessionStorage.removeItem("gk-orchestrator-session")
 }
 
-
-
+/**
+ * Frontend artifact validation (defensive check before advancing steps)
+ */
+function validateStepArtifacts(
+  step: WizardStep,
+  artifacts: ParsedArtifact[]
+): { valid: boolean; message: string } {
+  if (step === 1) {
+    if (artifacts.length === 0) {
+      return { valid: false, message: 'Nenhum artefato gerado no step 1' }
+    }
+    const hasPlan = artifacts.some(a => a.filename === 'plan.json')
+    const hasContract = artifacts.some(a => a.filename === 'contract.md')
+    const hasTaskSpec = artifacts.some(a => a.filename === 'task.spec.md' || a.filename === 'task_spec.md')
+    if (!hasPlan) return { valid: false, message: 'Artefato crítico ausente: plan.json' }
+    if (!hasContract) return { valid: false, message: 'Artefato crítico ausente: contract.md' }
+    if (!hasTaskSpec) return { valid: false, message: 'Artefato crítico ausente: task.spec.md' }
+    const planArtifact = artifacts.find(a => a.filename === 'plan.json')
+    if (planArtifact) {
+      try {
+        const parsed = JSON.parse(planArtifact.content)
+        if (!parsed.manifest || !parsed.manifest.testFile) {
+          return { valid: false, message: 'plan.json malformado: falta manifest.testFile' }
+        }
+      } catch {
+        return { valid: false, message: 'plan.json inválido: JSON não parseável' }
+      }
+    }
+    return { valid: true, message: 'Artefatos do step 1 válidos' }
+  }
+  if (step === 2) {
+    if (artifacts.length === 0) {
+      return { valid: false, message: 'Nenhum artefato de teste gerado no step 2' }
+    }
+    const hasTestFile = artifacts.some(a => /\.(spec|test)\.(ts|tsx|js|jsx)$/.test(a.filename))
+    if (!hasTestFile) {
+      return { valid: false, message: 'Nenhum arquivo de teste encontrado (*.spec.ts)' }
+    }
+    return { valid: true, message: 'Artefatos do step 2 válidos' }
+  }
+  return { valid: true, message: '' }
+}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,7 +181,8 @@ export function OrchestratorPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   // ── Restore session from localStorage or URL params ─────────────────
-  const saved = useRef(loadSession(searchParams.get("outputId") ?? undefined)).current
+  // Fix Bug #2: Don't auto-restore from ACTIVE_KEY without explicit intent
+  const saved = useRef(loadSession(searchParams.get("outputId") ?? undefined, false)).current
   const resumeOutputId = searchParams.get("outputId")
   const resumeStep = searchParams.get("step") ? Number(searchParams.get("step")) : undefined
 
@@ -286,6 +328,9 @@ export function OrchestratorPage() {
     Array.isArray(saved?.specArtifacts) ? saved.specArtifacts : []
   )
 
+  // Step results (tracking additional metadata per step)
+  const [stepResults, setStepResults] = useState<Record<number, StepResult>>({})
+
   // Step 3 result
   const [runId, setRunId] = useState<string | null>(saved?.runId ?? null)
   const [validationStatus, setValidationStatus] = useState<string | null>(null)
@@ -316,6 +361,7 @@ export function OrchestratorPage() {
 
   // Nonce to ignore SSE events from stale/previous executions
   const executionNonceRef = useRef(0)
+  const currentExecutionNonceRef = useRef<number | null>(null)
 
   // Pipeline reconciliation tracking refs (persisted to session)
   const lastEventIdRef = useRef(saved?.lastEventId ?? 0)
@@ -649,7 +695,36 @@ export function OrchestratorPage() {
         case "agent:bridge_plan_done": {
           const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
           const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
+
+          // ✅ VALIDATE before advancing
+          const validation = validateStepArtifacts(1, artifacts)
+          if (!validation.valid) {
+            console.error('[SSE:agent:bridge_plan_done] ❌ Validation failed:', validation.message)
+            setError(`Plano inválido: ${validation.message}`)
+            addLog("error", validation.message)
+            toast.error(validation.message)
+            setLoading(false)
+            break
+          }
+
           setPlanArtifacts(Array.isArray(artifacts) ? artifacts : [])
+
+          // Detectar presença de microplans.json
+          const microplansArtifact = artifacts.find(a => a.filename === 'microplans.json')
+          const hasMicroplans = !!microplansArtifact
+
+          // Atualizar stepResults com info de microplans
+          setStepResults(prev => ({
+            ...prev,
+            [1]: {
+              ...prev[1],
+              artifacts,
+              tokensUsed: tokens,
+              microplansArtifact,
+              hasMicroplans,
+            }
+          }))
+
           markComplete(0)
           markComplete(1)
           // Only advance to step 2 if we're currently before it (prevent reverting from later steps during reconciliation)
@@ -665,17 +740,38 @@ export function OrchestratorPage() {
           const artifacts = (event.artifacts ?? []) as ParsedArtifact[]
           const tokens = event.tokensUsed as { inputTokens: number; outputTokens: number } | undefined
 
-          console.log('[SSE:agent:bridge_spec_done] Received - artifacts count:', artifacts.length)
+          console.log('[SSE:agent:bridge_spec_done] Received - artifacts:', artifacts)
+          console.log('[SSE:agent:bridge_spec_done] Event full:', JSON.stringify(event, null, 2))
 
-          // Validate that we actually have artifacts before advancing
+          // Validate: artifacts must be array AND not empty
           if (!Array.isArray(artifacts) || artifacts.length === 0) {
-            const errMsg = "Geração de testes falhou: nenhum artefato foi gerado"
-            console.error('[SSE:agent:bridge_spec_done] ❌ No artifacts - NOT advancing step')
+            const errMsg = event.artifacts === undefined
+              ? "Erro interno: evento SSE sem campo 'artifacts' (possível bug de replay)"
+              : "Geração de testes falhou: nenhum artefato foi gerado"
+
+            console.error('[SSE:agent:bridge_spec_done] ❌ Invalid artifacts:', {
+              isArray: Array.isArray(artifacts),
+              length: artifacts?.length,
+              raw: event.artifacts
+            })
+
             setError(errMsg)
             addLog("error", errMsg)
             toast.error(errMsg)
             setLoading(false)
-            setIsGeneratingSpec(false)  // Tarefa 9.3 - Clear loading state on error
+            setIsGeneratingSpec(false)
+            break
+          }
+
+          // ✅ VALIDATE structure
+          const validation = validateStepArtifacts(2, artifacts)
+          if (!validation.valid) {
+            console.error('[SSE:agent:bridge_spec_done] ❌ Validation failed:', validation.message)
+            setError(`Testes inválidos: ${validation.message}`)
+            addLog("error", validation.message)
+            toast.error(validation.message)
+            setLoading(false)
+            setIsGeneratingSpec(false)
             break
           }
 
@@ -701,10 +797,30 @@ export function OrchestratorPage() {
             if (debug) addLog("debug", `[${event.type}] ignorado — não estamos em WRITING`)
             break
           }
+
+          // ✅ Nonce validation: prevent stale events from previous executions
+          const currentNonce = currentExecutionNonceRef.current
+          const latestNonce = executionNonceRef.current
+          if (currentNonce !== null && currentNonce !== latestNonce) {
+            if (debug) {
+              addLog("debug", `[${event.type}] STALE EVENT — nonce mismatch (event=${currentNonce}, current=${latestNonce})`)
+            }
+            console.warn(`[SSE:${event.type}] Ignoring stale event from previous execution (nonce ${currentNonce} vs ${latestNonce})`)
+            break
+          }
+
           // Guard: if event has iteration count that's way below our current progress, it's stale
           // (e.g. old execution finishing while new one is already at iteration 2)
           const tokens = (event as any).tokensUsed as { inputTokens: number; outputTokens: number } | undefined
 
+          // ✅ Defensive check: validate specArtifacts exist before marking complete
+          if (!specArtifacts || specArtifacts.length === 0) {
+            console.warn('[SSE:agent:bridge_execute_done] ⚠️ Execução concluída mas specArtifacts vazio — possível race condition')
+            addLog("warning", "Execução concluída sem artefatos de teste (possível estado inconsistente)")
+          }
+
+          // Clear current execution nonce (execution completed)
+          currentExecutionNonceRef.current = null
           setExecutionPhase(null)
           setExecutionProgress(null)
           markComplete(4)
@@ -890,6 +1006,8 @@ export function OrchestratorPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-reload artifacts from disk when missing (e.g., after error that cleared state) ───
+  const autoReloadTriedRef = useRef(false)
+
   useEffect(() => {
     // Only run if:
     // 1. We have an outputId (active session)
@@ -897,7 +1015,8 @@ export function OrchestratorPage() {
     // 3. We're missing artifacts (planArtifacts is empty)
     // 4. We're not already resuming
     // 5. We don't have resumeOutputId (that's handled by the useEffect above)
-    if (!outputId || reconciliation.isLoading || planArtifacts.length > 0 || resuming || resumeOutputId) {
+    // 6. We haven't already tried auto-reload (prevents infinite loop on failure)
+    if (!outputId || reconciliation.isLoading || planArtifacts.length > 0 || resuming || resumeOutputId || autoReloadTriedRef.current) {
       return
     }
 
@@ -912,6 +1031,7 @@ export function OrchestratorPage() {
 
     console.log('[Auto-reload] Attempting to reload artifacts from disk...')
     setResuming(true)
+    autoReloadTriedRef.current = true  // Mark as tried to prevent retry on failure
 
     api.bridgeArtifacts.readAll(outputId, projectPath).then((artifacts) => {
       console.log('[Auto-reload] Loaded', artifacts.length, 'artifacts from disk')
@@ -1181,6 +1301,9 @@ export function OrchestratorPage() {
   }, [attachments.length])
 
   const handleGeneratePlan = async () => {
+    // Fix Bug #2: Clear any previous session before creating new one
+    clearSession(outputId)
+
     setError(null)
     setRetryState(null)
     setLoading(true)
@@ -1549,6 +1672,7 @@ export function OrchestratorPage() {
     setPushResult(null)
     executionNonceRef.current += 1 // invalidate any in-flight SSE events from previous execution
     const myNonce = executionNonceRef.current
+    currentExecutionNonceRef.current = myNonce // save current execution nonce
     setExecutionPhase("WRITING")
     setExecutionProgress(null)
     setValidationStatus(null)
@@ -1901,6 +2025,84 @@ export function OrchestratorPage() {
               {/* ─── Step 0: Task input ─────────────────────────────────── */}
               {step === 0 && (
                 <div className="space-y-4">
+                  {/* Fix Bug #2: Prompt to restore saved session or start fresh */}
+                  {saved && !resumeOutputId && (
+                    <Card className="border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20">
+                      <CardHeader>
+                        <CardTitle className="text-blue-700 dark:text-blue-300">
+                          Sessão Anterior Encontrada
+                        </CardTitle>
+                        <CardDescription>
+                          Detectamos uma sessão salva de{" "}
+                          {new Date(saved.savedAt).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="text-sm space-y-2">
+                          <div>
+                            <span className="font-medium">Step:</span>{" "}
+                            <Badge variant="outline">
+                              {STEPS.find((s) => s.num === saved.step)?.label ?? `Step ${saved.step}`}
+                            </Badge>
+                          </div>
+                          {saved.taskDescription && (
+                            <div>
+                              <span className="font-medium">Tarefa:</span>
+                              <p className="text-muted-foreground mt-1 line-clamp-2">
+                                {saved.taskDescription}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => {
+                              // Restore session with explicit intent
+                              const restored = loadSession(saved.outputId, true)
+                              if (restored) {
+                                setOutputId(restored.outputId)
+                                setStep(restored.step as WizardStep)
+                                setCompletedSteps(new Set(restored.completedSteps))
+                                setTaskDescription(restored.taskDescription)
+                                setTaskType(restored.taskType ?? "feature")
+                                setSelectedProjectId(restored.selectedProjectId)
+                                setPlanArtifacts(restored.planArtifacts ?? [])
+                                setSpecArtifacts(restored.specArtifacts ?? [])
+                                setRunId(restored.runId)
+                                if (restored.stepLLMs) setStepLLMs(restored.stepLLMs)
+                                if (restored.microplansArtifact) setMicroplansArtifact(restored.microplansArtifact)
+                                if (restored.hasMicroplans !== undefined) setHasMicroplans(restored.hasMicroplans)
+                                addLog("info", "Sessão anterior restaurada")
+                                toast.success("Sessão restaurada com sucesso")
+                              }
+                            }}
+                            variant="default"
+                            className="flex-1"
+                          >
+                            Continuar Sessão
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              clearSession(saved.outputId)
+                              addLog("info", "Sessão anterior descartada")
+                              toast.info("Iniciando nova sessão")
+                            }}
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            Nova Sessão
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <Card>
                 <CardHeader>
                   <CardTitle>Descreva a Tarefa</CardTitle>

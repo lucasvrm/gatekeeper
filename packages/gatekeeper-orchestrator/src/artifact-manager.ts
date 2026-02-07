@@ -7,7 +7,7 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import type { ParsedArtifact } from './types.js'
+import type { ParsedArtifact, Microplan, MicroplansDocument } from './types.js'
 
 export class ArtifactManager {
   constructor(private artifactsDir: string) {}
@@ -112,5 +112,60 @@ export class ArtifactManager {
    */
   getOutputDir(outputId: string): string {
     return path.join(this.artifactsDir, outputId)
+  }
+
+  /**
+   * Read microplans.json from runDir.
+   * Throws error if file doesn't exist or JSON is invalid.
+   */
+  async readMicroplans(runDir: string): Promise<MicroplansDocument> {
+    const filepath = path.join(runDir, 'microplans.json')
+    try {
+      const content = fs.readFileSync(filepath, 'utf-8')
+      const parsed = JSON.parse(content) as MicroplansDocument
+      return parsed
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(`microplans.json not found in ${runDir}`)
+      }
+      throw new Error(`Failed to parse microplans.json: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * Write microplans.json to runDir.
+   * Formats JSON with 2-space indentation.
+   */
+  async saveMicroplans(runDir: string, microplans: MicroplansDocument): Promise<void> {
+    const filepath = path.join(runDir, 'microplans.json')
+    const content = JSON.stringify(microplans, null, 2)
+    fs.writeFileSync(filepath, content, 'utf-8')
+  }
+
+  /**
+   * Get a specific microplan by ID from microplans.json.
+   * Returns null if microplan not found.
+   */
+  async getMicroplanById(runDir: string, microplanId: string): Promise<Microplan | null> {
+    try {
+      const doc = await this.readMicroplans(runDir)
+      const microplan = doc.microplans.find(mp => mp.id === microplanId)
+      return microplan || null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * List all microplan IDs from microplans.json.
+   * Returns empty array if file doesn't exist.
+   */
+  async listMicroplanIds(runDir: string): Promise<string[]> {
+    try {
+      const doc = await this.readMicroplans(runDir)
+      return doc.microplans.map(mp => mp.id)
+    } catch {
+      return []
+    }
   }
 }

@@ -547,7 +547,11 @@ export class BridgeController {
         OrchestratorEventService.emitOrchestratorEvent(runId, {
           type: 'agent:bridge_spec_done',
           outputId,
-          artifacts: specResult.artifacts.map((a) => a.filename),
+          artifacts: specResult.artifacts.map((artifact) => ({
+            filename: artifact.filename,
+            content: artifact.content,
+          })),
+          tokensUsed: specResult.tokensUsed,
         })
       } else {
         console.log(`[Bridge] Resuming: skipping step 2 (spec) — already completed`)

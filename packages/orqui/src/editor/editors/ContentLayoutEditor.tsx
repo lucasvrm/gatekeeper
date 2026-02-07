@@ -424,7 +424,7 @@ export function ContentLayoutEditor({ config, onChange }: { config: any; onChang
 // ============================================================================
 // Page Header Editor
 // ============================================================================
-export function PageHeaderEditor({ config, textStyles, onChange }: { config: any; textStyles?: Record<string, any>; onChange: (c: any) => void }) {
+export function PageHeaderEditor({ config, textStyles, tokens = {}, onChange }: { config: any; textStyles?: Record<string, any>; tokens?: Record<string, any>; onChange: (c: any) => void }) {
   const ph = config || { enabled: false, showTitle: true, showSubtitle: true, showDivider: false, padding: {}, typography: {} };
   const update = (field: string, val: any) => onChange({ ...ph, [field]: val });
   const updateTypo = (group: string, field: string, val: string) => {

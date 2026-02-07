@@ -22,6 +22,7 @@ export {
   buildExecutionPrompt,
 } from './prompt-builder.js'
 export { executeWithSDK, executeWithCLI } from './executor.js'
+export { MicroplanExecutor } from './microplan-executor.js'
 
 export type {
   // Pipeline
@@ -52,4 +53,10 @@ export type {
 
   // Config
   OrchestratorConfig,
+
+  // Microplans
+  Microplan,
+  MicroplanFile,
+  MicroplansDocument,
+  MicroplanAction,
 } from './types.js'

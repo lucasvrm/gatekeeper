@@ -139,6 +139,7 @@ export type AgentEvent =
   // Bridge pipeline events (emitted by AgentOrchestratorBridge & BridgeController)
   | { type: 'agent:bridge_start'; step: number; outputId?: string }
   | { type: 'agent:bridge_complete'; step: number; outputId: string; artifactNames: string[] }
+  | { type: 'agent:validation_warning'; step: number; warnings: string[] }
 
 // ─── Agent Result ────────────────────────────────────────────────────────────
 
@@ -156,3 +157,7 @@ export interface ToolExecutionResult {
   content: string
   isError: boolean
 }
+
+// ─── Re-export Microplan types from gates.types ─────────────────────────────
+
+export type { Microplan, MicroplanFile, MicroplansDocument, MicroplanAction } from './gates.types.js'

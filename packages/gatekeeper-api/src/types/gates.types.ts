@@ -23,8 +23,6 @@ export type RunStatus =
   | 'ABORTED'
 
 export type ValidatorCode =
-  | 'TOKEN_BUDGET_FIT'
-  | 'TASK_SCOPE_SIZE'
   | 'TASK_CLARITY_CHECK'
   | 'SENSITIVE_FILES_LOCK'
   | 'DANGER_MODE_EXPLICIT'
@@ -36,12 +34,9 @@ export type ValidatorCode =
   | 'TEST_FAILS_BEFORE_IMPLEMENTATION'
   | 'NO_DECORATIVE_TESTS'
   | 'TEST_RESILIENCE_CHECK'
-  | 'MANIFEST_FILE_LOCK'
   | 'NO_IMPLICIT_FILES'
   | 'IMPORT_REALITY_CHECK'
   | 'TEST_INTENT_ALIGNMENT'
-  | 'TEST_CLAUSE_MAPPING_VALID'
-  | 'DIFF_SCOPE_ENFORCEMENT'
   | 'TEST_READ_ONLY_ENFORCEMENT'
   | 'UI_COMPONENT_REGISTRY'
   | 'UI_PROPS_COMPLIANCE'
@@ -59,9 +54,35 @@ export interface ManifestFileEntry {
   reason?: string
 }
 
+/**
+ * @deprecated Use MicroplansDocument instead. Microplans provide atomic, dependency-aware execution.
+ */
 export interface ManifestInput {
   files: ManifestFileEntry[]
   testFile: string
+}
+
+// ─── Microplans (replaces plan.json monolith) ───────────────────────────────
+
+export type MicroplanAction = 'CREATE' | 'EDIT' | 'DELETE'
+
+export interface MicroplanFile {
+  path: string
+  action: MicroplanAction
+  what: string
+}
+
+export interface Microplan {
+  id: string
+  goal: string
+  depends_on: string[]
+  files: MicroplanFile[]
+  verify: string
+}
+
+export interface MicroplansDocument {
+  task: string
+  microplans: Microplan[]
 }
 
 export interface ContractClause {

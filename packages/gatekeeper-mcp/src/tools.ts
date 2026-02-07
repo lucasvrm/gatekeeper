@@ -96,7 +96,8 @@ export const tools: Tool[] = [
     name: 'save_artifacts',
     description:
       'Save artifact files to disk. For Step 1 (create_plan), you MUST save ALL THREE files: ' +
-      'plan.json, contract.md, AND task.spec.md. Do NOT call this tool until all three are ready. ' +
+      'microplans.json (preferred) or plan.json (deprecated), contract.md, AND task.spec.md. ' +
+      'Do NOT call this tool until all three are ready. ' +
       'For Step 2 (generate_spec), save the test code file to the same outputId folder.',
     inputSchema: {
       type: 'object',
@@ -111,7 +112,7 @@ export const tools: Tool[] = [
           items: {
             type: 'object',
             properties: {
-              filename: { type: 'string', description: 'File name (e.g. plan.json, contract.md)' },
+              filename: { type: 'string', description: 'File name (e.g. microplans.json, contract.md)' },
               content: { type: 'string', description: 'File content' },
             },
             required: ['filename', 'content'],
@@ -278,25 +279,94 @@ async function handleSaveArtifacts(
   fs.mkdirSync(dir, { recursive: true })
 
   const saved: string[] = []
+  let validationErrors: string[] = []
+
   for (const file of files) {
     const filepath = path.join(dir, file.filename)
+
+    // Validate microplans.json schema
+    if (file.filename === 'microplans.json') {
+      try {
+        const parsed = JSON.parse(file.content)
+
+        // Validate required fields
+        if (!parsed.task || typeof parsed.task !== 'string') {
+          validationErrors.push('microplans.json: campo "task" (string) é obrigatório')
+        }
+        if (!Array.isArray(parsed.microplans) || parsed.microplans.length === 0) {
+          validationErrors.push('microplans.json: campo "microplans" (array não-vazio) é obrigatório')
+        } else {
+          // Validate each microplan
+          parsed.microplans.forEach((mp: any, idx: number) => {
+            if (!mp.id || typeof mp.id !== 'string') {
+              validationErrors.push(`microplans.json: microplan[${idx}].id (string) é obrigatório`)
+            }
+            if (!mp.goal || typeof mp.goal !== 'string') {
+              validationErrors.push(`microplans.json: microplan[${idx}].goal (string) é obrigatório`)
+            }
+            if (!Array.isArray(mp.files) || mp.files.length === 0) {
+              validationErrors.push(`microplans.json: microplan[${idx}].files (array não-vazio) é obrigatório`)
+            } else {
+              // Validate each file
+              mp.files.forEach((f: any, fIdx: number) => {
+                if (!f.path || typeof f.path !== 'string') {
+                  validationErrors.push(`microplans.json: microplan[${idx}].files[${fIdx}].path (string) é obrigatório`)
+                }
+                if (!f.action || !['CREATE', 'EDIT', 'DELETE'].includes(f.action)) {
+                  validationErrors.push(`microplans.json: microplan[${idx}].files[${fIdx}].action deve ser CREATE, EDIT ou DELETE`)
+                }
+                if (!f.what || typeof f.what !== 'string') {
+                  validationErrors.push(`microplans.json: microplan[${idx}].files[${fIdx}].what (string) é obrigatório`)
+                }
+              })
+            }
+            if (!mp.verify || typeof mp.verify !== 'string') {
+              validationErrors.push(`microplans.json: microplan[${idx}].verify (string) é obrigatório`)
+            }
+          })
+        }
+      } catch (err) {
+        validationErrors.push(`microplans.json: JSON inválido - ${(err as Error).message}`)
+      }
+    }
+
+    // Log deprecation warning for plan.json
+    if (file.filename === 'plan.json') {
+      console.log('⚠️ [DEPRECATED] plan.json está deprecated. Use microplans.json para novos projetos.')
+    }
+
     fs.writeFileSync(filepath, file.content, 'utf-8')
     saved.push(file.filename)
   }
 
+  // Return validation errors if any
+  if (validationErrors.length > 0) {
+    return {
+      content: [{
+        type: 'text',
+        text: `❌ Erro(s) de validação:\n${validationErrors.map(e => `  • ${e}`).join('\n')}`,
+      }],
+      isError: true,
+    }
+  }
+
   // Warn if step 1 artifacts are incomplete
+  const hasMicroplans = saved.includes('microplans.json')
   const hasPlan = saved.includes('plan.json')
   const hasContract = saved.includes('contract.md')
   const hasSpec = saved.includes('task.spec.md')
   let warning = ''
-  if (hasPlan && hasContract && !hasSpec) {
-    warning = '\n\n⚠️ MISSING task.spec.md — Step 1 requires ALL THREE: plan.json, contract.md, AND task.spec.md. Generate task.spec.md and save it now.'
+
+  if ((hasMicroplans || hasPlan) && hasContract && !hasSpec) {
+    warning = '\n\n⚠️ MISSING task.spec.md — Step 1 requires ALL THREE: microplans.json (or plan.json), contract.md, AND task.spec.md. Generate task.spec.md and save it now.'
   }
+
+  const formatUsed = hasMicroplans ? 'microplans.json' : hasPlan ? 'plan.json (deprecated)' : 'unknown'
 
   return {
     content: [{
       type: 'text',
-      text: `✅ ${saved.length} arquivo(s) salvo(s) em ${dir}:\n${saved.map(f => `  • ${f}`).join('\n')}${warning}`,
+      text: `✅ ${saved.length} arquivo(s) salvo(s) em ${dir}:\n${saved.map(f => `  • ${f}`).join('\n')}\n\n📋 Formato: ${formatUsed}${warning}`,
     }],
   }
 }

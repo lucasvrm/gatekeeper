@@ -379,6 +379,7 @@ function SectionEditorContent({
           <PageHeaderEditor
             config={layout.structure?.pageHeader}
             textStyles={layout.textStyles}
+            tokens={layout.tokens}
             onChange={(ph) => onChange({ ...layout, structure: { ...layout.structure, pageHeader: ph } })}
           />
         );

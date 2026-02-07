@@ -528,7 +528,7 @@ export function LucideIconSelect({ value, onChange, allowEmpty = false, placehol
                 const isSelected = iconName === ic;
                 return (
                   <button
-                    key={ic}
+                    key={`${cat}-${ic}`}
                     onClick={() => { onChange(`lucide:${ic}`); setOpen(false); }}
                     title={ic}
                     style={{
@@ -712,7 +712,7 @@ export function IconPicker({ value, onSelect }: { value: string; onSelect: (icon
                     const lucideKey = `lucide:${ic}`;
                     const isSelected = value === lucideKey;
                     return (
-                      <button key={ic} onClick={() => onSelect(lucideKey)} title={`${ic} (${cat})`} style={{
+                      <button key={`${cat}-${ic}`} onClick={() => onSelect(lucideKey)} title={`${ic} (${cat})`} style={{
                         ...s.btnSmall, padding: "6px",
                         background: isSelected ? COLORS.accent + "30" : COLORS.surface3,
                         border: isSelected ? `1px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
@@ -730,7 +730,7 @@ export function IconPicker({ value, onSelect }: { value: string; onSelect: (icon
                     const lucideKey = `lucide:${ic}`;
                     const isSelected = value === lucideKey;
                     return (
-                      <button key={ic} onClick={() => onSelect(lucideKey)} style={{
+                      <button key={`${cat}-${ic}`} onClick={() => onSelect(lucideKey)} style={{
                         ...s.btnSmall, textAlign: "left", padding: "6px 8px", fontSize: 11,
                         background: isSelected ? COLORS.accent + "15" : COLORS.surface3,
                         border: isSelected ? `1px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,

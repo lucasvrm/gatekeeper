@@ -17,8 +17,8 @@ interface LogListProps {
   loadingMore?: boolean
 }
 
-// RF-03: Reduced from 120px to 24px (80% reduction) for compact log display
-const ITEM_HEIGHT = 24 // Base height for collapsed items
+// RF-03: Increased from 24px to 32px (30% increase) to prevent card overlap
+const ITEM_HEIGHT = 32 // Base height for collapsed items
 const CONTAINER_HEIGHT = 600 // Fixed height for virtualized list
 
 export function LogList({

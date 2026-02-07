@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import type { ParsedArtifact } from "./types"
+import { MicroplansViewer } from "./microplans-viewer"
+import type { MicroplansOutput } from "@/lib/types"
 
 interface ArtifactViewerProps {
   artifacts: ParsedArtifact[]
@@ -12,8 +14,26 @@ export function ArtifactViewer({ artifacts }: ArtifactViewerProps) {
   // Garantir que artifacts seja sempre um array válido
   if (!Array.isArray(artifacts) || artifacts.length === 0) return null
 
-  const content = artifacts[selected]?.content ?? ""
+  const artifact = artifacts[selected]
+  const content = artifact?.content ?? ""
   const lines = content.split("\n")
+
+  // Detectar se é microplans.json e tentar parsear
+  let microplansData: MicroplansOutput | null = null
+  let isMicroplansJson = false
+
+  if (artifact?.filename === "microplans.json") {
+    try {
+      const parsed = JSON.parse(content)
+      // Validar schema básico
+      if (parsed && typeof parsed.task === "string" && Array.isArray(parsed.microplans)) {
+        microplansData = parsed as MicroplansOutput
+        isMicroplansJson = true
+      }
+    } catch {
+      // Se parsing falha, renderizar como código normal (fallback)
+    }
+  }
 
   const handleCopy = async () => {
     try {
@@ -104,20 +124,29 @@ export function ArtifactViewer({ artifacts }: ArtifactViewerProps) {
         </div>
       </div>
       <div className="overflow-auto max-h-96 bg-card" data-testid="artifact-content">
-        <table className="w-full" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
-          <tbody>
-            {lines.map((line, i) => (
-              <tr key={i} style={{ border: 'none' }}>
-                <td className="select-none text-right pr-2 pl-2 py-0 text-[10px] font-mono text-muted-foreground/25 w-[1%] whitespace-nowrap align-top leading-[1.35rem]" style={{ border: 'none' }}>
-                  {i + 1}
-                </td>
-                <td className="pl-3 pr-4 py-0 text-xs font-mono whitespace-pre text-foreground align-top leading-[1.35rem]" style={{ border: 'none' }}>
-                  {line || "\u00A0"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {isMicroplansJson && microplansData ? (
+          <div className="p-4">
+            <MicroplansViewer
+              microplans={microplansData.microplans}
+              task={microplansData.task}
+            />
+          </div>
+        ) : (
+          <table className="w-full" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
+            <tbody>
+              {lines.map((line, i) => (
+                <tr key={i} style={{ border: 'none' }}>
+                  <td className="select-none text-right pr-2 pl-2 py-0 text-[10px] font-mono text-muted-foreground/25 w-[1%] whitespace-nowrap align-top leading-[1.35rem]" style={{ border: 'none' }}>
+                    {i + 1}
+                  </td>
+                  <td className="pl-3 pr-4 py-0 text-xs font-mono whitespace-pre text-foreground align-top leading-[1.35rem]" style={{ border: 'none' }}>
+                    {line || "\u00A0"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )

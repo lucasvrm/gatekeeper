@@ -12,6 +12,8 @@ export interface StepResult {
   artifacts?: ParsedArtifact[]
   tokensUsed?: { inputTokens: number; outputTokens: number }
   correctedTaskPrompt?: string
+  microplansArtifact?: ParsedArtifact
+  hasMicroplans?: boolean
 }
 
 export interface LogEntry {
@@ -48,6 +50,8 @@ export interface OrchestratorSession {
   pipelineStatus: string | null    // 'running' | 'completed' | 'failed'
   pipelineStage: string | null     // 'planning' | 'spec' | 'fix' | 'execute' | 'complete'
   pipelineProgress: number         // 0-100
+  microplansArtifact?: ParsedArtifact
+  hasMicroplans?: boolean
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

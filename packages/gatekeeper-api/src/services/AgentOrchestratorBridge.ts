@@ -20,6 +20,7 @@ import { LLMProviderRegistry } from './providers/LLMProviderRegistry.js'
 import { AgentToolExecutor, READ_TOOLS, WRITE_TOOLS, SAVE_ARTIFACT_TOOL } from './AgentToolExecutor.js'
 import { AgentRunnerService } from './AgentRunnerService.js'
 import { AgentPromptAssembler } from './AgentPromptAssembler.js'
+import { ArtifactValidationService } from './ArtifactValidationService.js'
 import type {
   PhaseConfig,
   AgentEvent,
@@ -120,6 +121,7 @@ export interface SessionContext {
 export class AgentOrchestratorBridge {
   private registry: LLMProviderRegistry
   private assembler: AgentPromptAssembler
+  private validator: ArtifactValidationService
 
   constructor(
     private prisma: PrismaClient,
@@ -127,6 +129,7 @@ export class AgentOrchestratorBridge {
   ) {
     this.registry = LLMProviderRegistry.fromEnv()
     this.assembler = new AgentPromptAssembler(prisma)
+    this.validator = new ArtifactValidationService()
   }
 
   // ─── Step 1: Generate Plan ───────────────────────────────────────────
@@ -235,6 +238,46 @@ export class AgentOrchestratorBridge {
 
     // Add task prompt as an artifact for future reference
     memoryArtifacts.set('task_prompt.md', `# Task Prompt\n\n${input.taskDescription}`)
+
+    // ✅ VALIDATE artifacts before persisting
+    const validation = this.validator.validateStepArtifacts(1, memoryArtifacts)
+    if (!validation.valid) {
+      const errorDetails = validation.results
+        .filter(r => r.severity === 'error')
+        .map(r => `${r.details.filename}: ${r.message}`)
+        .join('; ')
+
+      console.error('[Bridge:generatePlan] ❌ Artifact validation failed:', {
+        errorCount: validation.results.filter(r => r.severity === 'error').length,
+        errors: validation.results.filter(r => r.severity === 'error').map(r => ({
+          file: r.details.filename,
+          issues: r.details.issues
+        }))
+      })
+
+      throw new BridgeError(
+        `Plan artifacts validation failed: ${errorDetails}`,
+        'INVALID_ARTIFACTS',
+        { validation: validation.results }
+      )
+    }
+
+    // Log warnings but don't block
+    const warnings = validation.results.filter(r => r.severity === 'warning')
+    if (warnings.length > 0) {
+      console.warn('[Bridge:generatePlan] ⚠️ Validation warnings:', warnings.map(w => w.message))
+      emit({
+        type: 'agent:validation_warning',
+        step: 1,
+        warnings: warnings.map(w => w.message)
+      } as AgentEvent)
+    }
+
+    console.log('[Bridge:generatePlan] ✅ Artifacts validated:', {
+      count: memoryArtifacts.size,
+      files: Array.from(memoryArtifacts.keys()),
+      warningsCount: warnings.length
+    })
 
     // Persist artifacts to disk
     const artifacts = await this.persistArtifacts(
@@ -430,6 +473,46 @@ Example:
         console.warn(`[Bridge] ⚠️ Smart recovery failed: testFileName=${testFileName}, codeBlock=${codeBlock?.length ?? 0} chars`)
       }
     }
+
+    // ✅ VALIDATE spec artifacts before persisting
+    const validation = this.validator.validateStepArtifacts(2, memoryArtifacts)
+    if (!validation.valid) {
+      const errorDetails = validation.results
+        .filter(r => r.severity === 'error')
+        .map(r => `${r.details.filename}: ${r.message}`)
+        .join('; ')
+
+      console.error('[Bridge:generateSpec] ❌ Artifact validation failed:', {
+        errorCount: validation.results.filter(r => r.severity === 'error').length,
+        errors: validation.results.filter(r => r.severity === 'error').map(r => ({
+          file: r.details.filename,
+          issues: r.details.issues
+        }))
+      })
+
+      throw new BridgeError(
+        `Spec artifacts validation failed: ${errorDetails}`,
+        'INVALID_ARTIFACTS',
+        { validation: validation.results }
+      )
+    }
+
+    // Log warnings but don't block
+    const warnings = validation.results.filter(r => r.severity === 'warning')
+    if (warnings.length > 0) {
+      console.warn('[Bridge:generateSpec] ⚠️ Validation warnings:', warnings.map(w => w.message))
+      emit({
+        type: 'agent:validation_warning',
+        step: 2,
+        warnings: warnings.map(w => w.message)
+      } as AgentEvent)
+    }
+
+    console.log('[Bridge:generateSpec] ✅ Artifacts validated:', {
+      count: memoryArtifacts.size,
+      files: Array.from(memoryArtifacts.keys()),
+      warningsCount: warnings.length
+    })
 
     const artifacts = await this.persistArtifacts(
       memoryArtifacts,
@@ -1014,9 +1097,31 @@ Example:
       if (fileDir !== outputDir) {
         fs.mkdirSync(fileDir, { recursive: true })
       }
+
+      // Write artifact to disk
       fs.writeFileSync(filePath, content, 'utf-8')
+
+      // ✅ Verify write succeeded
+      if (!fs.existsSync(filePath)) {
+        throw new BridgeError(
+          `Failed to persist artifact: ${filename}`,
+          'PERSIST_FAILED',
+          { filename, outputDir }
+        )
+      }
+
+      // ✅ Verify content matches
+      const writtenContent = fs.readFileSync(filePath, 'utf-8')
+      if (writtenContent !== content) {
+        throw new BridgeError(
+          `Artifact content mismatch after write: ${filename}`,
+          'PERSIST_MISMATCH',
+          { filename, expectedLength: content.length, actualLength: writtenContent.length }
+        )
+      }
+
       result.push({ filename, content })
-      console.log(`[Bridge] Artifact saved: ${filePath}`)
+      console.log(`[Bridge] Artifact saved and verified: ${filePath}`)
     }
 
     return result

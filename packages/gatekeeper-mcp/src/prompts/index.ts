@@ -123,13 +123,15 @@ function stopPlan(outputId: string): string {
   return `
 ---
 ## ⛔ STOP — Boundary Rule
-Your job in this conversation is ONLY to produce **plan.json**, **contract.md**, and **task.spec.md**.
+Your job in this conversation is ONLY to produce **microplans.json** (or plan.json if preferred), **contract.md**, and **task.spec.md**.
 - Do NOT generate test code (spec.test).
 - Do NOT generate implementation code.
 - Do NOT continue to the next step.
 - Save ALL 3 artifacts using the save_artifacts tool with outputId exactly: **${outputId}**
 - After saving, STOP.
 The test code and implementation will be done by separate LLMs in separate conversations.
+
+Note: microplans.json is the preferred format. plan.json is deprecated but still supported for backwards compatibility.
 ---`
 }
 
@@ -260,7 +262,39 @@ function handleCreatePlan(
 
   text += `\n## Reference Documents\n${docs}\n`
   text += sessionContext
-  text += `\nGenerate the following 3 artifacts:\n1. **plan.json** — structured task plan\n2. **contract.md** — validation contract with clauses (CL-XXX)\n3. **task.spec.md** — human-readable test specification describing what each test should verify\n`
+  text += `\nGenerate the following 3 artifacts:\n1. **microplans.json** — atomic microplans with max 3 files and 4 tasks each (PREFERRED)\n2. **contract.md** — validation contract with clauses (CL-XXX)\n3. **task.spec.md** — human-readable test specification describing what each test should verify\n`
+  text += `\n### Microplans Guidelines:\n`
+  text += `- Each microplan touches max 3 files, max 4 tasks\n`
+  text += `- Use field "depends_on" for dependencies (array of microplan IDs)\n`
+  text += `- Field "what" should be concise (1 line describing the change)\n`
+  text += `- Actions: CREATE, EDIT, DELETE\n`
+  text += `\n### Example microplans.json:\n`
+  text += `\`\`\`json\n`
+  text += `{\n`
+  text += `  "task": "Add user authentication feature",\n`
+  text += `  "microplans": [\n`
+  text += `    {\n`
+  text += `      "id": "MP-01",\n`
+  text += `      "goal": "Create auth types and schemas",\n`
+  text += `      "depends_on": [],\n`
+  text += `      "files": [\n`
+  text += `        { "path": "src/types/auth.ts", "action": "CREATE", "what": "Add User and Token types" },\n`
+  text += `        { "path": "src/schemas/auth.schema.ts", "action": "CREATE", "what": "Add Zod validation schemas" }\n`
+  text += `      ],\n`
+  text += `      "verify": "Types exported and importable without errors"\n`
+  text += `    },\n`
+  text += `    {\n`
+  text += `      "id": "MP-02",\n`
+  text += `      "goal": "Implement auth service",\n`
+  text += `      "depends_on": ["MP-01"],\n`
+  text += `      "files": [\n`
+  text += `        { "path": "src/services/AuthService.ts", "action": "CREATE", "what": "Implement login/logout/verify methods" }\n`
+  text += `      ],\n`
+  text += `      "verify": "Service methods callable and return correct types"\n`
+  text += `    }\n`
+  text += `  ]\n`
+  text += `}\n`
+  text += `\`\`\`\n`
   text += stopPlan(outputId)
 
   return {
