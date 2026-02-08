@@ -15,6 +15,7 @@ import { RunEventService } from '../../src/services/RunEventService.js'
 describe('RunEventService — Buffer Implementation', () => {
   beforeEach(() => {
     // Reset service state between tests
+    RunEventService._reset()
     vi.clearAllMocks()
     vi.useFakeTimers()
   })

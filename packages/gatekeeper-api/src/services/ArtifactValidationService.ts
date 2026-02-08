@@ -241,6 +241,53 @@ export class ArtifactValidationService {
       } else {
         results.push(this.validateMicroplansJson(microplansJson))
       }
+
+      // NEW: Validate task_prompt.md
+      const taskPromptMd = artifacts.get('task_prompt.md')
+
+      if (!taskPromptMd) {
+        results.push({
+          valid: false,
+          severity: 'error',
+          message: 'Artefato obrigatório ausente: task_prompt.md',
+          details: {
+            filename: 'task_prompt.md',
+            issues: [{
+              field: 'existence',
+              expected: 'File exists',
+              actual: 'File missing',
+              severity: 'error'
+            }]
+          }
+        })
+      } else {
+        // Strip header "# Task Prompt\n\n" and validate content length
+        const content = taskPromptMd.replace(/^# Task Prompt\n\n/, '').trim()
+
+        if (content.length < 10) {
+          results.push({
+            valid: false,
+            severity: 'error',
+            message: 'task_prompt.md muito curto (< 10 chars após header)',
+            details: {
+              filename: 'task_prompt.md',
+              issues: [{
+                field: 'content',
+                expected: 'At least 10 characters (after header)',
+                actual: `${content.length} characters`,
+                severity: 'error'
+              }]
+            }
+          })
+        } else {
+          results.push({
+            valid: true,
+            severity: 'success',
+            message: 'task_prompt.md válido',
+            details: { filename: 'task_prompt.md', issues: [] }
+          })
+        }
+      }
     } else if (step === 2) {
       // Step 2: Spec/test artifacts
       let hasTestFile = false

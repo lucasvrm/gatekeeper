@@ -23,20 +23,20 @@ export interface TableBuilderProps {
 }
 
 export function TableBuilder({ nodeId }: TableBuilderProps) {
+  // ---- All hooks MUST be called before any early return ----
   const { state, updateNodeProps, openVariablePicker } = useEditor();
-  const page = state.contract.pages[state.currentPage];
-  if (!page) return null;
-
-  const node = findNode(page.content, nodeId);
-  if (!node || node.type !== "table") return null;
-
-  const p = node.props || {};
-  const columns: TableColumn[] = p.columns || [];
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [expandedCol, setExpandedCol] = useState<number | null>(null);
 
-  // ---- Column operations ----
+  // Derive values (may be undefined/null)
+  const page = state.contract.pages[state.currentPage];
+  const node = page ? findNode(page.content, nodeId) : null;
+  const isTableNode = node && node.type === "table";
+  const p = isTableNode ? (node.props || {}) : {};
+  const columns: TableColumn[] = p.columns || [];
+
+  // ---- Column operations (useCallback before early return) ----
 
   const updateColumns = useCallback((newCols: TableColumn[]) => {
     updateNodeProps(nodeId, { columns: newCols });
@@ -61,6 +61,7 @@ export function TableBuilder({ nodeId }: TableBuilderProps) {
 
   const duplicateColumn = useCallback((idx: number) => {
     const original = columns[idx];
+    if (!original) return;
     const key = `${original.key}_copy_${Date.now().toString(36)}`;
     const copy = { ...original, key, label: `${original.label} (cópia)` };
     const newCols = [...columns];
@@ -71,14 +72,14 @@ export function TableBuilder({ nodeId }: TableBuilderProps) {
 
   // ---- Drag to reorder ----
 
-  const handleDragStart = (idx: number) => setDragIdx(idx);
+  const handleDragStart = useCallback((idx: number) => setDragIdx(idx), []);
 
-  const handleDragOver = (e: React.DragEvent, idx: number) => {
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
     e.preventDefault();
     setOverIdx(idx);
-  };
+  }, []);
 
-  const handleDrop = (dropIdx: number) => {
+  const handleDrop = useCallback((dropIdx: number) => {
     if (dragIdx === null || dragIdx === dropIdx) {
       setDragIdx(null);
       setOverIdx(null);
@@ -90,7 +91,10 @@ export function TableBuilder({ nodeId }: TableBuilderProps) {
     updateColumns(reordered);
     setDragIdx(null);
     setOverIdx(null);
-  };
+  }, [dragIdx, columns, updateColumns]);
+
+  // ---- Early return AFTER all hooks ----
+  if (!page || !isTableNode) return null;
 
   return (
     <div style={builderStyle}>

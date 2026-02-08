@@ -511,6 +511,11 @@ function JsonView() {
     }
   }, [currentPage]);
 
+  // Keep a ref to current pages for use in callbacks (avoids stale closure)
+  const pagesRef = useRef(usePageEditor().state.pages);
+  pagesRef.current = usePageEditor().state.pages;
+  const getPagesFromRef = () => pagesRef.current;
+
   const handleApply = () => {
     try {
       const parsed = JSON.parse(jsonText);
@@ -520,19 +525,13 @@ function JsonView() {
       }
       dispatch({
         type: "SET_PAGES",
-        pages: { ...usePageEditor_hack_pages(), [parsed.id]: parsed },
+        pages: { ...getPagesFromRef(), [parsed.id]: parsed },
       });
       setError(null);
     } catch (e: any) {
       setError(e.message);
     }
   };
-
-  // Hack to get current pages without being inside the callback
-  // The dispatch SET_PAGES needs all pages — we read from the state at render time
-  const pagesRef = useRef(usePageEditor().state.pages);
-  pagesRef.current = usePageEditor().state.pages;
-  const usePageEditor_hack_pages = () => pagesRef.current;
 
   return (
     <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", background: C.bg, padding: 16 }}>

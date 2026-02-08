@@ -63,11 +63,16 @@ export function mapStageToCompletedSteps(stage: string): number[] {
   }
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const RECONCILIATION_DEBOUNCE_MS = 5000 // Max 1 reconciliation per 5 seconds
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function usePipelineReconciliation(
   outputId: string | undefined,
   localSession: SessionSnapshot | null,
+  triggerReconciliation: number = 0,
 ): ReconciliationResult {
   const [result, setResult] = useState<ReconciliationResult>({
     remoteStep: null,
@@ -83,13 +88,22 @@ export function usePipelineReconciliation(
     error: null,
   })
 
-  const didReconcileRef = useRef(false)
+  const lastReconcileTimeRef = useRef<number>(0)
 
   useEffect(() => {
-    if (!outputId || didReconcileRef.current) return
-    didReconcileRef.current = true
+    if (!outputId) return
+
+    // Debounce: skip if last reconciliation was less than 5 seconds ago
+    const now = Date.now()
+    if (now - lastReconcileTimeRef.current < RECONCILIATION_DEBOUNCE_MS) {
+      console.log('[Reconciliation] Debounced - too soon since last reconciliation')
+      return
+    }
 
     async function reconcile() {
+      lastReconcileTimeRef.current = Date.now()
+      setResult(prev => ({ ...prev, isLoading: true }))
+
       try {
         // 1. Fetch remote status (source of truth)
         const remote = await api.orchestrator.status(outputId!)
@@ -155,7 +169,7 @@ export function usePipelineReconciliation(
     }
 
     reconcile()
-  }, [outputId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [outputId, triggerReconciliation]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return result
 }

@@ -397,6 +397,9 @@ export function OrchestratorPage() {
   const [fixDialogTarget, setFixDialogTarget] = useState<"plan" | "spec">("plan")
   const [fixDialogValidators, setFixDialogValidators] = useState<string[]>([])
 
+  // Bypass validators dropdown state
+  const [openBypassValidators, setOpenBypassValidators] = useState(false)
+
   // Provider error retry state
   const [retryState, setRetryState] = useState<{
     canRetry: boolean
@@ -425,6 +428,10 @@ export function OrchestratorPage() {
   const pipelineStageRef = useRef<string | null>(saved?.pipelineStage ?? null)
   const pipelineProgressRef = useRef(saved?.pipelineProgress ?? 0)
 
+  // SSE watchdog: detect silent connection death and trigger reconciliation
+  const [reconcileTrigger, setReconcileTrigger] = useState(0)
+  const lastSSEEventTimeRef = useRef<number>(Date.now())
+
   const [executionProgress, setExecutionProgress] = useState<{
     provider: string
     model: string
@@ -450,6 +457,26 @@ export function OrchestratorPage() {
     const interval = setInterval(() => setTick(t => t + 1), 5000)
     return () => clearInterval(interval)
   }, [executionPhase])
+
+  // SSE Watchdog: detect silent connection death during WRITING phase
+  // If no SSE event received for 30s while WRITING, trigger reconciliation
+  useEffect(() => {
+    const WATCHDOG_CHECK_INTERVAL = 15_000 // Check every 15 seconds
+    const SSE_SILENCE_THRESHOLD = 30_000 // 30 seconds of silence = problem
+
+    const interval = setInterval(() => {
+      if (executionPhaseRef.current !== "WRITING") return
+
+      const timeSinceLastEvent = Date.now() - lastSSEEventTimeRef.current
+      if (timeSinceLastEvent > SSE_SILENCE_THRESHOLD) {
+        console.warn(`[SSE Watchdog] No event for ${Math.round(timeSinceLastEvent / 1000)}s during WRITING - triggering reconciliation`)
+        setReconcileTrigger(t => t + 1)
+        lastSSEEventTimeRef.current = Date.now() // Reset to avoid spamming
+      }
+    }, WATCHDOG_CHECK_INTERVAL)
+
+    return () => clearInterval(interval)
+  }, [])
 
   // Trigger for auto-validation after execute_done (avoids stale closures in SSE handler)
   const [executeDoneData, setExecuteDoneData] = useState<any>(null)
@@ -594,6 +621,30 @@ export function OrchestratorPage() {
     addLog("info", `Navegou para step ${targetStep}`)
   }, [completedSteps]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Bypass validator helpers ─────────────────────────────────────────────
+  const getBypassableValidators = useCallback(() => {
+    if (!runResults?.validatorResults) return []
+    return runResults.validatorResults.filter(
+      (v: ValidatorResult) => !v.passed && v.isHardBlock && !v.bypassed
+    )
+  }, [runResults])
+
+  const handleBypassValidator = useCallback(async (validatorCode: string) => {
+    if (!runId) return
+    try {
+      await api.runs.bypassValidator(runId, validatorCode)
+      toast.success(`Validator ${validatorCode} bypassed`)
+      setOpenBypassValidators(false)
+      // Refresh run results
+      const updated = await api.runs.get(runId)
+      setRunResults(updated)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao bypass validator'
+      toast.error(msg)
+      console.error('Failed to bypass validator:', err)
+    }
+  }, [runId])
+
   // ── Load projects ──────────────────────────────────────────────────────
   useEffect(() => {
     api.projects.list(1, 100).then((res) => {
@@ -663,6 +714,9 @@ export function OrchestratorPage() {
   const handleSSE = useCallback(
     (event: OrchestratorEvent) => {
       const debug = debugModeRef.current
+
+      // Update watchdog timestamp on every SSE event
+      lastSSEEventTimeRef.current = Date.now()
 
       // ── Track execution progress during WRITING phase ──
       if (executionPhaseRef.current === "WRITING") {
@@ -1103,6 +1157,7 @@ export function OrchestratorPage() {
       pipelineStage: saved.pipelineStage ?? null,
       pipelineProgress: saved.pipelineProgress ?? 0,
     } : null,
+    reconcileTrigger,
   )
 
   // Track if we've already applied reconciliation (avoid replaying events multiple times)
@@ -1194,11 +1249,22 @@ export function OrchestratorPage() {
   const autoReloadTriedRef = useRef(false)
 
   useEffect(() => {
+    // ✅ MP-FIX-01: Skip auto-reload during initial artifact generation
+    // Don't show error toast when agent is generating artifacts for the first time
+    const isInitialGeneration =
+      (loading && planArtifacts.length === 0) ||
+      (isGeneratingSpec && specArtifacts.length === 0)
+
+    if (isInitialGeneration) {
+      console.log('[Auto-reload] Skipping: agent is generating artifacts for the first time')
+      return
+    }
+
     // Only run if (MP-UX-2 Task 3: condições simplificadas):
     // 1. We have an outputId (active session)
     // 2. We're missing artifacts (planArtifacts is empty)
     // 3. We haven't already tried auto-reload (prevents infinite loop on failure)
-    // Removed dependencies: resuming, loading, reconciliation.isLoading (permite recovery mesmo com flags travados)
+    // Removed dependencies: resuming, reconciliation.isLoading (permite recovery mesmo com flags travados)
     if (!outputId || autoReloadTriedRef.current || planArtifacts.length > 0) {
       return
     }
@@ -1261,7 +1327,7 @@ export function OrchestratorPage() {
     }).finally(() => {
       setResuming(false)
     })
-  }, [outputId, planArtifacts.length, projects, selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [outputId, planArtifacts.length, specArtifacts.length, loading, isGeneratingSpec, projects, selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Run validation SSE — polls run status inline ──────────────────────
   const validationResolvedRef = useRef(false)
@@ -1656,6 +1722,16 @@ export function OrchestratorPage() {
 
       if (manifest.files.length === 0) throw new Error("plan artifact não contém arquivos (manifest.files, files_to_create, ou files_to_modify)")
 
+      // Validate taskPrompt from plan or taskDescription
+      const taskPromptValue = plan.taskPrompt || taskDescription
+
+      if (!taskPromptValue || taskPromptValue.trim().length < 10) {
+        toast.error('Task prompt inválido no plan.json', {
+          description: 'Mínimo 10 caracteres obrigatório.'
+        })
+        return
+      }
+
       setValidationStatus("RUNNING")
       setRunResults(null)
       validationResolvedRef.current = false
@@ -1663,7 +1739,7 @@ export function OrchestratorPage() {
       const response = await api.runs.create({
         projectId: selectedProjectId,
         outputId: oid,
-        taskPrompt: plan.taskPrompt || taskDescription,
+        taskPrompt: taskPromptValue,
         manifest,
         contract,
         dangerMode: plan.dangerMode || false,
@@ -1703,6 +1779,15 @@ export function OrchestratorPage() {
     setRunResults(null)
     validationResolvedRef.current = false
     addLog("info", "Iniciando validação Gatekeeper (Gates 0-1)...")
+
+    // Validate taskDescription before sending POST
+    if (!taskDescription || taskDescription.trim().length < 10) {
+      toast.error('Task description muito curta', {
+        description: 'Mínimo 10 caracteres obrigatório para validação.'
+      })
+      setValidationStatus("IDLE")
+      return
+    }
 
     try {
       if (!Array.isArray(planArtifacts)) {
@@ -1948,6 +2033,14 @@ export function OrchestratorPage() {
   const startExecutionValidation = async () => {
     console.log('[startExecutionValidation] Called - step:', stepRef.current, 'executeDoneData:', !!executeDoneData)
     if (!outputId || !selectedProjectId) return
+
+    // Validate taskDescription before sending POST
+    if (!taskDescription || taskDescription.trim().length < 10) {
+      toast.error('Task description muito curta', {
+        description: 'Mínimo 10 caracteres obrigatório para execução.'
+      })
+      return
+    }
 
     setValidationStatus("RUNNING")
     setRunResults(null)
@@ -2870,6 +2963,35 @@ export function OrchestratorPage() {
                             </>
                           )
                         })()}
+                        {/* Bypass validator button */}
+                        {getBypassableValidators().length > 0 && (
+                          <div data-testid="bypass-container" className="relative">
+                            <button
+                              data-testid="bypass-button"
+                              onClick={() => setOpenBypassValidators(!openBypassValidators)}
+                              aria-label="Bypass failed validators"
+                              className="px-3 py-1.5 text-xs border border-amber-500/50 text-amber-400 rounded hover:bg-amber-500/10 transition-colors"
+                            >
+                              Bypass Validator
+                            </button>
+                            {openBypassValidators && (
+                              <div data-testid="bypass-dropdown" role="menu" className="absolute top-full left-0 mt-1 w-64 bg-background border rounded-md shadow-lg z-50 p-1">
+                                {getBypassableValidators().map((validator: ValidatorResult) => (
+                                  <button
+                                    key={validator.validatorCode}
+                                    data-testid={`bypass-option-${validator.validatorCode}`}
+                                    onClick={() => handleBypassValidator(validator.validatorCode)}
+                                    role="menuitem"
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted rounded flex flex-col gap-0.5"
+                                  >
+                                    <span className="validator-code font-mono text-amber-400">{validator.validatorCode}</span>
+                                    <span className="validator-name text-muted-foreground">{validator.validatorName}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => navigate(`/runs/${runId}/v2`)} className="ml-auto text-xs text-muted-foreground">
                           Ver run completa →
                         </Button>

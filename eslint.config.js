@@ -17,7 +17,10 @@ export default tseslint.config(
       'packages/*/dist/**',
       '**/artifacts/**',
       '**/*.{spec,test}.{ts,tsx,js,jsx}',
-      '**/__tests__/**'
+      '**/__tests__/**',
+      '**/_tmp_*',
+      '**/seed-prompt-content*.ts',
+      '**/*.demo.tsx'
     ]
   },
   

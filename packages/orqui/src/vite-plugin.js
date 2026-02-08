@@ -191,10 +191,10 @@ export function orquiVitePlugin(options = {}) {
                   try {
                     const lc = JSON.parse(readFileSync(join(sbDir, "layout-contract.json"), "utf-8"));
                     pageCount = Object.keys(lc.pages || {}).length;
-                  } catch {}
+                  } catch { /* JSON parse failed */ }
                 }
                 sandboxes.push({ name, files: files.length, pageCount });
-              } catch {}
+              } catch { /* sandbox read failed */ }
             }
           }
           res.end(JSON.stringify({ sandboxes }));

@@ -134,10 +134,11 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "DROP":
       return handleDrop(state);
 
-    case "TOGGLE_PANEL":
+    case "TOGGLE_PANEL": {
       const panels = new Set(state.expandedPanels);
       panels.has(action.panelId) ? panels.delete(action.panelId) : panels.add(action.panelId);
       return { ...state, expandedPanels: panels };
+    }
 
     // ---- Contract Mutations (all push to undo stack) ----
 

@@ -9,7 +9,7 @@ export function usePersistentState(key: string, defaultValue: any) {
   });
   const set = useCallback((v) => {
     setValue(v);
-    try { localStorage.setItem(`orqui-accordion-${key}`, JSON.stringify(v)); } catch {}
+    try { localStorage.setItem(`orqui-accordion-${key}`, JSON.stringify(v)); } catch { /* localStorage unavailable */ }
   }, [key]);
 
   // Listen for force-open events from Command Palette
@@ -17,7 +17,7 @@ export function usePersistentState(key: string, defaultValue: any) {
     const handler = (e: CustomEvent) => {
       if (e.detail === key || e.detail === `wb-${key}`) {
         setValue(true);
-        try { localStorage.setItem(`orqui-accordion-${key}`, "true"); } catch {}
+        try { localStorage.setItem(`orqui-accordion-${key}`, "true"); } catch { /* localStorage unavailable */ }
       }
     };
     window.addEventListener("orqui:open-accordion" as any, handler);
@@ -36,7 +36,7 @@ export function usePersistentTab(key: string, defaultValue: string) {
   });
   const set = useCallback((v: string) => {
     setValue(v);
-    try { localStorage.setItem(`orqui-tab-${key}`, v); } catch {}
+    try { localStorage.setItem(`orqui-tab-${key}`, v); } catch { /* localStorage unavailable */ }
   }, [key]);
   return [value, set] as const;
 }

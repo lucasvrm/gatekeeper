@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
+import { Copy } from "lucide-react"
 import { api } from "@/lib/api"
 import type { PromptInstruction } from "@/lib/types"
 import { PIPELINE_STEPS, DYNAMIC_INSTRUCTION_KINDS } from "@/lib/types"
@@ -372,38 +373,60 @@ interface PromptCardProps {
 function PromptCard({ prompt, expanded, onToggle, onEdit, onDelete }: PromptCardProps) {
   const isUserMessage = prompt.role === 'user'
 
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(prompt.content)
+      toast.success("Prompt copiado!")
+    } catch {
+      toast.error("Falha ao copiar prompt")
+    }
+  }
+
   return (
     <div data-testid={`prompt-card-${prompt.id}`}>
       <div className="p-4 flex justify-between items-center hover:bg-muted/30 transition-colors">
-        <button
-          onClick={onToggle}
-          className="flex-1 text-left"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground text-xs font-mono">#{prompt.order}</span>
-            <h3 className="font-medium">{prompt.name}</h3>
-            {prompt.kind && (
-              <Badge variant="outline" className="text-xs">
-                {prompt.kind}
-              </Badge>
-            )}
-            {isUserMessage && (
-              <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
-                💬 template
-              </Badge>
-            )}
-            {!prompt.isActive && (
-              <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-600">
-                desativado
-              </Badge>
-            )}
+        <div className="flex-1">
+          <button
+            onClick={onToggle}
+            className="text-left w-full"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-xs font-mono">#{prompt.order}</span>
+              <h3 className="font-medium">{prompt.name}</h3>
+              {prompt.kind && (
+                <Badge variant="outline" className="text-xs">
+                  {prompt.kind}
+                </Badge>
+              )}
+              {isUserMessage && (
+                <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
+                  💬 template
+                </Badge>
+              )}
+              {!prompt.isActive && (
+                <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-600">
+                  desativado
+                </Badge>
+              )}
+            </div>
+          </button>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-xs text-muted-foreground">
+              {prompt.content.length.toLocaleString()} caracteres
+              {isUserMessage && ' · Handlebars template'}
+            </p>
+            <button
+              onClick={handleCopy}
+              data-testid={`copy-prompt-${prompt.id}`}
+              className="p-1 text-muted-foreground hover:text-foreground"
+              title="Copiar prompt"
+            >
+              <Copy className="h-3 w-3 lucide-copy" />
+            </button>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {prompt.content.length.toLocaleString()} caracteres
-            {isUserMessage && ' · Handlebars template'}
-          </p>
-        </button>
-        <div className="flex gap-2 ml-4">
+        </div>
+        <div className="flex items-center gap-2 ml-4">
           <button
             onClick={onEdit}
             data-testid={`edit-prompt-${prompt.id}`}
@@ -475,10 +498,15 @@ function DynamicInstructionsContent({
   const currentKindPrompts = promptsByKind[activeKind] || []
   const currentKindInfo = DYNAMIC_INSTRUCTION_KINDS[activeKind]
 
-  // If current kind has no prompts, switch to first available
-  if (currentKindPrompts.length === 0 && allKinds.length > 0 && !allKinds.includes(activeKind)) {
-    onKindChange(allKinds[0])
-  }
+  // If current kind has no prompts, switch to first kind that has prompts
+  useEffect(() => {
+    if (currentKindPrompts.length === 0 && prompts.length > 0) {
+      const firstKindWithPrompts = allKinds.find(k => (promptsByKind[k] || []).length > 0)
+      if (firstKindWithPrompts && firstKindWithPrompts !== activeKind) {
+        onKindChange(firstKindWithPrompts)
+      }
+    }
+  }, [activeKind, allKinds, currentKindPrompts.length, onKindChange, prompts.length, promptsByKind])
 
   return (
     <div className="space-y-4">
@@ -572,36 +600,58 @@ interface DynamicPromptCardProps {
 }
 
 function DynamicPromptCard({ prompt, expanded, onToggle, onEdit, onDelete }: DynamicPromptCardProps) {
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(prompt.content)
+      toast.success("Prompt copiado!")
+    } catch {
+      toast.error("Falha ao copiar prompt")
+    }
+  }
+
   return (
     <div data-testid={`dynamic-prompt-card-${prompt.id}`}>
       <div className="p-4 flex justify-between items-center hover:bg-muted/30 transition-colors">
-        <button
-          onClick={onToggle}
-          className="flex-1 text-left"
-        >
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-medium font-mono text-sm">{prompt.name}</h3>
-            {prompt.step !== null && (
-              <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-600">
-                Step {prompt.step}
-              </Badge>
-            )}
-            {prompt.role === 'user' && (
-              <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
-                💬 template
-              </Badge>
-            )}
-            {!prompt.isActive && (
-              <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-600">
-                desativado
-              </Badge>
-            )}
+        <div className="flex-1">
+          <button
+            onClick={onToggle}
+            className="text-left w-full"
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-medium font-mono text-sm">{prompt.name}</h3>
+              {prompt.step !== null && (
+                <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-600">
+                  Step {prompt.step}
+                </Badge>
+              )}
+              {prompt.role === 'user' && (
+                <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
+                  💬 template
+                </Badge>
+              )}
+              {!prompt.isActive && (
+                <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-600">
+                  desativado
+                </Badge>
+              )}
+            </div>
+          </button>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-xs text-muted-foreground">
+              {prompt.content.length.toLocaleString()} caracteres
+            </p>
+            <button
+              onClick={handleCopy}
+              data-testid={`copy-dynamic-${prompt.id}`}
+              className="p-1 text-muted-foreground hover:text-foreground"
+              title="Copiar prompt"
+            >
+              <Copy className="h-3 w-3 lucide-copy" />
+            </button>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {prompt.content.length.toLocaleString()} caracteres
-          </p>
-        </button>
-        <div className="flex gap-2 ml-4">
+        </div>
+        <div className="flex items-center gap-2 ml-4">
           <button
             onClick={onEdit}
             data-testid={`edit-dynamic-${prompt.id}`}

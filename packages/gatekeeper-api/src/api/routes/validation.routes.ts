@@ -20,9 +20,18 @@ router.post('/runs', async (req, res, next) => {
         message: e.message,
       }))
       console.warn('[Validation] Contract schema error:', JSON.stringify(fields, null, 2))
+
+      const errorMessages = fields.map(f => {
+        // Custom message for taskPrompt
+        if (f.path === 'taskPrompt' && f.message.includes('at least 10')) {
+          return `${f.path} (Mínimo 10 caracteres. Recebido: ${f.received || 'vazio'}. Verifique taskDescription do agent ou task_prompt.md artifact.)`
+        }
+        return `${f.path} (${f.message})`
+      })
+
       res.status(400).json({
         error: 'CONTRACT_SCHEMA_INVALID',
-        message: 'O contrato gerado pelo LLM tem erros de schema: ' + fields.map(f => f.path + ' (' + f.message + ')').join(', '),
+        message: 'O contrato gerado pelo LLM tem erros de schema: ' + errorMessages.join(', '),
         fields,
       })
       return

@@ -1,0 +1,31 @@
+{
+  "task": "Corrigir error codes em validation.routes.ts para diferenciar erros de contract de outros erros de validação",
+  "microplans": [
+    {
+      "id": "MP-1",
+      "goal": "Criar teste de integração para validar que error codes HTTP diferenciam contract de outros campos",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/test/integration/validation-error-codes.spec.ts",
+          "action": "CREATE",
+          "what": "Testar que POST /validation/runs retorna VALIDATION_ERROR para erros em taskPrompt/outputId/manifest e CONTRACT_SCHEMA_INVALID apenas para erros em contract.*"
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- validation-error-codes"
+    },
+    {
+      "id": "MP-2",
+      "goal": "Refatorar validation.routes.ts para usar error codes corretos baseado no campo com erro",
+      "depends_on": ["MP-1"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/api/routes/validation.routes.ts",
+          "action": "EDIT",
+          "what": "No catch block de ZodError, verificar se todos os erros são em paths que começam com 'contract'. Se sim, usar CONTRACT_SCHEMA_INVALID. Senão, usar VALIDATION_ERROR com mensagem genérica 'Dados de entrada inválidos'."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- validation-error-codes"
+    }
+  ]
+}

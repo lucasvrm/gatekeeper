@@ -1,0 +1,31 @@
+{
+  "task": "Adicionar botão Bypass no card de validação do orchestrator-page.tsx (Step 3)",
+  "microplans": [
+    {
+      "id": "MP-1",
+      "goal": "Criar testes para o botão Bypass e dropdown no card de validação falhou",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "src/components/__tests__/orchestrator-bypass-button.spec.tsx",
+          "action": "CREATE",
+          "what": "Testar que botão Bypass renderiza quando validationStatus é FAILED, dropdown abre ao clicar, lista apenas validators FAILED+isHardBlock+!bypassed, e clicar em validator dispara api.runs.bypassValidator com runId e validatorCode corretos"
+        }
+      ],
+      "verify": "npm test -- orchestrator-bypass-button"
+    },
+    {
+      "id": "MP-2",
+      "goal": "Implementar botão Bypass com dropdown e handler no card de validação falhou",
+      "depends_on": ["MP-1"],
+      "files": [
+        {
+          "path": "src/components/orchestrator-page.tsx",
+          "action": "EDIT",
+          "what": "Adicionar estado openBypassValidators (boolean), callback getBypassableValidators copiado de run-details-page-v2, handler handleBypassValidator com chamada API e toast, botão Bypass inline após os dois existentes, e dropdown condicional listando validators bypassáveis"
+        }
+      ],
+      "verify": "npm run typecheck && npm test -- orchestrator-bypass-button"
+    }
+  ]
+}

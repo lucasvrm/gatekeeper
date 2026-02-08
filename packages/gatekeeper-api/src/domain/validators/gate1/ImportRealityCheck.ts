@@ -153,7 +153,7 @@ export const ImportRealityCheckValidator: ValidatorDefinition = {
           let packageJsonPath = resolve(ctx.projectPath, 'package.json')
 
           // If test is in a workspace directory, try workspace package.json first
-          const workspaceMatch = absoluteTestPath.match(/[\/\\](packages[\/\\][^\/\\]+)[\/\\]/)
+          const workspaceMatch = absoluteTestPath.match(/[/\\](packages[/\\][^/\\]+)[/\\]/)
           if (workspaceMatch) {
             const workspacePackageJson = resolve(ctx.projectPath, workspaceMatch[1], 'package.json')
             if (existsSync(workspacePackageJson)) {

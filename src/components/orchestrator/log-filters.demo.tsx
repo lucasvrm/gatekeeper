@@ -69,7 +69,8 @@ export function LogFiltersDemo() {
                   <li>• Data Inicial: <strong>{new Date(filters.startDate).toLocaleString('pt-BR')}</strong></li>
                 )}
                 {filters.endDate && (
-                  <li>• Data Final: <strong>{new Date(filters.endDate).toLocaleString('pt-BR')}</strong></li>}
+                  <li>• Data Final: <strong>{new Date(filters.endDate).toLocaleString('pt-BR')}</strong></li>
+                )}
               </ul>
             </div>
           )}
