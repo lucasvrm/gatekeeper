@@ -1,0 +1,210 @@
+{
+  "task": "Implementar correções SSE (Server-Sent Events) para resiliência completa em validation runs e agent pipeline",
+  "microplans": [
+    {
+      "id": "MP-1",
+      "goal": "Criar testes unitários para buffer implementation do RunEventService",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/test/unit/RunEventService.spec.ts",
+          "action": "CREATE",
+          "what": "Criar suite de unit tests que valida eventos são adicionados ao buffer com seq monotônico, buffer respeita limite de 50 eventos por runId, eventos expiram após TTL de 60s, getBufferedEventsAfter retorna apenas eventos com seq maior que afterSeq, e buffer é corretamente filtrado por runId."
+        }
+      ],
+      "verify": "npm run test:unit -w gatekeeper-api -- RunEventService.spec.ts"
+    },
+    {
+      "id": "MP-2",
+      "goal": "Adicionar buffer em memória com TTL ao RunEventService",
+      "depends_on": ["MP-1"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/services/RunEventService.ts",
+          "action": "EDIT",
+          "what": "Adicionar interface BufferedEvent, Map privado para buffer indexado por runId, contador seq global, constantes BUFFER_TTL_MS e MAX_BUFFER_PER_RUN. Modificar métodos emitRunStatus, emitGateComplete e emitValidatorComplete para chamar addToBuffer antes de emit. Adicionar método getBufferedEventsAfter que retorna eventos filtrados por seq e respeitando TTL."
+        }
+      ],
+      "verify": "npm run test:unit -w gatekeeper-api -- RunEventService.spec.ts"
+    },
+    {
+      "id": "MP-3",
+      "goal": "Criar testes de integração para validar heartbeat no runs SSE endpoint",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/test/integration/runs-sse-heartbeat.spec.ts",
+          "action": "CREATE",
+          "what": "Criar teste que conecta ao endpoint GET /runs/:id/events, aguarda 15 segundos, valida recebimento de pelo menos um frame de heartbeat no formato comment SSE, desconecta e valida que o interval foi corretamente limpo."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- runs-sse-heartbeat.spec.ts"
+    },
+    {
+      "id": "MP-4",
+      "goal": "Implementar heartbeat interval no runs SSE endpoint",
+      "depends_on": ["MP-3"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/api/routes/runs.routes.ts",
+          "action": "EDIT",
+          "what": "No handler GET /runs/:id/events, adicionar setInterval após initial connection write que envia comment heartbeat a cada SSE_HEARTBEAT_INTERVAL milissegundos. No listener req.on close, adicionar clearInterval para cleanup do heartbeat. Fazer flush após cada heartbeat para garantir entrega."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- runs-sse-heartbeat.spec.ts"
+    },
+    {
+      "id": "MP-5",
+      "goal": "Criar testes para validar parsing de Last-Event-Id header",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/test/integration/runs-sse-last-event-id.spec.ts",
+          "action": "CREATE",
+          "what": "Criar teste que conecta ao endpoint SSE sem header Last-Event-Id e valida que backend trata como fresh connection, depois desconecta e reconecta enviando header Last-Event-Id com valor numérico e valida que backend parseia e loga o valor correto."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- runs-sse-last-event-id.spec.ts"
+    },
+    {
+      "id": "MP-6",
+      "goal": "Adicionar parsing de Last-Event-Id header no runs SSE endpoint",
+      "depends_on": ["MP-5"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/api/routes/runs.routes.ts",
+          "action": "EDIT",
+          "what": "No início do handler GET /runs/:id/events, adicionar leitura de req.headers last-event-id e req.query.lastEventId como fallback, converter para integer e armazenar em variável lastSeq. Se parsing resultar em NaN, considerar fresh connection. Adicionar log informativo com runId e lastSeq para debugging."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- runs-sse-last-event-id.spec.ts"
+    },
+    {
+      "id": "MP-7",
+      "goal": "Criar testes para validar replay de eventos buffered com seq tracking",
+      "depends_on": ["MP-2"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/test/integration/runs-sse-replay.spec.ts",
+          "action": "CREATE",
+          "what": "Criar teste que emite três eventos via RunEventService, conecta SSE e valida recebimento com id frames, desconecta após segundo evento, reconecta enviando Last-Event-Id do segundo evento, valida que replay retornou apenas o terceiro evento sem duplicatas."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- runs-sse-replay.spec.ts"
+    },
+    {
+      "id": "MP-8",
+      "goal": "Implementar replay logic de eventos buffered no runs SSE endpoint",
+      "depends_on": ["MP-6", "MP-7"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/api/routes/runs.routes.ts",
+          "action": "EDIT",
+          "what": "No handler GET /runs/:id/events, após initial connection write e antes de registrar listener para live events, adicionar lógica que checa se lastSeq não é NaN indicando reconnection, chama RunEventService.getBufferedEventsAfter com runId e lastSeq, itera sobre eventos retornados emitindo frames SSE com id e data, loga count de eventos replayados, e faz flush."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- runs-sse-replay.spec.ts"
+    },
+    {
+      "id": "MP-9",
+      "goal": "Adicionar seq tracking nos eventos SSE live do runs endpoint",
+      "depends_on": ["MP-2", "MP-8"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/api/routes/runs.routes.ts",
+          "action": "EDIT",
+          "what": "No callback onEvent do listener RunEventService.on run-event, modificar para extrair propriedade seq do evento emitido pelo RunEventService. Alterar formato de write SSE de apenas data para incluir id frame com seq antes do data frame. Se seq não existir, logar warning e usar counter local incremental como fallback."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- runs-sse-replay.spec.ts"
+    },
+    {
+      "id": "MP-10",
+      "goal": "Adicionar environment variables configuráveis para SSE buffer",
+      "depends_on": ["MP-2"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/.env.example",
+          "action": "EDIT",
+          "what": "Adicionar três variáveis de ambiente com valores default: RUN_EVENT_BUFFER_TTL para controlar TTL do buffer em milissegundos, RUN_EVENT_MAX_BUFFER_SIZE para limite de eventos por run, e RUN_EVENT_BUFFER_ENABLED como feature flag booleana."
+        },
+        {
+          "path": "packages/gatekeeper-api/src/services/RunEventService.ts",
+          "action": "EDIT",
+          "what": "Substituir constantes hardcoded BUFFER_TTL_MS e MAX_BUFFER_PER_RUN por parseInt de process.env com fallbacks. Adicionar check de RUN_EVENT_BUFFER_ENABLED no início dos métodos de buffer para permitir desabilitar feature via config sem remover código."
+        }
+      ],
+      "verify": "npm run typecheck -w gatekeeper-api && npm run test:unit -w gatekeeper-api -- RunEventService.spec.ts"
+    },
+    {
+      "id": "MP-11",
+      "goal": "Criar testes para reconnection customizada com exponential backoff",
+      "depends_on": ["MP-4"],
+      "files": [
+        {
+          "path": "src/hooks/__tests__/useRunEvents.spec.tsx",
+          "action": "CREATE",
+          "what": "Criar suite de testes que valida hook conecta SSE normalmente em happy path, em caso de erro aplica exponential backoff com delays crescentes, watchdog detecta silent connection death quando não recebe heartbeat por 30 segundos e força reconnect, max retries é respeitado após 10 tentativas, e cleanup é feito corretamente ao desmontar component."
+        }
+      ],
+      "verify": "npm test -- useRunEvents.spec.tsx"
+    },
+    {
+      "id": "MP-12",
+      "goal": "Implementar reconnection customizada com exponential backoff no useRunEvents",
+      "depends_on": ["MP-11"],
+      "files": [
+        {
+          "path": "src/lib/ResilientEventSource.ts",
+          "action": "CREATE",
+          "what": "Criar classe ResilientEventSource que encapsula EventSource nativo e adiciona reconnection com exponential backoff usando delay inicial de 1 segundo e multiplicador 2x até max de 30 segundos, max retries configurável default 10, e watchdog timer que detecta se não recebeu heartbeat em 30 segundos e força reconnect resetando retry counter."
+        },
+        {
+          "path": "src/hooks/useRunEvents.ts",
+          "action": "EDIT",
+          "what": "Substituir instanciação de EventSource nativo por ResilientEventSource mantendo mesma API externa para onEvent callback. Adicionar cleanup do ResilientEventSource no return do useEffect para desconectar corretamente e parar timers ao desmontar."
+        }
+      ],
+      "verify": "npm test -- useRunEvents.spec.tsx"
+    },
+    {
+      "id": "MP-13",
+      "goal": "Criar testes para reconciliation re-callable com trigger parameter",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "src/hooks/__tests__/usePipelineReconciliation.spec.tsx",
+          "action": "CREATE",
+          "what": "Criar testes que validam reconciliation roda no mount quando outputId é fornecido, incrementar triggerReconciliation causa nova reconciliation com refetch de status remoto e backfill de eventos, debounce previne runs excessivos limitando a uma reconciliation por 5 segundos, reconciliation não roda se outputId é undefined, e lastReconcileTime é atualizado após cada reconciliation."
+        }
+      ],
+      "verify": "npm test -- usePipelineReconciliation.spec.tsx"
+    },
+    {
+      "id": "MP-14",
+      "goal": "Tornar reconciliation re-callable removendo one-shot guard",
+      "depends_on": ["MP-13"],
+      "files": [
+        {
+          "path": "src/hooks/usePipelineReconciliation.ts",
+          "action": "EDIT",
+          "what": "Remover didReconcileRef guard do useEffect que prevenia múltiplas reconciliations. Adicionar parâmetro triggerReconciliation number à signature da função hook. Adicionar lastReconcileTimeRef para implementar debounce permitindo máximo uma reconciliation a cada 5 segundos. Modificar dependencies array do useEffect para incluir triggerReconciliation fazendo reconciliation rodar quando trigger incrementa."
+        }
+      ],
+      "verify": "npm test -- usePipelineReconciliation.spec.tsx"
+    },
+    {
+      "id": "MP-15",
+      "goal": "Adicionar watchdog timer no orchestrator-page para detectar SSE freeze",
+      "depends_on": ["MP-14"],
+      "files": [
+        {
+          "path": "src/components/orchestrator-page.tsx",
+          "action": "EDIT",
+          "what": "Adicionar estado reconcileTrigger number e ref lastSSEEventTimeRef. Passar reconcileTrigger como prop para usePipelineReconciliation hook. Adicionar useEffect com setInterval de 15 segundos que verifica se executionPhaseRef é WRITING e se tempo desde último evento SSE excede 30 segundos, incrementando reconcileTrigger para forçar reconciliation. No callback handleSSE, atualizar lastSSEEventTimeRef com Date.now a cada evento recebido. Adicionar cleanup do interval no return."
+        }
+      ],
+      "verify": "npm run typecheck && npm test -- orchestrator-page.spec.tsx"
+    }
+  ]
+}

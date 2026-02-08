@@ -1,0 +1,152 @@
+{
+  "taskPrompt": "Corrigir 7 problemas críticos de UX no orquestrador de agentes: (1) loading states travados, (2) recovery inconsistente, (3) state management frágil, (4) badge redundante, (5) header poluído, (6) scroll no step 0, (7) artifacts desaparecem",
+  "microplans": [
+    {
+      "id": "mp-ux-1",
+      "title": "Fixes Visuais (Badge, Header, Scroll, Artifacts)",
+      "description": "Corrige 4 problemas de UI/layout que afetam usabilidade mas não impactam lógica de negócio. Mudanças localizadas e de baixo risco.",
+      "filesInScope": [
+        "src/components/orchestrator/step-indicator.tsx",
+        "src/components/orchestrator-page.tsx"
+      ],
+      "tasks": [
+        {
+          "id": "mp-ux-1-task-1",
+          "description": "Remover badge 'Plano' redundante no step indicator",
+          "details": "Editar src/components/orchestrator/step-indicator.tsx linha 12-16. Remover retorno 'Plano' da função getSubstepLabel(). Badge só deve aparecer quando plannerSubstep === 'discovery'.",
+          "acceptanceCriteria": [
+            "getSubstepLabel() retorna 'Discovery' quando substep === 'discovery'",
+            "getSubstepLabel() retorna null quando substep === 'planner' (ao invés de 'Plano')",
+            "Badge 'Discovery' aparece abaixo de PLAN quando em discovery substep",
+            "Nenhum badge aparece quando em planner substep (não redundante)"
+          ]
+        },
+        {
+          "id": "mp-ux-1-task-2",
+          "description": "Remover outputId e contador de steps do header",
+          "details": "Editar src/components/orchestrator-page.tsx linha 444-456. Remover prop headerRight do usePageShell. Header não deve mostrar 'Step X/4' nem outputId truncado (informação já disponível no step indicator).",
+          "acceptanceCriteria": [
+            "usePageShell() não recebe headerRight ou recebe null",
+            "Header da página não mostra 'Step 1/4', 'Step 2/4', etc",
+            "Header não mostra últimos 8 caracteres do outputId",
+            "Header mostra apenas 'Orchestrator' e botão Reset (quando aplicável)"
+          ]
+        },
+        {
+          "id": "mp-ux-1-task-3",
+          "description": "Adicionar scroll interno no Step 0 para manter botão Prosseguir visível",
+          "details": "Editar src/components/orchestrator-page.tsx linha 2335-2424. Adicionar container com altura fixa (maxHeight: calc(100vh - 300px)) e overflow-y: auto no Card do Step 0. Botão 'Prosseguir' deve ficar sempre visível mesmo com textarea longo.",
+          "acceptanceCriteria": [
+            "Card de Step 0 tem maxHeight definido",
+            "CardContent tem overflowY: auto",
+            "Botão 'Prosseguir' sempre visível na viewport (não precisa scroll para alcançar)",
+            "Comportamento consistente com outros steps (2, 3, 4)",
+            "Scroll interno funciona corretamente"
+          ]
+        },
+        {
+          "id": "mp-ux-1-task-4",
+          "description": "Persistir artifacts após geração (não esconder ao mudar de step)",
+          "details": "Editar src/components/orchestrator-page.tsx em 3 locais: (1) Discovery Report (linha ~2458), (2) Microplans (linha ~2520), (3) Specs (buscar onde está renderizado). Remover condições de step/substep. Artifacts devem aparecer sempre que existirem, independente do step atual.",
+          "acceptanceCriteria": [
+            "Discovery Report renderizado quando discoveryReportContent existe (remover condição plannerSubstep === 'discovery')",
+            "Microplans renderizado quando planArtifacts.length > 0 (remover condição step === 2)",
+            "Specs renderizado quando specArtifacts.length > 0 (remover condição step >= 3)",
+            "Discovery visível mesmo após avançar para planner ou steps seguintes",
+            "Microplans visível mesmo após avançar para step 3, 4",
+            "Specs visível após geração em qualquer step"
+          ]
+        }
+      ],
+      "testStrategy": "Testes manuais de UI: (1) Gerar discovery e verificar badge 'Discovery', (2) Avançar para planner e verificar que badge 'Plano' NÃO aparece, (3) Verificar header limpo (sem outputId/contador), (4) Escrever task description longa e verificar botão visível, (5) Gerar artifacts e avançar steps verificando que continuam visíveis",
+      "estimatedComplexity": "low",
+      "estimatedTime": "15min",
+      "risks": [
+        "Layouts podem quebrar em resoluções específicas (testar mobile, tablet, desktop)",
+        "Artifacts podem ter outros lugares de renderização não identificados (fazer busca global por discoveryReportContent, planArtifacts, specArtifacts)"
+      ]
+    },
+    {
+      "id": "mp-ux-2",
+      "title": "Fixes de State Management (Loading, Recovery, Consolidação)",
+      "description": "Corrige 3 problemas críticos de state management que causam UI travada e recovery inconsistente. Mudanças em lógica reativa, maior risco.",
+      "filesInScope": [
+        "src/components/orchestrator-page.tsx"
+      ],
+      "tasks": [
+        {
+          "id": "mp-ux-2-task-1",
+          "description": "Limpar loading states quando agent é cancelado",
+          "details": "Editar src/components/orchestrator-page.tsx linha ~717-721 (handler de agent:cancelled). Adicionar chamadas setLoading(false), setIsGeneratingSpec(false), setIsGeneratingPlan(false), setIsExecuting(false) após setAgentStatus(). Isso garante que UI sai de loading state quando processo morre ou é cancelado.",
+          "acceptanceCriteria": [
+            "Handler de agent:cancelled limpa isGeneratingSpec",
+            "Handler limpa isGeneratingPlan",
+            "Handler limpa isExecuting",
+            "Handler limpa loading",
+            "Após kill do agent, botões voltam ao estado normal (não ficam em loading infinito)",
+            "SSE events continuam funcionando normalmente após fix"
+          ]
+        },
+        {
+          "id": "mp-ux-2-task-2",
+          "description": "Adicionar timeout de 5min para auto-limpar loading states (failsafe)",
+          "details": "Criar useEffect que monitora loading states (isGeneratingSpec, isGeneratingPlan, isExecuting). Se qualquer um ficar true por mais de 5 minutos (300000ms), forçar limpeza. Adicionar log de warning quando isso acontecer (indica possível bug no fluxo SSE).",
+          "acceptanceCriteria": [
+            "useEffect monitora isGeneratingSpec, isGeneratingPlan, isExecuting",
+            "Timeout de 5min (300000ms) limpa estados se ainda true",
+            "Log de warning é emitido quando timeout é acionado",
+            "Cleanup do timeout quando componente desmonta",
+            "Timeout é resetado quando estado muda de true para false normalmente"
+          ]
+        },
+        {
+          "id": "mp-ux-2-task-3",
+          "description": "Simplificar condições de auto-reload de artifacts",
+          "details": "Editar src/components/orchestrator-page.tsx linha ~1186-1248 (useEffect de auto-reload). Remover dependências de: resuming, loading, reconciliation.isLoading. Auto-reload deve depender apenas de: outputId exists, autoReloadTriedRef false, artifacts ainda não carregados. Isso permite recovery mesmo quando outros estados estão travados.",
+          "acceptanceCriteria": [
+            "Auto-reload funciona mesmo quando resuming === true",
+            "Auto-reload funciona mesmo quando loading === true",
+            "Auto-reload funciona mesmo quando reconciliation.isLoading === true",
+            "Condição de guard mantém apenas: !outputId, autoReloadTriedRef.current, planArtifacts.length > 0",
+            "Artifacts carregam do disco após refresh mesmo com flags travados",
+            "Não causa loops infinitos de reload"
+          ]
+        },
+        {
+          "id": "mp-ux-2-task-4",
+          "description": "Desabilitar botão 'Recuperar do disco' apenas quando realmente carregando",
+          "details": "Buscar onde botão de recovery está sendo renderizado (provavelmente context-panel.tsx ou orchestrator-page.tsx). Condição de disabled deve ser apenas: rerunLoading (ao invés de rerunLoading || loading || resuming). Isso permite recovery manual mesmo quando UI está em estado inconsistente.",
+          "acceptanceCriteria": [
+            "Botão 'Recuperar do disco' habilitado quando rerunLoading === false",
+            "Botão desabilitado apenas quando rerunLoading === true",
+            "Não depende de: loading, resuming, reconciliation.isLoading",
+            "Usuário consegue tentar recovery mesmo com UI travada",
+            "Loading state do botão é independente de outros loading states"
+          ]
+        }
+      ],
+      "testStrategy": "Testes de fluxo SSE: (1) Gerar spec e dar kill, verificar botão sai de loading, (2) Refresh após gerar plano, verificar auto-reload carrega artifacts, (3) Deixar agent rodando sem SSE events por 5min, verificar timeout limpa loading, (4) Travar UI em loading state e testar recovery manual",
+      "estimatedComplexity": "medium",
+      "estimatedTime": "25min",
+      "risks": [
+        "Mudanças em SSE handlers podem quebrar fluxo de eventos (testar todos os event types: plan_done, spec_done, execute_done, cancelled, error)",
+        "Remover condições de auto-reload pode causar loops (adicionar logs para debug)",
+        "Timeout de 5min pode interferir com operações longas legítimas (considerar fazer timeout configurável)",
+        "State consolidation futura pode conflitar com esses fixes (documentar bem a lógica)"
+      ]
+    }
+  ],
+  "globalTestStrategy": "Executar MPs em ordem (MP-UX-1 depois MP-UX-2). Testar cada MP isoladamente antes de avançar. MP-UX-1 é seguro (apenas visual), MP-UX-2 requer testes extensivos de SSE. Após ambos, fazer teste end-to-end: nova tarefa → discovery → plano → spec → validação, com kill/recovery em cada etapa.",
+  "dependencies": [
+    "React 19",
+    "TypeScript strict mode",
+    "Radix UI components",
+    "SSE (Server-Sent Events) via useOrchestratorEvents hook"
+  ],
+  "notes": [
+    "MP-UX-1 e MP-UX-2 são independentes (podem ser implementados em paralelo por desenvolvedores diferentes)",
+    "Priorizar MP-UX-1 se recursos limitados (maior impacto na UX imediata)",
+    "MP-UX-2 requer conhecimento de fluxo SSE (ler MEMORY.md seção 'Fluxo SSE de Erros')",
+    "Após MP-UX-2, considerar MP futuro para consolidar estados em state machine (referência: Problema 1.3 no discovery)"
+  ]
+}

@@ -13,8 +13,37 @@ export interface SSEConnection {
 
 export class TestClient {
   private sseConnections: EventSource[] = []
+  private authToken: string | null = null
+  private defaultHeaders: Record<string, string> = {}
 
   constructor(private baseUrl: string) {}
+
+  /**
+   * Set a default Authorization token for all requests
+   */
+  setAuthToken(token: string) {
+    this.authToken = token
+  }
+
+  /**
+   * Set a default header for all requests
+   */
+  setHeader(name: string, value: string) {
+    this.defaultHeaders[name] = value
+  }
+
+  private buildHeaders(extra?: Record<string, string>): Record<string, string> {
+    const headers: Record<string, string> = {
+      ...this.defaultHeaders,
+      ...(extra || {}),
+    }
+
+    if (this.authToken) {
+      headers.Authorization = `Bearer ${this.authToken}`
+    }
+
+    return headers
+  }
 
   /**
    * POST request
@@ -30,7 +59,7 @@ export class TestClient {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(body),
         signal: controller.signal,
       })
@@ -67,7 +96,10 @@ export class TestClient {
     const timeoutId = setTimeout(() => controller.abort(), 25000)
 
     try {
-      const res = await fetch(url, { signal: controller.signal })
+      const res = await fetch(url, {
+        headers: this.buildHeaders(),
+        signal: controller.signal,
+      })
       clearTimeout(timeoutId)
 
       console.log(`[TestClient] Response status: ${res.status}`)

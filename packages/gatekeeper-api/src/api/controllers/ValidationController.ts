@@ -83,8 +83,8 @@ export class ValidationController {
       }
       if (isAbsolute(manifestTestFile)) {
         res.status(400).json({
-          error: 'Invalid manifest.testFile',
-          message: 'manifest.testFile must be a relative path inside the project root.',
+          error: 'Invalid testFile',
+          message: 'testFile must be a relative path inside the project root.',
         })
         return
       }
@@ -93,8 +93,8 @@ export class ValidationController {
       const relativeToProject = relative(projectPath, resolvedTestPath)
       if (relativeToProject.startsWith('..') || isAbsolute(relativeToProject)) {
         res.status(400).json({
-          error: 'Invalid manifest.testFile',
-          message: 'manifest.testFile must not escape the project root.',
+          error: 'Invalid testFile',
+          message: 'testFile must not escape the project root.',
         })
         return
       }

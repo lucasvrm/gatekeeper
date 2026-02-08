@@ -107,68 +107,69 @@ export function LogsDrawer({
         aria-modal="true"
         aria-labelledby="logs-drawer-title"
       >
-        {/* Header */}
-        <header className="flex items-center justify-between border-b border-border px-6 py-4 shrink-0">
-          <div className="flex items-center gap-4">
-            <h3 id="logs-drawer-title" className="text-lg font-semibold">
-              Pipeline Logs
-            </h3>
+        {/* Scrollable container with header inside */}
+        <div className="flex-1 overflow-auto">
+          {/* Header */}
+          <header className="flex items-center justify-between border-b border-border px-6 py-4">
+            <div className="flex items-center gap-4">
+              <h3 id="logs-drawer-title" className="text-lg font-semibold">
+                Pipeline Logs
+              </h3>
 
-            {/* Toggle Logs / Metrics */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'logs' | 'metrics')}>
-              <TabsList>
-                <TabsTrigger value="logs">Logs</TabsTrigger>
-                <TabsTrigger value="metrics">Métricas</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+              {/* Toggle Logs / Metrics */}
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'logs' | 'metrics')}>
+                <TabsList>
+                  <TabsTrigger value="logs">Logs</TabsTrigger>
+                  <TabsTrigger value="metrics">Métricas</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
-          <div className="flex items-center gap-2">
-            {/* Export button - apenas visível na tab Logs */}
-            {activeTab === 'logs' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={exporting}
-                    className="gap-2"
-                  >
-                    <Download className="size-3.5" />
-                    {exporting ? "Exportando..." : "Exportar"}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="z-[120]">
-                  <DropdownMenuItem onClick={() => handleExport("json")} className="gap-2">
-                    <FileJson className="size-4" />
-                    Exportar como JSON
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport("csv")} className="gap-2">
-                    <FileSpreadsheet className="size-4" />
-                    Exportar como CSV
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Export button - apenas visível na tab Logs */}
+              {activeTab === 'logs' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={exporting}
+                      className="gap-2"
+                    >
+                      <Download className="size-3.5" />
+                      {exporting ? "Exportando..." : "Exportar"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="z-[120]">
+                    <DropdownMenuItem onClick={() => handleExport("json")} className="gap-2">
+                      <FileJson className="size-4" />
+                      Exportar como JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport("csv")} className="gap-2">
+                      <FileSpreadsheet className="size-4" />
+                      Exportar como CSV
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
-            {/* Close button */}
-            <Button
-              ref={closeButtonRef}
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              aria-label="Close logs drawer"
-              className="shrink-0"
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        </header>
+              {/* Close button */}
+              <Button
+                ref={closeButtonRef}
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                aria-label="Close logs drawer"
+                className="shrink-0"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          </header>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden">
+          {/* Content */}
           {activeTab === 'logs' ? (
-            <div className="h-full p-6">
+            <div className="p-6">
               <LogViewer pipelineId={pipelineId} onFiltersChange={setCurrentFilters} />
             </div>
           ) : (

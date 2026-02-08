@@ -11,7 +11,6 @@ interface StepIndicatorProps {
 export function StepIndicator({ current, completed, onStepClick, plannerSubstep }: StepIndicatorProps) {
   const getSubstepLabel = (substep: PlannerSubstep) => {
     if (substep === 'discovery') return 'Discovery'
-    if (substep === 'planner') return 'Plano'
     return null
   }
 

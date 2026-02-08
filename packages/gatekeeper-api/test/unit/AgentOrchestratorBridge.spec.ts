@@ -263,5 +263,28 @@ describe('AgentOrchestratorBridge', () => {
       const result = await (bridge as any).persistArtifacts(new Map(), 'out-empty', tmpDir)
       expect(result).toEqual([])
     })
+
+    it('persists step artifacts into a custom artifactsDir with nested paths', async () => {
+      ;(bridge as any).resolveArtifactsDirName = async () => 'inputs'
+
+      const artifacts = new Map([
+        ['discovery_report.md', 'D'.repeat(150)],
+        ['microplans.json', '{"task":"Test","microplans":[{"id":"MP-1","goal":"X","files":[]}]}'],
+        ['packages/gatekeeper-api/test/sample.spec.ts', 'describe("x", () => { expect(1).toBe(1) })'],
+      ])
+
+      await (bridge as any).persistArtifacts(artifacts, 'out-steps', tmpDir)
+
+      const discoveryPath = path.join(tmpDir, 'inputs', 'out-steps', 'discovery_report.md')
+      const microplansPath = path.join(tmpDir, 'inputs', 'out-steps', 'microplans.json')
+      const specPath = path.join(tmpDir, 'inputs', 'out-steps', 'packages', 'gatekeeper-api', 'test', 'sample.spec.ts')
+
+      expect(fs.existsSync(discoveryPath)).toBe(true)
+      expect(fs.existsSync(microplansPath)).toBe(true)
+      expect(fs.existsSync(specPath)).toBe(true)
+
+      expect(fs.readFileSync(discoveryPath, 'utf-8')).toMatch(/^D+$/)
+      expect(fs.readFileSync(microplansPath, 'utf-8')).toContain('"microplans"')
+    })
   })
 })

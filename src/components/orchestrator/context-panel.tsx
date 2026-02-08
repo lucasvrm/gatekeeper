@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import type { Project, ArtifactFolder } from "@/lib/types"
+import type { Project, ArtifactFolder, AgentPhaseConfig } from "@/lib/types"
 import type { StepLLMConfig, LogEntry } from "./types"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { generateStepLabel, generateStepDescription } from "./step-utils"
 
 interface ContextPanelProps {
   // Project & Type
@@ -25,6 +26,9 @@ interface ContextPanelProps {
   onStepLLMChange: (step: number, field: "provider" | "model", value: string) => void
   providerModels: Record<string, { label: string; models: { value: string; label: string }[] }>
   getDefault: (step: number) => StepLLMConfig
+
+  // Phase defaults para renderização dinâmica de steps
+  phaseDefaults: AgentPhaseConfig[]
 
   // Rerun
   diskArtifacts: ArtifactFolder[]
@@ -56,6 +60,7 @@ function PanelContent(props: ContextPanelProps) {
     onStepLLMChange,
     providerModels,
     getDefault,
+    phaseDefaults,
     diskArtifacts,
     showRerunPicker,
     onToggleRerunPicker,
@@ -125,13 +130,14 @@ function PanelContent(props: ContextPanelProps) {
         </p>
 
         <div className="space-y-3">
-          {([
-            { step: 0, label: "Discovery", desc: "codebase exploration" },
-            { step: 1, label: "Planejamento", desc: "plan + contract" },
-            { step: 2, label: "Testes", desc: "spec file" },
-            { step: 4, label: "Execução", desc: "implementation" },
-          ] as const).map(({ step: s, label, desc }) => {
-            const cfg = stepLLMs[s] ?? getDefault(s)
+          {phaseDefaults
+            .slice()
+            .sort((a, b) => a.step - b.step)
+            .map((phase) => {
+              const s = phase.step
+              const label = generateStepLabel(s)
+              const desc = generateStepDescription(s)
+              const cfg = stepLLMs[s] ?? getDefault(s)
 
             return (
               <div key={s} className="space-y-1.5 p-2.5 rounded-lg border border-border">

@@ -149,4 +149,40 @@ describe('AgentPromptAssembler', () => {
       })
     })
   })
+
+  // ── assembleUserMessageForStep ─────────────────────────────────────
+
+  describe('assembleUserMessageForStep', () => {
+    it('renders templates with outputDir variable (snake_case)', async () => {
+      mockFindMany.mockResolvedValueOnce([
+        {
+          name: 'step-1-user',
+          content: 'Write to {{output_dir}}/microplans.json',
+          order: 0,
+        },
+      ])
+
+      const result = await assembler.assembleUserMessageForStep(1, {
+        outputDir: '/tmp/artifacts/out-123',
+      })
+
+      expect(result).toBe('Write to /tmp/artifacts/out-123/microplans.json')
+    })
+
+    it('renders templates with outputDir variable (camelCase)', async () => {
+      mockFindMany.mockResolvedValueOnce([
+        {
+          name: 'step-2-user',
+          content: 'Save spec to {{outputDir}}/spec.ts',
+          order: 0,
+        },
+      ])
+
+      const result = await assembler.assembleUserMessageForStep(2, {
+        outputDir: '/tmp/artifacts/out-456',
+      })
+
+      expect(result).toBe('Save spec to /tmp/artifacts/out-456/spec.ts')
+    })
+  })
 })

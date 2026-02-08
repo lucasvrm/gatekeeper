@@ -2,10 +2,13 @@
  * Helper para iniciar servidor HTTP isolado para testes E2E
  */
 
+import { resolve } from 'node:path'
 import { createServer, Server } from 'http'
 import { PrismaClient } from '@prisma/client'
 import type { Express } from 'express'
 import { OrchestratorEventService } from '@/services/OrchestratorEventService'
+
+const defaultDbUrl = `file:${resolve(process.cwd(), 'prisma', 'test.db')}`
 
 export class TestServer {
   private server?: Server
@@ -17,7 +20,7 @@ export class TestServer {
   ) {
     // Inicializa Prisma Client imediatamente
     this.prisma = new PrismaClient({
-      datasourceUrl: 'file:./test.db',
+      datasourceUrl: process.env.DATABASE_URL || defaultDbUrl,
     })
   }
 

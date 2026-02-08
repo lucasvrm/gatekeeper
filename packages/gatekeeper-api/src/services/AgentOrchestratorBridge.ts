@@ -196,6 +196,18 @@ export class AgentOrchestratorBridge {
       userMessage = `## Task\n\n**Description:** ${input.taskDescription}\n\n**Output ID:** ${outputId}\n\n**Instructions:** Explore the codebase and generate a discovery_report.md with your findings. Use read_file, glob_pattern, and grep_pattern tools to gather evidence. Save the report using save_artifact("discovery_report.md", content).`
     }
 
+    // 🔍 DEBUG: Log prompt composition
+    console.log('[Bridge:Discovery] ============ PROMPT DEBUG ============')
+    console.log('[Bridge:Discovery] taskDescription:', input.taskDescription)
+    console.log('[Bridge:Discovery] outputId:', outputId)
+    console.log('[Bridge:Discovery] provider type:', this.isCliProvider(phase) ? 'CLI' : 'API')
+    if (outputDir) console.log('[Bridge:Discovery] outputDir:', outputDir)
+    console.log('[Bridge:Discovery] userMessage length:', userMessage.length, 'chars')
+    console.log('[Bridge:Discovery] userMessage preview (first 500):', userMessage.slice(0, 500))
+    console.log('[Bridge:Discovery] systemPrompt length:', systemPrompt.length, 'chars')
+    console.log('[Bridge:Discovery] tools:', tools.map(t => t.name))
+    console.log('[Bridge:Discovery] =========================================')
+
     const result = await runner.run({
       phase,
       systemPrompt,
@@ -287,7 +299,7 @@ export class AgentOrchestratorBridge {
 
     // Build system prompt from DB + session context
     const sessionContext = await this.fetchSessionContext(input.profileId)
-    const basePrompt = await this.assembler.assembleForStep(1)
+    const basePrompt = await this.assembler.assembleForSubstep(1, 'planner-')
     let systemPrompt = this.enrichPrompt(basePrompt, sessionContext)
 
     // Run agent
@@ -353,6 +365,14 @@ export class AgentOrchestratorBridge {
     if (input.discoveryReportContent) {
       userMessage = `## Discovery Report\n\n${input.discoveryReportContent}\n\n${userMessage}`
     }
+
+    // DEBUG: Log final prompt content before sending to agent
+    console.log('[Bridge:Plan] provider type:', this.isCliProvider(phase) ? 'CLI' : 'API')
+    if (outputDir) console.log('[Bridge:Plan] outputDir:', outputDir)
+    console.log('[Bridge:Plan] userMessage length:', userMessage.length, 'chars')
+    console.log('[Bridge:Plan] userMessage preview (first 500):', userMessage.slice(0, 500))
+    console.log('[Bridge:Plan] systemPrompt length:', systemPrompt.length, 'chars')
+    console.log('[Bridge:Plan] tools:', tools.map(t => t.name))
 
     const result = await runner.run({
       phase,

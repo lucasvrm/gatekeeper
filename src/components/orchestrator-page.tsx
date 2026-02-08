@@ -258,27 +258,38 @@ export function OrchestratorPage() {
   // ── Dynamic provider catalog + phase defaults ────────────────────────
   const [providerCatalog, setProviderCatalog] = useState<Record<string, { label: string; models: { value: string; label: string }[] }>>({})
   const [phaseDefaults, setPhaseDefaults] = useState<AgentPhaseConfig[]>([])
+  const [providersLoading, setProvidersLoading] = useState(true)
+  const [providersError, setProvidersError] = useState<string | null>(null)
 
   useEffect(() => {
+    setProvidersLoading(true)
+    setProvidersError(null)
+
     Promise.all([
       api.mcp.providers.list(),
       api.mcp.models.list(),
       api.mcp.phases.list(),
-    ]).then(([providers, models, phases]) => {
-      // Build catalog from API data
-      const catalog: Record<string, { label: string; models: { value: string; label: string }[] }> = {}
-      for (const prov of providers) {
-        catalog[prov.name] = { label: prov.label, models: [] }
-      }
-      for (const m of models.filter(m => m.isActive)) {
-        if (!catalog[m.provider]) catalog[m.provider] = { label: m.provider, models: [] }
-        catalog[m.provider].models.push({ value: m.modelId, label: m.label || m.modelId })
-      }
-      setProviderCatalog(catalog)
-      setPhaseDefaults(phases)
-    }).catch(err => {
-      console.error('Failed to load provider catalog:', err)
-    })
+    ])
+      .then(([providers, models, phases]) => {
+        // Build catalog from API data
+        const catalog: Record<string, { label: string; models: { value: string; label: string }[] }> = {}
+        for (const prov of providers) {
+          catalog[prov.name] = { label: prov.label, models: [] }
+        }
+        for (const m of models.filter(m => m.isActive)) {
+          if (!catalog[m.provider]) catalog[m.provider] = { label: m.provider, models: [] }
+          catalog[m.provider].models.push({ value: m.modelId, label: m.label || m.modelId })
+        }
+        setProviderCatalog(catalog)
+        setPhaseDefaults(phases)
+        setProvidersLoading(false)
+      })
+      .catch(err => {
+        console.error('Failed to load provider catalog:', err)
+        setProvidersError('Falha ao carregar configurações. Verifique a conexão com a API.')
+        setProvidersLoading(false)
+        toast.error('Erro ao carregar providers')
+      })
   }, [])
 
   // Step 0
@@ -315,28 +326,39 @@ export function OrchestratorPage() {
   // Helper: get default provider/model for a step from phase configs
   const getDefault = (s: number): StepLLMConfig => {
     const phase = phaseDefaults.find(p => p.step === s)
-    return { provider: phase?.provider ?? 'claude-code', model: phase?.model ?? 'sonnet' }
+    // Sem fallback hardcoded - retorna null se não encontrado
+    return phase
+      ? { provider: phase.provider, model: phase.model }
+      : { provider: '', model: '' }
   }
 
-  // Dynamic PROVIDER_MODELS — falls back to a minimal static catalog when API hasn't loaded yet
+  // Dynamic PROVIDER_MODELS — uses only API data (no fallback hardcoded)
   const PROVIDER_MODELS: Record<string, { label: string; models: { value: string; label: string }[] }> =
-    Object.keys(providerCatalog).length > 0
-      ? providerCatalog
-      : {
-          "claude-code": { label: "Claude Code CLI", models: [{ value: "sonnet", label: "Sonnet" }, { value: "opus", label: "Opus" }, { value: "haiku", label: "Haiku" }] },
-          "codex-cli": { label: "Codex CLI", models: [{ value: "o3-mini", label: "o3-mini" }] },
-          "anthropic": { label: "Anthropic (API Key)", models: [{ value: "claude-sonnet-4-5-20250929", label: "Sonnet 4.5" }] },
-          "openai": { label: "OpenAI (API Key)", models: [{ value: "gpt-4.1", label: "GPT-4.1" }] },
-          "mistral": { label: "Mistral (API Key)", models: [{ value: "mistral-large-latest", label: "Mistral Large" }] },
-        }
+    providerCatalog
 
   const setStepLLM = (step: number, field: "provider" | "model", value: string) => {
     setStepLLMs((prev) => {
       const updated = { ...prev, [step]: { ...prev[step], [field]: value } }
+
       if (field === "provider") {
+        // Auto-correct model quando provider muda
         const models = PROVIDER_MODELS[value]?.models
-        if (models?.length) updated[step].model = models[0].value
+        if (models?.length) {
+          updated[step].model = models[0].value
+        }
+      } else if (field === "model") {
+        // Validar que model pertence ao provider atual
+        const currentProvider = updated[step].provider
+        const providerConfig = PROVIDER_MODELS[currentProvider]
+        const isValidModel = providerConfig?.models.some(m => m.value === value)
+
+        if (!isValidModel) {
+          console.warn(`Model ${value} não pertence ao provider ${currentProvider}`)
+          // Não aplica se inválido
+          return prev
+        }
       }
+
       return updated
     })
   }
@@ -421,16 +443,6 @@ export function OrchestratorPage() {
   // Header portal (page key + header content injection)
   const headerPortals = usePageShell({
     page: "orchestrator",
-    headerRight: outputId ? (
-      <div className="flex items-center gap-2">
-        <Badge variant="secondary" className="text-xs">
-          Step {step}/4
-        </Badge>
-        <span className="text-xs text-muted-foreground font-mono">
-          {outputId.slice(-8)}
-        </span>
-      </div>
-    ) : null,
   })
 
   useEffect(() => {
@@ -604,6 +616,33 @@ export function OrchestratorPage() {
     }
   }, [specArtifacts])
 
+  // ── Timeout de 5min para auto-limpar loading states (MP-UX-2 Task 2) ───
+  useEffect(() => {
+    const TIMEOUT_MS = 300000 // 5 minutos
+    const timeoutIds: NodeJS.Timeout[] = []
+
+    if (loading) {
+      const id = setTimeout(() => {
+        console.warn('[Timeout] Loading state timeout: loading')
+        setLoading(false)
+      }, TIMEOUT_MS)
+      timeoutIds.push(id)
+    }
+
+    if (isGeneratingSpec) {
+      const id = setTimeout(() => {
+        console.warn('[Timeout] Loading state timeout: isGeneratingSpec')
+        setIsGeneratingSpec(false)
+      }, TIMEOUT_MS)
+      timeoutIds.push(id)
+    }
+
+    // Cleanup: limpa todos os timeouts quando estados mudam ou componente desmonta
+    return () => {
+      timeoutIds.forEach(clearTimeout)
+    }
+  }, [loading, isGeneratingSpec])
+
   // ── SSE events ─────────────────────────────────────────────────────────
 
   // Kill agent execution
@@ -694,6 +733,9 @@ export function OrchestratorPage() {
         setAgentStatus({ status: 'idle', isTerminal: false })
       } else if (event.type === "agent:cancelled") {
         setAgentStatus({ status: 'cancelled', isTerminal: true })
+        // Limpar todos os loading states (MP-UX-2 Task 1)
+        setLoading(false)
+        setIsGeneratingSpec(false)
       } else if (event.type === "agent:error") {
         setAgentStatus({ status: 'error', isTerminal: true })
       }
@@ -1152,16 +1194,12 @@ export function OrchestratorPage() {
   const autoReloadTriedRef = useRef(false)
 
   useEffect(() => {
-    // Only run if:
+    // Only run if (MP-UX-2 Task 3: condições simplificadas):
     // 1. We have an outputId (active session)
-    // 2. Reconciliation has finished (not loading)
-    // 3. We're missing artifacts (planArtifacts is empty)
-    // 4. We're not already resuming
-    // 5. We don't have resumeOutputId (that's handled by the useEffect above)
-    // 6. We haven't already tried auto-reload (prevents infinite loop on failure)
-    // 7. We're not actively generating/executing (loading=false)
-    // 8. We're not in Discovery substep (discoveryArtifacts handles that separately)
-    if (!outputId || reconciliation.isLoading || planArtifacts.length > 0 || discoveryArtifacts.length > 0 || resuming || resumeOutputId || autoReloadTriedRef.current || loading) {
+    // 2. We're missing artifacts (planArtifacts is empty)
+    // 3. We haven't already tried auto-reload (prevents infinite loop on failure)
+    // Removed dependencies: resuming, loading, reconciliation.isLoading (permite recovery mesmo com flags travados)
+    if (!outputId || autoReloadTriedRef.current || planArtifacts.length > 0) {
       return
     }
 
@@ -1223,7 +1261,7 @@ export function OrchestratorPage() {
     }).finally(() => {
       setResuming(false)
     })
-  }, [outputId, reconciliation.isLoading, planArtifacts.length, resuming, resumeOutputId, projects, selectedProjectId, loading]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [outputId, planArtifacts.length, projects, selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Run validation SSE — polls run status inline ──────────────────────
   const validationResolvedRef = useRef(false)
@@ -2311,24 +2349,19 @@ export function OrchestratorPage() {
                   )}
 
                   <Card>
-                <CardHeader>
-                  <CardTitle>Descreva a Tarefa</CardTitle>
-                  <CardDescription>
-                    Descreva o que precisa ser implementado. O LLM vai gerar o plano, contrato e especificação.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="task-description-textarea">Descrição da tarefa</Label>
-                  <Textarea
-                    id="task-description-textarea"
-                    value={taskDescription}
-                    onChange={(e) => setTaskDescription(e.target.value)}
-                    placeholder="Ex: Criar um botão de logout no header que limpa a sessão e redireciona para /login"
-                    rows={6}
-                    className="font-mono text-sm"
-                  />
-                </div>
+                <CardContent className="pt-6">
+                  <div style={{ maxHeight: 'calc(100vh - 350px)', overflowY: 'auto' }} className="space-y-4 pr-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="task-description-textarea">Descrição da tarefa</Label>
+                      <Textarea
+                        id="task-description-textarea"
+                        value={taskDescription}
+                        onChange={(e) => setTaskDescription(e.target.value)}
+                        placeholder="Ex: Criar um botão de logout no header que limpa a sessão e redireciona para /login"
+                        rows={6}
+                        className="font-mono text-sm"
+                      />
+                    </div>
 
                 {/* Attachments */}
                 <div className="space-y-2">
@@ -2384,6 +2417,7 @@ export function OrchestratorPage() {
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
 
                 <Button
@@ -2392,7 +2426,7 @@ export function OrchestratorPage() {
                     setStep(1)
                   }}
                   disabled={loading || taskDescription.length < 10 || !selectedProjectId}
-                  className="w-full"
+                  className="w-full mt-4"
                 >
                   Prosseguir →
                 </Button>
@@ -2433,7 +2467,7 @@ export function OrchestratorPage() {
                     </Card>
                   )}
 
-                  {plannerSubstep === 'discovery' && discoveryReportContent && (
+                  {discoveryReportContent && (
                     <Card>
                       <CardHeader>
                         <CardTitle>Discovery Report</CardTitle>
@@ -2446,16 +2480,18 @@ export function OrchestratorPage() {
                           artifacts={discoveryArtifacts}
                           defaultOpen="discovery_report.md"
                         />
-                        <Button
-                          onClick={() => {
-                            setPlannerSubstep('planner')
-                            handleGeneratePlan()
-                          }}
-                          disabled={loading}
-                          className="w-full"
-                        >
-                          {loading ? "Gerando plano..." : "Continuar para Plano →"}
-                        </Button>
+                        {plannerSubstep === 'discovery' && (
+                          <Button
+                            onClick={() => {
+                              setPlannerSubstep('planner')
+                              handleGeneratePlan()
+                            }}
+                            disabled={loading}
+                            className="w-full"
+                          >
+                            {loading ? "Gerando plano..." : "Continuar para Plano →"}
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   )}
@@ -2601,7 +2637,7 @@ export function OrchestratorPage() {
                         variant="ghost"
                         size="sm"
                         className="w-full text-xs text-muted-foreground"
-                        disabled={loading || validationStatus === "RUNNING"}
+                        disabled={rerunLoading}
                         onClick={() => handleRerunFromDisk()}
                       >
                         ↻ Revalidar do disco (0 tokens)
@@ -3129,7 +3165,7 @@ export function OrchestratorPage() {
                     </Button>
                   )}
                   {outputId && !executionPhase && validationStatus !== "RUNNING" && (
-                    <Button variant="secondary" size="sm" disabled={loading} onClick={() => handleRerunFromDisk()}>
+                    <Button variant="secondary" size="sm" disabled={rerunLoading} onClick={() => handleRerunFromDisk()}>
                       ↻ Revalidar do disco (0 tokens)
                     </Button>
                   )}
@@ -3141,6 +3177,52 @@ export function OrchestratorPage() {
                 </div>
                   </div>
                 </div>
+              )}
+
+              {/* ─── Artifacts Persistentes (visíveis após geração) ─────── */}
+              {discoveryReportContent && step > 1 && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>Discovery Report</CardTitle>
+                    <CardDescription>
+                      Análise do codebase concluída
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ArtifactViewer
+                      artifacts={discoveryArtifacts}
+                      defaultOpen="discovery_report.md"
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {planArtifacts.length > 0 && step > 2 && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>Microplans</CardTitle>
+                    <CardDescription>
+                      Plano de implementação gerado pelo LLM
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ArtifactViewer artifacts={planArtifacts} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {specArtifacts.length > 0 && step >= 3 && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>Especificações</CardTitle>
+                    <CardDescription>
+                      Testes e contratos gerados
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ArtifactViewer artifacts={specArtifacts} />
+                  </CardContent>
+                </Card>
               )}
             </div>
 
@@ -3156,28 +3238,48 @@ export function OrchestratorPage() {
                 zIndex: 5,
               }}
             >
-              <ContextPanel
-                projects={projects}
-                selectedProjectId={selectedProjectId}
-                onProjectChange={setSelectedProjectId}
-                taskType={taskType}
-                onTaskTypeChange={setTaskType}
-                stepLLMs={stepLLMs}
-                onStepLLMChange={setStepLLM}
-                providerModels={PROVIDER_MODELS}
-                getDefault={getDefault}
-                diskArtifacts={diskArtifacts}
-                showRerunPicker={showRerunPicker}
-                onToggleRerunPicker={() => setShowRerunPicker(!showRerunPicker)}
-                onRerunFromDisk={handleRerunFromDisk}
-                rerunLoading={rerunLoading}
-                loading={loading}
-                logs={logs}
-                logsCount={logs.length}
-                debugMode={debugMode}
-                onToggleDebug={() => setDebugMode(!debugMode)}
-                onOpenLogs={() => setLogsDrawerOpen(true)}
-              />
+              {providersLoading && (
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Carregando configurações...</span>
+                  </div>
+                </div>
+              )}
+
+              {providersError && (
+                <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-lg">
+                  <div className="flex items-center gap-2 text-destructive">
+                    <span className="text-sm font-medium">⚠️ {providersError}</span>
+                  </div>
+                </div>
+              )}
+
+              {!providersLoading && !providersError && (
+                <ContextPanel
+                  projects={projects}
+                  selectedProjectId={selectedProjectId}
+                  onProjectChange={setSelectedProjectId}
+                  taskType={taskType}
+                  onTaskTypeChange={setTaskType}
+                  stepLLMs={stepLLMs}
+                  onStepLLMChange={setStepLLM}
+                  providerModels={PROVIDER_MODELS}
+                  getDefault={getDefault}
+                  phaseDefaults={phaseDefaults}
+                  diskArtifacts={diskArtifacts}
+                  showRerunPicker={showRerunPicker}
+                  onToggleRerunPicker={() => setShowRerunPicker(!showRerunPicker)}
+                  onRerunFromDisk={handleRerunFromDisk}
+                  rerunLoading={rerunLoading}
+                  loading={loading}
+                  logs={logs}
+                  logsCount={logs.length}
+                  debugMode={debugMode}
+                  onToggleDebug={() => setDebugMode(!debugMode)}
+                  onOpenLogs={() => setLogsDrawerOpen(true)}
+                />
+              )}
             </div>
           </div>
 

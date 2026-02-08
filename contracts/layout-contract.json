@@ -2,8 +2,8 @@
   "$orqui": {
     "schema": "layout-contract",
     "version": "2.0.0",
-    "hash": "sha256:753b69e16681ffa5ab44a0fe156e2e4f24799cc6605268e46eebf1d2a41ea5f2",
-    "generatedAt": "2026-02-07T17:53:58.046Z",
+    "hash": "sha256:cdfa26028958ac06a80445955ecc4c7847cc584e1c48df92778d109b12663f2c",
+    "generatedAt": "2026-02-07T23:21:42.931Z",
     "pageCount": 2
   },
   "structure": {
@@ -74,11 +74,11 @@
           "typography": {
             "fontSize": "$tokens.fontSizes.sm",
             "activeFontWeight": "$tokens.fontWeights.medium",
-            "activeColor": "$tokens.colors.bg",
+            "activeColor": "$tokens.colors.accent",
             "fontFamily": "$tokens.fontFamilies.mono",
             "hoverColor": "$tokens.colors.accent",
             "cardEnabled": true,
-            "activeBackground": "$tokens.colors.card-border",
+            "activeBackground": "$tokens.colors.surface-3",
             "cardBackground": "",
             "cardBorderWidth": "0",
             "cardBorderRadius": "$tokens.borderRadius.sm",
@@ -344,7 +344,7 @@
     "favicon": {
       "type": "emoji",
       "url": "",
-      "emoji": "lucide:Code2",
+      "emoji": "lucide:ShieldX",
       "color": "#3a6ab5"
     },
     "headerElements": {
@@ -376,7 +376,7 @@
         {
           "id": "cta-1770447319756",
           "label": "Orchestrator",
-          "variant": "outline",
+          "variant": "default",
           "route": "/orchestrator",
           "icon": "lucide:Terminal"
         }
@@ -867,7 +867,7 @@
         "value": "#a89b8a"
       },
       "accent": {
-        "value": "#5c7fa8"
+        "value": "#4d91ff"
       },
       "accent-fg": {
         "value": "#ffffff"

@@ -52,13 +52,13 @@ export class ValidationOrchestrator {
     }
 
     if (isAbsolute(manifest.testFile)) {
-      throw new Error('manifest.testFile must be a relative path inside the project root.')
+      throw new Error('testFile must be a relative path inside the project root.')
     }
 
     const resolvedTestPath = resolve(run.projectPath, manifest.testFile)
     const relativeToProject = relative(run.projectPath, resolvedTestPath)
     if (relativeToProject.startsWith('..') || isAbsolute(relativeToProject)) {
-      throw new Error('manifest.testFile must not escape the project root.')
+      throw new Error('testFile must not escape the project root.')
     }
 
     // Build target path = projectPath + manifest.testFile

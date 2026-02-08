@@ -1,0 +1,49 @@
+{
+  "task": "Remover hardcoding de provider/modelo e tornar configurações dinâmicas no Orchestrator",
+  "microplans": [
+    {
+      "id": "MP-1",
+      "goal": "Criar testes para steps dinâmicos, remoção de fallbacks hardcoded, e estados de loading/error",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "src/components/__tests__/orchestrator-dynamic-config.spec.tsx",
+          "action": "CREATE",
+          "what": "Testar carregamento dinâmico de configurações via API, estados de loading/error, ausência de fallbacks hardcoded em getDefault e PROVIDER_MODELS, e validação de compatibilidade provider/model."
+        },
+        {
+          "path": "src/components/__tests__/context-panel-dynamic-steps.spec.tsx",
+          "action": "CREATE",
+          "what": "Testar renderização dinâmica de steps baseado em phaseDefaults ordenado, sem array hardcoded."
+        }
+      ],
+      "verify": "npm test -- orchestrator-dynamic-config context-panel-dynamic-steps"
+    },
+    {
+      "id": "MP-2",
+      "goal": "Tornar steps dinâmicos no Context Panel baseado em phaseDefaults",
+      "depends_on": ["MP-1"],
+      "files": [
+        {
+          "path": "src/components/orchestrator/context-panel.tsx",
+          "action": "EDIT",
+          "what": "Substituir array hardcoded [0,1,2,4] por iteração dinâmica sobre phaseDefaults ordenado por step, gerando labels baseado no número do step."
+        }
+      ],
+      "verify": "npm test -- context-panel-dynamic-steps"
+    },
+    {
+      "id": "MP-3",
+      "goal": "Remover fallbacks hardcoded e adicionar loading/error states no orchestrator-page",
+      "depends_on": ["MP-1"],
+      "files": [
+        {
+          "path": "src/components/orchestrator-page.tsx",
+          "action": "EDIT",
+          "what": "Remover todos os fallbacks hardcoded (getDefault e PROVIDER_MODELS), adicionar states de loading/error com renderização condicional de skeleton e alert, e implementar validação de compatibilidade provider/model antes de aplicar configuração."
+        }
+      ],
+      "verify": "npm test -- orchestrator-dynamic-config && npm run typecheck"
+    }
+  ]
+}

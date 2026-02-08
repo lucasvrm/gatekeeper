@@ -1,0 +1,109 @@
+{
+  "task": "Remover dead code de manifest/contract do ValidationOrchestrator e migrar para uso exclusivo de microplan",
+  "microplans": [
+    {
+      "id": "MP-1",
+      "goal": "Atualizar testes de ValidationOrchestrator para validar uso de microplan ao invés de manifest",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/test/unit/ValidationOrchestrator.spec.ts",
+          "action": "EDIT",
+          "what": "Adicionar testes para ensureSpecAtCorrectPath extrair testFile de microplan.files ao invés de manifest.testFile. Adicionar testes para buildContext retornar apenas microplan sem manifest/contract."
+        }
+      ],
+      "verify": "npm run test:unit -w gatekeeper-api -- ValidationOrchestrator.spec.ts"
+    },
+    {
+      "id": "MP-2",
+      "goal": "Atualizar testes de GatekeeperValidationBridge para validar extração direta de testFile sem cache de manifest",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/test/unit/GatekeeperValidationBridge.spec.ts",
+          "action": "EDIT",
+          "what": "Adicionar testes para verificar que testFile é extraído diretamente de microplan.microplans[].files sem usar convertMicroplansToManifest. Remover testes do método convertMicroplansToManifest."
+        }
+      ],
+      "verify": "npm run test:unit -w gatekeeper-api -- GatekeeperValidationBridge.spec.ts"
+    },
+    {
+      "id": "MP-3",
+      "goal": "Criar integration test para validar que pipeline funciona sem manifest/contract no contexto",
+      "depends_on": [],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/test/integration/validation-context.spec.ts",
+          "action": "CREATE",
+          "what": "Testar que ValidationOrchestrator.executeRun funciona com run contendo microplanJson mas sem manifestJson/contractJson. Verificar que ValidationContext.microplan é populado e manifest/contract são null."
+        }
+      ],
+      "verify": "npm run test:integration -w gatekeeper-api -- validation-context.spec.ts"
+    },
+    {
+      "id": "MP-4",
+      "goal": "Refatorar ValidationOrchestrator para usar microplan ao invés de manifest",
+      "depends_on": ["MP-1"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/services/ValidationOrchestrator.ts",
+          "action": "EDIT",
+          "what": "Refatorar ensureSpecAtCorrectPath para extrair testFile de run.microplanJson ao invés de run.manifestJson. Remover parsing de manifestJson e contractJson em buildContext, mantendo apenas microplanJson. Remover campos manifest e contract do objeto retornado por buildContext."
+        }
+      ],
+      "verify": "npm run test:unit -w gatekeeper-api -- ValidationOrchestrator.spec.ts"
+    },
+    {
+      "id": "MP-5",
+      "goal": "Refatorar GatekeeperValidationBridge para extrair testFile diretamente de microplan sem cache",
+      "depends_on": ["MP-2"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/services/GatekeeperValidationBridge.ts",
+          "action": "EDIT",
+          "what": "Remover método convertMicroplansToManifest e suas chamadas. Refatorar readArtifactData para extrair testFile diretamente iterando microplans.microplans[].files. Remover leitura e parsing de contract.json. Remover campos manifestJson e contractJson dos parâmetros de entrada e da interface de retorno."
+        }
+      ],
+      "verify": "npm run test:unit -w gatekeeper-api -- GatekeeperValidationBridge.spec.ts"
+    },
+    {
+      "id": "MP-6",
+      "goal": "Remover campos manifest e contract de ValidationContext e deprecar interfaces ManifestInput/ContractInput",
+      "depends_on": ["MP-4", "MP-5"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/types/gates.types.ts",
+          "action": "EDIT",
+          "what": "Remover campos manifest e contract de ValidationContext interface. Adicionar comentário jsdoc @deprecated nas interfaces ManifestInput e ContractInput indicando uso de microplan.files ao invés."
+        }
+      ],
+      "verify": "npm run typecheck -w gatekeeper-api"
+    },
+    {
+      "id": "MP-7",
+      "goal": "Verificar e limpar ValidationController de referências a manifestJson",
+      "depends_on": ["MP-4", "MP-5"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/src/api/controllers/ValidationController.ts",
+          "action": "EDIT",
+          "what": "Verificar uso de data.manifest.testFile nas linhas 79 e 145. Se ainda necessário, adicionar comentário explicando suporte a formato legado. Se não necessário, remover validação de manifestJson e serialização para DB."
+        }
+      ],
+      "verify": "npm run typecheck -w gatekeeper-api && npm run test:unit -w gatekeeper-api"
+    },
+    {
+      "id": "MP-8",
+      "goal": "Marcar campos manifestJson e contractJson como deprecated no schema Prisma",
+      "depends_on": ["MP-6", "MP-7"],
+      "files": [
+        {
+          "path": "packages/gatekeeper-api/prisma/schema.prisma",
+          "action": "EDIT",
+          "what": "Adicionar comentários triple-slash antes dos campos manifestJson e contractJson no modelo ValidationRun indicando que são deprecated e mantidos apenas para compatibilidade com runs antigos. Indicar uso de microplanJson para novos runs."
+        }
+      ],
+      "verify": "npm run db:generate -w gatekeeper-api"
+    }
+  ]
+}

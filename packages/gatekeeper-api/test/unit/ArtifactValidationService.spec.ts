@@ -284,4 +284,37 @@ describe('ArtifactValidationService', () => {
       })
     })
   })
+
+  describe('validateDiscoveryArtifacts', () => {
+    it('should reject when discovery_report.md is missing', () => {
+      const artifacts = new Map<string, string>()
+      const result = validator.validateDiscoveryArtifacts(artifacts)
+      expect(result.valid).toBe(false)
+      expect(result.results).toContainEqual(
+        expect.objectContaining({
+          valid: false,
+          details: expect.objectContaining({ filename: 'discovery_report.md' }),
+        })
+      )
+    })
+
+    it('should reject when discovery_report.md is too short', () => {
+      const artifacts = new Map<string, string>([
+        ['discovery_report.md', 'too short'],
+      ])
+      const result = validator.validateDiscoveryArtifacts(artifacts)
+      expect(result.valid).toBe(false)
+      expect(result.results[0].message).toContain('muito curto')
+    })
+
+    it('should accept discovery_report.md with sufficient content', () => {
+      const longContent = 'A'.repeat(120)
+      const artifacts = new Map<string, string>([
+        ['discovery_report.md', longContent],
+      ])
+      const result = validator.validateDiscoveryArtifacts(artifacts)
+      expect(result.valid).toBe(true)
+      expect(result.results[0].severity).toBe('success')
+    })
+  })
 })

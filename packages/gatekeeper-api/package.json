@@ -27,9 +27,10 @@
     "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run",
     "test:integration": "vitest run test/**/*Integration*.spec.ts",
-    "test:e2e": "cross-env VITEST_RUN_E2E=true vitest run test/**/*.e2e.spec.ts",
     "test:e2e:resilience": "cross-env VITEST_RUN_E2E=true vitest run test/e2e/pipeline-resilience.e2e.spec.ts",
     "lint": "eslint src/",
+    "test:e2e": "cross-env DATABASE_URL=file:./test.db prisma migrate deploy --schema prisma/schema.prisma && cross-env VITEST_RUN_E2E=true vitest run --config vitest.config.e2e.ts",
+    "test:e2e:log": "powershell -NoProfile -Command \"npm run test:e2e 2>&1 | Tee-Object -FilePath ..\\\\..\\\\artifacts\\\\e2e.log\"",
     "dev:watch-all": "tsx watch src/index.ts"
   },
   "dependencies": {
