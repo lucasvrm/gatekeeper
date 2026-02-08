@@ -844,6 +844,25 @@ Example:
     console.log('[Bridge:Fix] provider:', input.provider, '| model:', input.model)
     console.log('[Bridge:Fix] taskPrompt length:', input.taskPrompt?.length ?? 0)
 
+    // MP-VAL-02: Validate inputs before proceeding
+    if (!input.outputId || !input.target || !input.failedValidators?.length) {
+      throw new BridgeError(
+        'Invalid fix input: missing required fields (outputId, target, or failedValidators)',
+        'INVALID_INPUT',
+        { input: { outputId: input.outputId, target: input.target, failedValidatorsCount: input.failedValidators?.length ?? 0 } },
+      )
+    }
+
+    if (input.target !== 'plan' && input.target !== 'spec') {
+      throw new BridgeError(
+        `Invalid fix target: expected 'plan' or 'spec', got '${input.target}'`,
+        'INVALID_INPUT',
+        { input: { target: input.target } },
+      )
+    }
+
+    console.log('[Bridge:Fix] ✅ Input validation passed')
+
     emit({ type: 'agent:bridge_start', step: 3, outputId: input.outputId } as AgentEvent)
 
     const existingArtifacts = await this.readArtifactsFromDisk(input.outputId, input.projectPath)
@@ -1174,6 +1193,28 @@ Example:
     for (const [name, c] of savedArtifacts) {
       console.log(`[Bridge:Fix]   POST ${name}: ${c.length} chars`)
     }
+
+    // MP-VAL-01: Validate outputs before persisting
+    const stepNumber = input.target === 'plan' ? 1 : 2
+    const validation = this.validator.validateStepArtifacts(stepNumber, savedArtifacts)
+
+    if (!validation.valid) {
+      const errorDetails = validation.results
+        .filter((r) => !r.valid)
+        .map((r) => `${r.details.filename}: ${r.message}`)
+        .join(', ')
+
+      console.error('[Bridge:Fix] ❌ Output validation failed:', errorDetails)
+      console.error('[Bridge:Fix] Validation results:', JSON.stringify(validation.results, null, 2))
+
+      throw new BridgeError(
+        `Fix artifacts validation failed: ${errorDetails}`,
+        'INVALID_ARTIFACTS',
+        { validation: validation.results },
+      )
+    }
+
+    console.log('[Bridge:Fix] ✅ Output validation passed')
 
     const artifacts = await this.persistArtifacts(
       savedArtifacts,
